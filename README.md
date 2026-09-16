@@ -19,8 +19,8 @@ Open a project folder or manifest, orbit the mesh, and scrub the same three dual
 - 默认加载真实 **Test Cylinder**（`Single_Cylinder_Test`）。
 - 三个双向滑块（半开区间 `[start, end)`，相邻手柄显示 1 项）：
   - **cols_resample**：过滤 `*_cols_resample_field.obj` 的列折线，标签如 `cols_resample: idx a-b / N`（圆柱 **42**）
-  - **row**（副标题 faces_ring）：按 `first_rows` 的 face ring 过滤 KnittingStitches。半开区间 `[start, end)`，圆柱 **5** 环（`N_seed-1`，跳过种子列 `row_0`）。各环 term 数来自 `faces_ring_layout.json`：`46, 136, 110, 106, 73`（合计 471），**不是** 475/5 均分。标签如 `row: idx 0-4 / 5`
-  - **term**（副标题 `ring N`）：只切第二滑块右端那一环（active = `r1 - 1`）里的 term。更早的环整环保留。默认 `term: idx 0-72 / 73`（全选 `[0,5)` 时最大环是第 5 环 / 73 针）
+  - **row**（副标题 faces_ring）：按 `first_rows` 的 face ring 过滤 KnittingStitches。半开区间 `[start, end)`，圆柱 **5** 环（`N_seed-1`，跳过种子列 `row_0`）。切片宽度 **46, 136, 110, 106, 77**（合计 **475**）。sidecar 的 stuck_all 最后一环是 73 个 typed term，多出的 4 个 OBJ 面会并进最后一环并保持粉色。**不是** 475/5 均分。标签如 `row: idx 0-4 / 5`
+  - **term**（副标题 `ring N`）：只切第二滑块右端那一环（active = `r1 - 1`）里的 term。更早的环整环保留。默认 `term: idx 0-76 / 77`（全选 `[0,5)` 时最大环是第 5 环 / 77 针）
 - **文件夹 Folder** / **文件 Files** 仍从**手机本地**读取 OBJ 或清单（不上传服务器）。
 - **示例 Sample** 重新加载内置圆柱。
 
@@ -86,7 +86,7 @@ npm run preview
 
 `_normalize_half_open_slider` 保证 `end >= start + 1`。标签：`cols_resample: idx a-b / N`；`row: idx a-b / 5`；`term: idx a-b / N`（副标题 `ring N`）。没有针迹的项目才显示旧的 `display_models` 滑块。
 
-`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即 `faces_allin` 展平（`for path in paths: for term in path`）。`first_rows.xls` 决定有多少个 face ring；`faces_ring_layout.json` 用各环 `n_terms` + `types[]` 切开并上色。圆柱权威切片是 **46, 136, 110, 106, 73**（471）。OBJ 有 475 面，多出的 4 面保持未分环、粉色，不并进最后一环。不要均分 475/5，也不要把 65 个 `rowNNN` 或 6 个种子列当成 N。
+`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即 `faces_allin` 展平（`for path in paths: for term in path`）。`first_rows.xls` 决定有多少个 face ring；`faces_ring_layout.json` 用各环 `n_terms` + `types[]` 上色。圆柱切片是 **46, 136, 110, 106, 77**（475）：sidecar stuck_all 是 73 个 typed term，余下 4 面并进最后一环、默认粉色。不要均分 475/5，也不要把 65 个 `rowNNN` 或 6 个种子列当成 N。
 
 针迹面按桌面 `build_and_show_knitting_stitches` 的 Term.Type 上色（灰 / 白 / 黑 / 红 / 绿 / 黄 / 蓝 / 粉），边线黑色（`edge_color: [0,0,0]`）。没有 sidecar 时才按 N 环均分。
 
