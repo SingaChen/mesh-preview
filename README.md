@@ -6,16 +6,31 @@ Mobile-friendly WebGL previewer for SingaLab knitting mesh outputs.
 
 Open a project folder or manifest, orbit the mesh, and use sliders for iterations and display modes. Target: **Android Chrome** (desktop works too).
 
-## Quick start
+## 手机上打开 / Open on a phone
+
+**首选 / Primary — GitHub Pages（任意网络，不必同一 Wi-Fi）：**
+
+**https://singachen.github.io/mesh-preview/**
+
+每次推送到 `main` 后，GitHub Actions（`.github/workflows/deploy-pages.yml`）会 `npm ci` → `npm run build`，并把 `dist/` 部署到 Pages。仓库 **Settings → Pages → Source** 需设为 **GitHub Actions**（首次由仓库管理员开启）。
+
+在 **Android Chrome** 打开该地址后：
+
+- **文件夹 Folder** / **文件 Files** 仍从**手机本地**读取 OBJ 或清单（不上传服务器）。
+- **示例 Sample** 加载站点内置袖筒网格。
+
+生产构建会用 Service Worker 缓存同源资源，刷新可离线打开应用壳。
+
+## Quick start（本机开发 / Local, secondary）
 
 ```bash
 npm install
 npm run dev
 ```
 
-浏览器打开终端里的本地地址（默认 `http://localhost:5173`）。页面会自动加载内置示例袖筒网格。
+Vite `base` 为 `/mesh-preview/`，浏览器打开终端里的地址（一般为 `http://localhost:5173/mesh-preview/`）。页面会自动加载内置示例袖筒网格。
 
-The page loads a tiny built-in sample sleeve so you can demo orbit / slider without any SingaLab outputs.
+同一局域网调试时，电脑运行 `npm run dev`（已加 `--host`），手机打开终端打印的 Network 地址（需带 `/mesh-preview/`）。公司网络可能隔离客户端。
 
 生产构建：
 
@@ -24,25 +39,7 @@ npm run build
 npm run preview
 ```
 
-`npm run build` 输出静态文件到 `dist/`，可放到任意静态托管（含 GitHub Pages）。
-
-## 手机上打开 / Open on a phone
-
-同一局域网（开发时）：
-
-1. 电脑运行 `npm run dev`（已加 `--host`，会监听局域网）。
-2. 终端会打印 `Network: http://192.168.x.x:5173`。
-3. 手机和电脑连同一 Wi-Fi，用 **Android Chrome** 打开该地址。
-4. 若打不开：检查防火墙是否放行 5173；公司网络可能隔离客户端。
-
-之后用 GitHub Pages（或任意静态托管）发布 `dist/`：
-
-```bash
-npm run build
-# 把 dist/ 发布到 https://<user>.github.io/mesh-preview/
-```
-
-本仓库 Vite `base` 为 `./`，相对路径可直接放在子目录站点。首次打开后，生产构建会用 Service Worker 缓存同源资源，刷新可离线打开应用壳；本地 OBJ 仍通过文件选择器读取，不上传服务器。
+`npm run build` 输出静态文件到 `dist/`，资源路径带 `/mesh-preview/` 前缀，对应项目 Pages 子路径。`npm run preview` 预览地址一般为 `http://localhost:4173/mesh-preview/`。
 
 ## 打开 SingaLab 输出 / Load a project
 
