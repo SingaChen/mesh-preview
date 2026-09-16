@@ -198,17 +198,16 @@ async function loadStitches(output) {
 }
 
 async function loadCols(output) {
-  if (!output.colsResampleXlsFile && !output.colsResampleJsonFile && !output.colsResampleFile) {
+  if (!output.colsResampleXlsFile && !output.colsResampleFile) {
     return null;
   }
-  const [fieldText, sidecar, xls] = await Promise.all([
+  const [fieldText, xls] = await Promise.all([
     output.colsResampleFile ? loadText(output.colsResampleFile) : Promise.resolve(""),
-    output.colsResampleJsonFile ? loadText(output.colsResampleJsonFile) : Promise.resolve(null),
     output.colsResampleXlsFile ? loadBuffer(output.colsResampleXlsFile) : Promise.resolve(null),
   ]);
-  const columns = parseColsResample({ xls, sidecar, fieldText });
+  const columns = parseColsResample({ xls, fieldText });
   return columns.length
-    ? { columns, entry: output.colsResampleXlsFile || output.colsResampleJsonFile || output.colsResampleFile }
+    ? { columns, entry: output.colsResampleXlsFile || output.colsResampleFile }
     : null;
 }
 

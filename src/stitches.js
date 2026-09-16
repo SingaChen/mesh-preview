@@ -3,19 +3,19 @@
  *
  * Mapping (investigated on Single_Cylinder_Test 2026-09-16):
  * - KnittingStitches.obj lists one n-gon per stitch in generation order
- *   (first 35 faces are the base ring / row000, 35 needles).
+ *   (first 21 faces are the base ring / row000, 21 needles on this dump).
  * - Vertex colours: gray 0.55 = normal, red = special/highlight, plus
  *   black/white/green/yellow/blue markers. Faces reuse copied verts.
  * - readable_map.txt walks the same generation order: each token
  *   (including the leftover "-" after a -R2 decrease) is one stitch
  *   cell with an explicit row id and needle column.
- * - This OBJ has 450 faces vs 479 map tokens: leftover tokens are the
- *   last short rows (65–68) that have no stitch geometry. Do not invent
+ * - This dump has 475 faces vs more map tokens (header 479 cells): leftover
+ *   tokens are the last short rows with no stitch geometry. Do not invent
  *   rows; unmatched faces/cells stay unbound.
  * - first_rows.xls / cols_resample.xls describe resampled field polylines.
- *   Desktop slider N is len(cols_smooth2) (42 on the cylinder sample), not
- *   raw xls fragment rows (FULL/SHORT_* over-count) and not field OBJ
- *   connected components. Face terms come from OBJ generation order.
+ *   Desktop slider N is len(cols_resample) after extractRows (42 on this
+ *   cylinder dump). Parse xls points_detail by col id 0..N-1, or sequential
+ *   (i,i+1) chains in field.obj. Do not invent SHORT_* parent merges.
  */
 
 import { findXlsSheet, parseXlsWorkbook } from "./xls.js";
@@ -201,38 +201,36 @@ export function faceChunksFromFaces(faces) {
 }
 
 /**
- * cols_resample_field.obj v-runs. Do NOT use this for column identity:
- * connected components over/under-count vs desktop len(cols_smooth2).
+ * Desktop writes field.obj sequentially: for each column, append verts,
+ * then `l` edges only between consecutive verts in that column. No groups.
+ * A chain is a maximal run of edges (i, i+1). Isolated verts are length-1.
  */
 export function parseColsResampleField(text) {
-  const columns = [];
-  let points = [];
-  let mode = null;
-
-  const flush = () => {
-    if (!points.length) return;
-    columns.push({ points });
-    points = [];
-  };
-
-  for (const raw of String(text).split(/\r?\n/)) {
-    if (raw.startsWith("v ")) {
-      if (mode === "l") flush();
-      mode = "v";
-      const n = raw.trim().split(/\s+/).slice(1).map(Number);
-      points.push({
-        x: n[0],
-        y: n[1],
-        z: n[2],
-        r: n.length >= 6 ? n[3] : 0,
-        g: n.length >= 6 ? n[4] : 0.15,
-        b: n.length >= 6 ? n[5] : 1,
-      });
-    } else if (raw.startsWith("l ")) {
-      mode = "l";
+  const { verts, lines } = parseColoredObj(text);
+  const consecutive = new Set();
+  for (const idx of lines) {
+    for (let k = 0; k + 1 < idx.length; k++) {
+      const a = idx[k];
+      const b = idx[k + 1];
+      if (Math.abs(a - b) === 1) consecutive.add(Math.min(a, b));
     }
   }
-  flush();
+
+  const columns = [];
+  let i = 0;
+  while (i < verts.length) {
+    const points = [colorPoint(verts[i], 0)];
+    while (i + 1 < verts.length && consecutive.has(i)) {
+      i += 1;
+      points.push(colorPoint(verts[i], points.length));
+    }
+    columns.push({
+      col: columns.length,
+      type: null,
+      points,
+    });
+    i += 1;
+  }
   return columns;
 }
 
@@ -256,27 +254,34 @@ function asIntCol(value) {
   return Math.trunc(n);
 }
 
+function colorPoint(v, index) {
+  return {
+    index,
+    x: v.x,
+    y: v.y,
+    z: v.z,
+    r: v.r ?? 0.2,
+    g: v.g ?? 0.7,
+    b: v.b ?? 1,
+  };
+}
+
 function fieldVertColors(fieldText) {
   if (!fieldText) return [];
   return parseColoredObj(fieldText).verts;
 }
 
-function denseColumns(groups) {
+function columnsFromColGroups(groups) {
   const ids = [...groups.keys()].sort((a, b) => a - b);
-  if (!ids.length) return [];
-  const min = Math.min(0, ids[0]);
-  const max = ids[ids.length - 1];
-  const columns = [];
-  for (let id = min; id <= max; id++) {
+  return ids.map((id) => {
     const list = groups.get(id) || [];
     list.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-    columns.push({
+    return {
       col: id,
       type: list[0]?.type ?? null,
       points: list,
-    });
-  }
-  return columns;
+    };
+  });
 }
 
 function columnsFromPointsDetail(rows, fieldVerts) {
@@ -311,7 +316,7 @@ function columnsFromPointsDetail(rows, fieldVerts) {
     });
     global += 1;
   }
-  return denseColumns(groups);
+  return columnsFromColGroups(groups);
 }
 
 function columnsFromSheet0(rows, fieldVerts) {
@@ -371,207 +376,36 @@ function columnsFromSheet0(rows, fieldVerts) {
     if (!groups.has(col)) groups.set(col, []);
     groups.get(col).push(...points);
   }
-  return denseColumns(groups);
+  return columnsFromColGroups(groups);
 }
 
-function parseSidecarMeta(data) {
-  if (!data) return {};
-  return typeof data === "string" ? JSON.parse(data) : data;
-}
-
-function columnsFromSidecar(data) {
-  if (!data) return [];
-  const parsed = parseSidecarMeta(data);
-  const raw = parsed.columns || parsed.cols_resample || parsed.cols;
-  if (!Array.isArray(raw) || !raw.some((col) => Array.isArray(col?.points) && col.points.length)) {
-    return [];
-  }
-  return raw.map((col, i) => ({
-    col: col.col ?? col.id ?? i,
-    type: col.type ?? null,
-    points: (col.points || []).map((p, k) => ({
-      index: p.index ?? k,
-      x: Number(p.x),
-      y: Number(p.y),
-      z: Number(p.z),
-      r: p.r ?? 0.2,
-      g: p.g ?? 0.7,
-      b: p.b ?? 1,
-      type: p.type ?? col.type ?? null,
-    })),
-  }));
-}
-
-const SEED_TYPES = new Set(["FULL", "SHORT_BEGIN"]);
-const CHILD_TYPES = new Set(["SHORT_INNER", "SHORT_END"]);
-
-function colTypeName(col) {
-  return String(col?.type ?? col?.points?.[0]?.type ?? "").trim().toUpperCase();
-}
-
-function pointAngleY(p) {
-  return Math.atan2(Number(p.z) || 0, Number(p.x) || 0);
-}
-
-function circularMeanAngle(points) {
-  let sx = 0;
-  let sy = 0;
-  for (const p of points || []) {
-    const a = pointAngleY(p);
-    sx += Math.cos(a);
-    sy += Math.sin(a);
-  }
-  return Math.atan2(sy, sx);
-}
-
-function angleDelta(a, b) {
-  const d = Math.abs(a - b) % (Math.PI * 2);
-  return Math.min(d, Math.PI * 2 - d);
-}
-
-function medianNumber(values) {
-  const s = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
-  if (!s.length) return 0;
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
-
-function flattenMergedColumn(members, index) {
-  const points = [];
-  let type = null;
-  for (const m of members) {
-    if (!type && m.type) type = m.type;
-    if (String(m.type || "").toUpperCase() === "FULL") type = m.type;
-    for (const p of m.points || []) points.push(p);
-  }
-  points.sort((a, b) => {
-    const dy = (a.y ?? 0) - (b.y ?? 0);
-    if (dy) return dy;
-    return (a.index ?? 0) - (b.index ?? 0);
-  });
-  return {
-    col: index,
-    type,
-    points,
-    sources: members.map((m) => m.col),
-  };
-}
-
-function applyXlsColGroups(fragments, groups) {
-  const byId = new Map(fragments.map((c) => [c.col, c]));
-  return groups
-    .map((ids) => (Array.isArray(ids) ? ids : []).map((id) => byId.get(id)).filter(Boolean))
-    .filter((members) => members.length)
-    .map((members, i) => flattenMergedColumn(members, i));
-}
-
-/**
- * Rebuild desktop logical columns from xls FULL/SHORT_* fragments.
- * Seeds are FULL + SHORT_BEGIN; SHORT_INNER/END attach if their cylinder
- * angle (Y-axis) is within 0.45 * unitW / R_median. Leftovers cluster
- * with the same threshold and become extra parents (cylinder → 42).
- */
-export function mergeColsResampleParents(fragments, meta = {}) {
-  if (!fragments?.length) return [];
-  const hasShort = fragments.some((c) => /^SHORT_/.test(colTypeName(c)));
-  const targetN = Number.isFinite(Number(meta.n)) ? Math.trunc(Number(meta.n)) : null;
-  if (!hasShort && (targetN == null || fragments.length === targetN)) {
-    return fragments;
-  }
-
-  const unitW = Number(meta.unitW) > 0 ? Number(meta.unitW) : 5;
-  const attach = Number(meta.attachFactor) > 0 ? Number(meta.attachFactor) : 0.45;
-  const annotated = fragments.map((c, i) => {
-    const points = c.points || [];
-    const rs = points.map((p) => Math.hypot(p.x || 0, p.z || 0));
-    return {
-      ...c,
-      _i: i,
-      _type: colTypeName(c),
-      _ang: points.length ? circularMeanAngle(points) : 0,
-      _r: rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : 0,
-    };
-  });
-
-  const seeds = annotated.filter((f) => SEED_TYPES.has(f._type));
-  const kids = annotated.filter((f) => CHILD_TYPES.has(f._type));
-  const other = annotated.filter((f) => !SEED_TYPES.has(f._type) && !CHILD_TYPES.has(f._type));
-  if (!seeds.length) return fragments;
-
-  const R = medianNumber(annotated.map((f) => f._r).filter((r) => r > 0)) || 1;
-  const thresh = (attach * unitW) / R;
-  const groups = seeds.map((s) => [s]);
-  const leftovers = [];
-  for (const k of kids) {
-    let best = 0;
-    let bestD = Infinity;
-    for (let i = 0; i < seeds.length; i++) {
-      const d = angleDelta(k._ang, seeds[i]._ang);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
-      }
-    }
-    if (bestD <= thresh) groups[best].push(k);
-    else leftovers.push(k);
-  }
-
-  const parent = leftovers.map((_, i) => i);
-  const find = (i) => {
-    while (parent[i] !== i) {
-      parent[i] = parent[parent[i]];
-      i = parent[i];
-    }
-    return i;
-  };
-  for (let i = 0; i < leftovers.length; i++) {
-    for (let j = i + 1; j < leftovers.length; j++) {
-      if (angleDelta(leftovers[i]._ang, leftovers[j]._ang) <= thresh) {
-        parent[find(j)] = find(i);
-      }
+export function xlsScaleMatrixRowCount(workbook) {
+  if (!workbook?.sheets?.length) return 0;
+  const sheet =
+    findXlsSheet(workbook, /scale_matrix/i) ||
+    findXlsSheet(workbook, (s) => headerIndex(s.rows[0] || [], "col", "col\\row") >= 0) ||
+    workbook.sheets[0];
+  if (!sheet?.rows?.length) return 0;
+  const colI = headerIndex(sheet.rows[0] || [], "col", "col\\row");
+  let n = 0;
+  for (let r = 1; r < sheet.rows.length; r++) {
+    if (colI >= 0) {
+      if (asIntCol(sheet.rows[r]?.[colI]) != null) n += 1;
+    } else if ((sheet.rows[r] || []).some(isFilled)) {
+      n += 1;
     }
   }
-  const clustered = new Map();
-  for (let i = 0; i < leftovers.length; i++) {
-    const root = find(i);
-    if (!clustered.has(root)) clustered.set(root, []);
-    clustered.get(root).push(leftovers[i]);
-  }
-  let extras = [...clustered.values()];
+  return n;
+}
 
-  if (targetN != null && seeds.length + extras.length + other.length > targetN) {
-    while (seeds.length + extras.length + other.length > targetN && extras.length > 1) {
-      let bi = 0;
-      let bj = 1;
-      let bd = Infinity;
-      for (let i = 0; i < extras.length; i++) {
-        const ai = circularMeanAngle(extras[i].flatMap((f) => f.points || []));
-        for (let j = i + 1; j < extras.length; j++) {
-          const aj = circularMeanAngle(extras[j].flatMap((f) => f.points || []));
-          const d = angleDelta(ai, aj);
-          if (d < bd) {
-            bd = d;
-            bi = i;
-            bj = j;
-          }
-        }
-      }
-      extras = extras
-        .filter((_, k) => k !== bi && k !== bj)
-        .concat([[...extras[bi], ...extras[bj]]]);
-    }
-  }
-
-  const all = [...groups, ...extras, ...other.map((f) => [f])];
-  all.sort((a, b) => {
-    const seedKey = (members) => {
-      const seedCols = members.filter((m) => SEED_TYPES.has(m._type)).map((m) => m.col ?? m._i);
-      if (seedCols.length) return Math.min(...seedCols);
-      return Math.min(...members.map((m) => m.col ?? m._i));
-    };
-    return seedKey(a) - seedKey(b);
-  });
-  return all.map((members, i) => flattenMergedColumn(members, i));
+function assertColsLensMatch(parts) {
+  const present = parts.filter((p) => p.n > 0);
+  if (present.length < 2) return;
+  const n = present[0].n;
+  const mismatch = present.find((p) => p.n !== n);
+  if (!mismatch) return;
+  const detail = present.map((p) => `${p.name}=${p.n}`).join(" ");
+  throw new Error(`cols_resample length mismatch: ${detail}`);
 }
 
 export function uniqueColIdsFromXls(workbook) {
@@ -591,35 +425,37 @@ export function uniqueColIdsFromXls(workbook) {
 }
 
 /**
- * Column identity/count is desktop len(cols_smooth2): merge xls FULL/SHORT_*
- * fragments (or honor a sidecar n / groups). Field OBJ only supplies colours.
+ * Desktop cols_resample: one polyline per scale_matrix row (ids 0..N-1).
+ * Prefer xls points_detail grouped by those col ids; otherwise sequential
+ * (i,i+1) chains in field.obj. Lengths must match when both exist.
  */
-export function parseColsResample({ xls, workbook, sidecar, fieldText } = {}) {
-  const meta = parseSidecarMeta(sidecar);
-  const fromJson = columnsFromSidecar(meta);
-  if (fromJson.length) return fromJson;
-
+export function parseColsResample({ xls, workbook, fieldText } = {}) {
   const book = workbook || (xls ? parseXlsWorkbook(xls) : null);
+  const fieldCols = fieldText ? parseColsResampleField(fieldText) : [];
   const fieldVerts = fieldVertColors(fieldText);
-  let fragments = [];
+
+  let xlsCols = [];
   if (book) {
     const detail = findXlsSheet(book, /points_detail/i);
-    fragments = columnsFromPointsDetail(detail?.rows, fieldVerts);
-    if (!fragments.length) {
+    xlsCols = columnsFromPointsDetail(detail?.rows, fieldVerts);
+    if (!xlsCols.length) {
       const sheet0 =
+        findXlsSheet(book, /scale_matrix/i) ||
         findXlsSheet(book, (s) => headerIndex(s.rows[0] || [], "col", "col\\row") >= 0) ||
         book.sheets[0];
-      fragments = columnsFromSheet0(sheet0?.rows, fieldVerts);
+      xlsCols = columnsFromSheet0(sheet0?.rows, fieldVerts);
     }
   }
-  if (!fragments.length) return [];
 
-  const groups = meta.groups || meta.xlsCols || meta.polylines;
-  if (Array.isArray(groups) && groups.length) {
-    const merged = applyXlsColGroups(fragments, groups);
-    if (merged.length) return merged;
-  }
-  return mergeColsResampleParents(fragments, meta);
+  const nXlsRows = book ? xlsScaleMatrixRowCount(book) : 0;
+  assertColsLensMatch([
+    { name: "xls", n: xlsCols.length },
+    { name: "scale_matrix", n: nXlsRows },
+    { name: "field", n: fieldCols.length },
+  ]);
+
+  if (xlsCols.length) return xlsCols;
+  return fieldCols;
 }
 
 export function columnTrails(stitches, { maxRow = Infinity, onlyCol = null } = {}) {

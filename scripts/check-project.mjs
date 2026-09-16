@@ -22,8 +22,10 @@ import {
   faceChunksFromFaces,
   parseColoredObj,
   parseColsResample,
+  parseColsResampleField,
   parseReadableMap,
   uniqueColIdsFromXls,
+  xlsScaleMatrixRowCount,
 } from "../src/stitches.js";
 import { parseXlsWorkbook } from "../src/xls.js";
 
@@ -52,8 +54,8 @@ assert(
   "manifest must list cols_resample xls",
 );
 assert(
-  refs.some((r) => /cols_resample_meta\.json$/.test(r)),
-  "manifest must list cols_resample meta sidecar",
+  !refs.some((r) => /cols_resample_meta\.json$/.test(r)),
+  "manifest must not list a cols_resample meta sidecar",
 );
 
 const entries = [
@@ -75,7 +77,7 @@ if (!fromManifest.outputs[0].stitchFile) throw new Error("expected stitch file")
 if (!fromManifest.outputs[0].readableMapFile) throw new Error("expected readable_map");
 if (!fromManifest.outputs[0].colsResampleFile) throw new Error("expected cols_resample field");
 if (!fromManifest.outputs[0].colsResampleXlsFile) throw new Error("expected cols_resample xls");
-if (!fromManifest.outputs[0].colsResampleJsonFile) throw new Error("expected cols_resample meta json");
+if (fromManifest.outputs[0].colsResampleJsonFile) throw new Error("sample should not ship a cols_resample sidecar");
 
 const fromDiscovery = projectFromDiscovery(index);
 if (fromDiscovery.outputs.length !== 1) {
@@ -84,7 +86,7 @@ if (fromDiscovery.outputs.length !== 1) {
 if (!fromDiscovery.outputs[0].overlayFile) throw new Error("discovery should attach stitches");
 if (!fromDiscovery.outputs[0].colsResampleFile) throw new Error("discovery should attach cols_resample field");
 if (!fromDiscovery.outputs[0].colsResampleXlsFile) throw new Error("discovery should attach cols_resample xls");
-if (!fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery should attach cols_resample meta json");
+if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery should not require a cols_resample sidecar");
 if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
   throw new Error("overlay heuristic failed for KnittingStitches");
 }
@@ -93,32 +95,29 @@ const stitchText = readFileSync(join(cylDir, "iteration_0_cut_KnittingStitches.o
 const mapText = readFileSync(join(cylDir, "iteration_0_cut_readable_map.txt"), "utf8");
 const fieldText = readFileSync(join(cylDir, "iteration_0_cut_cols_resample_field.obj"), "utf8");
 const xlsBuf = readFileSync(join(cylDir, "iteration_0_cut_cols_resample.xls"));
-const sidecar = JSON.parse(readFileSync(join(cylDir, "cols_resample_meta.json"), "utf8"));
-assert(sidecar.n === 42, `sidecar n must be 42, got ${sidecar.n}`);
-assert(Array.isArray(sidecar.groups) && sidecar.groups.length === 42, "sidecar lists 42 polyline groups");
 const parsed = parseColoredObj(stitchText);
-if (parsed.faces.length !== 450) throw new Error(`expected 450 stitch faces, got ${parsed.faces.length}`);
-if (parsed.verts.length !== 1716) throw new Error(`expected 1716 stitch verts, got ${parsed.verts.length}`);
+if (parsed.faces.length !== 475) throw new Error(`expected 475 stitch faces, got ${parsed.faces.length}`);
+if (parsed.verts.length !== 1812) throw new Error(`expected 1812 stitch verts, got ${parsed.verts.length}`);
 
 const map = parseReadableMap(mapText);
-if (map.rows.length !== 69) throw new Error(`expected 69 readable rows, got ${map.rows.length}`);
-if (map.rowMax !== 68) throw new Error(`expected rowMax 68, got ${map.rowMax}`);
-if (map.cells.length < 450) throw new Error(`expected at least 450 map cells, got ${map.cells.length}`);
-if (map.rows[0].tokens.length !== 35) throw new Error("row000 should list 35 needle tokens");
+if (map.rows.length !== 65) throw new Error(`expected 65 readable rows, got ${map.rows.length}`);
+if (map.rowMax !== 64) throw new Error(`expected rowMax 64, got ${map.rowMax}`);
+if (map.cells.length < 475) throw new Error(`expected at least 475 map cells, got ${map.cells.length}`);
+if (map.rows[0].tokens.length !== 21) throw new Error("row000 should list 21 needle tokens");
 
 const bound = bindStitchesToMap(parsed.faces, map);
-if (bound.stitches.length !== 450) throw new Error("bind should keep every face");
+if (bound.stitches.length !== 475) throw new Error("bind should keep every face");
 const row0 = bound.stitches.filter((s) => s.row === 0);
-if (row0.length !== 35) throw new Error(`row000 should bind 35 faces, got ${row0.length}`);
-if (row0.some((s) => s.col < 0 || s.col > 34)) throw new Error("row000 columns should be 0..34");
+if (row0.length !== 21) throw new Error(`row000 should bind 21 faces, got ${row0.length}`);
+if (row0.some((s) => s.col < 0 || s.col > 20)) throw new Error("row000 columns should be 0..20");
 if (bound.rowMin !== 0) throw new Error("bound rowMin should be 0");
-if (bound.rowMax < 60) throw new Error("bound rowMax should reach the upper courses");
-if (bound.columns.length < 30) throw new Error("expected dozens of needle columns");
+if (bound.rowMax < 50) throw new Error("bound rowMax should reach the upper courses");
+if (bound.columns.length < 20) throw new Error("expected dozens of needle columns");
 if (bound.leftoverCells < 1) throw new Error("map has extra tail tokens with no faces");
 
 const chunks = faceChunksFromFaces(parsed.faces);
-assert(chunks.length === 450, `faces_ring terms should be 450 faces, got ${chunks.length}`);
-assert(chunks[0].index === 0 && chunks[449].index === 449, "terms stay in generation order");
+assert(chunks.length === 475, `faces_ring terms should be 475 faces, got ${chunks.length}`);
+assert(chunks[0].index === 0 && chunks[474].index === 474, "terms stay in generation order");
 
 const windowed = sliceHalfOpen(chunks, 10, 12);
 assert(windowed.length === 2, "half-open [10,12) keeps two terms");
@@ -128,31 +127,56 @@ assert(one.length === 1 && one[0].index === 7, "adjacent handles show one term")
 
 const workbook = parseXlsWorkbook(xlsBuf);
 const xlsColIds = uniqueColIdsFromXls(workbook);
-assert(xlsColIds.length > 42, "raw xls fragment ids over-count vs desktop N=42");
+const xlsRows = xlsScaleMatrixRowCount(workbook);
+assert(xlsRows === 42, `scale_matrix should have 42 column rows, got ${xlsRows}`);
+assert(xlsColIds.length === 42, `points_detail col ids should be 0..41, got ${xlsColIds.length}`);
+assert(xlsColIds[0] === 0 && xlsColIds[41] === 41, "col ids stay contiguous 0..41");
 
-const columns = parseColsResample({ xls: xlsBuf, fieldText, sidecar });
+const fieldCols = parseColsResampleField(fieldText);
+assert(fieldCols.length === 42, `field.obj sequential chains should be 42, got ${fieldCols.length}`);
+
+const columns = parseColsResample({ xls: xlsBuf, fieldText });
 assert(columns.length === 42, `cylinder cols_resample should be 42, got ${columns.length}`);
-assert(columns.length !== xlsColIds.length, "do not use raw xls col ids as slider N");
-assert(columns[0].col === 0 && columns[0].type === "FULL", "idx 0 is the FULL parent column");
-assert(columns[0].points.length >= 12, "FULL parent keeps its 12 samples");
+assert(columns[0].col === 0 && columns[0].type === "FULL", "idx 0 is the first xls column");
+assert(columns[41].col === 41, "idx 41 is the last xls column");
+assert(columns[0].points.length === 12, "col 0 keeps its 12 export samples");
 assert(
-  columns.reduce((n, c) => n + c.points.length, 0) === 435,
-  "merged parents still hold every points_detail sample",
+  columns.every((c, i) => c.points.length === fieldCols[i].points.length),
+  "xls point counts must match field.obj chains 1:1",
+);
+assert(
+  columns.reduce((n, c) => n + c.points.length, 0) === 459,
+  "points_detail + field.obj both hold 459 samples",
 );
 const visCols = sliceHalfOpen(columns, 0, 1);
 assert(visCols.length === 1 && visCols[0].col === 0, "cols_resample [0,1) keeps one column");
-assert(sliceHalfOpen(columns, 0, 42).length === 42, "default [0,N) keeps every logical column");
+assert(sliceHalfOpen(columns, 0, 42).length === 42, "default [0,N) keeps every export column");
 
-const derived = parseColsResample({ xls: xlsBuf, fieldText, sidecar: { n: 42, unitW: 5 } });
-assert(derived.length === 42, `derived merge without groups should be 42, got ${derived.length}`);
+const fromFieldOnly = parseColsResample({ fieldText });
+assert(fromFieldOnly.length === 42, `field-only sequential parse should be 42, got ${fromFieldOnly.length}`);
 
 const fromSheet0 = parseColsResample({
   workbook: { sheets: workbook.sheets.filter((s) => s.name !== "points_detail") },
   fieldText,
-  sidecar: { n: 42, unitW: 5 },
 });
-assert(fromSheet0.length === 42, `sheet0 fallback should merge to 42, got ${fromSheet0.length}`);
-assert(fromSheet0[0].type === "FULL" && fromSheet0[0].points.length >= 12, "sheet0 merge keeps FULL col 0");
+assert(fromSheet0.length === 42, `scale_matrix fallback should be 42, got ${fromSheet0.length}`);
+assert(fromSheet0[0].type === "FULL" && fromSheet0[0].points.length === 12, "scale_matrix keeps FULL col 0");
+
+const toyField = [
+  "v 0 0 0 1 0 0",
+  "v 1 0 0 1 0 0",
+  "l 1 2",
+  "v 2 0 0 0 1 0",
+  "v 3 0 0 0 0 1",
+  "v 4 0 0 0 0 1",
+  "l 4 5",
+].join("\n");
+const toyCols = parseColsResampleField(toyField);
+assert(toyCols.length === 3, `single-vert columns stay their own chain, got ${toyCols.length}`);
+assert(
+  toyCols.map((c) => c.points.length).join(",") === "2,1,2",
+  "desktop sequential chains do not invent merges",
+);
 
 assert.deepEqual = (a, b, msg) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg || `${JSON.stringify(a)} != ${JSON.stringify(b)}`);
@@ -169,10 +193,10 @@ assert(
   "full-range label uses last inclusive index",
 );
 assert(
-  formatHalfOpenRangeLabel("faces_ring", 12, 13, 450) === "faces_ring: idx 12 / 450",
+  formatHalfOpenRangeLabel("faces_ring", 12, 13, 475) === "faces_ring: idx 12 / 475",
   "single-element label",
 );
-assert(formatHalfOpenRangeLabel("faces_ring", 0, 0, 450) === "faces_ring: - / 450", "empty label");
+assert(formatHalfOpenRangeLabel("faces_ring", 0, 0, 475) === "faces_ring: - / 475", "empty label");
 
 const models = [];
 registerDisplayModel(models, { kind: "mesh", name: "cut_iteration_0", item: "cut" });

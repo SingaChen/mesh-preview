@@ -73,15 +73,15 @@ npm run preview
 
 | 滑块 | 范围 | 效果 |
 | --- | --- | --- |
-| **cols_resample** | `0..N_cols` | `apply_cols_resample_range`：只留 `[start, end)` 列。`N` 是桌面 `len(cols_smooth2)`（圆柱示例 **42**）。xls 里 FULL/SHORT_* 碎片行数和 field OBJ 连通分量都不是 N。 |
-| **faces_ring** | `0..N_terms` | 只显示 term 面片 `[start, end)`。KnittingStitches 每个 n 边形是一个 term（生成序，450）。 |
+| **cols_resample** | `0..N_cols` | `apply_cols_resample_range`：只留 `[start, end)` 列。`N` 是桌面 `len(cols_resample)`（圆柱新鲜导出 **42**）。与 xls `scale_matrix` 行数、field.obj 顺序链条数一致。 |
+| **faces_ring** | `0..N_terms` | 只显示 term 面片 `[start, end)`。KnittingStitches 每个 n 边形是一个 term（生成序，本 dump **475**）。 |
 | **display_models** | `0..N_models` | `[start, end)` 内的模型可见。注册顺序与桌面相同：`cols_resample` 置顶，再是 cut body，再是 `KnittingStitches`。右端为 faces_ring 时绑定 term 滑块。 |
 
 `_normalize_half_open_slider` 保证 `end >= start + 1`。标签：`cols_resample: idx a-b / N`（单项则 `idx a`）；display_models 追加 `| right=<name>`。
 
-`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即生成序（前 35 面是 row000 的一圈 35 针）。`readable_map.txt` 按同样顺序给出 token。不要按高度假分行。
+`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即生成序（本 dump 前 21 面是 row000 的一圈 21 针，共 475 面）。`readable_map.txt` 按同样顺序给出 token。不要按高度假分行。
 
-`iteration_0_cut_cols_resample.xls` 的 `points_detail` 有 435 个点，但按碎片 `col` 会多算（FULL / SHORT_BEGIN / SHORT_INNER / SHORT_END 链）。预览会把 SHORT_* 吸回父列，得到与 `[KnittingMap] cols={len(cols_smooth2)}` 相同的 **42** 条逻辑折线。field OBJ 连通段数不能当桌面列数。可选 sidecar `cols_resample_meta.json` 给出 `n: 42` 与 42 组 xls `col` 跨度。
+桌面 `save_cols_resample_obj` 按列顺序写 field.obj：每列先追加全部顶点，再只在该列相邻顶点之间写 `l` 边（无 object 分组）。`save_cols_resample_excel` 的 `scale_matrix` 同样一行一列。预览按这两种真实导出几何解析：优先把 `points_detail` 按连续 col id `0..N-1` 分组，否则沿 field.obj 顶点序把最长 `(i,i+1)` 边跑当成一列（孤立顶点是长度为 1 的列）。圆柱新鲜导出是 **42** 列 / 459 点，xls 行数与 field 链 1:1。不要用角度启发式或 sidecar 去合并 SHORT_*。
 
 ## 清单 schema / Manifest schema
 
@@ -98,8 +98,7 @@ npm run preview
       "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "readableMap": "cylinder/iteration_0_cut_readable_map.txt",
       "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
-      "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
-      "colsResampleJson": "cylinder/cols_resample_meta.json"
+      "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls"
     }
   ]
 }
@@ -114,9 +113,8 @@ npm run preview
 | `outputs[].overlay` | 否 | 叠加 OBJ（针迹 / field 等，也接受 `field`） |
 | `outputs[].stitches` | 否 | 针迹 OBJ（带 `v x y z r g b` 的 n 边形）。缺省时用 `*KnittingStitches*.obj` |
 | `outputs[].readableMap` | 否 | `readable_map.txt`。缺省时用同目录 `*readable_map*.txt` |
-| `outputs[].colsResample` | 否 | `*_cols_resample_field.obj`（也接受 `field`）。只提供坐标/颜色，不算列数 |
-| `outputs[].colsResampleXls` | 否 | `*_cols_resample.xls`。碎片坐标来源；滑条长度是合并后的逻辑列（缺省时用同目录 xls） |
-| `outputs[].colsResampleJson` | 否 | `cols_resample_meta.json`。可选 `n` / `groups`（xls col 跨度）。圆柱示例为 42 |
+| `outputs[].colsResample` | 否 | `*_cols_resample_field.obj`（也接受 `field`）。顺序 `(i,i+1)` 链即桌面列 |
+| `outputs[].colsResampleXls` | 否 | `*_cols_resample.xls`。`scale_matrix` 一行一列；`points_detail` 按 col `0..N-1` 分组 |
 
 也支持无清单直接打开 cut OBJ + KnittingStitches + readable_map。
 
