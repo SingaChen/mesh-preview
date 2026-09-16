@@ -12,6 +12,10 @@
  * - This dump has 475 faces vs more map tokens (header 479 cells): leftover
  *   tokens are the last short rows with no stitch geometry. Do not invent
  *   rows; unmatched faces/cells stay unbound.
+ * - Mobile faces_ring slider is per knitting ROW (readable_map rowNNN /
+ *   first_row path ring), not per term. N is 0..map.rowMax+1 (65 here).
+ *   first_rows.xls is a seed matrix (col × early row_* columns); do not
+ *   use its 6 row_* columns as slider N.
  * - first_rows.xls / cols_resample.xls describe resampled field polylines.
  *   Desktop slider N is len(cols_resample) after extractRows (42 on this
  *   cylinder dump). Parse xls points_detail by col id 0..N-1, or sequential
@@ -190,7 +194,8 @@ export function triangulate(verts) {
 
 /**
  * Each KnittingStitches n-gon is one faces_ring term (generation order).
- * Same as SingaLab face_chunks: one chunk per term, not a height split.
+ * Desktop still builds a flat term list this way; the mobile slider
+ * regroups these terms into knitting-row chunks.
  */
 export function faceChunksFromFaces(faces) {
   return (faces || []).map((face, index) => ({
@@ -198,6 +203,47 @@ export function faceChunksFromFaces(faces) {
     face,
     verts: face.verts,
   }));
+}
+
+/**
+ * Group stitch terms into one chunk per knitting row (faces_ring / row).
+ * Slider index === readable_map row id; half-open N is rowMax+1 so a
+ * leftover short row with no geometry still occupies its slot.
+ * first_rows.xls row_* columns are not N.
+ */
+export function rowChunksFromBound(bound, map = null) {
+  const byRow = new Map();
+  for (const s of bound?.stitches || []) {
+    if (s.row == null || !Number.isFinite(Number(s.row))) continue;
+    const row = Math.trunc(s.row);
+    if (!byRow.has(row)) byRow.set(row, []);
+    byRow.get(row).push(s);
+  }
+  let n = 0;
+  if (map && Number.isFinite(map.rowMax)) n = Math.max(n, Math.trunc(map.rowMax) + 1);
+  if (bound && Number.isFinite(bound.rowMax) && (bound.stitches || []).some((s) => s.row != null)) {
+    n = Math.max(n, Math.trunc(bound.rowMax) + 1);
+  }
+  if (!n && byRow.size) n = Math.max(...byRow.keys()) + 1;
+  const chunks = [];
+  for (let r = 0; r < n; r++) {
+    const faces = byRow.get(r) || [];
+    chunks.push({
+      row: r,
+      index: r,
+      faces,
+      terms: faces,
+    });
+  }
+  return chunks;
+}
+
+export function stitchesInRowRange(stitches, start, end) {
+  const lo = Number(start);
+  const hi = Number(end);
+  return (stitches || []).filter(
+    (s) => s.row != null && Number.isFinite(s.row) && s.row >= lo && s.row < hi,
+  );
 }
 
 /**
