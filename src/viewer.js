@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
-import { columnHue, columnTrails, triangulate } from "./stitches.js";
+import { columnHue, columnTrails, stitchesInRowRange, triangulate } from "./stitches.js";
 
 const YARN = 0xe8d5c4;
 const OVERLAY = 0x5eead4;
@@ -117,8 +117,8 @@ export class MeshViewer {
       bound,
       maxRow,
       highlightCol,
-      termStart: 0,
-      termEnd: bound?.stitches?.length ?? 0,
+      rowStart: 0,
+      rowEnd: Number.isFinite(bound?.rowMax) ? bound.rowMax + 1 : bound?.stitches?.length ?? 0,
     };
     this._colsState = colsColumns?.length ? { columns: colsColumns, start: 0, end: colsColumns.length } : null;
     if (bodyGeom) {
@@ -137,8 +137,8 @@ export class MeshViewer {
           bound,
           maxRow: Infinity,
           highlightCol: null,
-          termStart: 0,
-          termEnd: bound.stitches.length,
+          rowStart: 0,
+          rowEnd: Number.isFinite(bound.rowMax) ? bound.rowMax + 1 : bound.stitches.length,
         }
       : null;
     this._colsState = colsColumns?.length
@@ -174,8 +174,8 @@ export class MeshViewer {
 
   setFacesRingRange(start, end) {
     if (!this._stitchState) return;
-    this._stitchState.termStart = start;
-    this._stitchState.termEnd = end;
+    this._stitchState.rowStart = start;
+    this._stitchState.rowEnd = end;
     this._rebuildStitches();
     const vis = this._modelVisibility.get("KnittingStitches");
     if (vis === false) {
@@ -231,13 +231,12 @@ export class MeshViewer {
 
     const state = this._stitchState;
     if (!state) return;
-    const { bound, maxRow, highlightCol, termStart, termEnd } = state;
+    const { bound, maxRow, highlightCol, rowStart, rowEnd } = state;
     const columns = bound.columns;
-    const lo = termStart ?? 0;
-    const hi = termEnd ?? bound.stitches.length;
-    const visible = bound.stitches.filter((s) => {
-      if (s.index < lo || s.index >= hi) return false;
-      if (s.row != null && Number.isFinite(maxRow) && s.row > maxRow) return false;
+    const lo = rowStart ?? 0;
+    const hi = rowEnd ?? (Number.isFinite(bound.rowMax) ? bound.rowMax + 1 : bound.stitches.length);
+    const visible = stitchesInRowRange(bound.stitches, lo, hi).filter((s) => {
+      if (Number.isFinite(maxRow) && s.row > maxRow) return false;
       return true;
     });
     const solo = highlightCol != null;
@@ -281,10 +280,10 @@ export class MeshViewer {
       this.root.add(this.stitchMesh);
     }
 
-    const trails = columnTrails(
-      bound.stitches.filter((s) => s.index >= lo && s.index < hi),
-      { maxRow, onlyCol: highlightCol },
-    );
+    const trails = columnTrails(stitchesInRowRange(bound.stitches, lo, hi), {
+      maxRow,
+      onlyCol: highlightCol,
+    });
     const linePos = [];
     const lineCol = [];
     for (const trail of trails) {

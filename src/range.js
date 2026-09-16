@@ -47,11 +47,22 @@ export function sliceHalfOpen(items, start, end) {
   return items.slice(s, e);
 }
 
+export function facesRingSliderN(entry) {
+  if (Array.isArray(entry?.rowChunks)) return entry.rowChunks.length;
+  if (Array.isArray(entry?.faceChunks)) return entry.faceChunks.length;
+  return 0;
+}
+
+export function isFacesRingBindable(entry) {
+  return entry?.kind === "faces_ring" && facesRingSliderN(entry) >= 0 && (entry.rowChunks != null || entry.faceChunks != null);
+}
+
 export function registerDisplayModel(models, entry) {
   const rec = {
     item: entry.item ?? entry,
     kind: entry.kind,
     faceChunks: entry.faceChunks ?? entry.face_chunks ?? null,
+    rowChunks: entry.rowChunks ?? entry.row_chunks ?? null,
     name: entry.name || entry.kind,
   };
 
@@ -76,8 +87,9 @@ export function registerDisplayModel(models, entry) {
 
 /**
  * Visibility + faces_ring binding for display_models [start, end).
- * When the rightmost visible model is a faces_ring with faceChunks, bind it;
- * otherwise clear. Rebind (reset term range) only if the rightmost item changed.
+ * When the rightmost visible model is a faces_ring with row/face chunks,
+ * bind the row slider; otherwise clear. Rebind (reset row range) only if
+ * the rightmost item changed.
  */
 export function applyDisplayModelsRange(models, start, end, prevFacesItem = null) {
   const n = models.length;
@@ -103,7 +115,7 @@ export function applyDisplayModelsRange(models, start, end, prevFacesItem = null
 
   if (rightmostIdx != null) {
     const rightmost = models[rightmostIdx];
-    if (rightmost?.kind === "faces_ring" && rightmost.faceChunks != null) {
+    if (isFacesRingBindable(rightmost)) {
       bind = rightmost;
       resetRange = rightmost.item !== prevFacesItem;
     } else {

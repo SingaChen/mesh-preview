@@ -21,10 +21,12 @@ import {
   parseColoredObj,
   parseColsResample,
   parseReadableMap,
+  rowChunksFromBound,
 } from "./stitches.js";
 import { bindDualRange } from "./dual-range.js";
 import {
   applyDisplayModelsRange,
+  facesRingSliderN,
   formatDisplayModelsLabel,
   formatHalfOpenRangeLabel,
   registerDisplayModel,
@@ -114,15 +116,10 @@ function updateChrome() {
 
   if (scene?.facesBound) {
     const [a, b] = facesRange.value;
-    facesLabel.textContent = formatHalfOpenRangeLabel(
-      "faces_ring",
-      a,
-      b,
-      scene.facesBound.faceChunks.length,
-    );
+    facesLabel.textContent = formatHalfOpenRangeLabel("row", a, b, facesRingSliderN(scene.facesBound));
     facesRange.setEnabled(true);
   } else {
-    facesLabel.textContent = "faces_ring: -";
+    facesLabel.textContent = "row: -";
     facesRange.setEnabled(false);
   }
 
@@ -171,10 +168,12 @@ async function loadStitches(output) {
   const parsed = parseColoredObj(stitchText);
   if (!parsed.faces.length) return null;
   let bound = null;
+  let parsedMap = null;
   if (mapEntry) {
     const mapText = await loadText(mapEntry);
     const map = parseReadableMap(mapText);
     if (map.cells.length) bound = bindStitchesToMap(parsed.faces, map);
+    parsedMap = map.cells.length ? map : null;
   }
   if (!bound) {
     bound = {
@@ -194,7 +193,8 @@ async function loadStitches(output) {
     };
   }
   const faceChunks = faceChunksFromFaces(parsed.faces);
-  return { bound, faceChunks, stitchEntry, mapEntry };
+  const rowChunks = rowChunksFromBound(bound, parsedMap);
+  return { bound, faceChunks, rowChunks, stitchEntry, mapEntry };
 }
 
 async function loadCols(output) {
@@ -216,21 +216,21 @@ function clearFacesBinding() {
   scene.facesBound = null;
   scene.prevFacesItem = null;
   facesRange.setEnabled(false);
-  facesLabel.textContent = "faces_ring: -";
+  facesLabel.textContent = "row: -";
 }
 
 function bindFacesRing(entry, { reset = true } = {}) {
   scene.facesBound = entry;
   scene.prevFacesItem = entry.item;
-  const n = entry.faceChunks.length;
+  const n = facesRingSliderN(entry);
   if (reset || !n) facesRange.configure(n, n ? [0, n] : [0, 0]);
   facesRange.setEnabled(n > 0);
   if (n > 0) {
     const [a, b] = facesRange.value;
     viewer.setFacesRingRange(a, b);
-    facesLabel.textContent = formatHalfOpenRangeLabel("faces_ring", a, b, n);
+    facesLabel.textContent = formatHalfOpenRangeLabel("row", a, b, n);
   } else {
-    facesLabel.textContent = "faces_ring: -";
+    facesLabel.textContent = "row: -";
   }
 }
 
@@ -245,12 +245,7 @@ function applyFacesRange() {
   if (!scene?.facesBound) return;
   const [start, end] = facesRange.value;
   viewer.setFacesRingRange(start, end);
-  facesLabel.textContent = formatHalfOpenRangeLabel(
-    "faces_ring",
-    start,
-    end,
-    scene.facesBound.faceChunks.length,
-  );
+  facesLabel.textContent = formatHalfOpenRangeLabel("row", start, end, facesRingSliderN(scene.facesBound));
 }
 
 function applyModelsRange() {
@@ -262,7 +257,7 @@ function applyModelsRange() {
     const visible = result.visibility[i];
     viewer.setModelVisible(model.name, visible);
     if (model.kind === "faces_ring" && visible && i !== result.rightmostIdx) {
-      viewer.setFacesRingRange(0, model.faceChunks.length);
+      viewer.setFacesRingRange(0, facesRingSliderN(model));
     }
   }
   modelsLabel.textContent = formatDisplayModelsLabel(result.start, result.end, scene.models);
@@ -330,6 +325,7 @@ async function showOutput(index, { fit = false } = {}) {
         name: "KnittingStitches",
         item: "KnittingStitches",
         faceChunks: stitches.faceChunks,
+        rowChunks: stitches.rowChunks,
       });
     }
 
@@ -357,7 +353,7 @@ async function showOutput(index, { fit = false } = {}) {
     if (cols) colsRange.configure(cols.columns.length, [0, cols.columns.length]);
     else colsRange.configure(0, [0, 0]);
     modelsRange.configure(models.length, models.length ? [0, models.length] : [0, 0]);
-    if (stitches) facesRange.configure(stitches.faceChunks.length, [0, stitches.faceChunks.length]);
+    if (stitches) facesRange.configure(stitches.rowChunks.length, [0, stitches.rowChunks.length]);
     else facesRange.configure(0, [0, 0]);
 
     applyAllFilters();
@@ -368,7 +364,7 @@ async function showOutput(index, { fit = false } = {}) {
       bits.push(`${pos?.count ?? 0} vtx`);
     }
     if (cols) bits.push(`${cols.columns.length} cols_resample`);
-    if (stitches) bits.push(`${stitches.faceChunks.length} terms`);
+    if (stitches) bits.push(`${stitches.rowChunks.length} rows`);
     bits.push(`${models.length} models`);
     statsEl.textContent = bits.join(" · ");
     setStatus("三滑块半开区间 [start,end) · dual-range like SingaLab");
@@ -440,7 +436,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("圆柱 · cols_resample / faces_ring / display_models · drag to orbit");
+      setStatus("圆柱 · cols_resample / row / display_models · drag to orbit");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -509,14 +505,14 @@ canvas.addEventListener("pointermove", (ev) => {
 canvas.addEventListener("pointerup", (ev) => {
   if (pointer.moved || !scene?.facesBound) return;
   const stitch = viewer.pickStitch(ev.clientX, ev.clientY);
-  const idx = stitch?.index;
-  if (idx == null) return;
-  const n = scene.facesBound.faceChunks.length;
+  const row = stitch?.row;
+  if (row == null) return;
+  const n = facesRingSliderN(scene.facesBound);
   const [curA, curB] = facesRange.value;
-  if (curA === idx && curB === idx + 1) {
+  if (curA === row && curB === row + 1) {
     facesRange.configure(n, [0, n]);
   } else {
-    facesRange.configure(n, [idx, idx + 1]);
+    facesRange.configure(n, [row, row + 1]);
   }
   applyFacesRange();
   updateChrome();
