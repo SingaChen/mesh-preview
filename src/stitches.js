@@ -12,8 +12,9 @@
  * - This OBJ has 450 faces vs 479 map tokens: leftover tokens are the
  *   last short rows (65–68) that have no stitch geometry. Do not invent
  *   rows; unmatched faces/cells stay unbound.
- * - first_rows.xls / cols_resample.xls describe the 84 resampled field
- *   polylines, not the 450 stitch faces — not used for row/col bind.
+ * - first_rows.xls / cols_resample.xls describe resampled field polylines.
+ *   Runtime cols_resample slider uses iteration_*_cols_resample_field.obj
+ *   (v/l runs = columns). Face terms come from OBJ generation order.
  */
 
 const MANIFEST_PATH_KEYS = [
@@ -22,6 +23,8 @@ const MANIFEST_PATH_KEYS = [
   "path",
   "overlay",
   "field",
+  "colsResample",
+  "cols_resample",
   "stitches",
   "stitch",
   "readableMap",
@@ -176,6 +179,53 @@ export function triangulate(verts) {
     tris.push(verts[0], verts[i], verts[i + 1]);
   }
   return tris;
+}
+
+/**
+ * Each KnittingStitches n-gon is one faces_ring term (generation order).
+ * Same as SingaLab face_chunks: one chunk per term, not a height split.
+ */
+export function faceChunksFromFaces(faces) {
+  return (faces || []).map((face, index) => ({
+    index,
+    face,
+    verts: face.verts,
+  }));
+}
+
+/**
+ * cols_resample_field.obj is written as v-runs + l-runs, one polyline per column.
+ */
+export function parseColsResampleField(text) {
+  const columns = [];
+  let points = [];
+  let mode = null;
+
+  const flush = () => {
+    if (!points.length) return;
+    columns.push({ points });
+    points = [];
+  };
+
+  for (const raw of String(text).split(/\r?\n/)) {
+    if (raw.startsWith("v ")) {
+      if (mode === "l") flush();
+      mode = "v";
+      const n = raw.trim().split(/\s+/).slice(1).map(Number);
+      points.push({
+        x: n[0],
+        y: n[1],
+        z: n[2],
+        r: n.length >= 6 ? n[3] : 0,
+        g: n.length >= 6 ? n[4] : 0.15,
+        b: n.length >= 6 ? n[5] : 1,
+      });
+    } else if (raw.startsWith("l ")) {
+      mode = "l";
+    }
+  }
+  flush();
+  return columns;
 }
 
 export function columnTrails(stitches, { maxRow = Infinity, onlyCol = null } = {}) {
