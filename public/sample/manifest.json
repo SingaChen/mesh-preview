@@ -1,0 +1,19 @@
+{
+  "name": "sample-sleeve",
+  "outputs": [
+    {
+      "label": "iter 0 · cut",
+      "mesh": "iteration_00_cut_body.obj"
+    },
+    {
+      "label": "iter 1 · cut",
+      "mesh": "iteration_01_cut_body.obj",
+      "overlay": "iteration_01_KnittingStitches_field.obj"
+    },
+    {
+      "label": "iter 2 · sleeve",
+      "mesh": "iteration_02_cut_body.obj",
+      "overlay": "iteration_02_KnittingStitches_field.obj"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "mesh-preview",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mobile-friendly WebGL previewer for SingaLab knitting mesh outputs",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "generate-sample": "node scripts/generate-sample.mjs",
+    "test": "node scripts/check-project.mjs"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}
