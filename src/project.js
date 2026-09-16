@@ -24,12 +24,27 @@ export function naturalCompare(a, b) {
   });
 }
 
+export function isXlsName(name) {
+  return /\.xlsx?$/i.test(basename(name));
+}
+
+export function isColsResampleXlsName(name) {
+  const base = basename(name);
+  return isXlsName(base) && /cols_resample/i.test(base) && !/first_rows/i.test(base);
+}
+
+export function isColsResampleJsonName(name) {
+  const base = basename(name);
+  return /\.json$/i.test(base) && /cols_resample/i.test(base) && !/manifest/i.test(base);
+}
+
 export function indexFiles(entries) {
   const byPath = new Map();
   const byName = new Map();
   const objs = [];
   const jsons = [];
   const txts = [];
+  const xls = [];
 
   for (const entry of entries) {
     const path = normalizePath(entry.path || entry.name);
@@ -41,12 +56,14 @@ export function indexFiles(entries) {
     if (lower.endsWith(".obj")) objs.push(rec);
     if (lower.endsWith(".json")) jsons.push(rec);
     if (lower.endsWith(".txt")) txts.push(rec);
+    if (lower.endsWith(".xls") || lower.endsWith(".xlsx")) xls.push(rec);
   }
 
   objs.sort((a, b) => naturalCompare(a.path, b.path));
   jsons.sort((a, b) => naturalCompare(a.path, b.path));
   txts.sort((a, b) => naturalCompare(a.path, b.path));
-  return { byPath, byName, objs, jsons, txts };
+  xls.sort((a, b) => naturalCompare(a.path, b.path));
+  return { byPath, byName, objs, jsons, txts, xls };
 }
 
 function lookup(index, ref, fromDir = "") {
@@ -92,11 +109,24 @@ export function projectFromManifest(data, index, manifestPath = "") {
       warnings.push(`缺少叠加 / Missing overlay: ${overlayRef}`);
     }
     const colsRef = raw.colsResample || raw.cols_resample || raw.field;
+    const colsXlsRef = raw.colsResampleXls || raw.cols_resample_xls;
+    const colsJsonRef = raw.colsResampleJson || raw.cols_resample_json;
     const colsResampleFile = colsRef
       ? lookup(index, colsRef, fromDir)
-      : findColsResample(index, meshFile);
+      : findColsResampleField(index, meshFile);
+    const colsResampleXlsFile = colsXlsRef
+      ? lookup(index, colsXlsRef, fromDir)
+      : isXlsName(colsRef || "")
+        ? colsResampleFile
+        : findColsResampleXls(index, meshFile);
+    const colsResampleJsonFile = colsJsonRef
+      ? lookup(index, colsJsonRef, fromDir)
+      : findColsResampleJson(index, meshFile);
     if (colsRef && !colsResampleFile) {
       warnings.push(`缺少列场 / Missing cols_resample: ${colsRef}`);
+    }
+    if (colsXlsRef && !colsResampleXlsFile) {
+      warnings.push(`缺少列表 / Missing cols_resample xls: ${colsXlsRef}`);
     }
     const stitchRef = raw.stitches || raw.stitch;
     const stitchFile = stitchRef
@@ -114,6 +144,8 @@ export function projectFromManifest(data, index, manifestPath = "") {
       meshFile,
       overlayFile,
       colsResampleFile,
+      colsResampleXlsFile,
+      colsResampleJsonFile,
       stitchFile,
       readableMapFile,
     });
@@ -147,7 +179,9 @@ export function projectFromDiscovery(index) {
       label: prettyLabel(meshFile.name),
       meshFile,
       overlayFile,
-      colsResampleFile: findColsResample(index, meshFile),
+      colsResampleFile: findColsResampleField(index, meshFile),
+      colsResampleXlsFile: findColsResampleXls(index, meshFile),
+      colsResampleJsonFile: findColsResampleJson(index, meshFile),
       stitchFile: findStitchFile(index, meshFile) || overlayFile,
       readableMapFile: findReadableMap(index, meshFile),
     };
@@ -161,10 +195,22 @@ export function projectFromDiscovery(index) {
   };
 }
 
-function findColsResample(index, meshFile) {
+function findColsResampleField(index, meshFile) {
   const fields = index.objs.filter((f) => /cols_resample_field/i.test(f.name));
   if (!fields.length) return null;
   return matchOverlay(meshFile, fields) || fields[0];
+}
+
+function findColsResampleXls(index, meshFile) {
+  const files = (index.xls || []).filter((f) => isColsResampleXlsName(f.name));
+  if (!files.length) return null;
+  return matchOverlay(meshFile, files) || files[0];
+}
+
+function findColsResampleJson(index, meshFile) {
+  const files = (index.jsons || []).filter((f) => isColsResampleJsonName(f.name));
+  if (!files.length) return null;
+  return matchOverlay(meshFile, files) || files[0];
 }
 
 function findStitchFile(index, meshFile) {
@@ -211,4 +257,22 @@ export async function readEntryText(entry) {
   if (typeof entry.text === "string") return entry.text;
   if (entry.file && typeof entry.file.text === "function") return entry.file.text();
   throw new Error(`无法读取 / Cannot read ${entry.name || entry.path}`);
+}
+
+export async function readEntryBuffer(entry) {
+  if (!entry) return null;
+  if (entry.buffer) {
+    if (entry.buffer instanceof ArrayBuffer) return entry.buffer;
+    if (ArrayBuffer.isView(entry.buffer)) {
+      return entry.buffer.buffer.slice(
+        entry.buffer.byteOffset,
+        entry.buffer.byteOffset + entry.buffer.byteLength,
+      );
+    }
+    if (typeof Buffer !== "undefined" && Buffer.isBuffer?.(entry.buffer)) {
+      return entry.buffer.buffer.slice(entry.buffer.byteOffset, entry.buffer.byteOffset + entry.buffer.byteLength);
+    }
+  }
+  if (entry.file && typeof entry.file.arrayBuffer === "function") return entry.file.arrayBuffer();
+  throw new Error(`无法读取二进制 / Cannot read bytes ${entry.name || entry.path}`);
 }

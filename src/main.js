@@ -11,6 +11,7 @@ import {
   isManifestShape,
   projectFromDiscovery,
   projectFromManifest,
+  readEntryBuffer,
   readEntryText,
 } from "./project.js";
 import {
@@ -18,7 +19,7 @@ import {
   collectManifestRefs,
   faceChunksFromFaces,
   parseColoredObj,
-  parseColsResampleField,
+  parseColsResample,
   parseReadableMap,
 } from "./stitches.js";
 import { bindDualRange } from "./dual-range.js";
@@ -152,6 +153,15 @@ async function loadText(entry) {
   return text;
 }
 
+async function loadBuffer(entry) {
+  if (!entry) return null;
+  const key = `bin:${entry.path || entry.name}`;
+  if (textCache.has(key)) return textCache.get(key);
+  const buffer = await readEntryBuffer(entry);
+  textCache.set(key, buffer);
+  return buffer;
+}
+
 async function loadStitches(output) {
   const stitchEntry = output.stitchFile || output.overlayFile;
   const mapEntry = output.readableMapFile;
@@ -188,12 +198,18 @@ async function loadStitches(output) {
 }
 
 async function loadCols(output) {
-  const entry = output.colsResampleFile;
-  if (!entry) return null;
-  const text = await loadText(entry);
-  if (!text) return null;
-  const columns = parseColsResampleField(text);
-  return columns.length ? { columns, entry } : null;
+  if (!output.colsResampleXlsFile && !output.colsResampleJsonFile && !output.colsResampleFile) {
+    return null;
+  }
+  const [fieldText, sidecar, xls] = await Promise.all([
+    output.colsResampleFile ? loadText(output.colsResampleFile) : Promise.resolve(""),
+    output.colsResampleJsonFile ? loadText(output.colsResampleJsonFile) : Promise.resolve(null),
+    output.colsResampleXlsFile ? loadBuffer(output.colsResampleXlsFile) : Promise.resolve(null),
+  ]);
+  const columns = parseColsResample({ xls, sidecar, fieldText });
+  return columns.length
+    ? { columns, entry: output.colsResampleXlsFile || output.colsResampleJsonFile || output.colsResampleFile }
+    : null;
 }
 
 function clearFacesBinding() {
@@ -413,11 +429,14 @@ async function loadSample() {
     ];
     await Promise.all(
       paths.map(async (rel) => {
-        const text = await fetch(`${base}sample/${rel}`).then((r) => {
-          if (!r.ok) throw new Error(`缺少示例 / Missing sample ${rel}`);
-          return r.text();
-        });
-        entries.push({ name: rel.split("/").pop(), path: `sample/${rel}`, text });
+        const res = await fetch(`${base}sample/${rel}`);
+        if (!res.ok) throw new Error(`缺少示例 / Missing sample ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
       }),
     );
     await openEntries(entries);
