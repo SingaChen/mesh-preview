@@ -21,12 +21,14 @@ import {
   bindStitchesToMap,
   collectManifestRefs,
   faceChunksFromFaces,
+  facesRingChunksFromStitches,
   parseColoredObj,
   parseColsResample,
   parseColsResampleField,
+  parseFacesRingLayout,
+  parseFirstRows,
   parseReadableMap,
-  rowChunksFromBound,
-  stitchesInRowRange,
+  stitchesInRingRange,
   uniqueColIdsFromXls,
   xlsScaleMatrixRowCount,
 } from "../src/stitches.js";
@@ -57,6 +59,10 @@ assert(
   "manifest must list cols_resample xls",
 );
 assert(
+  refs.some((r) => /first_rows\.xls$/.test(r)),
+  "manifest must list first_rows xls",
+);
+assert(
   !refs.some((r) => /cols_resample_meta\.json$/.test(r)),
   "manifest must not list a cols_resample meta sidecar",
 );
@@ -81,6 +87,7 @@ if (!fromManifest.outputs[0].readableMapFile) throw new Error("expected readable
 if (!fromManifest.outputs[0].colsResampleFile) throw new Error("expected cols_resample field");
 if (!fromManifest.outputs[0].colsResampleXlsFile) throw new Error("expected cols_resample xls");
 if (fromManifest.outputs[0].colsResampleJsonFile) throw new Error("sample should not ship a cols_resample sidecar");
+if (!fromManifest.outputs[0].firstRowsFile) throw new Error("expected first_rows xls");
 
 const fromDiscovery = projectFromDiscovery(index);
 if (fromDiscovery.outputs.length !== 1) {
@@ -90,6 +97,7 @@ if (!fromDiscovery.outputs[0].overlayFile) throw new Error("discovery should att
 if (!fromDiscovery.outputs[0].colsResampleFile) throw new Error("discovery should attach cols_resample field");
 if (!fromDiscovery.outputs[0].colsResampleXlsFile) throw new Error("discovery should attach cols_resample xls");
 if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery should not require a cols_resample sidecar");
+if (!fromDiscovery.outputs[0].firstRowsFile) throw new Error("discovery should attach first_rows xls");
 if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
   throw new Error("overlay heuristic failed for KnittingStitches");
 }
@@ -123,33 +131,46 @@ assert(chunks.length === 475, `faces_ring terms should be 475 faces, got ${chunk
 assert(chunks[0].index === 0 && chunks[474].index === 474, "terms stay in generation order");
 
 const firstRowsBuf = readFileSync(join(cylDir, "iteration_0_cut_first_rows.xls"));
-const firstRowsBook = parseXlsWorkbook(firstRowsBuf);
-const firstHeader = firstRowsBook.sheets[0]?.rows?.[0] || [];
-const firstRowCols = firstHeader.filter((h) => /^row_/i.test(String(h ?? "")));
-assert(firstRowCols.length === 6, `first_rows.xls is a seed matrix with 6 row_* columns, got ${firstRowCols.length}`);
+const firstRows = parseFirstRows({ xls: firstRowsBuf });
+assert(firstRows.nSeed === 6, `first_rows seed columns are row_0..row_5, got ${firstRows.nSeed}`);
+assert(firstRows.nRings === 5, `path_generate skips seed 0 so N_rings is 5, got ${firstRows.nRings}`);
+assert(firstRows.columns.length === 42, `first_rows has one sheet row per needle col, got ${firstRows.columns.length}`);
+assert(firstRows.nRings !== map.rows.length, "do not use readable_map 65 rowNNN ids as slider N");
+assert(firstRows.nRings !== firstRows.nSeed, "do not use N_seed=6 as slider N; skip the seed column");
 
-const rowChunks = rowChunksFromBound(bound, map);
-assert(rowChunks.length === 65, `row slider N is readable_map rows, got ${rowChunks.length}`);
-assert(rowChunks.length !== firstRowCols.length, "do not use first_rows.xls row_* columns as slider N");
-assert(rowChunks.length !== chunks.length, "row slider is not per-term faces_ring");
-assert(rowChunks[0].faces.length === 21, `row 0 is the 21-needle first_row ring, got ${rowChunks[0].faces.length}`);
+const sidecar = parseFacesRingLayout({
+  term_counts: [10, 20, 30, 40, 375],
+  n_faces_ring: 5,
+});
+assert(sidecar.nFacesRing === 5 && sidecar.termCounts[0] === 10, "sidecar term_counts slice generation order");
+const fromSidecar = facesRingChunksFromStitches(bound.stitches, {
+  nRings: sidecar.nFacesRing,
+  termCounts: sidecar.termCounts,
+});
+assert(fromSidecar.map((c) => c.faces.length).join(",") === "10,20,30,40,375", "sidecar slices faces sequentially");
+assert(fromSidecar[0].faces[0].index === 0 && fromSidecar[1].faces[0].index === 10, "rings stay in OBJ face order");
+
+const rowChunks = facesRingChunksFromStitches(bound.stitches, { nRings: firstRows.nRings });
+assert(rowChunks.length === 5, `row slider N is first_row rings, got ${rowChunks.length}`);
+assert(rowChunks.length !== 65, "slider is not readable_map machine rows");
+assert(rowChunks.length !== chunks.length, "slider is not per-term faces_ring");
 assert(
   rowChunks.reduce((n, c) => n + c.faces.length, 0) === 475,
-  "every stitch face belongs to exactly one knitting row",
+  "every stitch face belongs to exactly one first_row ring",
 );
 assert(
-  rowChunks.every((c, i) => c.row === i && c.faces.every((s) => s.row === i)),
-  "chunk index equals readable_map row id",
+  rowChunks.every((c) => c.faces.length === 95),
+  "without sidecar, faces split evenly across 5 rings until desktop term_counts arrive",
 );
 
 const windowed = sliceHalfOpen(rowChunks, 0, 1);
-assert(windowed.length === 1 && windowed[0].faces.length === 21, "half-open [0,1) keeps one complete row ring");
+assert(windowed.length === 1 && windowed[0].faces.length === 95, "half-open [0,1) keeps one first_row ring");
 const twoRows = sliceHalfOpen(rowChunks, 2, 4);
-assert(twoRows.length === 2 && twoRows[0].row === 2 && twoRows[1].row === 3, "adjacent handles show two consecutive rows");
-const rowFaces = stitchesInRowRange(bound.stitches, 0, 1);
-assert(rowFaces.length === 21 && rowFaces.every((s) => s.row === 0), "[0,1) shows only row 0 terms");
-assert(stitchesInRowRange(bound.stitches, 0, 65).length === 475, "default [0,N_rows) keeps every bound face");
-assert(facesRingSliderN({ rowChunks, faceChunks: chunks }) === 65, "bound slider N prefers row chunks");
+assert(twoRows.length === 2 && twoRows[0].ring === 2 && twoRows[1].ring === 3, "adjacent handles show two rings");
+const ringFaces = stitchesInRingRange(bound.stitches, 0, 1);
+assert(ringFaces.length === 95 && ringFaces.every((s) => s.ring === 0), "[0,1) shows only ring 0 terms");
+assert(stitchesInRingRange(bound.stitches, 0, 5).length === 475, "default [0,N_rings) keeps every face");
+assert(facesRingSliderN({ rowChunks, faceChunks: chunks }) === 5, "bound slider N prefers first_row rings");
 
 const workbook = parseXlsWorkbook(xlsBuf);
 const xlsColIds = uniqueColIdsFromXls(workbook);
@@ -219,13 +240,13 @@ assert(
   "full-range label uses last inclusive index",
 );
 assert(
-  formatHalfOpenRangeLabel("row", 12, 13, 65) === "row: idx 12 / 65",
-  "single-row label",
+  formatHalfOpenRangeLabel("row", 2, 3, 5) === "row: idx 2 / 5",
+  "single-ring label",
 );
-assert(formatHalfOpenRangeLabel("row", 0, 0, 65) === "row: - / 65", "empty row label");
+assert(formatHalfOpenRangeLabel("row", 0, 0, 5) === "row: - / 5", "empty ring label");
 assert(
-  formatHalfOpenRangeLabel("row", 0, 65, 65) === "row: idx 0-64 / 65",
-  "full row range uses last inclusive index",
+  formatHalfOpenRangeLabel("row", 0, 5, 5) === "row: idx 0-4 / 5",
+  "full first_row ring range uses last inclusive index",
 );
 
 const models = [];
@@ -247,7 +268,7 @@ const all = applyDisplayModelsRange(models, 0, 3, null);
 assert(all.visibility.every(Boolean), "default [0,3) shows every model");
 assert(all.bind?.name === "KnittingStitches", "rightmost faces_ring binds the row slider");
 assert(all.resetRange === true, "first bind resets row range");
-assert(facesRingSliderN(all.bind) === 65, "right-end binding exposes 65 knitting rows");
+assert(facesRingSliderN(all.bind) === 5, "right-end binding exposes 5 first_row rings");
 assert(
   formatDisplayModelsLabel(0, 3, models) ===
     "display_models: idx 0-2 / 3 | right=KnittingStitches",

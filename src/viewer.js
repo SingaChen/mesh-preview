@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
-import { columnHue, columnTrails, stitchesInRowRange, triangulate } from "./stitches.js";
+import { columnHue, columnTrails, stitchesInRingRange, triangulate } from "./stitches.js";
 
 const YARN = 0xe8d5c4;
 const OVERLAY = 0x5eead4;
@@ -118,7 +118,7 @@ export class MeshViewer {
       maxRow,
       highlightCol,
       rowStart: 0,
-      rowEnd: Number.isFinite(bound?.rowMax) ? bound.rowMax + 1 : bound?.stitches?.length ?? 0,
+      rowEnd: ringSliderN(bound),
     };
     this._colsState = colsColumns?.length ? { columns: colsColumns, start: 0, end: colsColumns.length } : null;
     if (bodyGeom) {
@@ -138,7 +138,7 @@ export class MeshViewer {
           maxRow: Infinity,
           highlightCol: null,
           rowStart: 0,
-          rowEnd: Number.isFinite(bound.rowMax) ? bound.rowMax + 1 : bound.stitches.length,
+          rowEnd: ringSliderN(bound),
         }
       : null;
     this._colsState = colsColumns?.length
@@ -234,9 +234,9 @@ export class MeshViewer {
     const { bound, maxRow, highlightCol, rowStart, rowEnd } = state;
     const columns = bound.columns;
     const lo = rowStart ?? 0;
-    const hi = rowEnd ?? (Number.isFinite(bound.rowMax) ? bound.rowMax + 1 : bound.stitches.length);
-    const visible = stitchesInRowRange(bound.stitches, lo, hi).filter((s) => {
-      if (Number.isFinite(maxRow) && s.row > maxRow) return false;
+    const hi = rowEnd ?? ringSliderN(bound);
+    const visible = stitchesInRingRange(bound.stitches, lo, hi).filter((s) => {
+      if (Number.isFinite(maxRow) && s.row != null && s.row > maxRow) return false;
       return true;
     });
     const solo = highlightCol != null;
@@ -280,7 +280,7 @@ export class MeshViewer {
       this.root.add(this.stitchMesh);
     }
 
-    const trails = columnTrails(stitchesInRowRange(bound.stitches, lo, hi), {
+    const trails = columnTrails(stitchesInRingRange(bound.stitches, lo, hi), {
       maxRow,
       onlyCol: highlightCol,
     });
@@ -492,6 +492,12 @@ export class MeshViewer {
     this.controls.dispose();
     this.renderer.dispose();
   }
+}
+
+function ringSliderN(bound) {
+  const rings = (bound?.stitches || []).map((s) => s.ring).filter((r) => r != null && Number.isFinite(r));
+  if (rings.length) return Math.max(...rings) + 1;
+  return bound?.stitches?.length ?? 0;
 }
 
 function mergeObjectGeometry(root) {

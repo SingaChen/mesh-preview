@@ -18,10 +18,12 @@ import {
   bindStitchesToMap,
   collectManifestRefs,
   faceChunksFromFaces,
+  facesRingChunksFromStitches,
   parseColoredObj,
   parseColsResample,
+  parseFacesRingLayout,
+  parseFirstRows,
   parseReadableMap,
-  rowChunksFromBound,
 } from "./stitches.js";
 import { bindDualRange } from "./dual-range.js";
 import {
@@ -168,12 +170,10 @@ async function loadStitches(output) {
   const parsed = parseColoredObj(stitchText);
   if (!parsed.faces.length) return null;
   let bound = null;
-  let parsedMap = null;
   if (mapEntry) {
     const mapText = await loadText(mapEntry);
     const map = parseReadableMap(mapText);
     if (map.cells.length) bound = bindStitchesToMap(parsed.faces, map);
-    parsedMap = map.cells.length ? map : null;
   }
   if (!bound) {
     bound = {
@@ -192,9 +192,23 @@ async function loadStitches(output) {
       leftoverCells: 0,
     };
   }
+  let firstRows = null;
+  if (output.firstRowsFile) {
+    const buf = await loadBuffer(output.firstRowsFile);
+    if (buf) firstRows = parseFirstRows({ xls: buf });
+  }
+  let layout = null;
+  if (output.facesRingLayoutFile) {
+    const text = await loadText(output.facesRingLayoutFile);
+    if (text) layout = parseFacesRingLayout(text);
+  }
+  const nRings = layout?.nFacesRing || firstRows?.nRings || 0;
   const faceChunks = faceChunksFromFaces(parsed.faces);
-  const rowChunks = rowChunksFromBound(bound, parsedMap);
-  return { bound, faceChunks, rowChunks, stitchEntry, mapEntry };
+  const rowChunks = facesRingChunksFromStitches(bound.stitches, {
+    nRings,
+    termCounts: layout?.termCounts,
+  });
+  return { bound, faceChunks, rowChunks, firstRows, layout, stitchEntry, mapEntry };
 }
 
 async function loadCols(output) {
@@ -364,7 +378,7 @@ async function showOutput(index, { fit = false } = {}) {
       bits.push(`${pos?.count ?? 0} vtx`);
     }
     if (cols) bits.push(`${cols.columns.length} cols_resample`);
-    if (stitches) bits.push(`${stitches.rowChunks.length} rows`);
+    if (stitches) bits.push(`${stitches.rowChunks.length} faces_ring`);
     bits.push(`${models.length} models`);
     statsEl.textContent = bits.join(" · ");
     setStatus("三滑块半开区间 [start,end) · dual-range like SingaLab");
@@ -436,7 +450,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("圆柱 · cols_resample / row / display_models · drag to orbit");
+      setStatus("圆柱 · cols_resample / first_rows rings / display_models · drag to orbit");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -505,14 +519,14 @@ canvas.addEventListener("pointermove", (ev) => {
 canvas.addEventListener("pointerup", (ev) => {
   if (pointer.moved || !scene?.facesBound) return;
   const stitch = viewer.pickStitch(ev.clientX, ev.clientY);
-  const row = stitch?.row;
-  if (row == null) return;
+  const ring = stitch?.ring;
+  if (ring == null) return;
   const n = facesRingSliderN(scene.facesBound);
   const [curA, curB] = facesRange.value;
-  if (curA === row && curB === row + 1) {
+  if (curA === ring && curB === ring + 1) {
     facesRange.configure(n, [0, n]);
   } else {
-    facesRange.configure(n, [row, row + 1]);
+    facesRange.configure(n, [ring, ring + 1]);
   }
   applyFacesRange();
   updateChrome();

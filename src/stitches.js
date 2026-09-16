@@ -12,10 +12,15 @@
  * - This dump has 475 faces vs more map tokens (header 479 cells): leftover
  *   tokens are the last short rows with no stitch geometry. Do not invent
  *   rows; unmatched faces/cells stay unbound.
- * - Mobile faces_ring slider is per knitting ROW (readable_map rowNNN /
- *   first_row path ring), not per term. N is 0..map.rowMax+1 (65 here).
- *   first_rows.xls is a seed matrix (col × early row_* columns); do not
- *   use its 6 row_* columns as slider N.
+ * - Mobile faces_ring / row slider is per first_row face ring, not
+ *   readable_map rowNNN (those are machine/carriage rows after
+ *   readable_map_generate expands path terms; 65 on this dump).
+ * - first_rows.xls is transposed: header col\\row, row_0..row_{n-1}.
+ *   N_seed = ncols-1 (6 here). path_generate skips seed index 0, so
+ *   slider N = N_seed-1 (5 first_row rings). Do not use 65 or 6 as N.
+ * - Optional faces_ring_layout.json { term_counts, n_faces_ring } slices
+ *   KnittingStitches faces in generation order. Without it, faces are
+ *   split evenly across N_rings until a desktop dump arrives.
  * - first_rows.xls / cols_resample.xls describe resampled field polylines.
  *   Desktop slider N is len(cols_resample) after extractRows (42 on this
  *   cylinder dump). Parse xls points_detail by col id 0..N-1, or sequential
@@ -40,6 +45,10 @@ const MANIFEST_PATH_KEYS = [
   "stitch",
   "readableMap",
   "map",
+  "firstRows",
+  "first_rows",
+  "facesRingLayout",
+  "faces_ring_layout",
 ];
 
 export function collectManifestRefs(data) {
@@ -205,44 +214,118 @@ export function faceChunksFromFaces(faces) {
   }));
 }
 
+function seedColumnIndex(header) {
+  return header
+    .map((h, i) => ({ h: String(h ?? "").trim(), i }))
+    .filter((c) => /^row_\d+$/i.test(c.h));
+}
+
 /**
- * Group stitch terms into one chunk per knitting row (faces_ring / row).
- * Slider index === readable_map row id; half-open N is rowMax+1 so a
- * leftover short row with no geometry still occupies its slot.
- * first_rows.xls row_* columns are not N.
+ * Transposed first_rows seed matrix. N_seed = row_* columns; slider
+ * N_rings = N_seed-1 because path_generate skips the seed at index 0.
  */
-export function rowChunksFromBound(bound, map = null) {
-  const byRow = new Map();
-  for (const s of bound?.stitches || []) {
-    if (s.row == null || !Number.isFinite(Number(s.row))) continue;
-    const row = Math.trunc(s.row);
-    if (!byRow.has(row)) byRow.set(row, []);
-    byRow.get(row).push(s);
+export function parseFirstRows({ xls, workbook } = {}) {
+  const book = workbook || (xls ? parseXlsWorkbook(xls) : null);
+  const sheet =
+    findXlsSheet(book, /first_rows/i) ||
+    findXlsSheet(book, (s) => seedColumnIndex(s.rows[0] || []).length >= 2) ||
+    book?.sheets?.[0];
+  if (!sheet?.rows?.length) {
+    return { nSeed: 0, nRings: 0, skipSeed: 1, seedNames: [], columns: [] };
   }
-  let n = 0;
-  if (map && Number.isFinite(map.rowMax)) n = Math.max(n, Math.trunc(map.rowMax) + 1);
-  if (bound && Number.isFinite(bound.rowMax) && (bound.stitches || []).some((s) => s.row != null)) {
-    n = Math.max(n, Math.trunc(bound.rowMax) + 1);
+  const header = sheet.rows[0] || [];
+  const seedCols = seedColumnIndex(header);
+  const colI = headerIndex(header, "col", "col\\row");
+  const columns = [];
+  for (let r = 1; r < sheet.rows.length; r++) {
+    const row = sheet.rows[r] || [];
+    const col = colI >= 0 ? asIntCol(row[colI]) : r - 1;
+    if (col == null) continue;
+    columns.push({
+      col,
+      seeds: seedCols.map((c) => {
+        const v = Number(row[c.i]);
+        return Number.isFinite(v) ? v : null;
+      }),
+    });
   }
-  if (!n && byRow.size) n = Math.max(...byRow.keys()) + 1;
+  const nSeed = seedCols.length;
+  return {
+    nSeed,
+    nRings: Math.max(0, nSeed - 1),
+    skipSeed: 1,
+    seedNames: seedCols.map((c) => c.h),
+    columns,
+  };
+}
+
+export function parseFacesRingLayout(data) {
+  if (data == null || data === "") return null;
+  const parsed = typeof data === "string" ? JSON.parse(data) : data;
+  if (!parsed || typeof parsed !== "object") return null;
+  const raw = parsed.term_counts ?? parsed.termCounts;
+  const termCounts = Array.isArray(raw)
+    ? raw.map((n) => Math.max(0, Math.trunc(Number(n) || 0)))
+    : null;
+  let nFacesRing = Number(parsed.n_faces_ring ?? parsed.nFacesRing);
+  if (!Number.isFinite(nFacesRing)) nFacesRing = termCounts?.length ?? 0;
+  else nFacesRing = Math.max(0, Math.trunc(nFacesRing));
+  if (termCounts?.length) nFacesRing = termCounts.length;
+  if (!nFacesRing && !termCounts) return null;
+  return { termCounts, nFacesRing, source: "sidecar" };
+}
+
+/** Even split until a desktop faces_ring_layout.json supplies term_counts. */
+export function termCountsForRings(nFaces, nRings, termCounts) {
+  if (Array.isArray(termCounts) && termCounts.length) {
+    return termCounts.map((n) => Math.max(0, Math.trunc(Number(n) || 0)));
+  }
+  const n = Math.max(0, Math.trunc(nRings) || 0);
+  const faces = Math.max(0, Math.trunc(nFaces) || 0);
+  if (!n) return [];
+  const base = Math.floor(faces / n);
+  const extra = faces % n;
+  return Array.from({ length: n }, (_, i) => base + (i < extra ? 1 : 0));
+}
+
+/**
+ * Slice KnittingStitches terms in generation order into first_row rings.
+ * Does not use readable_map rowNNN.
+ */
+export function facesRingChunksFromStitches(stitches, { nRings = 0, termCounts = null } = {}) {
+  const list = stitches || [];
+  const counts = termCountsForRings(list.length, nRings, termCounts);
   const chunks = [];
-  for (let r = 0; r < n; r++) {
-    const faces = byRow.get(r) || [];
+  let offset = 0;
+  for (let i = 0; i < counts.length; i++) {
+    const end = Math.min(list.length, offset + counts[i]);
+    const faces = list.slice(offset, end);
+    for (const s of faces) s.ring = i;
     chunks.push({
-      row: r,
-      index: r,
+      row: i,
+      ring: i,
+      index: i,
       faces,
       terms: faces,
     });
+    offset = end;
+  }
+  if (offset < list.length && chunks.length) {
+    const last = chunks[chunks.length - 1];
+    const extra = list.slice(offset);
+    for (const s of extra) s.ring = last.ring;
+    last.faces.push(...extra);
+  } else {
+    for (let i = offset; i < list.length; i++) list[i].ring = null;
   }
   return chunks;
 }
 
-export function stitchesInRowRange(stitches, start, end) {
+export function stitchesInRingRange(stitches, start, end) {
   const lo = Number(start);
   const hi = Number(end);
   return (stitches || []).filter(
-    (s) => s.row != null && Number.isFinite(s.row) && s.row >= lo && s.row < hi,
+    (s) => s.ring != null && Number.isFinite(s.ring) && s.ring >= lo && s.ring < hi,
   );
 }
 
