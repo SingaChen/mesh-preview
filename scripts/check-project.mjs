@@ -263,13 +263,13 @@ assert(lastOne.length === 46 + 136 + 110 + 106 + 1, "earlier rings stay full; on
 assert(lastOne.filter((s) => s.ring === 4).length === 1, "third slider [0,1) keeps one term in the max ring");
 assert(lastOne.filter((s) => s.ring < 4).every((s) => s.termInRing != null), "rings [0,4) keep every term");
 
-const mid = stitchesVisibleForSliders(bound.stitches, 1, 5, 10, 20);
-assert(mid.filter((s) => s.ring === 0).length === 0, "rings < r0 are hidden");
-assert(mid.filter((s) => s.ring === 1).length === 136, "ring 1 in [r0, r1-1) is fully visible");
-assert(mid.filter((s) => s.ring === 2).length === 110, "ring 2 fully visible");
-assert(mid.filter((s) => s.ring === 3).length === 106, "ring 3 fully visible");
-assert(mid.filter((s) => s.ring === 4).length === 10, "active ring 4 uses term [10,20)");
-assert(mid.every((s) => s.ring < 5), "rings >= r1 stay hidden");
+const clipped = stitchesVisibleForSliders(bound.stitches, 1, 5, 10, 20);
+assert(clipped.filter((s) => s.ring === 0).length === 0, "rings < r0 are hidden");
+assert(clipped.filter((s) => s.ring === 1).length === 136, "ring 1 in [r0, r1-1) is fully visible");
+assert(clipped.filter((s) => s.ring === 2).length === 110, "ring 2 fully visible");
+assert(clipped.filter((s) => s.ring === 3).length === 106, "ring 3 fully visible");
+assert(clipped.filter((s) => s.ring === 4).length === 10, "active ring 4 uses term [10,20)");
+assert(clipped.every((s) => s.ring < 5), "rings >= r1 stay hidden");
 
 assert(stitchesVisibleForSliders(bound.stitches, 0, 1, 5, 8).length === 3, "single-ring term window");
 assert(stitchesVisibleForSliders(bound.stitches, 2, 2, 0, 10).length === 0, "empty second range hides everything");
