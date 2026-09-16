@@ -24,7 +24,7 @@ Open a project folder or manifest, orbit the mesh, and scrub the same three dual
 - **文件夹 Folder** / **文件 Files** 仍从**手机本地**读取 OBJ 或清单（不上传服务器）。
 - **示例 Sample** 重新加载内置圆柱。
 
-生产构建会用 Service Worker 缓存同源资源，刷新可离线打开应用壳。
+生产构建会用 Service Worker 缓存同源资源，刷新可离线打开应用壳。界面若看起来是旧示例（如 cols_resample /84），请清除站点数据或注销 Service Worker 后再刷新。
 
 ## Quick start（本机开发 / Local, secondary）
 

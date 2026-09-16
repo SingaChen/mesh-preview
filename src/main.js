@@ -419,7 +419,7 @@ async function loadSample() {
   setStatus("加载示例 / Loading sample…");
   const base = import.meta.env.BASE_URL;
   try {
-    const res = await fetch(`${base}sample/manifest.json`);
+    const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
     if (!res.ok) throw new Error("示例清单不可用 / Sample manifest missing");
     const data = await res.json();
     const paths = collectManifestRefs(data);
@@ -428,7 +428,7 @@ async function loadSample() {
     ];
     await Promise.all(
       paths.map(async (rel) => {
-        const res = await fetch(`${base}sample/${rel}`);
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
         if (!res.ok) throw new Error(`缺少示例 / Missing sample ${rel}`);
         const name = rel.split("/").pop();
         if (/\.xlsx?$/i.test(rel)) {
@@ -523,7 +523,12 @@ canvas.addEventListener("pointerup", (ev) => {
 });
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
+  navigator.serviceWorker
+    .register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: "none" })
+    .then((reg) => {
+      reg.update();
+    })
+    .catch(() => {});
 }
 
 updateChrome();
