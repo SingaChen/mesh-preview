@@ -38,6 +38,16 @@ export function isColsResampleJsonName(name) {
   return /\.json$/i.test(base) && /cols_resample/i.test(base) && !/manifest/i.test(base);
 }
 
+export function isFirstRowsXlsName(name) {
+  const base = basename(name);
+  return isXlsName(base) && /first_rows/i.test(base);
+}
+
+export function isFacesRingLayoutName(name) {
+  const base = basename(name);
+  return /\.json$/i.test(base) && /faces_ring_layout/i.test(base);
+}
+
 export function indexFiles(entries) {
   const byPath = new Map();
   const byName = new Map();
@@ -139,6 +149,17 @@ export function projectFromManifest(data, index, manifestPath = "") {
     if (mapRef && !readableMapFile) {
       warnings.push(`缺少生长图 / Missing readable_map: ${mapRef}`);
     }
+    const firstRowsRef = raw.firstRows || raw.first_rows;
+    const firstRowsFile = firstRowsRef
+      ? lookup(index, firstRowsRef, fromDir)
+      : findFirstRowsXls(index, meshFile);
+    const layoutRef = raw.facesRingLayout || raw.faces_ring_layout;
+    const facesRingLayoutFile = layoutRef
+      ? lookup(index, layoutRef, fromDir)
+      : findFacesRingLayout(index, meshFile);
+    if (firstRowsRef && !firstRowsFile) {
+      warnings.push(`缺少 first_rows / Missing first_rows: ${firstRowsRef}`);
+    }
     outputs.push({
       label: raw.label || basename(meshFile.path),
       meshFile,
@@ -148,6 +169,8 @@ export function projectFromManifest(data, index, manifestPath = "") {
       colsResampleJsonFile,
       stitchFile,
       readableMapFile,
+      firstRowsFile,
+      facesRingLayoutFile,
     });
   }
 
@@ -184,6 +207,8 @@ export function projectFromDiscovery(index) {
       colsResampleJsonFile: findColsResampleJson(index, meshFile),
       stitchFile: findStitchFile(index, meshFile) || overlayFile,
       readableMapFile: findReadableMap(index, meshFile),
+      firstRowsFile: findFirstRowsXls(index, meshFile),
+      facesRingLayoutFile: findFacesRingLayout(index, meshFile),
     };
   });
 
@@ -209,6 +234,18 @@ function findColsResampleXls(index, meshFile) {
 
 function findColsResampleJson(index, meshFile) {
   const files = (index.jsons || []).filter((f) => isColsResampleJsonName(f.name));
+  if (!files.length) return null;
+  return matchOverlay(meshFile, files) || files[0];
+}
+
+function findFirstRowsXls(index, meshFile) {
+  const files = (index.xls || []).filter((f) => isFirstRowsXlsName(f.name));
+  if (!files.length) return null;
+  return matchOverlay(meshFile, files) || files[0];
+}
+
+function findFacesRingLayout(index, meshFile) {
+  const files = (index.jsons || []).filter((f) => isFacesRingLayoutName(f.name));
   if (!files.length) return null;
   return matchOverlay(meshFile, files) || files[0];
 }
