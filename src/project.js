@@ -1,4 +1,4 @@
-const OVERLAY_RE = /overlay|field|stitch|knittingstitches|readable_map/i;
+const OVERLAY_RE = /overlay|field|stitch|knittingstitches|readable_map|cols_resample|_type\.obj/i;
 
 export function isOverlayName(name) {
   return OVERLAY_RE.test(basename(name));
@@ -29,6 +29,7 @@ export function indexFiles(entries) {
   const byName = new Map();
   const objs = [];
   const jsons = [];
+  const txts = [];
 
   for (const entry of entries) {
     const path = normalizePath(entry.path || entry.name);
@@ -39,11 +40,13 @@ export function indexFiles(entries) {
     const lower = name.toLowerCase();
     if (lower.endsWith(".obj")) objs.push(rec);
     if (lower.endsWith(".json")) jsons.push(rec);
+    if (lower.endsWith(".txt")) txts.push(rec);
   }
 
   objs.sort((a, b) => naturalCompare(a.path, b.path));
   jsons.sort((a, b) => naturalCompare(a.path, b.path));
-  return { byPath, byName, objs, jsons };
+  txts.sort((a, b) => naturalCompare(a.path, b.path));
+  return { byPath, byName, objs, jsons, txts };
 }
 
 function lookup(index, ref, fromDir = "") {
@@ -88,10 +91,23 @@ export function projectFromManifest(data, index, manifestPath = "") {
     if (overlayRef && !overlayFile) {
       warnings.push(`缺少叠加 / Missing overlay: ${overlayRef}`);
     }
+    const stitchRef = raw.stitches || raw.stitch;
+    const stitchFile = stitchRef
+      ? lookup(index, stitchRef, fromDir)
+      : findStitchFile(index, meshFile);
+    const mapRef = raw.readableMap || raw.map;
+    const readableMapFile = mapRef
+      ? lookup(index, mapRef, fromDir)
+      : findReadableMap(index, meshFile);
+    if (mapRef && !readableMapFile) {
+      warnings.push(`缺少生长图 / Missing readable_map: ${mapRef}`);
+    }
     outputs.push({
       label: raw.label || basename(meshFile.path),
       meshFile,
       overlayFile,
+      stitchFile,
+      readableMapFile,
     });
   }
 
@@ -123,6 +139,8 @@ export function projectFromDiscovery(index) {
       label: prettyLabel(meshFile.name),
       meshFile,
       overlayFile,
+      stitchFile: findStitchFile(index, meshFile) || overlayFile,
+      readableMapFile: findReadableMap(index, meshFile),
     };
   });
 
@@ -132,6 +150,23 @@ export function projectFromDiscovery(index) {
     outputs,
     warnings: [],
   };
+}
+
+function findStitchFile(index, meshFile) {
+  const stitches = index.objs.filter((f) => /knittingstitches/i.test(f.name));
+  if (!stitches.length) return null;
+  return matchOverlay(meshFile, stitches) || stitches[0];
+}
+
+function findReadableMap(index, meshFile) {
+  const maps = (index.txts || []).filter((f) => /readable_map/i.test(f.name));
+  if (!maps.length) return null;
+  const iter = meshFile?.name.match(/iteration[_\-]?(\d+)/i)?.[1];
+  if (iter != null) {
+    const hit = maps.find((m) => m.name.includes(`iteration_${iter}`) || m.name.includes(`iteration_${iter.padStart?.(2, "0")}`));
+    if (hit) return hit;
+  }
+  return maps[0];
 }
 
 function matchOverlay(meshFile, overlays) {

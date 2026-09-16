@@ -1,19 +1,13 @@
 {
-  "name": "sample-sleeve",
+  "name": "Single_Cylinder_Test",
   "outputs": [
     {
-      "label": "iter 0 · cut",
-      "mesh": "iteration_00_cut_body.obj"
-    },
-    {
-      "label": "iter 1 · cut",
-      "mesh": "iteration_01_cut_body.obj",
-      "overlay": "iteration_01_KnittingStitches_field.obj"
-    },
-    {
-      "label": "iter 2 · sleeve",
-      "mesh": "iteration_02_cut_body.obj",
-      "overlay": "iteration_02_KnittingStitches_field.obj"
+      "label": "iter 0 · cylinder stitches",
+      "mesh": "cylinder/cut_iteration_0.obj",
+      "overlay": "cylinder/iteration_0_cut_KnittingStitches.obj",
+      "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
+      "readableMap": "cylinder/iteration_0_cut_readable_map.txt",
+      "field": "cylinder/iteration_0_cut_cols_resample_field.obj"
     }
   ]
 }

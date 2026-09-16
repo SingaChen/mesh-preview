@@ -45,17 +45,33 @@
       </main>
 
       <section class="dock">
-        <div class="slider-row">
+        <div class="slider-row" id="mesh-row">
           <label for="mesh-slider">
             <span>网格 <span class="en">Mesh</span></span>
             <span class="meta" id="mesh-count">0 / 0</span>
           </label>
           <input id="mesh-slider" type="range" min="0" max="0" value="0" step="1" disabled />
         </div>
+        <div class="slider-grid">
+          <div class="slider-row hidden" id="row-row">
+            <label for="row-slider">
+              <span>生长 <span class="en">Row</span></span>
+              <span class="meta" id="row-count">—</span>
+            </label>
+            <input id="row-slider" type="range" min="0" max="0" value="0" step="1" />
+          </div>
+          <div class="slider-row hidden" id="col-row">
+            <label for="col-slider">
+              <span>列轨迹 <span class="en">Col</span></span>
+              <span class="meta" id="col-count">全部 All</span>
+            </label>
+            <input id="col-slider" type="range" min="0" max="0" value="0" step="1" />
+          </div>
+        </div>
         <div class="toggles">
           <button class="btn toggle" id="toggle-wire" type="button" aria-pressed="false">线框 <span class="en">Wire</span></button>
           <button class="btn toggle" id="toggle-shade" type="button" aria-pressed="false">平面 <span class="en">Flat</span></button>
-          <button class="btn toggle" id="toggle-overlay" type="button" aria-pressed="true">叠加 <span class="en">Overlay</span></button>
+          <button class="btn toggle" id="toggle-overlay" type="button" aria-pressed="true">针迹 <span class="en">Stitch</span></button>
         </div>
         <div class="status" id="status"></div>
       </section>
@@ -73,7 +89,7 @@
       id="files-input"
       class="hidden-input"
       type="file"
-      accept=".obj,.json,model/obj,application/json"
+      accept=".obj,.json,.txt,model/obj,application/json,text/plain"
       multiple
     />
     <script type="module" src="/src/main.js"></script>
