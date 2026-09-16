@@ -1,25 +1,26 @@
 /**
- * SingaLab knitting-stitch faces + readable_map.
+ * SingaLab knitting-stitch faces + first_rows / readable_map.
  *
  * Mapping (investigated on Single_Cylinder_Test 2026-09-16):
  * - KnittingStitches.obj lists one n-gon per stitch in generation order
- *   (first 21 faces are the base ring / row000, 21 needles on this dump).
+ *   = flatten(faces_allin). This dump has 475 faces.
  * - Vertex colours: gray 0.55 = normal, red = special/highlight, plus
  *   black/white/green/yellow/blue markers. Faces reuse copied verts.
- * - readable_map.txt walks the same generation order: each token
- *   (including the leftover "-" after a -R2 decrease) is one stitch
- *   cell with an explicit row id and needle column.
- * - This dump has 475 faces vs more map tokens (header 479 cells): leftover
- *   tokens are the last short rows with no stitch geometry. Do not invent
- *   rows; unmatched faces/cells stay unbound.
- * - Mobile faces_ring slider is per knitting ROW (readable_map rowNNN /
- *   first_row path ring), not per term. N is 0..map.rowMax+1 (65 here).
- *   first_rows.xls is a seed matrix (col × early row_* columns); do not
- *   use its 6 row_* columns as slider N.
- * - first_rows.xls / cols_resample.xls describe resampled field polylines.
- *   Desktop slider N is len(cols_resample) after extractRows (42 on this
- *   cylinder dump). Parse xls points_detail by col id 0..N-1, or sequential
- *   (i,i+1) chains in field.obj. Do not invent SHORT_* parent merges.
+ * - first_rows.xls is the seed matrix that path_generate walks. Header is
+ *   col\\row + row_0..row_{K-1} (K=6 here, 42 cols). Desktop skips
+ *   index_r==0 and appends one faces_ring per later first_rows row, so
+ *   slider N = K-1 (5 rings). first_rows IS the authority for ring count.
+ * - Each faces_ring is the complete band between consecutive first_rows.
+ *   Reconstruct band sizes by mapping face verts onto cols_resample points
+ *   and placing them in that first_rows interval. Cylinder: 46+136+110+106+77.
+ * - readable_map.txt still walks generation order with rowNNN / needle
+ *   tokens (65 machine rows after wrap/inc/xfer). Do NOT use rowMax+1
+ *   as slider N. Leftover map tokens with no geometry stay unbound.
+ * - Optional faces_rings.json { term_counts, n_faces_ring } may override
+ *   band sizes only when justified (len === N_rings, sum === face count).
+ * - cols_resample.xls / field.obj: desktop N is len(cols_resample) (42).
+ *   Parse points_detail by col id 0..N-1, or sequential (i,i+1) chains.
+ *   Do not invent SHORT_* parent merges.
  */
 
 import { findXlsSheet, parseXlsWorkbook } from "./xls.js";
@@ -40,6 +41,10 @@ const MANIFEST_PATH_KEYS = [
   "stitch",
   "readableMap",
   "map",
+  "firstRows",
+  "first_rows",
+  "facesRings",
+  "faces_rings",
 ];
 
 export function collectManifestRefs(data) {
@@ -205,37 +210,261 @@ export function faceChunksFromFaces(faces) {
   }));
 }
 
+function seedColumnIndex(header) {
+  return header
+    .map((h, i) => ({ h: String(h ?? "").trim(), i }))
+    .filter((c) => /^row_\d+$/i.test(c.h))
+    .sort((a, b) => Number(a.h.slice(4)) - Number(b.h.slice(4)));
+}
+
 /**
- * Group stitch terms into one chunk per knitting row (faces_ring / row).
- * Slider index === readable_map row id; half-open N is rowMax+1 so a
- * leftover short row with no geometry still occupies its slot.
- * first_rows.xls row_* columns are not N.
+ * Transposed first_rows seed matrix (desktop first_rows_generate).
+ * N_seed = row_* columns; slider N_rings = N_seed-1 because path_generate
+ * skips the seed row at index_r==0 and emits one faces_ring per later row.
  */
-export function rowChunksFromBound(bound, map = null) {
-  const byRow = new Map();
-  for (const s of bound?.stitches || []) {
-    if (s.row == null || !Number.isFinite(Number(s.row))) continue;
-    const row = Math.trunc(s.row);
-    if (!byRow.has(row)) byRow.set(row, []);
-    byRow.get(row).push(s);
+export function parseFirstRows({ xls, workbook } = {}) {
+  const book = workbook || (xls ? parseXlsWorkbook(xls) : null);
+  const sheet =
+    findXlsSheet(book, /first_rows/i) ||
+    findXlsSheet(book, (s) => seedColumnIndex(s.rows[0] || []).length >= 2) ||
+    book?.sheets?.[0];
+  if (!sheet?.rows?.length) {
+    return { nSeed: 0, nRings: 0, nCols: 0, skipSeed: 1, seedNames: [], columns: [], rows: [] };
   }
-  let n = 0;
-  if (map && Number.isFinite(map.rowMax)) n = Math.max(n, Math.trunc(map.rowMax) + 1);
-  if (bound && Number.isFinite(bound.rowMax) && (bound.stitches || []).some((s) => s.row != null)) {
-    n = Math.max(n, Math.trunc(bound.rowMax) + 1);
+  const header = sheet.rows[0] || [];
+  const seedCols = seedColumnIndex(header);
+  const colI = headerIndex(header, "col", "col\\row");
+  const columns = [];
+  for (let r = 1; r < sheet.rows.length; r++) {
+    const row = sheet.rows[r] || [];
+    const col = colI >= 0 ? asIntCol(row[colI]) : r - 1;
+    if (col == null) continue;
+    columns.push({
+      col,
+      seeds: seedCols.map((c) => {
+        if (!isFilled(row[c.i])) return -1;
+        const v = Number(row[c.i]);
+        return Number.isFinite(v) ? Math.trunc(v) : -1;
+      }),
+    });
   }
-  if (!n && byRow.size) n = Math.max(...byRow.keys()) + 1;
+  const nSeed = seedCols.length;
+  const nCols = columns.length ? Math.max(...columns.map((c) => c.col)) + 1 : 0;
+  const rows = Array.from({ length: nSeed }, () => Array(nCols).fill(-1));
+  for (const rec of columns) {
+    rec.seeds.forEach((v, k) => {
+      rows[k][rec.col] = v;
+    });
+  }
+  return {
+    nSeed,
+    nRings: Math.max(0, nSeed - 1),
+    nCols,
+    skipSeed: 1,
+    seedNames: seedCols.map((c) => c.h),
+    columns,
+    rows,
+  };
+}
+
+export function parseFacesRingsJson(data) {
+  if (data == null || data === "") return null;
+  const parsed = typeof data === "string" ? JSON.parse(data) : data;
+  if (!parsed || typeof parsed !== "object") return null;
+  const raw = parsed.term_counts ?? parsed.termCounts;
+  const termCounts = Array.isArray(raw)
+    ? raw.map((n) => Math.max(0, Math.trunc(Number(n) || 0)))
+    : null;
+  let nFacesRing = Number(parsed.n_faces_ring ?? parsed.nFacesRing ?? parsed.n_rings);
+  if (!Number.isFinite(nFacesRing)) nFacesRing = termCounts?.length ?? 0;
+  else nFacesRing = Math.max(0, Math.trunc(nFacesRing));
+  if (termCounts?.length) nFacesRing = termCounts.length;
+  if (!nFacesRing && !termCounts) return null;
+  return { termCounts, nFacesRing, source: "sidecar" };
+}
+
+/** Accept only a dump whose ring count and face total match the mesh. */
+export function justifiedTermCounts(termCounts, nFaces, nRings) {
+  if (!Array.isArray(termCounts) || !termCounts.length) return null;
+  const counts = termCounts.map((n) => Math.trunc(Number(n)));
+  if (counts.some((n) => !Number.isFinite(n) || n < 0)) return null;
+  if (Number.isFinite(nRings) && nRings > 0 && counts.length !== nRings) return null;
+  if (counts.reduce((a, b) => a + b, 0) !== nFaces) return null;
+  return counts;
+}
+
+function seedAt(firstRows, rowK, col) {
+  const v = firstRows?.rows?.[rowK]?.[col];
+  return Number.isFinite(v) ? Math.trunc(v) : -1;
+}
+
+export function firstRowBandsForPoint(firstRows, col, idx) {
+  const nRings = firstRows?.nRings || 0;
+  const bands = [];
+  const i = Math.trunc(idx);
+  for (let b = 0; b < nRings; b++) {
+    const a = seedAt(firstRows, b, col);
+    const c = seedAt(firstRows, b + 1, col);
+    if (a < 0 && c < 0) continue;
+    // Column becoming active this band (prev seed -1): include lead-in
+    // points 0..curr. Column going inactive (curr -1): keep the last seed.
+    let lo;
+    let hi;
+    if (a < 0) {
+      lo = 0;
+      hi = c;
+    } else if (c < 0) {
+      lo = a;
+      hi = a;
+    } else {
+      lo = Math.min(a, c);
+      hi = Math.max(a, c);
+    }
+    if (i >= lo && i <= hi) bands.push(b);
+  }
+  return bands;
+}
+
+function isFirstRowsSeedPoint(firstRows, col, idx) {
+  const nSeed = firstRows?.nSeed || 0;
+  const i = Math.trunc(idx);
+  for (let k = 0; k < nSeed; k++) {
+    if (seedAt(firstRows, k, col) === i) return true;
+  }
+  return false;
+}
+
+function matchVertToColumnPoint(v, columns) {
+  let best = null;
+  let bestD = Infinity;
+  for (const col of columns || []) {
+    (col.points || []).forEach((p, idx) => {
+      const d = (p.x - v.x) ** 2 + (p.y - v.y) ** 2 + (p.z - v.z) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        const pointIdx = Number.isFinite(p.index) ? Math.trunc(p.index) : idx;
+        best = { col: col.col, idx: pointIdx, dist: Math.sqrt(d) };
+      }
+    });
+  }
+  return best;
+}
+
+const MATCH_EPS = 1e-3;
+
+export function assignFaceToFirstRowRing(face, columns, firstRows) {
+  const nRings = firstRows?.nRings || 0;
+  if (!nRings || !face?.verts?.length || !columns?.length) return null;
+  const hits = face.verts.map((v) => matchVertToColumnPoint(v, columns)).filter((h) => h && h.dist <= MATCH_EPS);
+  if (hits.length !== face.verts.length) return null;
+  const perVertBands = hits.map((h) => firstRowBandsForPoint(firstRows, h.col, h.idx));
+  const interiors = hits.filter((h) => !isFirstRowsSeedPoint(firstRows, h.col, h.idx));
+  const tally = (bandsList) => {
+    const counts = Array(nRings).fill(0);
+    for (const bands of bandsList) for (const b of bands) counts[b] += 1;
+    let best = null;
+    let bestN = 0;
+    for (let i = 0; i < counts.length; i++) {
+      if (counts[i] > bestN) {
+        bestN = counts[i];
+        best = i;
+      }
+    }
+    return bestN > 0 ? best : null;
+  };
+  if (interiors.length) {
+    const voted = tally(interiors.map((h) => firstRowBandsForPoint(firstRows, h.col, h.idx)));
+    if (voted != null) return voted;
+  }
+  let common = perVertBands[0] ? [...perVertBands[0]] : [];
+  for (const list of perVertBands.slice(1)) {
+    common = common.filter((b) => list.includes(b));
+  }
+  if (common.length) return Math.min(...common);
+  return tally(perVertBands);
+}
+
+function assignRingsByCounts(stitches, counts) {
+  let offset = 0;
+  for (let i = 0; i < counts.length; i++) {
+    const end = Math.min(stitches.length, offset + counts[i]);
+    for (let j = offset; j < end; j++) stitches[j].ring = i;
+    offset = end;
+  }
+  for (let j = offset; j < stitches.length; j++) stitches[j].ring = null;
+}
+
+function chunksFromAssignedRings(stitches, nRings) {
   const chunks = [];
-  for (let r = 0; r < n; r++) {
-    const faces = byRow.get(r) || [];
+  for (let i = 0; i < nRings; i++) {
+    const faces = (stitches || []).filter((s) => s.ring === i);
     chunks.push({
-      row: r,
-      index: r,
+      row: i,
+      ring: i,
+      index: i,
       faces,
       terms: faces,
     });
   }
   return chunks;
+}
+
+/**
+ * Reconstruct one faces_ring per first_rows band (skip seed row 0).
+ * Prefer flatten(faces_allin) / OBJ order. Optional term_counts are used
+ * only when they are justified (len === N_rings, sum === nFaces).
+ */
+export function reconstructFacesRingTermCounts(faces, columns, firstRows) {
+  const nRings = firstRows?.nRings || 0;
+  const list = faces || [];
+  if (!nRings || !list.length || !columns?.length) return null;
+  const counts = Array(nRings).fill(0);
+  for (const face of list) {
+    const ring = assignFaceToFirstRowRing(face, columns, firstRows);
+    if (ring == null) return null;
+    counts[ring] += 1;
+  }
+  if (counts.reduce((a, b) => a + b, 0) !== list.length) return null;
+  return counts;
+}
+
+export function applyFacesRingAssignment(stitches, faces, { columns = null, firstRows = null, termCounts = null } = {}) {
+  const list = stitches || [];
+  const nFaces = list.length;
+  const nRings = firstRows?.nRings || 0;
+  const sourceFaces = faces?.length ? faces : list.map((s) => ({ verts: s.verts }));
+  const fromJson = justifiedTermCounts(termCounts, nFaces, nRings || termCounts?.length || 0);
+  if (fromJson) {
+    assignRingsByCounts(list, fromJson);
+    return chunksFromAssignedRings(list, fromJson.length);
+  }
+  if (nRings && columns?.length && sourceFaces.length === list.length) {
+    let ok = true;
+    for (let i = 0; i < list.length; i++) {
+      const ring = assignFaceToFirstRowRing(sourceFaces[i], columns, firstRows);
+      if (ring == null) {
+        ok = false;
+        break;
+      }
+      list[i].ring = ring;
+    }
+    if (ok) return chunksFromAssignedRings(list, nRings);
+  }
+  for (const s of list) s.ring = null;
+  return nRings ? chunksFromAssignedRings(list, nRings) : [];
+}
+
+export function facesRingChunksFromStitches(stitches, { nRings = 0, termCounts = null } = {}) {
+  const list = stitches || [];
+  const justified = justifiedTermCounts(termCounts, list.length, nRings || termCounts?.length || 0);
+  if (justified) {
+    assignRingsByCounts(list, justified);
+    return chunksFromAssignedRings(list, justified.length);
+  }
+  if (nRings && list.some((s) => s.ring != null)) {
+    return chunksFromAssignedRings(list, nRings);
+  }
+  return nRings ? chunksFromAssignedRings(list, nRings) : [];
 }
 
 export function stitchesInRowRange(stitches, start, end) {
@@ -244,6 +473,20 @@ export function stitchesInRowRange(stitches, start, end) {
   return (stitches || []).filter(
     (s) => s.row != null && Number.isFinite(s.row) && s.row >= lo && s.row < hi,
   );
+}
+
+export function stitchesInRingRange(stitches, start, end) {
+  const list = stitches || [];
+  const lo = Number(start);
+  const hi = Number(end);
+  const rings = list.map((s) => s.ring).filter((r) => r != null && Number.isFinite(r));
+  if (!rings.length) return list;
+  const n = Math.max(...rings) + 1;
+  const showingAll = lo <= 0 && hi >= n;
+  return list.filter((s) => {
+    if (s.ring == null || !Number.isFinite(s.ring)) return showingAll;
+    return s.ring >= lo && s.ring < hi;
+  });
 }
 
 /**

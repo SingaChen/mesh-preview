@@ -19,7 +19,7 @@ Open a project folder or manifest, orbit the mesh, and scrub the same three dual
 - 默认加载真实 **Test Cylinder**（`Single_Cylinder_Test`）。
 - 三个双向滑块（半开区间 `[start, end)`，相邻手柄显示 1 项）：
   - **cols_resample**：过滤 `*_cols_resample_field.obj` 的列折线，标签如 `cols_resample: idx a-b / N`
-  - **row**（副标题 faces_ring）：按编织行过滤 KnittingStitches。半开区间 `[start, end)`，每步一整圈 term（`readable_map` 的 `rowNNN` / first_row path），不是逐针、也不是按高度假分。标签如 `row: idx 0-64 / 65`
+  - **row**（副标题 faces_ring/first_row）：按 `first_rows` 的 `path_generate` 面环过滤 KnittingStitches。半开区间 `[start, end)`，每步一整条 faces_ring（圆柱 **5** 环 = 6 个种子行 − 1，跳过 seed row 0）。**不是** `readable_map` 的 65 个 `rowNNN` 机头行。标签如 `row: idx 0-4 / 5`
   - **display_models**：显隐已注册模型（`cols_resample`、cut body、`KnittingStitches`）。右端若为 faces_ring 则绑定 **row** 滑块，标签带 `| right=<name>`
 - **文件夹 Folder** / **文件 Files** 仍从**手机本地**读取 OBJ 或清单（不上传服务器）。
 - **示例 Sample** 重新加载内置圆柱。
@@ -53,7 +53,7 @@ npm run preview
 | 按钮 | 作用 |
 | --- | --- |
 | **文件夹 Folder** | 桌面 Chrome：File System Access 选目录。Android Chrome：回退为 `webkitdirectory` 多文件选择。 |
-| **文件 Files** | 多选 `.obj` / 清单 `.json` / `readable_map.txt` / `*_cols_resample.xls`（Android 上最稳）。 |
+| **文件 Files** | 多选 `.obj` / 清单 `.json` / `readable_map.txt` / `*_cols_resample.xls` / `*_first_rows.xls`（Android 上最稳）。 |
 | **示例 Sample** | 重新加载内置 `public/sample/cylinder/`。 |
 
 没有清单时，会收集选中的 Wavefront OBJ，按文件名自然排序。文件名含 `overlay` / `field` / `stitch` / `KnittingStitches` 的 OBJ 会当作叠加层；同目录的 `*_readable_map.txt` 与 `*_cols_resample.xls` 会自动绑到针迹 / 列场。
@@ -65,7 +65,7 @@ npm run preview
 - **适应 Fit**：框住当前网格
 - **cols_resample / row / display_models**：桌面端同款半开区间双手柄
 - **线框 Wire** / **平面 Flat** / **针迹 Stitch**
-- 点按一根针迹：row 滑块收到该行 `[row, row+1)`（整圈）；再点同一行恢复全部行
+- 点按一根针迹：row 滑块收到该 first_rows 面环 `[i, i+1)`；再点同一环恢复全部环
 
 ## 三个滑块怎么对应 SingaLab
 
@@ -74,12 +74,12 @@ npm run preview
 | 滑块 | 范围 | 效果 |
 | --- | --- | --- |
 | **cols_resample** | `0..N_cols` | `apply_cols_resample_range`：只留 `[start, end)` 列。`N` 是桌面 `len(cols_resample)`（圆柱新鲜导出 **42**）。与 xls `scale_matrix` 行数、field.obj 顺序链条数一致。 |
-| **row**（faces_ring） | `0..N_rows` | 只显示编织行 `[start, end)`。每一行是 `readable_map` 的 `rowNNN` / first_row path 上的全部 term（本 dump **65** 行，475 面）。不要把 `first_rows.xls` 的 6 个 `row_*` 列当成 N。 |
+| **row**（faces_ring/first_row） | `0..N_rings` | 只显示 `path_generate` 面环 `[start, end)`。`first_rows.xls` 是种子矩阵（`col\\row` + `row_0..row_5`，**K=6**）。桌面跳过 index 0，所以滑条 **N = 5**。`readable_map` 的 65 个 `rowNNN` 是 wrap/inc/xfer 之后的机头行，不是 N。475 面按相邻 first_rows 之间的完整 faces_ring 切开（圆柱 46+136+110+106+77）。 |
 | **display_models** | `0..N_models` | `[start, end)` 内的模型可见。注册顺序与桌面相同：`cols_resample` 置顶，再是 cut body，再是 `KnittingStitches`。右端为 faces_ring 时绑定 row 滑块。 |
 
 `_normalize_half_open_slider` 保证 `end >= start + 1`。标签：`cols_resample: idx a-b / N`（单项则 `idx a`）；display_models 追加 `| right=<name>`。
 
-`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即生成序（本 dump 前 21 面是 row000 的一圈 21 针，共 475 面）。`readable_map.txt` 按同样顺序给出 token，并带 `rowNNN`。row 滑块按这些行 id 分组，一步展开一整圈，而不是桌面 faces_ring 的逐 term。不要按高度假分行，也不要用 `first_rows.xls` 的 6 个 `row_*` 列当滑条长度。
+`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即 `flatten(faces_allin)`（共 475 面）。桌面 `path_generate(cols_resample, first_rows)` 对每个 first_rows 行（跳过第 0 行）生成一整条 `faces_ring` 并追加到 `faces_allin`。row 滑块按这些完整面环生长/收缩，而不是 `readable_map` 的 65 个机头行，也不是逐 term。带宽从 first_rows 点下标 + `cols_resample` 几何重建（把每个针迹顶点贴回列采样点，落入相邻种子行之间的那一段）。可选 `faces_rings.json` 的 `term_counts` 仅在 `len === N_rings` 且 `sum === 475` 时采用。不要按高度假分行，也不要把 65 个 `rowNNN` 或 6 个种子行本身当成 N。
 
 桌面 `save_cols_resample_obj` 按列顺序写 field.obj：每列先追加全部顶点，再只在该列相邻顶点之间写 `l` 边（无 object 分组）。`save_cols_resample_excel` 的 `scale_matrix` 同样一行一列。预览按这两种真实导出几何解析：优先把 `points_detail` 按连续 col id `0..N-1` 分组，否则沿 field.obj 顶点序把最长 `(i,i+1)` 边跑当成一列（孤立顶点是长度为 1 的列）。圆柱新鲜导出是 **42** 列 / 459 点，xls 行数与 field 链 1:1。不要用角度启发式或 sidecar 去合并 SHORT_*。
 
@@ -98,7 +98,8 @@ npm run preview
       "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "readableMap": "cylinder/iteration_0_cut_readable_map.txt",
       "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
-      "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls"
+      "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
+      "firstRows": "cylinder/iteration_0_cut_first_rows.xls"
     }
   ]
 }
@@ -112,11 +113,13 @@ npm run preview
 | `outputs[].mesh` | 是 | 相对清单目录的 Wavefront OBJ（也接受 `obj` / `path`） |
 | `outputs[].overlay` | 否 | 叠加 OBJ（针迹 / field 等，也接受 `field`） |
 | `outputs[].stitches` | 否 | 针迹 OBJ（带 `v x y z r g b` 的 n 边形）。缺省时用 `*KnittingStitches*.obj` |
-| `outputs[].readableMap` | 否 | `readable_map.txt`。缺省时用同目录 `*readable_map*.txt` |
+| `outputs[].readableMap` | 否 | `readable_map.txt`。缺省时用同目录 `*readable_map*.txt`。只用于 token/机头行标注，不驱动第二滑条长度 |
 | `outputs[].colsResample` | 否 | `*_cols_resample_field.obj`（也接受 `field`）。顺序 `(i,i+1)` 链即桌面列 |
 | `outputs[].colsResampleXls` | 否 | `*_cols_resample.xls`。`scale_matrix` 一行一列；`points_detail` 按 col `0..N-1` 分组 |
+| `outputs[].firstRows` | 否 | `*_first_rows.xls`。种子矩阵；滑条 N = `row_*` 列数 − 1。缺省时用同目录 `*first_rows*.xls` |
+| `outputs[].facesRings` | 否 | 可选 `faces_rings.json`。仅当 `term_counts` 条数 = N_rings 且总和 = 面数时采用 |
 
-也支持无清单直接打开 cut OBJ + KnittingStitches + readable_map。
+也支持无清单直接打开 cut OBJ + KnittingStitches + first_rows + readable_map。
 
 内置示例：`public/sample/cylinder/`。
 
