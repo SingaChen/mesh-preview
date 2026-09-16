@@ -215,6 +215,11 @@ assert(rowChunks[1].faces[0].index === 46, "ring 1 starts after 46 terms");
 assert(rowChunks[4].faces[0].index === 46 + 136 + 110 + 106, "ring 4 starts at face 398");
 assert(rowChunks[4].faces[72].index === 470, "last typed term is face 470");
 assert(rowChunks[4].faces.length === 77 && rowChunks[4].faces[76].index === 474, "last ring width is 77");
+assert(layout.ringTypes[4].length === 73, "sidecar types[] cover the 73 stuck_all terms");
+assert(
+  rowChunks[4].faces.slice(0, 73).every((s, i) => s.termType === layout.ringTypes[4][i]),
+  "first 73 last-ring faces keep JSON Term.Type colors",
+);
 
 const folded = bound.stitches.filter((s) => s.ring === 4 && s.index >= 471);
 assert(folded.length === 4, `4 remainder faces fold into ring 4, got ${folded.length}`);
