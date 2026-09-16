@@ -156,13 +156,22 @@ assert(firstRows.nRings !== firstRows.nSeed, "do not use N_seed=6 as slider N; s
 const layoutText = readFileSync(join(cylDir, "faces_ring_layout.json"), "utf8");
 const layout = parseFacesRingLayout(layoutText);
 assert(layout.nFacesRing === 5, `sidecar n_faces_ring is 5, got ${layout.nFacesRing}`);
+assert(layout.nFirstRows === 6 && layout.skipSeed, "sidecar is 6 first_rows, skip seed row0");
 assert(
   layout.rings.map((r) => r.n_terms).join(",") === CYLINDER_FACES_RING_COUNTS.join(","),
   `sidecar rings are 46+136+110+106+73, got ${layout.rings.map((r) => r.n_terms)}`,
 );
 assert(layout.nTyped === 471, `typed terms are 471, got ${layout.nTyped}`);
-assert(layout.nTyped + 4 === 475, "471 typed terms + 4 leftover OBJ faces = 475");
+assert(layout.nObjFaces === 475, `OBJ face count expected 475, got ${layout.nObjFaces}`);
+assert(layout.leftoverFaces === 4, "471 typed terms + 4 leftover OBJ faces = 475");
 assert(layout.rings.every((r) => r.types.length === r.n_terms), "each ring lists Term.Type per term");
+const hist = {};
+for (const ring of layout.rings) {
+  for (const t of ring.types) hist[t] = (hist[t] || 0) + 1;
+}
+assert(hist[0] === 323 && hist[1] === 66 && hist[2] === 61, `desktop type_hist 0/1/2, got ${JSON.stringify(hist)}`);
+assert(hist[3] === 16 && hist[4] === 2 && hist[5] === 1 && hist[6] === 2, "desktop type_hist 3–6");
+assert(!hist[7], "typed terms do not include default pink; leftover faces are the extra 4");
 
 const assigned = applyFacesRingLayout(bound.stitches, layout);
 const rowChunks = assigned.chunks;

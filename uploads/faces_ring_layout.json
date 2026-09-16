@@ -1,12 +1,98 @@
 {
+  "source": "path_generate+stuck_all",
+  "n_first_rows": 6,
+  "skip_seed_row0": true,
   "n_faces_ring": 5,
-  "n_obj_faces": 475,
-  "n_typed_terms": 471,
-  "leftover_faces": 4,
-  "note": "faces_ring comes from path_generate(first_rows), not readable_map rowNNN. Cylinder: 6 first_rows (row_0..row_5) → 5 rings. Types map by prefix in OBJ face order; 471 typed terms (46+136+110+106+73); leftover 4 faces → default pink (type 7).",
+  "term_total": 471,
+  "type_hist": {
+    "0": 323,
+    "2": 61,
+    "6": 2,
+    "1": 66,
+    "3": 16,
+    "4": 2,
+    "5": 1
+  },
+  "knitting_stitches_faces_expected": 475,
+  "note": "OBJ face order follows path_list flatten: ring then term. If term_total!=475, map by prefix counts then leave remainder untyped pink.",
+  "term_face_colors": {
+    "0": [
+      0.55,
+      0.55,
+      0.55,
+      1
+    ],
+    "1": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "2": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "3": [
+      1,
+      0,
+      0,
+      1
+    ],
+    "4": [
+      0,
+      1,
+      0,
+      1
+    ],
+    "5": [
+      1,
+      1,
+      0,
+      1
+    ],
+    "6": [
+      0,
+      0,
+      1,
+      1
+    ],
+    "7": [
+      1,
+      0.35,
+      0.8,
+      1
+    ],
+    "8": [
+      1,
+      0.35,
+      0.8,
+      1
+    ],
+    "9": [
+      1,
+      0.35,
+      0.8,
+      1
+    ],
+    "default": [
+      1,
+      0.35,
+      0.8,
+      1
+    ]
+  },
+  "edge_color": [
+    0,
+    0,
+    0
+  ],
   "rings": [
     {
-      "index": 0,
+      "row": 0,
+      "first_rows_index": 1,
+      "kind": "ok",
       "n_terms": 46,
       "types": [
         0,
@@ -58,7 +144,9 @@
       ]
     },
     {
-      "index": 1,
+      "row": 1,
+      "first_rows_index": 2,
+      "kind": "ok",
       "n_terms": 136,
       "types": [
         0,
@@ -200,7 +288,9 @@
       ]
     },
     {
-      "index": 2,
+      "row": 2,
+      "first_rows_index": 3,
+      "kind": "ok",
       "n_terms": 110,
       "types": [
         0,
@@ -316,7 +406,9 @@
       ]
     },
     {
-      "index": 3,
+      "row": 3,
+      "first_rows_index": 4,
+      "kind": "ok",
       "n_terms": 106,
       "types": [
         0,
@@ -428,7 +520,9 @@
       ]
     },
     {
-      "index": 4,
+      "row": 4,
+      "first_rows_index": "5_all",
+      "kind": "stuck_all",
       "n_terms": 73,
       "types": [
         0,
@@ -436,37 +530,18 @@
         0,
         2,
         2,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        2,
-        2,
         0,
         0,
         1,
         1,
-        0,
-        0,
-        0,
-        3,
-        0,
-        0,
+        1,
+        1,
         2,
         2,
         0,
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        3,
-        0,
-        3,
         1,
         1,
         0,
@@ -474,36 +549,55 @@
         0,
         0,
         0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
         0,
         0,
         2,
         2,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        3,
-        2,
-        5,
-        1,
-        1,
         0,
         2,
-        5,
+        2,
         0,
-        0,
-        0,
-        3,
         1,
         1,
         0,
         0,
-        0
+        0,
+        1,
+        1,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1
       ]
     }
   ]

@@ -361,16 +361,26 @@ export function parseFacesRingLayout(data) {
   else nFacesRing = Math.max(0, Math.trunc(nFacesRing));
   if (rings.length) nFacesRing = rings.length;
 
-  const nTyped = rings.reduce((s, r) => s + r.n_terms, 0);
-  const leftoverFaces = Math.max(0, Math.trunc(Number(parsed.leftover_faces ?? parsed.leftoverFaces) || 0));
+  const nTyped = Number(parsed.term_total ?? parsed.n_typed_terms) || rings.reduce((s, r) => s + r.n_terms, 0);
+  const nObjFaces = Math.max(
+    0,
+    Math.trunc(
+      Number(parsed.knitting_stitches_faces_expected ?? parsed.n_obj_faces ?? parsed.nObjFaces) || 0,
+    ),
+  );
+  let leftoverFaces = Math.max(0, Math.trunc(Number(parsed.leftover_faces ?? parsed.leftoverFaces) || 0));
+  if (!leftoverFaces && nObjFaces > nTyped) leftoverFaces = nObjFaces - nTyped;
   if (!nFacesRing && !rings.length) return null;
   return {
     nFacesRing,
     rings,
     nTyped,
     leftoverFaces,
-    nObjFaces: Number(parsed.n_obj_faces ?? parsed.nObjFaces) || nTyped + leftoverFaces,
-    source: "sidecar",
+    nObjFaces: nObjFaces || nTyped + leftoverFaces,
+    typeHist: parsed.type_hist ?? parsed.typeHist ?? null,
+    skipSeed: Boolean(parsed.skip_seed_row0 ?? parsed.skipSeedRow0 ?? true),
+    nFirstRows: Number(parsed.n_first_rows ?? parsed.nFirstRows) || nFacesRing + 1,
+    source: parsed.source || "sidecar",
   };
 }
 

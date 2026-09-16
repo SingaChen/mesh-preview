@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -41,11 +41,24 @@ const layout = {
 };
 
 const json = `${JSON.stringify(layout, null, 2)}\n`;
+// Prefer the desktop dump (path_generate+stuck_all) when present.
+// This script only rebuilds types from OBJ colors as a fallback.
 const dests = [
   join(root, "uploads", "faces_ring_layout.json"),
   join(root, "public", "sample", "cylinder", "faces_ring_layout.json"),
 ];
 for (const dest of dests) {
+  if (existsSync(dest)) {
+    try {
+      const existing = JSON.parse(readFileSync(dest, "utf8"));
+      if (String(existing.source || "").includes("path_generate")) {
+        console.log(`keep official dump ${dest}`);
+        continue;
+      }
+    } catch {
+      /* rewrite if unreadable */
+    }
+  }
   mkdirSync(dirname(dest), { recursive: true });
   writeFileSync(dest, json);
 }
