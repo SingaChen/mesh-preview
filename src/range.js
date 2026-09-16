@@ -40,6 +40,16 @@ export function formatDisplayModelsLabel(start, end, models) {
   return `${base} | right=${name}`;
 }
 
+export function formatTermsRangeLabel(start, end, nTerms, ringIndex) {
+  const base = formatHalfOpenRangeLabel("terms", start, end, nTerms);
+  if (ringIndex == null || !Number.isFinite(Number(ringIndex))) return base;
+  return `${base} | ring=${Math.trunc(ringIndex)}`;
+}
+
+export function formatFacesRingLabel(start, end, nRings) {
+  return formatHalfOpenRangeLabel("faces_ring", start, end, nRings);
+}
+
 export function sliceHalfOpen(items, start, end) {
   const n = items.length;
   if (!n) return [];

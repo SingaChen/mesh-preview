@@ -63,16 +63,27 @@
           </div>
           <div class="slider-row hidden" id="faces-row">
             <div class="slider-heading">
-              <label id="faces-label">row: -</label>
-              <span class="slider-sub">faces_ring</span>
+              <label id="faces-label">faces_ring: -</label>
+              <span class="slider-sub">first_row ring</span>
             </div>
-            <div class="dual-range" id="faces-range" role="group" aria-label="row">
+            <div class="dual-range" id="faces-range" role="group" aria-label="faces_ring">
               <div class="dual-track"><div class="dual-fill"></div></div>
-              <input class="dual-start" type="range" min="0" max="1" value="0" step="1" aria-label="row start" />
-              <input class="dual-end" type="range" min="0" max="1" value="1" step="1" aria-label="row end" />
+              <input class="dual-start" type="range" min="0" max="1" value="0" step="1" aria-label="faces_ring start" />
+              <input class="dual-end" type="range" min="0" max="1" value="1" step="1" aria-label="faces_ring end" />
             </div>
           </div>
-          <div class="slider-row hidden" id="models-row">
+          <div class="slider-row hidden" id="terms-row">
+            <div class="slider-heading">
+              <label id="terms-label">terms: -</label>
+              <span class="slider-sub">max ring</span>
+            </div>
+            <div class="dual-range" id="terms-range" role="group" aria-label="terms">
+              <div class="dual-track"><div class="dual-fill"></div></div>
+              <input class="dual-start" type="range" min="0" max="1" value="0" step="1" aria-label="terms start" />
+              <input class="dual-end" type="range" min="0" max="1" value="1" step="1" aria-label="terms end" />
+            </div>
+          </div>
+          <div class="slider-row compact hidden" id="models-row">
             <label id="models-label">display_models: -</label>
             <div class="dual-range" id="models-range" role="group" aria-label="display_models">
               <div class="dual-track"><div class="dual-fill"></div></div>

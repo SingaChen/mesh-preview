@@ -1,25 +1,24 @@
 /**
- * SingaLab knitting-stitch faces + readable_map.
+ * SingaLab knitting-stitch faces + first_rows / faces_ring_layout.
  *
  * Mapping (investigated on Single_Cylinder_Test 2026-09-16):
  * - KnittingStitches.obj lists one n-gon per stitch in generation order
- *   (first 21 faces are the base ring / row000, 21 needles on this dump).
- * - Vertex colours: gray 0.55 = normal, red = special/highlight, plus
- *   black/white/green/yellow/blue markers. Faces reuse copied verts.
- * - readable_map.txt walks the same generation order: each token
- *   (including the leftover "-" after a -R2 decrease) is one stitch
- *   cell with an explicit row id and needle column.
- * - This dump has 475 faces vs more map tokens (header 479 cells): leftover
- *   tokens are the last short rows with no stitch geometry. Do not invent
- *   rows; unmatched faces/cells stay unbound.
- * - Mobile faces_ring slider is per knitting ROW (readable_map rowNNN /
- *   first_row path ring), not per term. N is 0..map.rowMax+1 (65 here).
- *   first_rows.xls is a seed matrix (col × early row_* columns); do not
- *   use its 6 row_* columns as slider N.
- * - first_rows.xls / cols_resample.xls describe resampled field polylines.
- *   Desktop slider N is len(cols_resample) after extractRows (42 on this
- *   cylinder dump). Parse xls points_detail by col id 0..N-1, or sequential
- *   (i,i+1) chains in field.obj. Do not invent SHORT_* parent merges.
+ *   = flatten(faces_allin). This dump has 475 faces.
+ * - Desktop path_generate(cols_resample, first_rows) skips index_r==0,
+ *   then each later first_rows seed row emits one faces_ring (a ring of
+ *   Terms). Cylinder first_rows has 6 seed rows (row_0..row_5) → 5 rings.
+ * - Do NOT use readable_map's 65 rowNNN machine/carriage rows as slider N.
+ *   readable_map still labels tokens; leftover map cells have no geometry.
+ * - Sidecar faces_ring_layout.json is the desktop term dump:
+ *   n_faces_ring, rings[i].n_terms, rings[i].types[] (Term.Type in path
+ *   order). Cylinder: 46+136+110+106+73 = 471 typed terms. Map types by
+ *   prefix in OBJ face order; leftover 4 faces → default pink (type 7).
+ * - Term.Type palette (build_and_show_knitting_stitches):
+ *   0 gray, 1 white, 2 black, 3 red, 4 green, 5 yellow, 6 blue,
+ *   7–9 / default pink. Edges are black (#000000).
+ * - Slider 2 is half-open over first_row rings. Slider 3 is terms inside
+ *   the MAX ring of slider 2 (desktop update_slider_stitch).
+ * - cols_resample.xls / field.obj: desktop N is len(cols_resample) (42).
  */
 
 import { findXlsSheet, parseXlsWorkbook } from "./xls.js";
@@ -40,7 +39,30 @@ const MANIFEST_PATH_KEYS = [
   "stitch",
   "readableMap",
   "map",
+  "firstRows",
+  "first_rows",
+  "facesRingLayout",
+  "faces_ring_layout",
 ];
+
+/** Desktop Term.Type face colors (RGB 0..1). 7–9 share default pink. */
+export const TERM_TYPE_PALETTE = [
+  [0.55, 0.55, 0.55],
+  [1, 1, 1],
+  [0, 0, 0],
+  [1, 0, 0],
+  [0, 1, 0],
+  [1, 1, 0],
+  [0, 0, 1],
+  [1, 0.35, 0.8],
+  [1, 0.35, 0.8],
+  [1, 0.35, 0.8],
+];
+
+export const TERM_TYPE_DEFAULT = 7;
+export const STITCH_EDGE_HEX = "#000000";
+
+export const CYLINDER_FACES_RING_COUNTS = [46, 136, 110, 106, 73];
 
 export function collectManifestRefs(data) {
   const paths = new Set();
@@ -194,8 +216,6 @@ export function triangulate(verts) {
 
 /**
  * Each KnittingStitches n-gon is one faces_ring term (generation order).
- * Desktop still builds a flat term list this way; the mobile slider
- * regroups these terms into knitting-row chunks.
  */
 export function faceChunksFromFaces(faces) {
   return (faces || []).map((face, index) => ({
@@ -205,45 +225,267 @@ export function faceChunksFromFaces(faces) {
   }));
 }
 
-/**
- * Group stitch terms into one chunk per knitting row (faces_ring / row).
- * Slider index === readable_map row id; half-open N is rowMax+1 so a
- * leftover short row with no geometry still occupies its slot.
- * first_rows.xls row_* columns are not N.
- */
-export function rowChunksFromBound(bound, map = null) {
-  const byRow = new Map();
-  for (const s of bound?.stitches || []) {
-    if (s.row == null || !Number.isFinite(Number(s.row))) continue;
-    const row = Math.trunc(s.row);
-    if (!byRow.has(row)) byRow.set(row, []);
-    byRow.get(row).push(s);
-  }
+export function termTypeRgb(type) {
+  const i = Math.trunc(Number(type));
+  if (!Number.isFinite(i) || i < 0 || i > 9) return TERM_TYPE_PALETTE[TERM_TYPE_DEFAULT];
+  return TERM_TYPE_PALETTE[i] || TERM_TYPE_PALETTE[TERM_TYPE_DEFAULT];
+}
+
+function colorDist2(a, b) {
+  const dr = a[0] - b[0];
+  const dg = a[1] - b[1];
+  const db = a[2] - b[2];
+  return dr * dr + dg * dg + db * db;
+}
+
+export function inferTermTypeFromVerts(verts) {
+  let r = 0;
+  let g = 0;
+  let b = 0;
   let n = 0;
-  if (map && Number.isFinite(map.rowMax)) n = Math.max(n, Math.trunc(map.rowMax) + 1);
-  if (bound && Number.isFinite(bound.rowMax) && (bound.stitches || []).some((s) => s.row != null)) {
-    n = Math.max(n, Math.trunc(bound.rowMax) + 1);
+  for (const v of verts || []) {
+    if (v?.r == null || v?.g == null || v?.b == null) continue;
+    if (![v.r, v.g, v.b].every(Number.isFinite)) continue;
+    r += v.r;
+    g += v.g;
+    b += v.b;
+    n += 1;
   }
-  if (!n && byRow.size) n = Math.max(...byRow.keys()) + 1;
+  if (!n) return TERM_TYPE_DEFAULT;
+  const avg = [r / n, g / n, b / n];
+  let best = TERM_TYPE_DEFAULT;
+  let bestD = Infinity;
+  for (let i = 0; i <= 6; i++) {
+    const d = colorDist2(avg, TERM_TYPE_PALETTE[i]);
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  const pinkD = colorDist2(avg, TERM_TYPE_PALETTE[TERM_TYPE_DEFAULT]);
+  if (pinkD + 1e-6 < bestD) return TERM_TYPE_DEFAULT;
+  return best;
+}
+
+function seedColumnIndex(header) {
+  return header
+    .map((h, i) => ({ h: String(h ?? "").trim(), i }))
+    .filter((c) => /^row_\d+$/i.test(c.h))
+    .sort((a, b) => Number(a.h.slice(4)) - Number(b.h.slice(4)));
+}
+
+/**
+ * Transposed first_rows seed matrix. N_seed = row_* columns; slider
+ * N_rings = N_seed-1 because path_generate skips the seed at index 0.
+ */
+export function parseFirstRows({ xls, workbook } = {}) {
+  const book = workbook || (xls ? parseXlsWorkbook(xls) : null);
+  const sheet =
+    findXlsSheet(book, /first_rows/i) ||
+    findXlsSheet(book, (s) => seedColumnIndex(s.rows[0] || []).length >= 2) ||
+    book?.sheets?.[0];
+  if (!sheet?.rows?.length) {
+    return { nSeed: 0, nRings: 0, skipSeed: 1, seedNames: [], columns: [] };
+  }
+  const header = sheet.rows[0] || [];
+  const seedCols = seedColumnIndex(header);
+  const colI = headerIndex(header, "col", "col\\row");
+  const columns = [];
+  for (let r = 1; r < sheet.rows.length; r++) {
+    const row = sheet.rows[r] || [];
+    const col = colI >= 0 ? asIntCol(row[colI]) : r - 1;
+    if (col == null) continue;
+    columns.push({
+      col,
+      seeds: seedCols.map((c) => {
+        const v = Number(row[c.i]);
+        return Number.isFinite(v) ? v : null;
+      }),
+    });
+  }
+  const nSeed = seedCols.length;
+  return {
+    nSeed,
+    nRings: Math.max(0, nSeed - 1),
+    skipSeed: 1,
+    seedNames: seedCols.map((c) => c.h),
+    columns,
+  };
+}
+
+function asTypeList(raw, n) {
+  const out = [];
+  const src = Array.isArray(raw) ? raw : [];
+  for (let i = 0; i < n; i++) {
+    const v = Number(src[i]);
+    out.push(Number.isFinite(v) ? Math.trunc(v) : TERM_TYPE_DEFAULT);
+  }
+  return out;
+}
+
+/**
+ * Desktop faces_ring_layout.json:
+ * { n_faces_ring, rings: [{ n_terms, types[] }] }
+ * Also accepts term_counts / nFacesRing aliases.
+ */
+export function parseFacesRingLayout(data) {
+  if (data == null || data === "") return null;
+  const parsed = typeof data === "string" ? JSON.parse(data) : data;
+  if (!parsed || typeof parsed !== "object") return null;
+
+  let rings = [];
+  if (Array.isArray(parsed.rings) && parsed.rings.length) {
+    rings = parsed.rings.map((ring, index) => {
+      const typesRaw = ring?.types ?? ring?.type ?? [];
+      const nTerms = Math.max(
+        0,
+        Math.trunc(Number(ring?.n_terms ?? ring?.nTerms ?? typesRaw.length) || 0),
+      );
+      const types = asTypeList(typesRaw, nTerms);
+      return { index, n_terms: nTerms, types };
+    });
+  } else {
+    const raw = parsed.term_counts ?? parsed.termCounts;
+    const counts = Array.isArray(raw) ? raw.map((n) => Math.max(0, Math.trunc(Number(n) || 0))) : [];
+    const typesAll = Array.isArray(parsed.types) ? parsed.types : [];
+    let offset = 0;
+    rings = counts.map((n, index) => {
+      const types = asTypeList(typesAll.slice(offset, offset + n), n);
+      offset += n;
+      return { index, n_terms: n, types };
+    });
+  }
+
+  let nFacesRing = Number(parsed.n_faces_ring ?? parsed.nFacesRing ?? parsed.n_rings);
+  if (!Number.isFinite(nFacesRing)) nFacesRing = rings.length;
+  else nFacesRing = Math.max(0, Math.trunc(nFacesRing));
+  if (rings.length) nFacesRing = rings.length;
+
+  const nTyped = rings.reduce((s, r) => s + r.n_terms, 0);
+  const leftoverFaces = Math.max(0, Math.trunc(Number(parsed.leftover_faces ?? parsed.leftoverFaces) || 0));
+  if (!nFacesRing && !rings.length) return null;
+  return {
+    nFacesRing,
+    rings,
+    nTyped,
+    leftoverFaces,
+    nObjFaces: Number(parsed.n_obj_faces ?? parsed.nObjFaces) || nTyped + leftoverFaces,
+    source: "sidecar",
+  };
+}
+
+export function applyFacesRingLayout(stitches, layout) {
+  const list = stitches || [];
+  const rings = layout?.rings || [];
+  let offset = 0;
   const chunks = [];
-  for (let r = 0; r < n; r++) {
-    const faces = byRow.get(r) || [];
+  for (let i = 0; i < rings.length; i++) {
+    const n = rings[i].n_terms;
+    const types = rings[i].types || [];
+    const faces = [];
+    for (let k = 0; k < n; k++) {
+      const s = list[offset + k];
+      if (!s) break;
+      const inferred = Number.isFinite(Number(types[k])) ? Math.trunc(Number(types[k])) : inferTermTypeFromVerts(s.verts);
+      s.ring = i;
+      s.termIndex = k;
+      s.type = inferred;
+      faces.push(s);
+    }
     chunks.push({
-      row: r,
-      index: r,
+      row: i,
+      ring: i,
+      index: i,
+      n_terms: faces.length,
+      types: faces.map((f) => f.type),
       faces,
       terms: faces,
     });
+    offset += n;
   }
-  return chunks;
+  const leftover = [];
+  for (let i = offset; i < list.length; i++) {
+    list[i].ring = null;
+    list[i].termIndex = null;
+    list[i].type = TERM_TYPE_DEFAULT;
+    leftover.push(list[i]);
+  }
+  return { chunks, leftover, nTyped: offset, nFacesRing: chunks.length };
 }
 
-export function stitchesInRowRange(stitches, start, end) {
+/**
+ * Desktop update_knittingStitch: include every ring in [start, end);
+ * clip terms only on the last (max) ring via the stitch/term slider.
+ * Leftover untyped faces (471 vs 475) show when the last ring is in
+ * window and the term window reaches that ring's end.
+ */
+export function stitchesInFacesAndTermRange(chunks, leftover, ringStart, ringEnd, termStart, termEnd) {
+  const rings = chunks || [];
+  const n = rings.length;
+  if (!n) return [];
+  let rs = Math.trunc(Number(ringStart));
+  let re = Math.trunc(Number(ringEnd));
+  if (!Number.isFinite(rs)) rs = 0;
+  if (!Number.isFinite(re)) re = n;
+  if (rs > re) [rs, re] = [re, rs];
+  rs = Math.max(0, Math.min(rs, n));
+  re = Math.max(0, Math.min(re, n));
+  if (re <= rs) return [];
+  const active = re - 1;
+  const terms = rings[active]?.terms || rings[active]?.faces || [];
+  const nTerms = terms.length;
+  let ts = Math.trunc(Number(termStart));
+  let te = Math.trunc(Number(termEnd));
+  if (!Number.isFinite(ts)) ts = 0;
+  if (!Number.isFinite(te)) te = nTerms;
+  if (ts > te) [ts, te] = [te, ts];
+  ts = Math.max(0, Math.min(ts, nTerms));
+  te = Math.max(0, Math.min(te, nTerms));
+  if (nTerms && te <= ts) te = Math.min(nTerms, ts + 1);
+  const out = [];
+  for (let i = rs; i < active; i++) {
+    out.push(...(rings[i].terms || rings[i].faces || []));
+  }
+  out.push(...terms.slice(ts, te));
+  if (active === n - 1 && te === nTerms && leftover?.length) {
+    out.push(...leftover);
+  }
+  return out;
+}
+
+export function stitchesInRingRange(stitches, start, end) {
   const lo = Number(start);
   const hi = Number(end);
   return (stitches || []).filter(
-    (s) => s.row != null && Number.isFinite(s.row) && s.row >= lo && s.row < hi,
+    (s) => s.ring != null && Number.isFinite(s.ring) && s.ring >= lo && s.ring < hi,
   );
+}
+
+export function stitchesInRowRange(stitches, start, end) {
+  return stitchesInRingRange(stitches, start, end);
+}
+
+/**
+ * When faces_ring end (max) changes, rebind the term slider to
+ * len(path) of that ring — desktop update_slider_stitch.
+ */
+export function termsSliderForFacesEnd(rings, facesEnd, prevFacesEnd = null) {
+  const n = rings?.length || 0;
+  if (!n) {
+    return { activeRing: null, nTerms: 0, range: [0, 0], rebind: true };
+  }
+  let end = Math.trunc(Number(facesEnd));
+  if (!Number.isFinite(end)) end = n;
+  end = Math.max(1, Math.min(end, n));
+  const activeRing = end - 1;
+  const nTerms = rings[activeRing]?.n_terms ?? rings[activeRing]?.terms?.length ?? 0;
+  const prev = prevFacesEnd == null ? null : Math.trunc(Number(prevFacesEnd));
+  return {
+    activeRing,
+    nTerms,
+    range: nTerms ? [0, nTerms] : [0, 0],
+    rebind: prev !== end,
+  };
 }
 
 /**

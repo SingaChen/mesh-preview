@@ -20,12 +20,12 @@ function loadSwPolicy() {
 
 assert(!sw.includes("mesh-preview-v1"), "SW must not keep the stuck v1 cache name");
 assert(
-  sw.includes(`mesh-preview-v2-${SW_CACHE_PLACEHOLDER}`),
-  "SW cache name must be v2 plus the build-time placeholder",
+  sw.includes(`mesh-preview-v3-${SW_CACHE_PLACEHOLDER}`),
+  "SW cache name must be v3 plus the build-time placeholder",
 );
 
 const stamped = stampSwCacheId(sw, "deadbeef");
-assert(stamped.includes('const CACHE = "mesh-preview-v2-deadbeef"'), "build stamp must rewrite cache name");
+assert(stamped.includes('const CACHE = "mesh-preview-v3-deadbeef"'), "build stamp must rewrite cache name");
 assert(!stamped.includes(SW_CACHE_PLACEHOLDER), "stamped SW must not keep the placeholder");
 
 assert(sw.includes('cache: "reload"'), "mutable sample/nav fetches must bypass the HTTP cache");
@@ -69,7 +69,7 @@ assert(
   "hashed assets may use cache-first without HTTP reload",
 );
 
-const current = "mesh-preview-v2-deadbeef";
+const current = "mesh-preview-v3-deadbeef";
 const leftover = ["mesh-preview-v1", current, "mesh-preview-v2-oldhash", "unrelated-cache"].filter(
   (k) => k !== current && k.startsWith("mesh-preview-"),
 );

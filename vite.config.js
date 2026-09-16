@@ -6,11 +6,11 @@ import { defineConfig } from "vite";
 export const SW_CACHE_PLACEHOLDER = "__SW_CACHE_ID__";
 
 export function stampSwCacheId(source, id) {
-  const token = `mesh-preview-v2-${SW_CACHE_PLACEHOLDER}`;
+  const token = `mesh-preview-v3-${SW_CACHE_PLACEHOLDER}`;
   if (!source.includes(token)) {
-    throw new Error("sw.js must keep the mesh-preview-v2-__SW_CACHE_ID__ cache name");
+    throw new Error("sw.js must keep the mesh-preview-v3-__SW_CACHE_ID__ cache name");
   }
-  return source.replace(token, `mesh-preview-v2-${id}`);
+  return source.replace(token, `mesh-preview-v3-${id}`);
 }
 
 function hashDistTree(dir, hash) {

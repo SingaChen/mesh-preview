@@ -9,7 +9,9 @@
       "readableMap": "cylinder/iteration_0_cut_readable_map.txt",
       "field": "cylinder/iteration_0_cut_cols_resample_field.obj",
       "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
-      "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls"
+      "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
+      "firstRows": "cylinder/iteration_0_cut_first_rows.xls",
+      "facesRingLayout": "cylinder/faces_ring_layout.json"
     }
   ]
 }

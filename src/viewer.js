@@ -1,7 +1,14 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
-import { columnHue, columnTrails, stitchesInRowRange, triangulate } from "./stitches.js";
+import {
+  columnHue,
+  columnTrails,
+  STITCH_EDGE_HEX,
+  stitchesInFacesAndTermRange,
+  termTypeRgb,
+  triangulate,
+} from "./stitches.js";
 
 const YARN = 0xe8d5c4;
 const OVERLAY = 0x5eead4;
@@ -58,6 +65,7 @@ export class MeshViewer {
     this.mesh = null;
     this.overlay = null;
     this.stitchMesh = null;
+    this.stitchEdges = null;
     this.trailLines = null;
     this.colsGroup = null;
     this._stitchState = null;
@@ -118,7 +126,9 @@ export class MeshViewer {
       maxRow,
       highlightCol,
       rowStart: 0,
-      rowEnd: Number.isFinite(bound?.rowMax) ? bound.rowMax + 1 : bound?.stitches?.length ?? 0,
+      rowEnd: ringSliderN(bound),
+      termStart: 0,
+      termEnd: Infinity,
     };
     this._colsState = colsColumns?.length ? { columns: colsColumns, start: 0, end: colsColumns.length } : null;
     if (bodyGeom) {
@@ -138,7 +148,9 @@ export class MeshViewer {
           maxRow: Infinity,
           highlightCol: null,
           rowStart: 0,
-          rowEnd: Number.isFinite(bound.rowMax) ? bound.rowMax + 1 : bound.stitches.length,
+          rowEnd: ringSliderN(bound),
+          termStart: 0,
+          termEnd: Infinity,
         }
       : null;
     this._colsState = colsColumns?.length
@@ -158,8 +170,10 @@ export class MeshViewer {
     if (this.mesh && this.mesh.userData.modelName === name) this.mesh.visible = visible;
     if (name === "cols_resample" && this.colsGroup) this.colsGroup.visible = visible;
     if (name === "KnittingStitches") {
-      if (this.stitchMesh) this.stitchMesh.visible = visible && this.showOverlay;
-      if (this.trailLines) this.trailLines.visible = visible && this.showOverlay;
+      const on = visible && this.showOverlay;
+      if (this.stitchMesh) this.stitchMesh.visible = on;
+      if (this.stitchEdges) this.stitchEdges.visible = on;
+      if (this.trailLines) this.trailLines.visible = on;
     }
   }
 
@@ -172,16 +186,29 @@ export class MeshViewer {
     if (this.colsGroup && vis === false) this.colsGroup.visible = false;
   }
 
-  setFacesRingRange(start, end) {
+  setFacesRingRange(start, end, termStart, termEnd) {
     if (!this._stitchState) return;
     this._stitchState.rowStart = start;
     this._stitchState.rowEnd = end;
+    if (termStart != null) this._stitchState.termStart = termStart;
+    if (termEnd != null) this._stitchState.termEnd = termEnd;
     this._rebuildStitches();
-    const vis = this._modelVisibility.get("KnittingStitches");
-    if (vis === false) {
-      if (this.stitchMesh) this.stitchMesh.visible = false;
-      if (this.trailLines) this.trailLines.visible = false;
-    }
+    this._applyStitchVisibility();
+  }
+
+  setTermRange(start, end) {
+    if (!this._stitchState) return;
+    this._stitchState.termStart = start;
+    this._stitchState.termEnd = end;
+    this._rebuildStitches();
+    this._applyStitchVisibility();
+  }
+
+  _applyStitchVisibility() {
+    const vis = this._modelVisibility.get("KnittingStitches") !== false && this.showOverlay;
+    if (this.stitchMesh) this.stitchMesh.visible = vis;
+    if (this.stitchEdges) this.stitchEdges.visible = vis;
+    if (this.trailLines) this.trailLines.visible = vis;
   }
 
   setGrowth(maxRow) {
@@ -222,6 +249,12 @@ export class MeshViewer {
       this.stitchMesh.material.dispose();
       this.stitchMesh = null;
     }
+    if (this.stitchEdges) {
+      this.root.remove(this.stitchEdges);
+      this.stitchEdges.geometry.dispose();
+      this.stitchEdges.material.dispose();
+      this.stitchEdges = null;
+    }
     if (this.trailLines) {
       this.root.remove(this.trailLines);
       this.trailLines.geometry.dispose();
@@ -231,30 +264,44 @@ export class MeshViewer {
 
     const state = this._stitchState;
     if (!state) return;
-    const { bound, maxRow, highlightCol, rowStart, rowEnd } = state;
+    const { bound, maxRow, highlightCol, rowStart, rowEnd, termStart, termEnd } = state;
     const columns = bound.columns;
     const lo = rowStart ?? 0;
-    const hi = rowEnd ?? (Number.isFinite(bound.rowMax) ? bound.rowMax + 1 : bound.stitches.length);
-    const visible = stitchesInRowRange(bound.stitches, lo, hi).filter((s) => {
-      if (Number.isFinite(maxRow) && s.row > maxRow) return false;
-      return true;
-    });
+    const hi = rowEnd ?? ringSliderN(bound);
+    const ts = termStart ?? 0;
+    const te = termEnd ?? Infinity;
+    const visible = stitchesInFacesAndTermRange(bound.rowChunks || [], bound.leftover || [], lo, hi, ts, te).filter(
+      (s) => {
+        if (Number.isFinite(maxRow) && s.row != null && s.row > maxRow) return false;
+        return true;
+      },
+    );
     const solo = highlightCol != null;
+    const stitchOn = this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
 
     const positions = [];
     const colors = [];
     const stitchIndex = [];
+    const edgePos = [];
     const color = new THREE.Color();
+    const edge = new THREE.Color(STITCH_EDGE_HEX);
 
     for (const s of visible) {
       const dim = solo && s.col !== highlightCol;
-      const hue = columnHue(s.col ?? columns[0], columns);
-      color.setHSL(hue * 0.85, dim ? 0.25 : 0.78, dim ? 0.16 : s.col === highlightCol ? 0.64 : 0.52);
+      const rgb = termTypeRgb(s.type);
+      if (dim) color.setRGB(rgb[0] * 0.35, rgb[1] * 0.35, rgb[2] * 0.35);
+      else color.setRGB(rgb[0], rgb[1], rgb[2]);
       const tris = triangulate(s.verts);
       for (const v of tris) {
         positions.push(v.x, v.y, v.z);
         colors.push(color.r, color.g, color.b);
         stitchIndex.push(s.index);
+      }
+      const verts = s.verts || [];
+      for (let i = 0; i < verts.length; i++) {
+        const a = verts[i];
+        const b = verts[(i + 1) % verts.length];
+        edgePos.push(a.x, a.y, a.z, b.x, b.y, b.z);
       }
     }
 
@@ -273,14 +320,31 @@ export class MeshViewer {
           side: THREE.DoubleSide,
           transparent: true,
           opacity: this.showOverlay ? 0.96 : 0,
+          wireframe: this.wireframe,
         }),
       );
       this.stitchMesh.userData.modelName = "KnittingStitches";
-      this.stitchMesh.visible = this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
+      this.stitchMesh.visible = stitchOn;
       this.root.add(this.stitchMesh);
     }
 
-    const trails = columnTrails(stitchesInRowRange(bound.stitches, lo, hi), {
+    if (edgePos.length) {
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.Float32BufferAttribute(edgePos, 3));
+      this.stitchEdges = new THREE.LineSegments(
+        geom,
+        new THREE.LineBasicMaterial({
+          color: edge,
+          transparent: true,
+          opacity: this.showOverlay ? 1 : 0,
+        }),
+      );
+      this.stitchEdges.userData.modelName = "KnittingStitches";
+      this.stitchEdges.visible = stitchOn;
+      this.root.add(this.stitchEdges);
+    }
+
+    const trails = columnTrails(visible, {
       maxRow,
       onlyCol: highlightCol,
     });
@@ -310,7 +374,7 @@ export class MeshViewer {
         }),
       );
       this.trailLines.userData.modelName = "KnittingStitches";
-      this.trailLines.visible = this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
+      this.trailLines.visible = stitchOn;
       this.root.add(this.trailLines);
     }
   }
@@ -378,6 +442,7 @@ export class MeshViewer {
   setWireframe(on) {
     this.wireframe = on;
     if (this.mesh) this.mesh.material.wireframe = on;
+    if (this.stitchMesh) this.stitchMesh.material.wireframe = on;
   }
 
   setFlat(on) {
@@ -396,6 +461,10 @@ export class MeshViewer {
       this.stitchMesh.visible = stitchOn;
       this.stitchMesh.material.opacity = stitchOn ? 0.96 : 0;
     }
+    if (this.stitchEdges) {
+      this.stitchEdges.visible = stitchOn;
+      this.stitchEdges.material.opacity = stitchOn ? 1 : 0;
+    }
     if (this.trailLines) {
       this.trailLines.visible = stitchOn;
       this.trailLines.material.opacity = stitchOn ? 0.95 : 0;
@@ -407,6 +476,7 @@ export class MeshViewer {
     if (this.mesh && this.mesh.visible) box.expandByObject(this.mesh);
     if (this.overlay && this.overlay.visible) box.expandByObject(this.overlay);
     if (this.stitchMesh && this.stitchMesh.visible) box.expandByObject(this.stitchMesh);
+    if (this.stitchEdges && this.stitchEdges.visible) box.expandByObject(this.stitchEdges);
     if (this.colsGroup && this.colsGroup.visible) box.expandByObject(this.colsGroup);
     if (box.isEmpty()) return;
 
@@ -478,6 +548,7 @@ export class MeshViewer {
     this.mesh = null;
     this.overlay = null;
     this.stitchMesh = null;
+    this.stitchEdges = null;
     this.trailLines = null;
     this.colsGroup = null;
     this._stitchState = null;
@@ -492,6 +563,14 @@ export class MeshViewer {
     this.controls.dispose();
     this.renderer.dispose();
   }
+}
+
+function ringSliderN(bound) {
+  if (Number.isFinite(bound?.nRings) && bound.nRings > 0) return bound.nRings;
+  if (Array.isArray(bound?.rowChunks) && bound.rowChunks.length) return bound.rowChunks.length;
+  const rings = (bound?.stitches || []).map((s) => s.ring).filter((r) => r != null && Number.isFinite(r));
+  if (rings.length) return Math.max(...rings) + 1;
+  return bound?.stitches?.length ?? 0;
 }
 
 function mergeObjectGeometry(root) {

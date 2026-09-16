@@ -250,6 +250,19 @@ input {
   font-size: 12px;
 }
 
+.slider-row.compact {
+  opacity: 0.88;
+}
+
+.slider-row.compact .dual-range {
+  height: 36px;
+}
+
+.slider-row.compact label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .dual-range {
   position: relative;
   height: 44px;

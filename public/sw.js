@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
+const CACHE = "mesh-preview-v3-__SW_CACHE_ID__";
 
 function isNavigation(request) {
   return request.mode === "navigate" || request.destination === "document";

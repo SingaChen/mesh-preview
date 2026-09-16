@@ -61,7 +61,7 @@ const HARNESS = `<!doctype html>
       keysBefore,
       keysAfter,
       v1Gone: !keysAfter.includes("mesh-preview-v1"),
-      v2Present: keysAfter.some((k) => k.startsWith("mesh-preview-v2-") && k !== "mesh-preview-v2-__SW_CACHE_ID__"),
+      v3Present: keysAfter.some((k) => k.startsWith("mesh-preview-v3-") && k !== "mesh-preview-v3-__SW_CACHE_ID__"),
       xlsFresh: !xlsText.includes("STALE_COLS_84") && xls.ok && xlsText.length > 100,
       manifestFresh: manifestJson.name === "Single_Cylinder_Test" && manifestJson.stale !== 84,
     });
@@ -209,7 +209,7 @@ try {
 assert(result, "chrome harness produced no result");
 assert(!result.error, result.error || "harness error");
 assert(result.v1Gone, `old mesh-preview-v1 cache must be deleted, keys=${JSON.stringify(result.keysAfter)}`);
-assert(result.v2Present, `new mesh-preview-v2-* cache must exist, keys=${JSON.stringify(result.keysAfter)}`);
+assert(result.v3Present, `new mesh-preview-v3-* cache must exist, keys=${JSON.stringify(result.keysAfter)}`);
 assert(result.xlsFresh, "xls must come from the network (42-column sample), not STALE_COLS_84");
 assert(result.manifestFresh, "sample manifest must come from the network, not the v1 stub");
 console.log("sw upgrade checks ok", result);
