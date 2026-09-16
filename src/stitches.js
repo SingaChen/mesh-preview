@@ -13,9 +13,9 @@
  *   last short rows (65–68) that have no stitch geometry. Do not invent
  *   rows; unmatched faces/cells stay unbound.
  * - first_rows.xls / cols_resample.xls describe resampled field polylines.
- *   Desktop slider length is len(cols_resample) = unique integer `col` ids
- *   in the xls (84 on the cylinder sample). Field OBJ component count (67)
- *   is not N. Face terms come from OBJ generation order.
+ *   Desktop slider N is len(cols_smooth2) (42 on the cylinder sample), not
+ *   raw xls fragment rows (FULL/SHORT_* over-count) and not field OBJ
+ *   connected components. Face terms come from OBJ generation order.
  */
 
 import { findXlsSheet, parseXlsWorkbook } from "./xls.js";
@@ -202,7 +202,7 @@ export function faceChunksFromFaces(faces) {
 
 /**
  * cols_resample_field.obj v-runs. Do NOT use this for column identity:
- * the cylinder sample yields 67 connected polylines, not desktop N=84.
+ * connected components over/under-count vs desktop len(cols_smooth2).
  */
 export function parseColsResampleField(text) {
   const columns = [];
@@ -374,11 +374,18 @@ function columnsFromSheet0(rows, fieldVerts) {
   return denseColumns(groups);
 }
 
+function parseSidecarMeta(data) {
+  if (!data) return {};
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+
 function columnsFromSidecar(data) {
   if (!data) return [];
-  const parsed = typeof data === "string" ? JSON.parse(data) : data;
+  const parsed = parseSidecarMeta(data);
   const raw = parsed.columns || parsed.cols_resample || parsed.cols;
-  if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw) || !raw.some((col) => Array.isArray(col?.points) && col.points.length)) {
+    return [];
+  }
   return raw.map((col, i) => ({
     col: col.col ?? col.id ?? i,
     type: col.type ?? null,
@@ -393,6 +400,178 @@ function columnsFromSidecar(data) {
       type: p.type ?? col.type ?? null,
     })),
   }));
+}
+
+const SEED_TYPES = new Set(["FULL", "SHORT_BEGIN"]);
+const CHILD_TYPES = new Set(["SHORT_INNER", "SHORT_END"]);
+
+function colTypeName(col) {
+  return String(col?.type ?? col?.points?.[0]?.type ?? "").trim().toUpperCase();
+}
+
+function pointAngleY(p) {
+  return Math.atan2(Number(p.z) || 0, Number(p.x) || 0);
+}
+
+function circularMeanAngle(points) {
+  let sx = 0;
+  let sy = 0;
+  for (const p of points || []) {
+    const a = pointAngleY(p);
+    sx += Math.cos(a);
+    sy += Math.sin(a);
+  }
+  return Math.atan2(sy, sx);
+}
+
+function angleDelta(a, b) {
+  const d = Math.abs(a - b) % (Math.PI * 2);
+  return Math.min(d, Math.PI * 2 - d);
+}
+
+function medianNumber(values) {
+  const s = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  if (!s.length) return 0;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+function flattenMergedColumn(members, index) {
+  const points = [];
+  let type = null;
+  for (const m of members) {
+    if (!type && m.type) type = m.type;
+    if (String(m.type || "").toUpperCase() === "FULL") type = m.type;
+    for (const p of m.points || []) points.push(p);
+  }
+  points.sort((a, b) => {
+    const dy = (a.y ?? 0) - (b.y ?? 0);
+    if (dy) return dy;
+    return (a.index ?? 0) - (b.index ?? 0);
+  });
+  return {
+    col: index,
+    type,
+    points,
+    sources: members.map((m) => m.col),
+  };
+}
+
+function applyXlsColGroups(fragments, groups) {
+  const byId = new Map(fragments.map((c) => [c.col, c]));
+  return groups
+    .map((ids) => (Array.isArray(ids) ? ids : []).map((id) => byId.get(id)).filter(Boolean))
+    .filter((members) => members.length)
+    .map((members, i) => flattenMergedColumn(members, i));
+}
+
+/**
+ * Rebuild desktop logical columns from xls FULL/SHORT_* fragments.
+ * Seeds are FULL + SHORT_BEGIN; SHORT_INNER/END attach if their cylinder
+ * angle (Y-axis) is within 0.45 * unitW / R_median. Leftovers cluster
+ * with the same threshold and become extra parents (cylinder → 42).
+ */
+export function mergeColsResampleParents(fragments, meta = {}) {
+  if (!fragments?.length) return [];
+  const hasShort = fragments.some((c) => /^SHORT_/.test(colTypeName(c)));
+  const targetN = Number.isFinite(Number(meta.n)) ? Math.trunc(Number(meta.n)) : null;
+  if (!hasShort && (targetN == null || fragments.length === targetN)) {
+    return fragments;
+  }
+
+  const unitW = Number(meta.unitW) > 0 ? Number(meta.unitW) : 5;
+  const attach = Number(meta.attachFactor) > 0 ? Number(meta.attachFactor) : 0.45;
+  const annotated = fragments.map((c, i) => {
+    const points = c.points || [];
+    const rs = points.map((p) => Math.hypot(p.x || 0, p.z || 0));
+    return {
+      ...c,
+      _i: i,
+      _type: colTypeName(c),
+      _ang: points.length ? circularMeanAngle(points) : 0,
+      _r: rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : 0,
+    };
+  });
+
+  const seeds = annotated.filter((f) => SEED_TYPES.has(f._type));
+  const kids = annotated.filter((f) => CHILD_TYPES.has(f._type));
+  const other = annotated.filter((f) => !SEED_TYPES.has(f._type) && !CHILD_TYPES.has(f._type));
+  if (!seeds.length) return fragments;
+
+  const R = medianNumber(annotated.map((f) => f._r).filter((r) => r > 0)) || 1;
+  const thresh = (attach * unitW) / R;
+  const groups = seeds.map((s) => [s]);
+  const leftovers = [];
+  for (const k of kids) {
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < seeds.length; i++) {
+      const d = angleDelta(k._ang, seeds[i]._ang);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (bestD <= thresh) groups[best].push(k);
+    else leftovers.push(k);
+  }
+
+  const parent = leftovers.map((_, i) => i);
+  const find = (i) => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
+    }
+    return i;
+  };
+  for (let i = 0; i < leftovers.length; i++) {
+    for (let j = i + 1; j < leftovers.length; j++) {
+      if (angleDelta(leftovers[i]._ang, leftovers[j]._ang) <= thresh) {
+        parent[find(j)] = find(i);
+      }
+    }
+  }
+  const clustered = new Map();
+  for (let i = 0; i < leftovers.length; i++) {
+    const root = find(i);
+    if (!clustered.has(root)) clustered.set(root, []);
+    clustered.get(root).push(leftovers[i]);
+  }
+  let extras = [...clustered.values()];
+
+  if (targetN != null && seeds.length + extras.length + other.length > targetN) {
+    while (seeds.length + extras.length + other.length > targetN && extras.length > 1) {
+      let bi = 0;
+      let bj = 1;
+      let bd = Infinity;
+      for (let i = 0; i < extras.length; i++) {
+        const ai = circularMeanAngle(extras[i].flatMap((f) => f.points || []));
+        for (let j = i + 1; j < extras.length; j++) {
+          const aj = circularMeanAngle(extras[j].flatMap((f) => f.points || []));
+          const d = angleDelta(ai, aj);
+          if (d < bd) {
+            bd = d;
+            bi = i;
+            bj = j;
+          }
+        }
+      }
+      extras = extras
+        .filter((_, k) => k !== bi && k !== bj)
+        .concat([[...extras[bi], ...extras[bj]]]);
+    }
+  }
+
+  const all = [...groups, ...extras, ...other.map((f) => [f])];
+  all.sort((a, b) => {
+    const seedKey = (members) => {
+      const seedCols = members.filter((m) => SEED_TYPES.has(m._type)).map((m) => m.col ?? m._i);
+      if (seedCols.length) return Math.min(...seedCols);
+      return Math.min(...members.map((m) => m.col ?? m._i));
+    };
+    return seedKey(a) - seedKey(b);
+  });
+  return all.map((members, i) => flattenMergedColumn(members, i));
 }
 
 export function uniqueColIdsFromXls(workbook) {
@@ -412,27 +591,35 @@ export function uniqueColIdsFromXls(workbook) {
 }
 
 /**
- * Column identity/count comes from cols_resample.xls (or a JSON sidecar).
- * Field OBJ supplies vertex colours when point order matches.
+ * Column identity/count is desktop len(cols_smooth2): merge xls FULL/SHORT_*
+ * fragments (or honor a sidecar n / groups). Field OBJ only supplies colours.
  */
 export function parseColsResample({ xls, workbook, sidecar, fieldText } = {}) {
-  if (sidecar) {
-    const fromJson = columnsFromSidecar(sidecar);
-    if (fromJson.length) return fromJson;
-  }
+  const meta = parseSidecarMeta(sidecar);
+  const fromJson = columnsFromSidecar(meta);
+  if (fromJson.length) return fromJson;
+
   const book = workbook || (xls ? parseXlsWorkbook(xls) : null);
   const fieldVerts = fieldVertColors(fieldText);
+  let fragments = [];
   if (book) {
     const detail = findXlsSheet(book, /points_detail/i);
-    const fromDetail = columnsFromPointsDetail(detail?.rows, fieldVerts);
-    if (fromDetail.length) return fromDetail;
-    const sheet0 =
-      findXlsSheet(book, (s) => headerIndex(s.rows[0] || [], "col", "col\\row") >= 0) ||
-      book.sheets[0];
-    const fromSheet0 = columnsFromSheet0(sheet0?.rows, fieldVerts);
-    if (fromSheet0.length) return fromSheet0;
+    fragments = columnsFromPointsDetail(detail?.rows, fieldVerts);
+    if (!fragments.length) {
+      const sheet0 =
+        findXlsSheet(book, (s) => headerIndex(s.rows[0] || [], "col", "col\\row") >= 0) ||
+        book.sheets[0];
+      fragments = columnsFromSheet0(sheet0?.rows, fieldVerts);
+    }
   }
-  return [];
+  if (!fragments.length) return [];
+
+  const groups = meta.groups || meta.xlsCols || meta.polylines;
+  if (Array.isArray(groups) && groups.length) {
+    const merged = applyXlsColGroups(fragments, groups);
+    if (merged.length) return merged;
+  }
+  return mergeColsResampleParents(fragments, meta);
 }
 
 export function columnTrails(stitches, { maxRow = Infinity, onlyCol = null } = {}) {
