@@ -1,0 +1,17 @@
+{
+  "name": "mesh-preview",
+  "short_name": "mesh-preview",
+  "description": "Mobile WebGL previewer for SingaLab knitting meshes",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0e1218",
+  "theme_color": "#0e1218",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

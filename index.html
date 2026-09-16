@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#0e1218" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="description"
+      content="Mobile WebGL previewer for SingaLab knitting mesh outputs"
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <title>mesh-preview</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <h1>mesh-preview</h1>
+          <p id="project-name">未打开项目 / No project</p>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="open-folder" type="button">文件夹 <span class="en">Folder</span></button>
+          <button class="btn" id="open-files" type="button">文件 <span class="en">Files</span></button>
+          <button class="btn" id="load-sample" type="button">示例 <span class="en">Sample</span></button>
+        </div>
+      </header>
+
+      <main class="stage">
+        <canvas id="viewport"></canvas>
+        <div class="hud">
+          <div class="chip">
+            <strong id="mesh-label">—</strong>
+            <span id="mesh-stats">打开项目或加载示例</span>
+          </div>
+          <button class="fit" id="fit-view" type="button" title="Fit to view">适应 <span class="en">Fit</span></button>
+        </div>
+      </main>
+
+      <section class="dock">
+        <div class="slider-row">
+          <label for="mesh-slider">
+            <span>网格 <span class="en">Mesh</span></span>
+            <span class="meta" id="mesh-count">0 / 0</span>
+          </label>
+          <input id="mesh-slider" type="range" min="0" max="0" value="0" step="1" disabled />
+        </div>
+        <div class="toggles">
+          <button class="btn toggle" id="toggle-wire" type="button" aria-pressed="false">线框 <span class="en">Wire</span></button>
+          <button class="btn toggle" id="toggle-shade" type="button" aria-pressed="false">平面 <span class="en">Flat</span></button>
+          <button class="btn toggle" id="toggle-overlay" type="button" aria-pressed="true">叠加 <span class="en">Overlay</span></button>
+        </div>
+        <div class="status" id="status"></div>
+      </section>
+    </div>
+
+    <input
+      id="folder-input"
+      class="hidden-input"
+      type="file"
+      webkitdirectory
+      directory
+      multiple
+    />
+    <input
+      id="files-input"
+      class="hidden-input"
+      type="file"
+      accept=".obj,.json,model/obj,application/json"
+      multiple
+    />
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
