@@ -30,7 +30,7 @@ assert(!stamped.includes(SW_CACHE_PLACEHOLDER), "stamped SW must not keep the pl
 
 assert(sw.includes('cache: "reload"'), "mutable sample/nav fetches must bypass the HTTP cache");
 assert(sw.includes("/sample/"), "SW must treat sample/** as network-first");
-assert(/\.\(xls\|xlsx\|obj\)/.test(sw), "SW must treat xls/obj as network-first");
+assert(/\.\(xls\|xlsx\|obj\|json\)/.test(sw), "SW must treat xls/obj/json as network-first");
 assert(sw.includes("isHashedAsset"), "hashed /assets/* may stay cache-first");
 assert(sw.includes('k.startsWith("mesh-preview-")'), "activate must drop every old mesh-preview-* cache");
 assert(sw.includes("self.skipWaiting()"), "new SW must activate without waiting");
@@ -50,11 +50,13 @@ const policy = loadSwPolicy();
 const origin = "https://singachen.github.io";
 const sampleXls = new URL("/mesh-preview/sample/cylinder/iteration_0_cut_cols_resample.xls", origin);
 const sampleObj = new URL("/mesh-preview/sample/cylinder/iteration_0_cut_cols_resample_field.obj", origin);
+const sampleJson = new URL("/mesh-preview/sample/cylinder/faces_ring_layout.json", origin);
 const hashedJs = new URL("/mesh-preview/assets/index-5GrU1-u7.js", origin);
 const html = new URL("/mesh-preview/", origin);
 
 assert(policy.isSampleOrMutableData(sampleXls), "sample xls must be treated as mutable");
 assert(policy.isSampleOrMutableData(sampleObj), "sample obj must be treated as mutable");
+assert(policy.isSampleOrMutableData(sampleJson), "sample faces_ring_layout.json must be treated as mutable");
 assert(policy.isHashedAsset(hashedJs), "Vite hashed /assets/* must match");
 assert(
   policy.shouldBypassHttpCache({ mode: "navigate", destination: "document" }, html),

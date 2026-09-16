@@ -72,6 +72,17 @@
               <input class="dual-end" type="range" min="0" max="1" value="1" step="1" aria-label="row end" />
             </div>
           </div>
+          <div class="slider-row hidden" id="terms-row">
+            <div class="slider-heading">
+              <label id="terms-label">term: -</label>
+              <span class="slider-sub" id="terms-sub">term</span>
+            </div>
+            <div class="dual-range" id="terms-range" role="group" aria-label="term">
+              <div class="dual-track"><div class="dual-fill"></div></div>
+              <input class="dual-start" type="range" min="0" max="1" value="0" step="1" aria-label="term start" />
+              <input class="dual-end" type="range" min="0" max="1" value="1" step="1" aria-label="term end" />
+            </div>
+          </div>
           <div class="slider-row hidden" id="models-row">
             <label id="models-label">display_models: -</label>
             <div class="dual-range" id="models-range" role="group" aria-label="display_models">

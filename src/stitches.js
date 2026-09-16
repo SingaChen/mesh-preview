@@ -18,9 +18,11 @@
  * - first_rows.xls is transposed: header col\\row, row_0..row_{n-1}.
  *   N_seed = ncols-1 (6 here). path_generate skips seed index 0, so
  *   slider N = N_seed-1 (5 first_row rings). Do not use 65 or 6 as N.
- * - Optional faces_ring_layout.json { term_counts, n_faces_ring } slices
- *   KnittingStitches faces in generation order. Without it, faces are
- *   split evenly across N_rings until a desktop dump arrives.
+ * - faces_ring_layout.json { rings[].n_terms, types[], term_face_colors,
+ *   edge_color } slices KnittingStitches in OBJ / generation order.
+ *   Cylinder dump: 46, 136, 110, 106, 73 (sum 471). Remainder faces stay
+ *   untyped / pink and are not appended to the last ring. Without a
+ *   sidecar, faces split evenly across N_rings.
  * - first_rows.xls / cols_resample.xls describe resampled field polylines.
  *   Desktop slider N is len(cols_resample) after extractRows (42 on this
  *   cylinder dump). Parse xls points_detail by col id 0..N-1, or sequential
@@ -259,23 +261,58 @@ export function parseFirstRows({ xls, workbook } = {}) {
   };
 }
 
+export const DEFAULT_TERM_FACE_COLORS = {
+  0: [0.55, 0.55, 0.55, 1],
+  1: [1, 1, 1, 1],
+  2: [0, 0, 0, 1],
+  3: [1, 0, 0, 1],
+  4: [0, 1, 0, 1],
+  5: [1, 1, 0, 1],
+  6: [0, 0, 1, 1],
+  7: [1, 0.35, 0.8, 1],
+  8: [1, 0.35, 0.8, 1],
+  9: [1, 0.35, 0.8, 1],
+  default: [1, 0.35, 0.8, 1],
+};
+
+export function colorForTermType(type, palette = DEFAULT_TERM_FACE_COLORS) {
+  const key = type == null || type === "" ? "default" : String(type);
+  const c = palette?.[key] || palette?.default || DEFAULT_TERM_FACE_COLORS.default;
+  return { r: Number(c[0]) || 0, g: Number(c[1]) || 0, b: Number(c[2]) || 0, a: c[3] ?? 1 };
+}
+
 export function parseFacesRingLayout(data) {
   if (data == null || data === "") return null;
   const parsed = typeof data === "string" ? JSON.parse(data) : data;
   if (!parsed || typeof parsed !== "object") return null;
   const raw = parsed.term_counts ?? parsed.termCounts;
-  const termCounts = Array.isArray(raw)
+  let termCounts = Array.isArray(raw)
     ? raw.map((n) => Math.max(0, Math.trunc(Number(n) || 0)))
     : null;
+  let ringTypes = null;
+  if (Array.isArray(parsed.rings) && parsed.rings.length) {
+    termCounts = parsed.rings.map((r) => Math.max(0, Math.trunc(Number(r?.n_terms) || 0)));
+    ringTypes = parsed.rings.map((r) => (Array.isArray(r?.types) ? r.types : []));
+  }
   let nFacesRing = Number(parsed.n_faces_ring ?? parsed.nFacesRing);
   if (!Number.isFinite(nFacesRing)) nFacesRing = termCounts?.length ?? 0;
   else nFacesRing = Math.max(0, Math.trunc(nFacesRing));
   if (termCounts?.length) nFacesRing = termCounts.length;
   if (!nFacesRing && !termCounts) return null;
-  return { termCounts, nFacesRing, source: "sidecar" };
+  const colors = parsed.term_face_colors || parsed.termFaceColors || DEFAULT_TERM_FACE_COLORS;
+  const edge = parsed.edge_color || parsed.edgeColor || [0, 0, 0];
+  return {
+    termCounts,
+    ringTypes,
+    nFacesRing,
+    colors,
+    edgeColor: { r: Number(edge[0]) || 0, g: Number(edge[1]) || 0, b: Number(edge[2]) || 0 },
+    termTotal: Number(parsed.term_total ?? parsed.termTotal) || termCounts?.reduce((a, b) => a + b, 0) || 0,
+    source: "sidecar",
+  };
 }
 
-/** Even split until a desktop faces_ring_layout.json supplies term_counts. */
+/** Prefer sidecar n_terms; otherwise split faces evenly across N_rings. */
 export function termCountsForRings(nFaces, nRings, termCounts) {
   if (Array.isArray(termCounts) && termCounts.length) {
     return termCounts.map((n) => Math.max(0, Math.trunc(Number(n) || 0)));
@@ -292,15 +329,26 @@ export function termCountsForRings(nFaces, nRings, termCounts) {
  * Slice KnittingStitches terms in generation order into first_row rings.
  * Does not use readable_map rowNNN.
  */
-export function facesRingChunksFromStitches(stitches, { nRings = 0, termCounts = null } = {}) {
+export function facesRingChunksFromStitches(
+  stitches,
+  { nRings = 0, termCounts = null, ringTypes = null, colors = DEFAULT_TERM_FACE_COLORS } = {},
+) {
   const list = stitches || [];
+  const explicit = Array.isArray(termCounts) && termCounts.length > 0;
   const counts = termCountsForRings(list.length, nRings, termCounts);
   const chunks = [];
   let offset = 0;
   for (let i = 0; i < counts.length; i++) {
     const end = Math.min(list.length, offset + counts[i]);
     const faces = list.slice(offset, end);
-    for (const s of faces) s.ring = i;
+    const types = ringTypes?.[i] || [];
+    faces.forEach((s, k) => {
+      const type = types[k] ?? null;
+      s.ring = i;
+      s.termInRing = k;
+      s.termType = type;
+      s.termColor = colorForTermType(type, colors);
+    });
     chunks.push({
       row: i,
       ring: i,
@@ -310,13 +358,20 @@ export function facesRingChunksFromStitches(stitches, { nRings = 0, termCounts =
     });
     offset = end;
   }
-  if (offset < list.length && chunks.length) {
+  const leftover = list.slice(offset);
+  for (const s of leftover) {
+    s.ring = null;
+    s.termInRing = null;
+    s.termType = null;
+    s.termColor = colorForTermType(null, colors);
+  }
+  if (!explicit && leftover.length && chunks.length) {
     const last = chunks[chunks.length - 1];
-    const extra = list.slice(offset);
-    for (const s of extra) s.ring = last.ring;
-    last.faces.push(...extra);
-  } else {
-    for (let i = offset; i < list.length; i++) list[i].ring = null;
+    leftover.forEach((s, k) => {
+      s.ring = last.ring;
+      s.termInRing = last.faces.length + k;
+    });
+    last.faces.push(...leftover);
   }
   return chunks;
 }

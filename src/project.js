@@ -160,6 +160,9 @@ export function projectFromManifest(data, index, manifestPath = "") {
     if (firstRowsRef && !firstRowsFile) {
       warnings.push(`缺少 first_rows / Missing first_rows: ${firstRowsRef}`);
     }
+    if (layoutRef && !facesRingLayoutFile) {
+      warnings.push(`缺少环布局 / Missing faces_ring_layout: ${layoutRef}`);
+    }
     outputs.push({
       label: raw.label || basename(meshFile.path),
       meshFile,
