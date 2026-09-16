@@ -6,6 +6,7 @@ import {
   pickDirectoryEntries,
 } from "./files.js";
 import {
+  basename,
   indexFiles,
   isManifestShape,
   projectFromDiscovery,
@@ -15,9 +16,18 @@ import {
 import {
   bindStitchesToMap,
   collectManifestRefs,
+  faceChunksFromFaces,
   parseColoredObj,
+  parseColsResampleField,
   parseReadableMap,
 } from "./stitches.js";
+import { bindDualRange } from "./dual-range.js";
+import {
+  applyDisplayModelsRange,
+  formatDisplayModelsLabel,
+  formatHalfOpenRangeLabel,
+  registerDisplayModel,
+} from "./range.js";
 
 const canvas = document.querySelector("#viewport");
 const folderInput = document.querySelector("#folder-input");
@@ -28,12 +38,12 @@ const sampleBtn = document.querySelector("#load-sample");
 const fitBtn = document.querySelector("#fit-view");
 const slider = document.querySelector("#mesh-slider");
 const meshRow = document.querySelector("#mesh-row");
-const rowRow = document.querySelector("#row-row");
-const colRow = document.querySelector("#col-row");
-const rowSlider = document.querySelector("#row-slider");
-const colSlider = document.querySelector("#col-slider");
-const rowCountEl = document.querySelector("#row-count");
-const colCountEl = document.querySelector("#col-count");
+const colsRow = document.querySelector("#cols-row");
+const facesRow = document.querySelector("#faces-row");
+const modelsRow = document.querySelector("#models-row");
+const colsLabel = document.querySelector("#cols-label");
+const facesLabel = document.querySelector("#faces-label");
+const modelsLabel = document.querySelector("#models-label");
 const labelEl = document.querySelector("#mesh-label");
 const countEl = document.querySelector("#mesh-count");
 const projectEl = document.querySelector("#project-name");
@@ -44,9 +54,13 @@ const shadeBtn = document.querySelector("#toggle-shade");
 const overlayBtn = document.querySelector("#toggle-overlay");
 
 const viewer = new MeshViewer(canvas);
+const colsRange = bindDualRange(document.querySelector("#cols-range"));
+const facesRange = bindDualRange(document.querySelector("#faces-range"));
+const modelsRange = bindDualRange(document.querySelector("#models-range"));
+
 let project = null;
 let outputIndex = 0;
-let knit = null;
+let scene = null;
 const geomCache = new Map();
 const textCache = new Map();
 
@@ -63,9 +77,9 @@ function currentOutput() {
   return project?.outputs[outputIndex] || null;
 }
 
-function highlightColValue() {
-  if (!knit || !colSlider.value || Number(colSlider.value) <= 0) return null;
-  return knit.bound.columns[Number(colSlider.value) - 1] ?? null;
+function modelNameFromFile(entry, fallback) {
+  if (!entry) return fallback;
+  return basename(entry.name || entry.path).replace(/\.obj$/i, "") || fallback;
 }
 
 function updateChrome() {
@@ -80,26 +94,42 @@ function updateChrome() {
   projectEl.textContent = project
     ? `${project.name} · ${project.source === "manifest" ? "清单 manifest" : "自动发现 auto"}`
     : "未打开项目 / No project";
-  overlayBtn.disabled = !current?.overlayFile && !current?.stitchFile && !knit;
+  overlayBtn.disabled = !current?.overlayFile && !current?.stitchFile && !scene?.stitches;
 
-  if (knit) {
-    rowRow.classList.remove("hidden");
-    colRow.classList.remove("hidden");
-    rowSlider.max = String(knit.bound.rowMax);
-    rowSlider.min = String(knit.bound.rowMin);
-    rowSlider.disabled = knit.bound.rowMax <= knit.bound.rowMin;
-    colSlider.max = String(knit.bound.columns.length);
-    colSlider.min = "0";
-    colSlider.disabled = knit.bound.columns.length < 1;
-    const row = Number(rowSlider.value);
-    const shown = knit.bound.stitches.filter((s) => s.row == null || s.row <= row).length;
-    rowCountEl.textContent = `${row} / ${knit.bound.rowMax} · ${shown} st`;
-    const col = highlightColValue();
-    colCountEl.textContent =
-      col == null ? `全部 All · ${knit.bound.columns.length}` : `col ${col}`;
+  const hasCols = Boolean(scene?.columns?.length);
+  const hasStitches = Boolean(scene?.stitches);
+  const hasModels = Boolean(scene?.models?.length);
+  const showDyn = hasCols || hasStitches;
+  colsRow.classList.toggle("hidden", !hasCols);
+  modelsRow.classList.toggle("hidden", !showDyn);
+  facesRow.classList.toggle("hidden", !showDyn);
+
+  if (hasCols) {
+    const [a, b] = colsRange.value;
+    colsLabel.textContent = formatHalfOpenRangeLabel("cols_resample", a, b, scene.columns.length);
   } else {
-    rowRow.classList.add("hidden");
-    colRow.classList.add("hidden");
+    colsLabel.textContent = "cols_resample: -";
+  }
+
+  if (scene?.facesBound) {
+    const [a, b] = facesRange.value;
+    facesLabel.textContent = formatHalfOpenRangeLabel(
+      "faces_ring",
+      a,
+      b,
+      scene.facesBound.faceChunks.length,
+    );
+    facesRange.setEnabled(true);
+  } else {
+    facesLabel.textContent = "faces_ring: -";
+    facesRange.setEnabled(false);
+  }
+
+  if (hasModels) {
+    const [a, b] = modelsRange.value;
+    modelsLabel.textContent = formatDisplayModelsLabel(a, b, scene.models);
+  } else {
+    modelsLabel.textContent = "display_models: -";
   }
 }
 
@@ -122,67 +152,215 @@ async function loadText(entry) {
   return text;
 }
 
-async function loadKnit(output) {
+async function loadStitches(output) {
   const stitchEntry = output.stitchFile || output.overlayFile;
   const mapEntry = output.readableMapFile;
-  if (!stitchEntry || !mapEntry) return null;
-  const [stitchText, mapText] = await Promise.all([loadText(stitchEntry), loadText(mapEntry)]);
-  if (!stitchText || !mapText) return null;
+  if (!stitchEntry) return null;
+  const stitchText = await loadText(stitchEntry);
+  if (!stitchText) return null;
   const parsed = parseColoredObj(stitchText);
   if (!parsed.faces.length) return null;
-  const map = parseReadableMap(mapText);
-  if (!map.cells.length) return null;
-  const bound = bindStitchesToMap(parsed.faces, map);
-  return { bound, stitchEntry, mapEntry };
+  let bound = null;
+  if (mapEntry) {
+    const mapText = await loadText(mapEntry);
+    const map = parseReadableMap(mapText);
+    if (map.cells.length) bound = bindStitchesToMap(parsed.faces, map);
+  }
+  if (!bound) {
+    bound = {
+      stitches: parsed.faces.map((face, index) => ({
+        index,
+        verts: face.verts,
+        row: index,
+        col: 0,
+        token: null,
+        dir: null,
+      })),
+      columns: [0],
+      rowMin: 0,
+      rowMax: parsed.faces.length ? parsed.faces.length - 1 : 0,
+      unboundFaces: 0,
+      leftoverCells: 0,
+    };
+  }
+  const faceChunks = faceChunksFromFaces(parsed.faces);
+  return { bound, faceChunks, stitchEntry, mapEntry };
 }
 
-function applyKnitFilters() {
-  if (!knit) return;
-  viewer.setGrowth(Number(rowSlider.value));
-  viewer.setHighlightCol(highlightColValue());
+async function loadCols(output) {
+  const entry = output.colsResampleFile;
+  if (!entry) return null;
+  const text = await loadText(entry);
+  if (!text) return null;
+  const columns = parseColsResampleField(text);
+  return columns.length ? { columns, entry } : null;
+}
+
+function clearFacesBinding() {
+  if (!scene) return;
+  scene.facesBound = null;
+  scene.prevFacesItem = null;
+  facesRange.setEnabled(false);
+  facesLabel.textContent = "faces_ring: -";
+}
+
+function bindFacesRing(entry, { reset = true } = {}) {
+  scene.facesBound = entry;
+  scene.prevFacesItem = entry.item;
+  const n = entry.faceChunks.length;
+  if (reset || !n) facesRange.configure(n, n ? [0, n] : [0, 0]);
+  facesRange.setEnabled(n > 0);
+  if (n > 0) {
+    const [a, b] = facesRange.value;
+    viewer.setFacesRingRange(a, b);
+    facesLabel.textContent = formatHalfOpenRangeLabel("faces_ring", a, b, n);
+  } else {
+    facesLabel.textContent = "faces_ring: -";
+  }
+}
+
+function applyColsRange() {
+  if (!scene?.columns?.length) return;
+  const [start, end] = colsRange.value;
+  viewer.setColsResampleRange(start, end);
+  colsLabel.textContent = formatHalfOpenRangeLabel("cols_resample", start, end, scene.columns.length);
+}
+
+function applyFacesRange() {
+  if (!scene?.facesBound) return;
+  const [start, end] = facesRange.value;
+  viewer.setFacesRingRange(start, end);
+  facesLabel.textContent = formatHalfOpenRangeLabel(
+    "faces_ring",
+    start,
+    end,
+    scene.facesBound.faceChunks.length,
+  );
+}
+
+function applyModelsRange() {
+  if (!scene?.models?.length) return;
+  const [start, end] = modelsRange.value;
+  const result = applyDisplayModelsRange(scene.models, start, end, scene.prevFacesItem);
+  for (let i = 0; i < scene.models.length; i++) {
+    const model = scene.models[i];
+    const visible = result.visibility[i];
+    viewer.setModelVisible(model.name, visible);
+    if (model.kind === "faces_ring" && visible && i !== result.rightmostIdx) {
+      viewer.setFacesRingRange(0, model.faceChunks.length);
+    }
+  }
+  modelsLabel.textContent = formatDisplayModelsLabel(result.start, result.end, scene.models);
+
+  if (result.clear) {
+    clearFacesBinding();
+    return;
+  }
+  if (result.bind) {
+    bindFacesRing(result.bind, { reset: result.resetRange });
+  }
+}
+
+function applyAllFilters() {
+  applyColsRange();
+  applyModelsRange();
+  if (scene?.facesBound) applyFacesRange();
   updateChrome();
 }
+
+colsRange.setOnChange(() => {
+  applyColsRange();
+  updateChrome();
+});
+facesRange.setOnChange(() => {
+  applyFacesRange();
+  updateChrome();
+});
+modelsRange.setOnChange(() => {
+  applyModelsRange();
+  updateChrome();
+});
 
 async function showOutput(index, { fit = false } = {}) {
   if (!project) return;
   outputIndex = Math.min(Math.max(0, index), project.outputs.length - 1);
   const output = project.outputs[outputIndex];
-  knit = null;
+  scene = null;
   setStatus("加载中 / Loading…");
   try {
     const meshGeom = await loadGeometry(output.meshFile);
-    knit = await loadKnit(output);
+    const stitches = await loadStitches(output);
+    const cols = await loadCols(output);
     viewer.setWireframe(wireBtn.getAttribute("aria-pressed") === "true");
     viewer.setFlat(shadeBtn.getAttribute("aria-pressed") === "true");
     viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
 
-    if (knit) {
-      rowSlider.value = String(knit.bound.rowMax);
-      colSlider.value = "0";
-      viewer.setKnitView({
-        bodyGeom: meshGeom,
-        bound: knit.bound,
-        maxRow: knit.bound.rowMax,
-        highlightCol: null,
+    const models = [];
+    const cutName = modelNameFromFile(output.meshFile, "cut_iteration_0");
+    registerDisplayModel(models, {
+      kind: "mesh",
+      name: cutName,
+      item: cutName,
+    });
+    if (cols) {
+      registerDisplayModel(models, {
+        kind: "cols_resample",
+        name: "cols_resample",
+        item: "cols_resample",
       });
-      const mapped = knit.bound.stitches.filter((s) => s.row != null).length;
-      statsEl.textContent = `${mapped} stitches · ${knit.bound.columns.length} cols · row ${knit.bound.rowMin}–${knit.bound.rowMax}`;
-      setStatus("点按针迹可选列 · tap a stitch to solo its column");
+    }
+    if (stitches) {
+      registerDisplayModel(models, {
+        kind: "faces_ring",
+        name: "KnittingStitches",
+        item: "KnittingStitches",
+        faceChunks: stitches.faceChunks,
+      });
+    }
+
+    scene = {
+      models,
+      columns: cols?.columns || null,
+      stitches,
+      facesBound: null,
+      prevFacesItem: null,
+      cutName,
+    };
+
+    if (stitches || cols) {
+      viewer.setDisplayScene({
+        bodyGeom: meshGeom,
+        bodyName: cutName,
+        colsColumns: cols?.columns || null,
+        bound: stitches?.bound || null,
+      });
     } else {
       const overlayGeom = output.overlayFile ? await loadGeometry(output.overlayFile) : null;
       viewer.setGeometries(meshGeom, overlayGeom);
-      const pos = meshGeom.getAttribute("position");
-      const faces = pos ? Math.round(pos.count / 3) : 0;
-      statsEl.textContent = `${pos?.count ?? 0} vtx · ${faces} tri${
-        overlayGeom ? " · overlay" : ""
-      }`;
-      setStatus("");
     }
-    updateChrome();
+
+    if (cols) colsRange.configure(cols.columns.length, [0, cols.columns.length]);
+    else colsRange.configure(0, [0, 0]);
+    modelsRange.configure(models.length, models.length ? [0, models.length] : [0, 0]);
+    if (stitches) facesRange.configure(stitches.faceChunks.length, [0, stitches.faceChunks.length]);
+    else facesRange.configure(0, [0, 0]);
+
+    applyAllFilters();
+
+    const bits = [];
+    if (meshGeom) {
+      const pos = meshGeom.getAttribute("position");
+      bits.push(`${pos?.count ?? 0} vtx`);
+    }
+    if (cols) bits.push(`${cols.columns.length} cols_resample`);
+    if (stitches) bits.push(`${stitches.faceChunks.length} terms`);
+    bits.push(`${models.length} models`);
+    statsEl.textContent = bits.join(" · ");
+    setStatus("三滑块半开区间 [start,end) · dual-range like SingaLab");
     if (fit) viewer.fitToView();
   } catch (err) {
     statsEl.textContent = "";
-    knit = null;
+    scene = null;
     updateChrome();
     setStatus(err.message || String(err), true);
   }
@@ -192,7 +370,7 @@ async function openEntries(entries) {
   if (!entries?.length) return;
   geomCache.clear();
   textCache.clear();
-  knit = null;
+  scene = null;
   const index = indexFiles(entries);
   let next;
   const preferred =
@@ -244,7 +422,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("圆柱针迹 · 滑条看生长 / 点列看轨迹 · drag to orbit");
+      setStatus("圆柱 · cols_resample / faces_ring / display_models · drag to orbit");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -283,9 +461,6 @@ slider.addEventListener("input", () => {
   showOutput(Number(slider.value));
 });
 
-rowSlider.addEventListener("input", () => applyKnitFilters());
-colSlider.addEventListener("input", () => applyKnitFilters());
-
 fitBtn.addEventListener("click", () => viewer.fitToView());
 
 wireBtn.addEventListener("click", () => {
@@ -314,14 +489,19 @@ canvas.addEventListener("pointermove", (ev) => {
   if (Math.hypot(ev.clientX - pointer.x, ev.clientY - pointer.y) > 8) pointer.moved = true;
 });
 canvas.addEventListener("pointerup", (ev) => {
-  if (pointer.moved || !knit) return;
-  const col = viewer.pickStitchCol(ev.clientX, ev.clientY);
-  if (col == null) return;
-  const idx = knit.bound.columns.indexOf(col);
-  if (idx < 0) return;
-  const next = Number(colSlider.value) === idx + 1 ? 0 : idx + 1;
-  colSlider.value = String(next);
-  applyKnitFilters();
+  if (pointer.moved || !scene?.facesBound) return;
+  const stitch = viewer.pickStitch(ev.clientX, ev.clientY);
+  const idx = stitch?.index;
+  if (idx == null) return;
+  const n = scene.facesBound.faceChunks.length;
+  const [curA, curB] = facesRange.value;
+  if (curA === idx && curB === idx + 1) {
+    facesRange.configure(n, [0, n]);
+  } else {
+    facesRange.configure(n, [idx, idx + 1]);
+  }
+  applyFacesRange();
+  updateChrome();
 });
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

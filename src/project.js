@@ -86,10 +86,17 @@ export function projectFromManifest(data, index, manifestPath = "") {
       warnings.push(`缺少网格 / Missing mesh: ${meshRef || "(empty)"}`);
       continue;
     }
-    const overlayRef = raw.overlay || raw.field;
+    const overlayRef = raw.overlay;
     const overlayFile = overlayRef ? lookup(index, overlayRef, fromDir) : null;
     if (overlayRef && !overlayFile) {
       warnings.push(`缺少叠加 / Missing overlay: ${overlayRef}`);
+    }
+    const colsRef = raw.colsResample || raw.cols_resample || raw.field;
+    const colsResampleFile = colsRef
+      ? lookup(index, colsRef, fromDir)
+      : findColsResample(index, meshFile);
+    if (colsRef && !colsResampleFile) {
+      warnings.push(`缺少列场 / Missing cols_resample: ${colsRef}`);
     }
     const stitchRef = raw.stitches || raw.stitch;
     const stitchFile = stitchRef
@@ -106,6 +113,7 @@ export function projectFromManifest(data, index, manifestPath = "") {
       label: raw.label || basename(meshFile.path),
       meshFile,
       overlayFile,
+      colsResampleFile,
       stitchFile,
       readableMapFile,
     });
@@ -139,6 +147,7 @@ export function projectFromDiscovery(index) {
       label: prettyLabel(meshFile.name),
       meshFile,
       overlayFile,
+      colsResampleFile: findColsResample(index, meshFile),
       stitchFile: findStitchFile(index, meshFile) || overlayFile,
       readableMapFile: findReadableMap(index, meshFile),
     };
@@ -150,6 +159,12 @@ export function projectFromDiscovery(index) {
     outputs,
     warnings: [],
   };
+}
+
+function findColsResample(index, meshFile) {
+  const fields = index.objs.filter((f) => /cols_resample_field/i.test(f.name));
+  if (!fields.length) return null;
+  return matchOverlay(meshFile, fields) || fields[0];
 }
 
 function findStitchFile(index, meshFile) {

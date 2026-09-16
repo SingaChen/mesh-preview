@@ -52,20 +52,30 @@
           </label>
           <input id="mesh-slider" type="range" min="0" max="0" value="0" step="1" disabled />
         </div>
-        <div class="slider-grid">
-          <div class="slider-row hidden" id="row-row">
-            <label for="row-slider">
-              <span>生长 <span class="en">Row</span></span>
-              <span class="meta" id="row-count">—</span>
-            </label>
-            <input id="row-slider" type="range" min="0" max="0" value="0" step="1" />
+        <div class="dyn-controls">
+          <div class="slider-row hidden" id="cols-row">
+            <label id="cols-label">cols_resample: -</label>
+            <div class="dual-range" id="cols-range" role="group" aria-label="cols_resample">
+              <div class="dual-track"><div class="dual-fill"></div></div>
+              <input class="dual-start" type="range" min="0" max="1" value="0" step="1" aria-label="cols_resample start" />
+              <input class="dual-end" type="range" min="0" max="1" value="1" step="1" aria-label="cols_resample end" />
+            </div>
           </div>
-          <div class="slider-row hidden" id="col-row">
-            <label for="col-slider">
-              <span>列轨迹 <span class="en">Col</span></span>
-              <span class="meta" id="col-count">全部 All</span>
-            </label>
-            <input id="col-slider" type="range" min="0" max="0" value="0" step="1" />
+          <div class="slider-row hidden" id="faces-row">
+            <label id="faces-label">faces_ring: -</label>
+            <div class="dual-range" id="faces-range" role="group" aria-label="faces_ring">
+              <div class="dual-track"><div class="dual-fill"></div></div>
+              <input class="dual-start" type="range" min="0" max="1" value="0" step="1" aria-label="faces_ring start" />
+              <input class="dual-end" type="range" min="0" max="1" value="1" step="1" aria-label="faces_ring end" />
+            </div>
+          </div>
+          <div class="slider-row hidden" id="models-row">
+            <label id="models-label">display_models: -</label>
+            <div class="dual-range" id="models-range" role="group" aria-label="display_models">
+              <div class="dual-track"><div class="dual-fill"></div></div>
+              <input class="dual-start" type="range" min="0" max="1" value="0" step="1" aria-label="display_models start" />
+              <input class="dual-end" type="range" min="0" max="1" value="1" step="1" aria-label="display_models end" />
+            </div>
           </div>
         </div>
         <div class="toggles">

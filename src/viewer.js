@@ -59,7 +59,10 @@ export class MeshViewer {
     this.overlay = null;
     this.stitchMesh = null;
     this.trailLines = null;
+    this.colsGroup = null;
     this._stitchState = null;
+    this._colsState = null;
+    this._modelVisibility = new Map();
     this._raycaster = new THREE.Raycaster();
     this._pointer = new THREE.Vector2();
     this._raf = 0;
@@ -99,6 +102,7 @@ export class MeshViewer {
     this.clearMeshes();
     this._stitchState = null;
     this.mesh = new THREE.Mesh(meshGeom, this._meshMaterial());
+    this.mesh.userData.modelName = "cut_iteration_0";
     this.root.add(this.mesh);
     if (overlayGeom) {
       this.overlay = new THREE.Mesh(overlayGeom, this._overlayMaterial());
@@ -107,14 +111,77 @@ export class MeshViewer {
     }
   }
 
-  setKnitView({ bodyGeom, bound, maxRow, highlightCol }) {
+  setKnitView({ bodyGeom, bound, maxRow, highlightCol, colsColumns = null }) {
     this.clearMeshes();
-    this._stitchState = { bound, maxRow, highlightCol };
+    this._stitchState = {
+      bound,
+      maxRow,
+      highlightCol,
+      termStart: 0,
+      termEnd: bound?.stitches?.length ?? 0,
+    };
+    this._colsState = colsColumns?.length ? { columns: colsColumns, start: 0, end: colsColumns.length } : null;
     if (bodyGeom) {
-      this.mesh = new THREE.Mesh(bodyGeom, this._bodyUnderStitchMaterial());
+      this.mesh = new THREE.Mesh(bodyGeom, this._bodyMaterial());
+      this.mesh.userData.modelName = "cut_iteration_0";
       this.root.add(this.mesh);
     }
+    this._rebuildCols();
     this._rebuildStitches();
+  }
+
+  setDisplayScene({ bodyGeom, bodyName = "cut_iteration_0", colsColumns = null, bound = null }) {
+    this.clearMeshes();
+    this._stitchState = bound
+      ? {
+          bound,
+          maxRow: Infinity,
+          highlightCol: null,
+          termStart: 0,
+          termEnd: bound.stitches.length,
+        }
+      : null;
+    this._colsState = colsColumns?.length
+      ? { columns: colsColumns, start: 0, end: colsColumns.length }
+      : null;
+    if (bodyGeom) {
+      this.mesh = new THREE.Mesh(bodyGeom, this._bodyMaterial());
+      this.mesh.userData.modelName = bodyName;
+      this.root.add(this.mesh);
+    }
+    this._rebuildCols();
+    this._rebuildStitches();
+  }
+
+  setModelVisible(name, visible) {
+    this._modelVisibility.set(name, visible);
+    if (this.mesh && this.mesh.userData.modelName === name) this.mesh.visible = visible;
+    if (name === "cols_resample" && this.colsGroup) this.colsGroup.visible = visible;
+    if (name === "KnittingStitches") {
+      if (this.stitchMesh) this.stitchMesh.visible = visible && this.showOverlay;
+      if (this.trailLines) this.trailLines.visible = visible && this.showOverlay;
+    }
+  }
+
+  setColsResampleRange(start, end) {
+    if (!this._colsState) return;
+    this._colsState.start = start;
+    this._colsState.end = end;
+    this._rebuildCols();
+    const vis = this._modelVisibility.get("cols_resample");
+    if (this.colsGroup && vis === false) this.colsGroup.visible = false;
+  }
+
+  setFacesRingRange(start, end) {
+    if (!this._stitchState) return;
+    this._stitchState.termStart = start;
+    this._stitchState.termEnd = end;
+    this._rebuildStitches();
+    const vis = this._modelVisibility.get("KnittingStitches");
+    if (vis === false) {
+      if (this.stitchMesh) this.stitchMesh.visible = false;
+      if (this.trailLines) this.trailLines.visible = false;
+    }
   }
 
   setGrowth(maxRow) {
@@ -129,7 +196,7 @@ export class MeshViewer {
     this._rebuildStitches();
   }
 
-  pickStitchCol(clientX, clientY) {
+  pickStitch(clientX, clientY) {
     if (!this.stitchMesh) return null;
     const rect = this.canvas.getBoundingClientRect();
     this._pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -141,8 +208,11 @@ export class MeshViewer {
     const attr = this.stitchMesh.geometry.getAttribute("stitchIndex");
     if (!attr || idx == null) return null;
     const stitchIndex = attr.getX(idx);
-    const stitch = this._stitchState?.bound.stitches[stitchIndex];
-    return stitch?.col ?? null;
+    return this._stitchState?.bound.stitches[stitchIndex] || null;
+  }
+
+  pickStitchCol(clientX, clientY) {
+    return this.pickStitch(clientX, clientY)?.col ?? null;
   }
 
   _rebuildStitches() {
@@ -161,9 +231,15 @@ export class MeshViewer {
 
     const state = this._stitchState;
     if (!state) return;
-    const { bound, maxRow, highlightCol } = state;
+    const { bound, maxRow, highlightCol, termStart, termEnd } = state;
     const columns = bound.columns;
-    const visible = bound.stitches.filter((s) => s.row == null || s.row <= maxRow);
+    const lo = termStart ?? 0;
+    const hi = termEnd ?? bound.stitches.length;
+    const visible = bound.stitches.filter((s) => {
+      if (s.index < lo || s.index >= hi) return false;
+      if (s.row != null && Number.isFinite(maxRow) && s.row > maxRow) return false;
+      return true;
+    });
     const solo = highlightCol != null;
 
     const positions = [];
@@ -200,11 +276,15 @@ export class MeshViewer {
           opacity: this.showOverlay ? 0.96 : 0,
         }),
       );
-      this.stitchMesh.visible = this.showOverlay;
+      this.stitchMesh.userData.modelName = "KnittingStitches";
+      this.stitchMesh.visible = this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
       this.root.add(this.stitchMesh);
     }
 
-    const trails = columnTrails(bound.stitches, { maxRow, onlyCol: highlightCol });
+    const trails = columnTrails(
+      bound.stitches.filter((s) => s.index >= lo && s.index < hi),
+      { maxRow, onlyCol: highlightCol },
+    );
     const linePos = [];
     const lineCol = [];
     for (const trail of trails) {
@@ -230,9 +310,70 @@ export class MeshViewer {
           opacity: this.showOverlay ? 0.95 : 0,
         }),
       );
-      this.trailLines.visible = this.showOverlay;
+      this.trailLines.userData.modelName = "KnittingStitches";
+      this.trailLines.visible = this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
       this.root.add(this.trailLines);
     }
+  }
+
+  _rebuildCols() {
+    if (this.colsGroup) {
+      this.root.remove(this.colsGroup);
+      this.colsGroup.traverse((child) => {
+        child.geometry?.dispose();
+        child.material?.dispose();
+      });
+      this.colsGroup = null;
+    }
+    const state = this._colsState;
+    if (!state) return;
+    const { columns, start, end } = state;
+    const positions = [];
+    const colors = [];
+    const pointPos = [];
+    const pointCol = [];
+    for (let i = start; i < end; i++) {
+      const col = columns[i];
+      if (!col?.points?.length) continue;
+      for (const p of col.points) {
+        pointPos.push(p.x, p.y, p.z);
+        pointCol.push(p.r ?? 0.2, p.g ?? 0.7, p.b ?? 1);
+      }
+      for (let k = 0; k + 1 < col.points.length; k++) {
+        const a = col.points[k];
+        const b = col.points[k + 1];
+        positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        colors.push(a.r ?? 0.2, a.g ?? 0.7, a.b ?? 1, b.r ?? 0.2, b.g ?? 0.7, b.b ?? 1);
+      }
+    }
+
+    this.colsGroup = new THREE.Group();
+    this.colsGroup.userData.modelName = "cols_resample";
+    this.colsGroup.visible = this._modelVisibility.get("cols_resample") !== false;
+
+    if (positions.length) {
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      this.colsGroup.add(
+        new THREE.LineSegments(
+          geom,
+          new THREE.LineBasicMaterial({ vertexColors: true, linewidth: 2 }),
+        ),
+      );
+    }
+    if (pointPos.length) {
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.Float32BufferAttribute(pointPos, 3));
+      geom.setAttribute("color", new THREE.Float32BufferAttribute(pointCol, 3));
+      this.colsGroup.add(
+        new THREE.Points(
+          geom,
+          new THREE.PointsMaterial({ vertexColors: true, size: 0.35, sizeAttenuation: true }),
+        ),
+      );
+    }
+    this.root.add(this.colsGroup);
   }
 
   setWireframe(on) {
@@ -250,22 +391,24 @@ export class MeshViewer {
 
   setShowOverlay(on) {
     this.showOverlay = on;
+    const stitchOn = on && this._modelVisibility.get("KnittingStitches") !== false;
     if (this.overlay) this.overlay.visible = on;
     if (this.stitchMesh) {
-      this.stitchMesh.visible = on;
-      this.stitchMesh.material.opacity = on ? 0.96 : 0;
+      this.stitchMesh.visible = stitchOn;
+      this.stitchMesh.material.opacity = stitchOn ? 0.96 : 0;
     }
     if (this.trailLines) {
-      this.trailLines.visible = on;
-      this.trailLines.material.opacity = on ? 0.95 : 0;
+      this.trailLines.visible = stitchOn;
+      this.trailLines.material.opacity = stitchOn ? 0.95 : 0;
     }
   }
 
   fitToView() {
     const box = new THREE.Box3();
-    if (this.mesh) box.expandByObject(this.mesh);
+    if (this.mesh && this.mesh.visible) box.expandByObject(this.mesh);
     if (this.overlay && this.overlay.visible) box.expandByObject(this.overlay);
     if (this.stitchMesh && this.stitchMesh.visible) box.expandByObject(this.stitchMesh);
+    if (this.colsGroup && this.colsGroup.visible) box.expandByObject(this.colsGroup);
     if (box.isEmpty()) return;
 
     const sphere = new THREE.Sphere();
@@ -297,17 +440,21 @@ export class MeshViewer {
     });
   }
 
-  _bodyUnderStitchMaterial() {
+  _bodyMaterial() {
     return new THREE.MeshStandardMaterial({
-      color: 0x8a8078,
-      roughness: 0.82,
-      metalness: 0.02,
+      color: YARN,
+      roughness: 0.68,
+      metalness: 0.03,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.42,
       wireframe: this.wireframe,
       flatShading: this.flat,
     });
+  }
+
+  _bodyUnderStitchMaterial() {
+    return this._bodyMaterial();
   }
 
   _overlayMaterial() {
@@ -333,6 +480,10 @@ export class MeshViewer {
     this.overlay = null;
     this.stitchMesh = null;
     this.trailLines = null;
+    this.colsGroup = null;
+    this._stitchState = null;
+    this._colsState = null;
+    this._modelVisibility = new Map();
   }
 
   dispose() {

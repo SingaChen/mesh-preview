@@ -2,9 +2,9 @@
 
 Mobile-friendly WebGL previewer for SingaLab knitting mesh outputs.
 
-在手机（Android Chrome）或桌面上打开项目文件夹 / 清单，轨道旋转查看网格，用滑条看针迹按行生长、按列高亮轨迹。无需后端。
+在手机（Android Chrome）或桌面上打开项目文件夹 / 清单，轨道旋转查看网格，用三个双向滑块过滤 `cols_resample` / `faces_ring` / `display_models`（与 SingaLab WholeGarmentKnitting Dynamic Controls 相同的半开区间）。无需后端。
 
-Open a project folder or manifest, orbit the mesh, scrub knitting-row growth, and inspect per-column stitch trajectories. Target: **Android Chrome** (desktop works too).
+Open a project folder or manifest, orbit the mesh, and scrub the same three dual-handle range sliders as SingaLab. Target: **Android Chrome** (desktop works too).
 
 ## 手机上打开 / Open on a phone
 
@@ -16,9 +16,11 @@ Open a project folder or manifest, orbit the mesh, scrub knitting-row growth, an
 
 在 **Android Chrome** 打开该地址后：
 
-- 默认加载真实 **Test Cylinder** 针迹（`Single_Cylinder_Test`，2026-09-16）。
-- **生长 Row** 滑条按 `readable_map` 的行号（0…68）显示「织到这一行」：只保留 `row ≤ R` 的针迹。
-- **列轨迹 Col** 滑条（或点按一根针迹）按针号着色 / 单列高亮。
+- 默认加载真实 **Test Cylinder**（`Single_Cylinder_Test`）。
+- 三个双向滑块（半开区间 `[start, end)`，相邻手柄显示 1 项）：
+  - **cols_resample**：过滤 `*_cols_resample_field.obj` 的列折线，标签如 `cols_resample: idx a-b / N`
+  - **faces_ring**：过滤 KnittingStitches 的 term 面片（生成序 / `readable_map` 对齐），不是按高度假分
+  - **display_models**：显隐已注册模型（`cols_resample`、cut body、`KnittingStitches`）。右端若为 faces_ring 则绑定 faces_ring 滑块，标签带 `| right=<name>`
 - **文件夹 Folder** / **文件 Files** 仍从**手机本地**读取 OBJ 或清单（不上传服务器）。
 - **示例 Sample** 重新加载内置圆柱。
 
@@ -61,17 +63,23 @@ npm run preview
 - 单指拖动：旋转 orbit
 - 双指捏合：缩放；双指拖：平移 pan
 - **适应 Fit**：框住当前网格
-- **生长 Row**：织到第 R 行（来自 `readable_map` 行号 + OBJ 面生成序，不是按高度假分）
-- **列轨迹 Col**：全部列按色相区分；滑到某一列（或点按针迹）只高亮该列
+- **cols_resample / faces_ring / display_models**：桌面端同款半开区间双手柄
 - **线框 Wire** / **平面 Flat** / **针迹 Stitch**
+- 点按一根针迹：faces_ring 收到该项 `[i, i+1)`；再点同一针恢复全部 term
 
-## 针迹行 / 列怎么来的
+## 三个滑块怎么对应 SingaLab
 
-`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即生成序（前 35 面是 row000 的一圈 35 针）。`iteration_0_cut_readable_map.txt` 按同样顺序给出 `rowNNN` + needle `col`。450 个面能对上前 450 个 token；图末尾 65–68 行还有 token 但没有针迹几何，滑条到那些行不会再长出面。
+与 `dependence/func_knitting.py` + `ui/ui_functions/ui_knitting.py` 一致：
 
-`first_rows.xls` / `cols_resample.xls` 描述的是 84 条 resample 场线，不是这 450 针，运行时不拿它们编造行号。
+| 滑块 | 范围 | 效果 |
+| --- | --- | --- |
+| **cols_resample** | `0..N_cols` | `apply_cols_resample_range`：只留 `[start, end)` 列。圆柱 field OBJ 解析为 67 条折线。 |
+| **faces_ring** | `0..N_terms` | 只显示 term 面片 `[start, end)`。KnittingStitches 每个 n 边形是一个 term（生成序，450）。 |
+| **display_models** | `0..N_models` | `[start, end)` 内的模型可见。注册顺序与桌面相同：`cols_resample` 置顶，再是 cut body，再是 `KnittingStitches`。右端为 faces_ring 时绑定 term 滑块。 |
 
-顶点色：灰 0.55 = 普通针，红 = 特殊/高亮；预览里列色相是主着色（轨迹），不是顶点色。
+`_normalize_half_open_slider` 保证 `end >= start + 1`。标签：`cols_resample: idx a-b / N`（单项则 `idx a`）；display_models 追加 `| right=<name>`。
+
+`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即生成序（前 35 面是 row000 的一圈 35 针）。`readable_map.txt` 按同样顺序给出 token。不要按高度假分行。
 
 ## 清单 schema / Manifest schema
 
@@ -86,7 +94,8 @@ npm run preview
       "mesh": "cylinder/cut_iteration_0.obj",
       "overlay": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
-      "readableMap": "cylinder/iteration_0_cut_readable_map.txt"
+      "readableMap": "cylinder/iteration_0_cut_readable_map.txt",
+      "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj"
     }
   ]
 }
@@ -101,6 +110,7 @@ npm run preview
 | `outputs[].overlay` | 否 | 叠加 OBJ（针迹 / field 等，也接受 `field`） |
 | `outputs[].stitches` | 否 | 针迹 OBJ（带 `v x y z r g b` 的 n 边形）。缺省时用 `*KnittingStitches*.obj` |
 | `outputs[].readableMap` | 否 | `readable_map.txt`。缺省时用同目录 `*readable_map*.txt` |
+| `outputs[].colsResample` | 否 | `*_cols_resample_field.obj`（也接受 `field`）。缺省时用同目录 field OBJ |
 
 也支持无清单直接打开 cut OBJ + KnittingStitches + readable_map。
 
@@ -108,7 +118,7 @@ npm run preview
 
 ## 范围 / Scope
 
-包含：静态站、GitHub Pages、本地文件、OBJ、针迹列轨迹、按行生长、可选清单、触摸轨道、线框/平面、适应视野、离线应用壳。
+包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / display_models 双手柄、可选清单、触摸轨道、线框/平面、适应视野、离线应用壳。
 
 不做：原生 Android、账号、云同步、完整 `readable_map` 编辑器。
 
