@@ -98,6 +98,7 @@ function updateChrome() {
 
   const hasCols = Boolean(scene?.columns?.length);
   const hasStitches = Boolean(scene?.stitches);
+  const hasModels = Boolean(scene?.models?.length);
   const showDyn = hasCols || hasStitches;
   colsRow.classList.toggle("hidden", !hasCols);
   modelsRow.classList.toggle("hidden", !showDyn);
