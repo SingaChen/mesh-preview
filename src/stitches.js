@@ -13,9 +13,12 @@
  *   last short rows (65–68) that have no stitch geometry. Do not invent
  *   rows; unmatched faces/cells stay unbound.
  * - first_rows.xls / cols_resample.xls describe resampled field polylines.
- *   Runtime cols_resample slider uses iteration_*_cols_resample_field.obj
- *   (v/l runs = columns). Face terms come from OBJ generation order.
+ *   Desktop slider length is len(cols_resample) = unique integer `col` ids
+ *   in the xls (84 on the cylinder sample). Field OBJ component count (67)
+ *   is not N. Face terms come from OBJ generation order.
  */
+
+import { findXlsSheet, parseXlsWorkbook } from "./xls.js";
 
 const MANIFEST_PATH_KEYS = [
   "mesh",
@@ -25,6 +28,10 @@ const MANIFEST_PATH_KEYS = [
   "field",
   "colsResample",
   "cols_resample",
+  "colsResampleXls",
+  "cols_resample_xls",
+  "colsResampleJson",
+  "cols_resample_json",
   "stitches",
   "stitch",
   "readableMap",
@@ -194,7 +201,8 @@ export function faceChunksFromFaces(faces) {
 }
 
 /**
- * cols_resample_field.obj is written as v-runs + l-runs, one polyline per column.
+ * cols_resample_field.obj v-runs. Do NOT use this for column identity:
+ * the cylinder sample yields 67 connected polylines, not desktop N=84.
  */
 export function parseColsResampleField(text) {
   const columns = [];
@@ -226,6 +234,205 @@ export function parseColsResampleField(text) {
   }
   flush();
   return columns;
+}
+
+function headerIndex(header, ...names) {
+  const lower = header.map((h) => String(h ?? "").trim().toLowerCase());
+  for (const name of names) {
+    const i = lower.indexOf(name);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+function isFilled(value) {
+  return value !== "" && value != null && !(typeof value === "number" && Number.isNaN(value));
+}
+
+function asIntCol(value) {
+  if (!isFilled(value)) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.trunc(n);
+}
+
+function fieldVertColors(fieldText) {
+  if (!fieldText) return [];
+  return parseColoredObj(fieldText).verts;
+}
+
+function denseColumns(groups) {
+  const ids = [...groups.keys()].sort((a, b) => a - b);
+  if (!ids.length) return [];
+  const min = Math.min(0, ids[0]);
+  const max = ids[ids.length - 1];
+  const columns = [];
+  for (let id = min; id <= max; id++) {
+    const list = groups.get(id) || [];
+    list.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    columns.push({
+      col: id,
+      type: list[0]?.type ?? null,
+      points: list,
+    });
+  }
+  return columns;
+}
+
+function columnsFromPointsDetail(rows, fieldVerts) {
+  if (!rows?.length) return [];
+  const header = rows[0] || [];
+  const colI = headerIndex(header, "col");
+  const xI = headerIndex(header, "x");
+  const yI = headerIndex(header, "y");
+  const zI = headerIndex(header, "z");
+  if (colI < 0 || xI < 0 || yI < 0 || zI < 0) return [];
+  const typeI = headerIndex(header, "type");
+  const idxI = headerIndex(header, "point_index", "index");
+  const scaleI = headerIndex(header, "scale");
+  const groups = new Map();
+  let global = 0;
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const col = asIntCol(row[colI]);
+    if (col == null) continue;
+    if (!groups.has(col)) groups.set(col, []);
+    const fv = fieldVerts[global];
+    groups.get(col).push({
+      index: idxI >= 0 && isFilled(row[idxI]) ? Number(row[idxI]) : groups.get(col).length,
+      scale: scaleI >= 0 && isFilled(row[scaleI]) ? Number(row[scaleI]) : null,
+      x: Number(row[xI]),
+      y: Number(row[yI]),
+      z: Number(row[zI]),
+      r: fv?.r ?? 0.2,
+      g: fv?.g ?? 0.7,
+      b: fv?.b ?? 1,
+      type: typeI >= 0 ? row[typeI] || null : null,
+    });
+    global += 1;
+  }
+  return denseColumns(groups);
+}
+
+function columnsFromSheet0(rows, fieldVerts) {
+  if (!rows?.length) return [];
+  const header = rows[0] || [];
+  const colI = headerIndex(header, "col", "col\\row");
+  if (colI < 0) return [];
+  const typeI = headerIndex(header, "type");
+  const xI = headerIndex(header, "x");
+  const yI = headerIndex(header, "y");
+  const zI = headerIndex(header, "z");
+  const pCols = header
+    .map((h, i) => (/^p_\d+$/i.test(String(h ?? "").trim()) ? i : -1))
+    .filter((i) => i >= 0);
+  const groups = new Map();
+  let cursor = 0;
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const col = asIntCol(row[colI]);
+    if (col == null) continue;
+    const type = typeI >= 0 ? row[typeI] || null : null;
+    const points = [];
+    if (xI >= 0 && yI >= 0 && zI >= 0 && isFilled(row[xI])) {
+      const fv = fieldVerts[cursor];
+      points.push({
+        index: 0,
+        x: Number(row[xI]),
+        y: Number(row[yI]),
+        z: Number(row[zI]),
+        r: fv?.r ?? 0.2,
+        g: fv?.g ?? 0.7,
+        b: fv?.b ?? 1,
+        type,
+      });
+      cursor += 1;
+    } else if (pCols.length) {
+      const n = pCols.filter((i) => isFilled(row[i])).length;
+      for (let k = 0; k < n; k++) {
+        const fv = fieldVerts[cursor + k];
+        if (!fv) continue;
+        points.push({
+          index: k,
+          x: fv.x,
+          y: fv.y,
+          z: fv.z,
+          r: fv.r ?? 0.2,
+          g: fv.g ?? 0.7,
+          b: fv.b ?? 1,
+          type,
+        });
+      }
+      cursor += n;
+    } else {
+      groups.set(col, groups.get(col) || []);
+      continue;
+    }
+    if (!groups.has(col)) groups.set(col, []);
+    groups.get(col).push(...points);
+  }
+  return denseColumns(groups);
+}
+
+function columnsFromSidecar(data) {
+  if (!data) return [];
+  const parsed = typeof data === "string" ? JSON.parse(data) : data;
+  const raw = parsed.columns || parsed.cols_resample || parsed.cols;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((col, i) => ({
+    col: col.col ?? col.id ?? i,
+    type: col.type ?? null,
+    points: (col.points || []).map((p, k) => ({
+      index: p.index ?? k,
+      x: Number(p.x),
+      y: Number(p.y),
+      z: Number(p.z),
+      r: p.r ?? 0.2,
+      g: p.g ?? 0.7,
+      b: p.b ?? 1,
+      type: p.type ?? col.type ?? null,
+    })),
+  }));
+}
+
+export function uniqueColIdsFromXls(workbook) {
+  const ids = new Set();
+  const sheet =
+    findXlsSheet(workbook, /points_detail/i) ||
+    findXlsSheet(workbook, (s) => headerIndex(s.rows[0] || [], "col") >= 0) ||
+    workbook?.sheets?.[0];
+  if (!sheet?.rows?.length) return [];
+  const colI = headerIndex(sheet.rows[0] || [], "col", "col\\row");
+  if (colI < 0) return [];
+  for (let r = 1; r < sheet.rows.length; r++) {
+    const id = asIntCol(sheet.rows[r]?.[colI]);
+    if (id != null) ids.add(id);
+  }
+  return [...ids].sort((a, b) => a - b);
+}
+
+/**
+ * Column identity/count comes from cols_resample.xls (or a JSON sidecar).
+ * Field OBJ supplies vertex colours when point order matches.
+ */
+export function parseColsResample({ xls, workbook, sidecar, fieldText } = {}) {
+  if (sidecar) {
+    const fromJson = columnsFromSidecar(sidecar);
+    if (fromJson.length) return fromJson;
+  }
+  const book = workbook || (xls ? parseXlsWorkbook(xls) : null);
+  const fieldVerts = fieldVertColors(fieldText);
+  if (book) {
+    const detail = findXlsSheet(book, /points_detail/i);
+    const fromDetail = columnsFromPointsDetail(detail?.rows, fieldVerts);
+    if (fromDetail.length) return fromDetail;
+    const sheet0 =
+      findXlsSheet(book, (s) => headerIndex(s.rows[0] || [], "col", "col\\row") >= 0) ||
+      book.sheets[0];
+    const fromSheet0 = columnsFromSheet0(sheet0?.rows, fieldVerts);
+    if (fromSheet0.length) return fromSheet0;
+  }
+  return [];
 }
 
 export function columnTrails(stitches, { maxRow = Infinity, onlyCol = null } = {}) {

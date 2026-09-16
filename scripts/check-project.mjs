@@ -21,9 +21,12 @@ import {
   collectManifestRefs,
   faceChunksFromFaces,
   parseColoredObj,
+  parseColsResample,
   parseColsResampleField,
   parseReadableMap,
+  uniqueColIdsFromXls,
 } from "../src/stitches.js";
+import { parseXlsWorkbook } from "../src/xls.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sampleDir = join(root, "public", "sample");
@@ -39,20 +42,27 @@ if (manifest.name !== "Single_Cylinder_Test") throw new Error("default sample mu
 
 const refs = collectManifestRefs(manifest);
 for (const rel of refs) {
-  readFileSync(join(sampleDir, rel), "utf8");
+  readFileSync(join(sampleDir, rel));
 }
 assert(
   refs.some((r) => /cols_resample_field/.test(r)),
   "manifest must list cols_resample field obj",
 );
+assert(
+  refs.some((r) => /cols_resample\.xls$/.test(r)),
+  "manifest must list cols_resample xls",
+);
 
 const entries = [
   { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(manifest) },
-  ...refs.map((rel) => ({
-    name: rel.split("/").pop(),
-    path: `sample/${rel}`,
-    text: readFileSync(join(sampleDir, rel), "utf8"),
-  })),
+  ...refs.map((rel) => {
+    const full = join(sampleDir, rel);
+    const name = rel.split("/").pop();
+    if (/\.xlsx?$/i.test(rel)) {
+      return { name, path: `sample/${rel}`, buffer: readFileSync(full) };
+    }
+    return { name, path: `sample/${rel}`, text: readFileSync(full, "utf8") };
+  }),
 ];
 
 const index = indexFiles(entries);
@@ -61,13 +71,15 @@ if (fromManifest.outputs.length !== 1) throw new Error("expected 1 cylinder outp
 if (!fromManifest.outputs[0].stitchFile) throw new Error("expected stitch file");
 if (!fromManifest.outputs[0].readableMapFile) throw new Error("expected readable_map");
 if (!fromManifest.outputs[0].colsResampleFile) throw new Error("expected cols_resample field");
+if (!fromManifest.outputs[0].colsResampleXlsFile) throw new Error("expected cols_resample xls");
 
 const fromDiscovery = projectFromDiscovery(index);
 if (fromDiscovery.outputs.length !== 1) {
   throw new Error(`discovery should keep cut body only, got ${fromDiscovery.outputs.length}`);
 }
 if (!fromDiscovery.outputs[0].overlayFile) throw new Error("discovery should attach stitches");
-if (!fromDiscovery.outputs[0].colsResampleFile) throw new Error("discovery should attach cols_resample");
+if (!fromDiscovery.outputs[0].colsResampleFile) throw new Error("discovery should attach cols_resample field");
+if (!fromDiscovery.outputs[0].colsResampleXlsFile) throw new Error("discovery should attach cols_resample xls");
 if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
   throw new Error("overlay heuristic failed for KnittingStitches");
 }
@@ -75,6 +87,7 @@ if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
 const stitchText = readFileSync(join(cylDir, "iteration_0_cut_KnittingStitches.obj"), "utf8");
 const mapText = readFileSync(join(cylDir, "iteration_0_cut_readable_map.txt"), "utf8");
 const fieldText = readFileSync(join(cylDir, "iteration_0_cut_cols_resample_field.obj"), "utf8");
+const xlsBuf = readFileSync(join(cylDir, "iteration_0_cut_cols_resample.xls"));
 const parsed = parseColoredObj(stitchText);
 if (parsed.faces.length !== 450) throw new Error(`expected 450 stitch faces, got ${parsed.faces.length}`);
 if (parsed.verts.length !== 1716) throw new Error(`expected 1716 stitch verts, got ${parsed.verts.length}`);
@@ -105,26 +118,48 @@ assert(windowed[0].index === 10 && windowed[1].index === 11, "adjacent handles s
 const one = sliceHalfOpen(chunks, 7, 8);
 assert(one.length === 1 && one[0].index === 7, "adjacent handles show one term");
 
-const columns = parseColsResampleField(fieldText);
-assert(columns.length === 67, `expected 67 cols_resample polylines, got ${columns.length}`);
-assert(columns[0].points.length === 12, "first column should have 12 samples");
-assert(columns[columns.length - 1].points.length === 2, "last column is a short segment");
+const fieldOnly = parseColsResampleField(fieldText);
+assert(fieldOnly.length === 67, `field OBJ v-runs are 67 stubs, got ${fieldOnly.length}`);
+assert(fieldOnly.length !== 84, "do not treat field component count as desktop N");
+
+const workbook = parseXlsWorkbook(xlsBuf);
+const xlsColIds = uniqueColIdsFromXls(workbook);
+assert(xlsColIds.length === 84, `xls unique col ids should be 84, got ${xlsColIds.length}`);
+assert(xlsColIds[0] === 0 && xlsColIds[83] === 83, "xls col ids are 0..83");
+
+const columns = parseColsResample({ xls: xlsBuf, fieldText });
+assert(columns.length === xlsColIds.length, `column count must match xls unique col ids, got ${columns.length}`);
+assert(columns.length === 84, `cylinder cols_resample should be 84, got ${columns.length}`);
+assert(columns[0].col === 0 && columns[0].points.length === 12, "col 0 is FULL with 12 samples");
+assert(columns[3].col === 3 && columns[3].points.length === 1, "single-point SHORT_* columns stay in the list");
+assert(columns[columns.length - 1].col === 83 && columns[columns.length - 1].points.length === 2, "last column is col 83");
+assert(
+  columns.reduce((n, c) => n + c.points.length, 0) === 435,
+  "points_detail has 435 tagged points",
+);
 const visCols = sliceHalfOpen(columns, 0, 1);
-assert(visCols.length === 1, "cols_resample [0,1) keeps one column");
-assert(sliceHalfOpen(columns, 0, 67).length === 67, "default [0,N) keeps every column");
+assert(visCols.length === 1 && visCols[0].col === 0, "cols_resample [0,1) keeps one column");
+assert(sliceHalfOpen(columns, 0, 84).length === 84, "default [0,N) keeps every xls column");
+
+const fromSheet0 = parseColsResample({
+  workbook: { sheets: workbook.sheets.filter((s) => s.name !== "points_detail") },
+  fieldText,
+});
+assert(fromSheet0.length === 84, `sheet0 fallback should still be 84, got ${fromSheet0.length}`);
+assert(fromSheet0[0].points.length === 12, "sheet0 + field verts reconstruct col 0");
 
 assert.deepEqual = (a, b, msg) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg || `${JSON.stringify(a)} != ${JSON.stringify(b)}`);
 };
 
-assert.deepEqual(normalizeHalfOpenSlider([0, 67], 67), [0, 67], "full cols range");
-assert.deepEqual(normalizeHalfOpenSlider([5, 5], 67), [5, 6], "end >= start+1");
-assert.deepEqual(normalizeHalfOpenSlider([8, 3], 67), [3, 8], "swap if reversed");
-assert.deepEqual(normalizeHalfOpenSlider([67, 67], 67), [66, 67], "clamp last element");
-assert.deepEqual(normalizeHalfOpenSlider([-2, 99], 67), [0, 67], "clamp to 0..N");
+assert.deepEqual(normalizeHalfOpenSlider([0, 84], 84), [0, 84], "full cols range");
+assert.deepEqual(normalizeHalfOpenSlider([5, 5], 84), [5, 6], "end >= start+1");
+assert.deepEqual(normalizeHalfOpenSlider([8, 3], 84), [3, 8], "swap if reversed");
+assert.deepEqual(normalizeHalfOpenSlider([84, 84], 84), [83, 84], "clamp last element");
+assert.deepEqual(normalizeHalfOpenSlider([-2, 99], 84), [0, 84], "clamp to 0..N");
 
 assert(
-  formatHalfOpenRangeLabel("cols_resample", 0, 67, 67) === "cols_resample: idx 0-66 / 67",
+  formatHalfOpenRangeLabel("cols_resample", 0, 84, 84) === "cols_resample: idx 0-83 / 84",
   "full-range label uses last inclusive index",
 );
 assert(

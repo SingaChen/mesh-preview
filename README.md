@@ -53,10 +53,10 @@ npm run preview
 | 按钮 | 作用 |
 | --- | --- |
 | **文件夹 Folder** | 桌面 Chrome：File System Access 选目录。Android Chrome：回退为 `webkitdirectory` 多文件选择。 |
-| **文件 Files** | 多选 `.obj` / 清单 `.json` / `readable_map.txt`（Android 上最稳）。 |
+| **文件 Files** | 多选 `.obj` / 清单 `.json` / `readable_map.txt` / `*_cols_resample.xls`（Android 上最稳）。 |
 | **示例 Sample** | 重新加载内置 `public/sample/cylinder/`。 |
 
-没有清单时，会收集选中的 Wavefront OBJ，按文件名自然排序。文件名含 `overlay` / `field` / `stitch` / `KnittingStitches` 的 OBJ 会当作叠加层；同目录的 `*_readable_map.txt` 会自动绑到针迹。
+没有清单时，会收集选中的 Wavefront OBJ，按文件名自然排序。文件名含 `overlay` / `field` / `stitch` / `KnittingStitches` 的 OBJ 会当作叠加层；同目录的 `*_readable_map.txt` 与 `*_cols_resample.xls` 会自动绑到针迹 / 列场。
 
 手势：
 
@@ -73,13 +73,15 @@ npm run preview
 
 | 滑块 | 范围 | 效果 |
 | --- | --- | --- |
-| **cols_resample** | `0..N_cols` | `apply_cols_resample_range`：只留 `[start, end)` 列。圆柱 field OBJ 解析为 67 条折线。 |
+| **cols_resample** | `0..N_cols` | `apply_cols_resample_range`：只留 `[start, end)` 列。`N` 来自 `*_cols_resample.xls` 的整数 `col`（圆柱示例 **84**，与桌面 `len(cols_resample)` 一致）。field OBJ 的 67 条连通折线不是 N。 |
 | **faces_ring** | `0..N_terms` | 只显示 term 面片 `[start, end)`。KnittingStitches 每个 n 边形是一个 term（生成序，450）。 |
 | **display_models** | `0..N_models` | `[start, end)` 内的模型可见。注册顺序与桌面相同：`cols_resample` 置顶，再是 cut body，再是 `KnittingStitches`。右端为 faces_ring 时绑定 term 滑块。 |
 
 `_normalize_half_open_slider` 保证 `end >= start + 1`。标签：`cols_resample: idx a-b / N`（单项则 `idx a`）；display_models 追加 `| right=<name>`。
 
 `iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即生成序（前 35 面是 row000 的一圈 35 针）。`readable_map.txt` 按同样顺序给出 token。不要按高度假分行。
+
+`iteration_0_cut_cols_resample.xls` 的 `points_detail` 有 435 个点、84 个 `col`（0..83，含单点 SHORT_* 列）。同名 field OBJ 也是 435 个顶点，但按连通折线只有 67 段，不能当桌面列数。管道指标 `cols=42`（KnittingMap 条带列）是另一个数。
 
 ## 清单 schema / Manifest schema
 
@@ -95,7 +97,8 @@ npm run preview
       "overlay": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "readableMap": "cylinder/iteration_0_cut_readable_map.txt",
-      "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj"
+      "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
+      "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls"
     }
   ]
 }
@@ -110,7 +113,8 @@ npm run preview
 | `outputs[].overlay` | 否 | 叠加 OBJ（针迹 / field 等，也接受 `field`） |
 | `outputs[].stitches` | 否 | 针迹 OBJ（带 `v x y z r g b` 的 n 边形）。缺省时用 `*KnittingStitches*.obj` |
 | `outputs[].readableMap` | 否 | `readable_map.txt`。缺省时用同目录 `*readable_map*.txt` |
-| `outputs[].colsResample` | 否 | `*_cols_resample_field.obj`（也接受 `field`）。缺省时用同目录 field OBJ |
+| `outputs[].colsResample` | 否 | `*_cols_resample_field.obj`（也接受 `field`）。只提供坐标/颜色，不算列数 |
+| `outputs[].colsResampleXls` | 否 | `*_cols_resample.xls`。列身份与滑条长度来自 `points_detail` 按整数 `col` 分组（缺省时用同目录 xls） |
 
 也支持无清单直接打开 cut OBJ + KnittingStitches + readable_map。
 
