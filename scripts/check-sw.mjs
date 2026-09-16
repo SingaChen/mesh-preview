@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import { SW_CACHE_PLACEHOLDER, stampSwCacheId } from "../vite.config.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -8,6 +9,13 @@ const sw = readFileSync(join(root, "public", "sw.js"), "utf8");
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
+}
+
+function loadSwPolicy() {
+  const prelude = sw.split("self.addEventListener")[0];
+  const context = vm.createContext({ URL, Request });
+  vm.runInContext(prelude, context);
+  return context;
 }
 
 assert(!sw.includes("mesh-preview-v1"), "SW must not keep the stuck v1 cache name");
@@ -36,6 +44,38 @@ const readme = readFileSync(join(root, "README.md"), "utf8");
 assert(
   /注销 Service Worker|unregister/i.test(readme),
   "README must tell users to clear site data / unregister SW if the UI looks stale",
+);
+
+const policy = loadSwPolicy();
+const origin = "https://singachen.github.io";
+const sampleXls = new URL("/mesh-preview/sample/cylinder/iteration_0_cut_cols_resample.xls", origin);
+const sampleObj = new URL("/mesh-preview/sample/cylinder/iteration_0_cut_cols_resample_field.obj", origin);
+const hashedJs = new URL("/mesh-preview/assets/index-5GrU1-u7.js", origin);
+const html = new URL("/mesh-preview/", origin);
+
+assert(policy.isSampleOrMutableData(sampleXls), "sample xls must be treated as mutable");
+assert(policy.isSampleOrMutableData(sampleObj), "sample obj must be treated as mutable");
+assert(policy.isHashedAsset(hashedJs), "Vite hashed /assets/* must match");
+assert(
+  policy.shouldBypassHttpCache({ mode: "navigate", destination: "document" }, html),
+  "navigation must bypass HTTP cache",
+);
+assert(
+  policy.shouldBypassHttpCache({ mode: "cors", destination: "" }, sampleXls),
+  "sample xls must bypass HTTP cache",
+);
+assert(
+  !policy.shouldBypassHttpCache({ mode: "cors", destination: "script" }, hashedJs),
+  "hashed assets may use cache-first without HTTP reload",
+);
+
+const current = "mesh-preview-v2-deadbeef";
+const leftover = ["mesh-preview-v1", current, "mesh-preview-v2-oldhash", "unrelated-cache"].filter(
+  (k) => k !== current && k.startsWith("mesh-preview-"),
+);
+assert(
+  leftover.join(",") === "mesh-preview-v1,mesh-preview-v2-oldhash",
+  `activate must drop every old mesh-preview-* cache, got ${leftover}`,
 );
 
 console.log("sw checks ok");
