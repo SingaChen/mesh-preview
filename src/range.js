@@ -47,6 +47,29 @@ export function sliceHalfOpen(items, start, end) {
   return items.slice(s, e);
 }
 
+export function activeRingIndex(ringStart, ringEnd) {
+  const s = Number(ringStart);
+  const e = Number(ringEnd);
+  if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
+  return e - 1;
+}
+
+/** Earlier rings in [r0, r1-1) stay full; active ring r1-1 uses [t0, t1). */
+export function stitchesVisibleForSliders(stitches, ringStart, ringEnd, termStart, termEnd) {
+  const active = activeRingIndex(ringStart, ringEnd);
+  if (active == null) return [];
+  const t0 = Number(termStart);
+  const t1 = Number(termEnd);
+  return (stitches || []).filter((s) => {
+    if (s.ring == null || !Number.isFinite(s.ring)) return false;
+    if (s.ring < ringStart || s.ring >= ringEnd) return false;
+    if (s.ring < active) return true;
+    const t = s.termInRing;
+    if (t == null || !Number.isFinite(t)) return false;
+    return t >= t0 && t < t1;
+  });
+}
+
 export function facesRingSliderN(entry) {
   if (Array.isArray(entry?.rowChunks)) return entry.rowChunks.length;
   if (Array.isArray(entry?.faceChunks)) return entry.faceChunks.length;

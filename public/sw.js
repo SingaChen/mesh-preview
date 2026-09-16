@@ -12,7 +12,7 @@ function isHashedAsset(url) {
 function isSampleOrMutableData(url) {
   const path = url.pathname;
   if (path.includes("/sample/")) return true;
-  if (/\.(xls|xlsx|obj)$/i.test(path)) return true;
+  if (/\.(xls|xlsx|obj|json)$/i.test(path)) return true;
   return false;
 }
 

@@ -10,7 +10,8 @@
       "field": "cylinder/iteration_0_cut_cols_resample_field.obj",
       "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
       "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
-      "firstRows": "cylinder/iteration_0_cut_first_rows.xls"
+      "firstRows": "cylinder/iteration_0_cut_first_rows.xls",
+      "facesRingLayout": "cylinder/faces_ring_layout.json"
     }
   ]
 }
