@@ -4,7 +4,8 @@
  * Txt leftovers still use token ink; bound txt cells may use Type colors.
  */
 
-import { excelInk, excelLegendKind, isKnitDir } from "./excel-map.js";
+import { excelInk, excelLegendKind, isKnitDir, isTransferDir } from "./excel-map.js";
+import { mapCellsForStitch } from "./stitches.js";
 
 export function tokenKind(token) {
   const t = String(token ?? "");
@@ -92,6 +93,8 @@ export function buildExcelReadableMapGrid(map) {
         token: cell.token,
         dir: cell.dir,
         knitRow: cell.knitRow,
+        isKnit: isKnitDir(cell.dir),
+        isTransfer: isTransferDir(cell.dir),
         xf: cell.xf,
         fill: cell.fill,
         kind: cell.kind,
@@ -190,44 +193,31 @@ function isExcelView(map, grid) {
   return map?.source === "excel" || grid?.source === "excel" || grid?.theme === "excel";
 }
 
-function excelCellsMatching(grid, pred) {
-  const out = [];
-  for (const row of grid?.grid || []) {
-    for (const cell of row || []) {
-      if (cell && pred(cell)) out.push(cell);
-    }
-  }
-  return out;
+function excelRowDir(grid, displayRow) {
+  const meta = grid?.rows?.[displayRow] || grid?.rows?.find((row) => row.row === displayRow);
+  return meta?.dir || null;
 }
 
 /**
  * Readable_map cells bound to one KnittingStitches face.
- * Excel: needle col + knit-row identity (R/L rows only). Generation-order
- * pairing to the old txt list is not 1:1 onto X / X+ rows. If the knit row
- * is missing, highlight every occupied cell in that needle column.
+ * Excel: only desktop stitch_map_bind.json cells (display_row + needle).
+ * Never highlight X / X+ transfer rows. No column-wide fallback.
  * Txt: existing generation-order pairing (cell i ↔ face i) plus row/col.
  */
-export function highlightKeysForStitch(stitch, { map = null, grid = null } = {}) {
+export function highlightKeysForStitch(stitch, { map = null, grid = null, bind = null } = {}) {
   const keys = new Set();
   if (!stitch) return keys;
   if (isExcelView(map, grid)) {
-    const col = stitch.col;
-    if (col == null) return keys;
-    const knitRow = stitch.row;
-    const knitHits = excelCellsMatching(
-      grid,
-      (cell) =>
-        cell.col === col &&
-        cell.knitRow === knitRow &&
-        isKnitDir(cell.dir) &&
-        Boolean(cell.token),
-    );
-    if (knitHits.length) {
-      for (const cell of knitHits) keys.add(cellKey(cell.row, cell.col));
-      return keys;
+    const cells = mapCellsForStitch(stitch, bind);
+    for (const cell of cells) {
+      const row = cell.display_row;
+      const col = cell.col;
+      if (row == null || col == null) continue;
+      const mapped = grid?.grid?.[row - (grid.rowMin || 0)]?.[col - grid.colMin];
+      const dir = mapped?.dir || excelRowDir(grid, row);
+      if (isTransferDir(dir) || mapped?.isTransfer) continue;
+      keys.add(cellKey(row, col));
     }
-    const colHits = excelCellsMatching(grid, (cell) => cell.col === col && Boolean(cell.token));
-    for (const cell of colHits) keys.add(cellKey(cell.row, cell.col));
     return keys;
   }
   if (stitch.row != null && stitch.col != null) keys.add(cellKey(stitch.row, stitch.col));
@@ -247,11 +237,11 @@ export function highlightKeysForStitch(stitch, { map = null, grid = null } = {})
   return keys;
 }
 
-export function highlightKeysFromStitches(stitches, { map = null, grid = null } = {}) {
+export function highlightKeysFromStitches(stitches, { map = null, grid = null, bind = null } = {}) {
   if (isExcelView(map, grid)) {
     const keys = new Set();
     for (const s of stitches || []) {
-      for (const key of highlightKeysForStitch(s, { map, grid })) keys.add(key);
+      for (const key of highlightKeysForStitch(s, { map, grid, bind })) keys.add(key);
     }
     return keys;
   }

@@ -48,6 +48,11 @@ export function isFacesRingLayoutName(name) {
   return /\.json$/i.test(base) && /faces_ring_layout/i.test(base);
 }
 
+export function isStitchMapBindName(name) {
+  const base = basename(name);
+  return /\.json$/i.test(base) && /stitch_map_bind/i.test(base);
+}
+
 export function isExcelReadableMapName(name) {
   const base = basename(name);
   return isXlsName(base) && /readable_map|step3/i.test(base) && !/cols_resample|first_rows/i.test(base);
@@ -180,6 +185,13 @@ export function projectFromManifest(data, index, manifestPath = "") {
     if (layoutRef && !facesRingLayoutFile) {
       warnings.push(`缺少环布局 / Missing faces_ring_layout: ${layoutRef}`);
     }
+    const bindRef = raw.stitchMapBind || raw.stitch_map_bind;
+    const stitchMapBindFile = bindRef
+      ? lookup(index, bindRef, fromDir)
+      : findStitchMapBind(index, meshFile);
+    if (bindRef && !stitchMapBindFile) {
+      warnings.push(`缺少针迹绑定 / Missing stitch_map_bind: ${bindRef}`);
+    }
     outputs.push({
       label: raw.label || basename(meshFile.path),
       meshFile,
@@ -192,6 +204,7 @@ export function projectFromManifest(data, index, manifestPath = "") {
       readableMapTxtFile,
       firstRowsFile,
       facesRingLayoutFile,
+      stitchMapBindFile,
     });
   }
 
@@ -231,6 +244,7 @@ export function projectFromDiscovery(index) {
       readableMapTxtFile: findReadableMapTxt(index, meshFile),
       firstRowsFile: findFirstRowsXls(index, meshFile),
       facesRingLayoutFile: findFacesRingLayout(index, meshFile),
+      stitchMapBindFile: findStitchMapBind(index, meshFile),
     };
   });
 
@@ -268,6 +282,12 @@ function findFirstRowsXls(index, meshFile) {
 
 function findFacesRingLayout(index, meshFile) {
   const files = (index.jsons || []).filter((f) => isFacesRingLayoutName(f.name));
+  if (!files.length) return null;
+  return matchOverlay(meshFile, files) || files[0];
+}
+
+function findStitchMapBind(index, meshFile) {
+  const files = (index.jsons || []).filter((f) => isStitchMapBindName(f.name));
   if (!files.length) return null;
   return matchOverlay(meshFile, files) || files[0];
 }
