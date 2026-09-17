@@ -48,6 +48,16 @@ export function isFacesRingLayoutName(name) {
   return /\.json$/i.test(base) && /faces_ring_layout/i.test(base);
 }
 
+export function isExcelReadableMapName(name) {
+  const base = basename(name);
+  return isXlsName(base) && /readable_map|step3/i.test(base) && !/cols_resample|first_rows/i.test(base);
+}
+
+export function isTxtReadableMapName(name) {
+  const base = basename(name);
+  return /\.txt$/i.test(base) && /readable_map/i.test(base);
+}
+
 export function indexFiles(entries) {
   const byPath = new Map();
   const byName = new Map();
@@ -149,6 +159,13 @@ export function projectFromManifest(data, index, manifestPath = "") {
     if (mapRef && !readableMapFile) {
       warnings.push(`缺少生长图 / Missing readable_map: ${mapRef}`);
     }
+    const mapTxtRef = raw.readableMapTxt || raw.readable_map_txt;
+    const readableMapTxtFile = mapTxtRef
+      ? lookup(index, mapTxtRef, fromDir)
+      : findReadableMapTxt(index, meshFile);
+    if (mapTxtRef && !readableMapTxtFile) {
+      warnings.push(`缺少生长图 txt / Missing readable_map txt: ${mapTxtRef}`);
+    }
     const firstRowsRef = raw.firstRows || raw.first_rows;
     const firstRowsFile = firstRowsRef
       ? lookup(index, firstRowsRef, fromDir)
@@ -172,6 +189,7 @@ export function projectFromManifest(data, index, manifestPath = "") {
       colsResampleJsonFile,
       stitchFile,
       readableMapFile,
+      readableMapTxtFile,
       firstRowsFile,
       facesRingLayoutFile,
     });
@@ -210,6 +228,7 @@ export function projectFromDiscovery(index) {
       colsResampleJsonFile: findColsResampleJson(index, meshFile),
       stitchFile: findStitchFile(index, meshFile) || overlayFile,
       readableMapFile: findReadableMap(index, meshFile),
+      readableMapTxtFile: findReadableMapTxt(index, meshFile),
       firstRowsFile: findFirstRowsXls(index, meshFile),
       facesRingLayoutFile: findFacesRingLayout(index, meshFile),
     };
@@ -259,15 +278,30 @@ function findStitchFile(index, meshFile) {
   return matchOverlay(meshFile, stitches) || stitches[0];
 }
 
-function findReadableMap(index, meshFile) {
-  const maps = (index.txts || []).filter((f) => /readable_map/i.test(f.name));
-  if (!maps.length) return null;
+function pickIterFile(files, meshFile) {
+  if (!files.length) return null;
   const iter = meshFile?.name.match(/iteration[_\-]?(\d+)/i)?.[1];
   if (iter != null) {
-    const hit = maps.find((m) => m.name.includes(`iteration_${iter}`) || m.name.includes(`iteration_${iter.padStart?.(2, "0")}`));
+    const hit = files.find(
+      (m) => m.name.includes(`iteration_${iter}`) || m.name.includes(`iteration_${iter.padStart?.(2, "0")}`),
+    );
     if (hit) return hit;
   }
-  return maps[0];
+  return files[0];
+}
+
+function findReadableMap(index, meshFile) {
+  const xlsMaps = (index.xls || []).filter((f) => isExcelReadableMapName(f.name));
+  const preferred = xlsMaps.find((f) => /step3/i.test(f.name) && /xfer/i.test(f.name))
+    || xlsMaps.find((f) => /step3/i.test(f.name))
+    || pickIterFile(xlsMaps, meshFile);
+  if (preferred) return preferred;
+  return findReadableMapTxt(index, meshFile);
+}
+
+function findReadableMapTxt(index, meshFile) {
+  const maps = (index.txts || []).filter((f) => isTxtReadableMapName(f.name));
+  return pickIterFile(maps, meshFile);
 }
 
 function matchOverlay(meshFile, overlays) {

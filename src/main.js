@@ -8,7 +8,9 @@ import {
 import {
   basename,
   indexFiles,
+  isExcelReadableMapName,
   isManifestShape,
+  isXlsName,
   projectFromDiscovery,
   projectFromManifest,
   readEntryBuffer,
@@ -26,6 +28,7 @@ import {
   parseFirstRows,
   parseReadableMap,
 } from "./stitches.js";
+import { excelMapAsBindMap, parseExcelReadableMap } from "./excel-map.js";
 import { bindDualRange } from "./dual-range.js";
 import {
   activeRingIndex,
@@ -233,12 +236,29 @@ async function loadBuffer(entry) {
   return buffer;
 }
 
-async function loadReadableMap(output) {
-  const mapEntry = output.readableMapFile;
-  if (!mapEntry) return null;
-  const mapText = await loadText(mapEntry);
+function isMapXlsEntry(entry) {
+  if (!entry) return false;
+  const name = entry.name || entry.path || "";
+  return isExcelReadableMapName(name) || (isXlsName(name) && /readable_map|step3/i.test(name));
+}
+
+async function loadExcelOrTxtMap(entry) {
+  if (!entry) return null;
+  if (isMapXlsEntry(entry)) {
+    const buf = await loadBuffer(entry);
+    if (!buf) return null;
+    const map = parseExcelReadableMap(buf);
+    return map?.rows?.length ? map : null;
+  }
+  const mapText = await loadText(entry);
   const map = parseReadableMap(mapText);
   return map?.cells?.length ? map : null;
+}
+
+async function loadReadableMap(output) {
+  const excel = await loadExcelOrTxtMap(output.readableMapFile);
+  if (excel) return excel;
+  return loadExcelOrTxtMap(output.readableMapTxtFile);
 }
 
 async function loadStitches(output) {
@@ -251,11 +271,18 @@ async function loadStitches(output) {
   if (!parsed.faces.length) return null;
   let bound = null;
   let parsedMap = null;
-  if (mapEntry) {
-    const mapText = await loadText(mapEntry);
-    parsedMap = parseReadableMap(mapText);
-    if (parsedMap.cells.length) bound = bindStitchesToMap(parsed.faces, parsedMap);
+  const displayMap = await loadReadableMap(output);
+  const txtEntry =
+    output.readableMapTxtFile || (mapEntry && !isMapXlsEntry(mapEntry) ? mapEntry : null);
+  let bindMap = null;
+  if (txtEntry) {
+    const mapText = await loadText(txtEntry);
+    bindMap = parseReadableMap(mapText);
+  } else if (displayMap?.source === "excel") {
+    bindMap = excelMapAsBindMap(displayMap);
   }
+  parsedMap = displayMap || bindMap;
+  if (bindMap?.cells?.length) bound = bindStitchesToMap(parsed.faces, bindMap);
   if (!bound) {
     bound = {
       stitches: parsed.faces.map((face, index) => ({
@@ -579,7 +606,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("左 3D · 右 readable_map · 窄屏切 3D/图");
+      setStatus("左 3D · 右 step3 Excel · 窄屏切 3D/图");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -672,8 +699,11 @@ function syncViewportAfterLayout(after) {
 
 function paintReadableMap() {
   const map = scene?.readableMap;
-  const hasMap = Boolean(map?.cells?.length);
-  if (mapPane) mapPane.hidden = !hasMap;
+  const hasMap = Boolean(map?.rows?.length || map?.cells?.length);
+  if (mapPane) {
+    mapPane.hidden = !hasMap;
+    mapPane.classList.toggle("excel-map", map?.source === "excel");
+  }
   if (mapEmpty) mapEmpty.hidden = hasMap;
   if (!hasMap) {
     mapView?.clear();
@@ -686,9 +716,12 @@ function paintReadableMap() {
   mapView?.setGrid(grid);
   const h = map.header;
   if (mapMeta) {
-    mapMeta.textContent = h
-      ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
-      : `${map.rows.length} rows · ${map.cells.length} cells`;
+    mapMeta.textContent =
+      map.source === "excel"
+        ? `step3 ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel`
+        : h
+          ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
+          : `${map.rows.length} rows · ${map.cells.length} cells`;
   }
   paintMapHighlight();
   syncPaneLayout();
@@ -727,7 +760,7 @@ function paintMapHighlight() {
   const [r0, r1] = facesRange.value;
   const [t0, t1] = termsRange.value;
   const visible = stitchesVisibleForSliders(scene.stitches.bound.stitches, r0, r1, t0, t1);
-  mapView.setHighlight(highlightKeysFromStitches(visible));
+  mapView.setHighlight(highlightKeysFromStitches(visible, { map: scene?.readableMap, grid: mapView.grid }));
 }
 
 function syncPaneLayout() {

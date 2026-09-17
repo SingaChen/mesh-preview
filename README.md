@@ -54,9 +54,9 @@ npm run preview
 | --- | --- |
 | **示例 Sample** | 重新加载内置 `public/sample/cylinder/`。 |
 | **文件夹 Folder** | 桌面 Chrome：File System Access 选目录。Android Chrome：回退为 `webkitdirectory` 多文件选择。 |
-| **文件 Files** | 多选 `.obj` / 清单 `.json` / `readable_map.txt` / `*_cols_resample.xls`（Android 上最稳）。 |
+| **文件 Files** | 多选 `.obj` / 清单 `.json` / `*_readable_map_step3_xfer.xls` / `readable_map.txt` / `*_cols_resample.xls`（Android 上最稳）。 |
 
-没有清单时，会收集选中的 Wavefront OBJ，按文件名自然排序。文件名含 `overlay` / `field` / `stitch` / `KnittingStitches` 的 OBJ 会当作叠加层；同目录的 `*_readable_map.txt` 与 `*_cols_resample.xls` 会自动绑到针迹 / 列场。
+没有清单时，会收集选中的 Wavefront OBJ，按文件名自然排序。文件名含 `overlay` / `field` / `stitch` / `KnittingStitches` 的 OBJ 会当作叠加层；同目录的 `*_readable_map_step3_xfer.xls`（优先于 `*_readable_map.txt`）与 `*_cols_resample.xls` 会自动绑到针迹 / 列场。
 
 手势：
 
@@ -68,8 +68,8 @@ npm run preview
 - **列 Warp**：显隐 `cols_resample` 列折线。
 - **针迹 Stitch**：显隐 KnittingStitches。
 - **收起 Hide**：收起顶栏和底部控件；左右分栏仍在，3D 与生长图都保留。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
-- **生长图 Map**：宽屏左侧 3D、右侧 `iteration_0_cut_readable_map.txt`（step3 / 最终 cut）。格子是导出的 `rowNNN × col`，符号与 txt 一致（`·` / `[R` / `-R2` / …）；有绑定针迹时用 Term.Type 色。滚轮 / 捏合 / 按钮缩放，拖动平移，加载时适应。窄屏用 **3D / 图 Map** 切换，不硬挤并排。
-- 点按一根针迹：保留命中，HUD 芯片显示 **列 col**（readable_map 针位）、**ring / term / face**、**Term.Type**（Type0=平针 PLAIN；其余用调色板短名）。右侧生长图用同一套 generation-order 绑定点亮对应格子（一针多格则全亮），必要时轻轻平移到可见。不隔离、不改滑块。空白处再点清空芯片和地图高亮。选中面有一圈浅色描边，其它面仍在。窄屏在 3D 页点选也会记下高亮，切到 **图 Map** 能看到。
+- **生长图 Map**：宽屏左侧 3D、右侧优先 `iteration_0_cut_readable_map_step3_xfer.xls` 的 `step3` 表（98×43：`dir\\col` 表头，针位 **−5…36**，行序 `R` / `L` / `X` / `X+`，符号照写 `·` / `←1` / `vL` / `-R1` / …）。颜色跟 Excel `legend` / XF 填充（gold wrap、green increase、lime wrap+inc、rose decrease、orange wrap+dec、ice_blue transfer），**不用** Term.Type 上色。没有 xls 时才回退 `*_readable_map.txt`。滚轮 / 捏合 / 按钮缩放，拖动平移，加载时适应。窄屏用 **3D / 图 Map** 切换，不硬挤并排。
+- 点按一根针迹：保留命中，HUD 芯片显示 **列 col**（针位）、**ring / term / face**、**Term.Type**（Type0=平针 PLAIN；其余用调色板短名）。右侧 Excel 图按 **针位 + 织行（R/L）** 点亮，不把 generation-order 硬套到 X / X+ 行；对不上时仍按芯片列高亮该针位。必要时轻轻平移到可见。不隔离、不改滑块。空白处再点清空芯片和地图高亮。选中面有一圈浅色描边，其它面仍在。窄屏在 3D 页点选也会记下高亮，切到 **图 Map** 能看到。
 
 ## 三个滑块怎么对应 SingaLab
 
@@ -111,7 +111,8 @@ npm run preview
       "mesh": "cylinder/cut_iteration_0.obj",
       "overlay": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
-      "readableMap": "cylinder/iteration_0_cut_readable_map.txt",
+      "readableMap": "cylinder/iteration_0_cut_readable_map_step3_xfer.xls",
+      "readableMapTxt": "cylinder/iteration_0_cut_readable_map.txt",
       "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
       "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
       "firstRows": "cylinder/iteration_0_cut_first_rows.xls",
@@ -129,7 +130,8 @@ npm run preview
 | `outputs[].mesh` | 是 | 相对清单目录的 Wavefront OBJ（也接受 `obj` / `path`） |
 | `outputs[].overlay` | 否 | 叠加 OBJ（针迹 / field 等，也接受 `field`） |
 | `outputs[].stitches` | 否 | 针迹 OBJ（带 `v x y z r g b` 的 n 边形）。缺省时用 `*KnittingStitches*.obj` |
-| `outputs[].readableMap` | 否 | `readable_map.txt`。缺省时用同目录 `*readable_map*.txt` |
+| `outputs[].readableMap` | 否 | 优先 `*_readable_map_step3_xfer.xls`（`step3` + `legend`）。缺省时先找 step3 xls，再回退 `*readable_map*.txt` |
+| `outputs[].readableMapTxt` | 否 | 旧 `readable_map.txt`，只用于针迹列/织行绑定。缺省时用同目录 `*readable_map*.txt` |
 | `outputs[].colsResample` | 否 | `*_cols_resample_field.obj`（也接受 `field`）。顺序 `(i,i+1)` 链即桌面列 |
 | `outputs[].colsResampleXls` | 否 | `*_cols_resample.xls`。`scale_matrix` 一行一列；`points_detail` 按 col `0..N-1` 分组 |
 | `outputs[].firstRows` | 否 | `*_first_rows.xls`。种子矩阵；滑条 N = `row_*` 列数 − 1。缺省时用同目录 `*first_rows*.xls` |

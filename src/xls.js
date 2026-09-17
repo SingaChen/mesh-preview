@@ -1,7 +1,99 @@
 /**
  * Minimal OLE Compound File + BIFF8 reader for SingaLab .xls exports.
- * Returns workbook.sheets[] with { name, rows } (dense 2D cell values).
+ * Returns workbook.sheets[] with { name, rows, xfRows } (dense 2D values
+ * plus XF indices) and workbook.styles { xf, palette }.
  */
+
+/** Excel 97–2003 default palette (icv 0–63). icv 8–63 match xlrd / xlwt. */
+export const BIFF8_DEFAULT_PALETTE = [
+  [0, 0, 0],
+  [255, 255, 255],
+  [255, 0, 0],
+  [0, 255, 0],
+  [0, 0, 255],
+  [255, 255, 0],
+  [255, 0, 255],
+  [0, 255, 255],
+  [0, 0, 0],
+  [255, 255, 255],
+  [255, 0, 0],
+  [0, 255, 0],
+  [0, 0, 255],
+  [255, 255, 0],
+  [255, 0, 255],
+  [0, 255, 255],
+  [128, 0, 0],
+  [0, 128, 0],
+  [0, 0, 128],
+  [128, 128, 0],
+  [128, 0, 128],
+  [0, 128, 128],
+  [192, 192, 192],
+  [128, 128, 128],
+  [153, 153, 255],
+  [153, 51, 102],
+  [255, 255, 204],
+  [204, 255, 255],
+  [102, 0, 102],
+  [255, 128, 128],
+  [0, 102, 204],
+  [204, 204, 255],
+  [0, 0, 128],
+  [255, 0, 255],
+  [255, 255, 0],
+  [0, 255, 255],
+  [128, 0, 128],
+  [128, 0, 0],
+  [0, 128, 128],
+  [0, 0, 255],
+  [0, 204, 255],
+  [204, 255, 255],
+  [204, 255, 204],
+  [255, 255, 153],
+  [153, 204, 255],
+  [255, 153, 204],
+  [204, 153, 255],
+  [255, 204, 153],
+  [51, 102, 255],
+  [51, 204, 204],
+  [153, 204, 0],
+  [255, 204, 0],
+  [255, 153, 0],
+  [255, 102, 0],
+  [102, 102, 153],
+  [150, 150, 150],
+  [0, 51, 102],
+  [51, 153, 102],
+  [0, 51, 0],
+  [51, 51, 0],
+  [153, 51, 0],
+  [153, 51, 102],
+  [51, 51, 153],
+  [51, 51, 51],
+];
+
+export function rgbForIcv(icv, palette = BIFF8_DEFAULT_PALETTE) {
+  const i = Number(icv);
+  if (!Number.isFinite(i) || i < 0) return null;
+  if (i === 64 || i === 65) return null;
+  const pal = palette?.length ? palette : BIFF8_DEFAULT_PALETTE;
+  if (i < pal.length && pal[i]) return pal[i];
+  if (i < BIFF8_DEFAULT_PALETTE.length) return BIFF8_DEFAULT_PALETTE[i];
+  return null;
+}
+
+export function cssRgb(rgb) {
+  if (!rgb || rgb.length < 3) return null;
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
+
+export function mergeBiffPalette(custom) {
+  const pal = BIFF8_DEFAULT_PALETTE.map((c) => c.slice());
+  if (custom?.length) {
+    for (let i = 0; i < custom.length && 8 + i < pal.length; i++) pal[8 + i] = custom[i];
+  }
+  return pal;
+}
 
 const CFB_SIG = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 const ENDOFCHAIN = 0xfffffffe;
@@ -264,12 +356,49 @@ function parseSst(records) {
   return strings;
 }
 
-function setCell(rows, r, c, value) {
+function setCell(rows, r, c, value, xfRows, xf) {
   if (r < 0 || c < 0) return;
   while (rows.length <= r) rows.push([]);
   const row = rows[r];
   while (row.length <= c) row.push("");
-  row[c] = value;
+  if (value !== undefined) row[c] = value;
+  if (xfRows && xf != null) {
+    while (xfRows.length <= r) xfRows.push([]);
+    const xfRow = xfRows[r];
+    while (xfRow.length <= c) xfRow.push(null);
+    xfRow[c] = xf;
+  }
+}
+
+function parseXfRecord(data) {
+  if (data.length < 20) {
+    return { font: 0, pattern: 0, icvFore: 64, icvBack: 65 };
+  }
+  const dv = viewOf(data);
+  const w16 = readU16(dv, 16);
+  const w18 = readU16(dv, 18);
+  return {
+    font: readU16(dv, 0),
+    pattern: (w16 >> 10) & 0x3f,
+    icvFore: w18 & 0x7f,
+    icvBack: (w18 >> 7) & 0x7f,
+  };
+}
+
+function parsePaletteRecord(data) {
+  if (data.length < 2) return [];
+  const dv = viewOf(data);
+  const n = readU16(dv, 0);
+  const colors = [];
+  for (let i = 0; i < n && 2 + i * 4 + 2 < data.length; i++) {
+    colors.push([data[2 + i * 4], data[2 + i * 4 + 1], data[2 + i * 4 + 2]]);
+  }
+  return colors;
+}
+
+export function fillCssFromXf(xf, palette) {
+  if (!xf || !xf.pattern) return null;
+  return cssRgb(rgbForIcv(xf.icvFore, palette));
 }
 
 function parseBiffWorkbook(bytes) {
@@ -286,6 +415,8 @@ function parseBiffWorkbook(bytes) {
 
   const sheetsMeta = [];
   const sstParts = [];
+  const xfList = [];
+  let customPalette = [];
   for (const rec of records) {
     if (rec.opcode === 0x0085 && rec.data.length >= 8) {
       const dv = viewOf(rec.data);
@@ -300,12 +431,19 @@ function parseBiffWorkbook(bytes) {
       sstParts.push(rec.data);
     } else if (rec.opcode === 0x003c && sstParts.length) {
       sstParts.push(rec.data);
+    } else if (rec.opcode === 0x00e0) {
+      xfList.push(parseXfRecord(rec.data));
+    } else if (rec.opcode === 0x0092) {
+      customPalette = parsePaletteRecord(rec.data);
     }
   }
   const sst = sstParts.length ? parseSst(sstParts) : [];
+  const palette = mergeBiffPalette(customPalette);
+  const styles = { xf: xfList, palette };
 
   const parseSheet = (startOffset) => {
     const rows = [];
+    const xfRows = [];
     let p = startOffset;
     while (p + 4 <= bytes.length) {
       const opcode = readU16(view, p);
@@ -316,9 +454,9 @@ function parseBiffWorkbook(bytes) {
       if (opcode === 0x000a) break;
       if (data.length < 4 && opcode !== 0x0203) continue;
       if (opcode === 0x0203 && data.length >= 14) {
-        setCell(rows, readU16(dv, 0), readU16(dv, 2), readF64(dv, 6));
+        setCell(rows, readU16(dv, 0), readU16(dv, 2), readF64(dv, 6), xfRows, readU16(dv, 4));
       } else if (opcode === 0x027e && data.length >= 10) {
-        setCell(rows, readU16(dv, 0), readU16(dv, 2), decodeRk(readU32(dv, 6)));
+        setCell(rows, readU16(dv, 0), readU16(dv, 2), decodeRk(readU32(dv, 6)), xfRows, readU16(dv, 4));
       } else if (opcode === 0x00bd && data.length >= 6) {
         const row = readU16(dv, 0);
         const first = readU16(dv, 2);
@@ -326,13 +464,13 @@ function parseBiffWorkbook(bytes) {
         let col = first;
         let o = 4;
         while (col <= last && o + 6 <= data.length - 2) {
-          setCell(rows, row, col, decodeRk(readU32(dv, o + 2)));
+          setCell(rows, row, col, decodeRk(readU32(dv, o + 2)), xfRows, readU16(dv, o));
           o += 6;
           col += 1;
         }
       } else if (opcode === 0x00fd && data.length >= 10) {
         const idx = readU32(dv, 6);
-        setCell(rows, readU16(dv, 0), readU16(dv, 2), sst[idx] ?? "");
+        setCell(rows, readU16(dv, 0), readU16(dv, 2), sst[idx] ?? "", xfRows, readU16(dv, 4));
       } else if (opcode === 0x0204 && data.length >= 8) {
         const n = readU16(dv, 6);
         let text;
@@ -344,22 +482,39 @@ function parseBiffWorkbook(bytes) {
         } else {
           text = String.fromCharCode(...data.subarray(8, 8 + n));
         }
-        setCell(rows, readU16(dv, 0), readU16(dv, 2), text);
+        setCell(rows, readU16(dv, 0), readU16(dv, 2), text, xfRows, readU16(dv, 4));
       } else if (opcode === 0x0006 && data.length >= 14) {
         const row = readU16(dv, 0);
         const col = readU16(dv, 2);
         const result = readF64(dv, 6);
-        if (Number.isFinite(result)) setCell(rows, row, col, result);
+        if (Number.isFinite(result)) setCell(rows, row, col, result, xfRows, readU16(dv, 4));
+      } else if (opcode === 0x0201 && data.length >= 6) {
+        setCell(rows, readU16(dv, 0), readU16(dv, 2), "", xfRows, readU16(dv, 4));
+      } else if (opcode === 0x00be && data.length >= 6) {
+        const row = readU16(dv, 0);
+        const first = readU16(dv, 2);
+        const last = readU16(dv, data.length - 2);
+        let col = first;
+        let o = 4;
+        while (col <= last && o + 2 <= data.length - 2) {
+          setCell(rows, row, col, "", xfRows, readU16(dv, o));
+          o += 2;
+          col += 1;
+        }
       }
     }
-    return rows;
+    return { rows, xfRows };
   };
 
-  const sheets = sheetsMeta.map((meta) => ({
-    name: meta.name,
-    rows: parseSheet(meta.offset),
-  }));
-  return { sheets };
+  const sheets = sheetsMeta.map((meta) => {
+    const parsed = parseSheet(meta.offset);
+    return {
+      name: meta.name,
+      rows: parsed.rows,
+      xfRows: parsed.xfRows,
+    };
+  });
+  return { sheets, styles };
 }
 
 export function parseXlsWorkbook(data) {
