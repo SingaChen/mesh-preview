@@ -60,6 +60,8 @@ const MANIFEST_PATH_KEYS = [
   "first_rows",
   "facesRingLayout",
   "faces_ring_layout",
+  "stitchMapBind",
+  "stitch_map_bind",
 ];
 
 export function collectManifestRefs(data) {
@@ -229,6 +231,9 @@ export function bindStitchesToMap(faces, map) {
       col: cell ? cell.col : null,
       token: cell ? cell.token : null,
       dir: cell ? cell.dir : null,
+      path_index: null,
+      term_index: null,
+      mapCells: [],
     };
   });
 
@@ -243,6 +248,131 @@ export function bindStitchesToMap(faces, map) {
     unboundFaces: stitches.length - bound.length,
     leftoverCells: Math.max(0, cells.length - faces.length),
   };
+}
+
+function asIntOrNull(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+function normalizeBindCell(cell) {
+  if (!cell || typeof cell !== "object") return null;
+  const display_row = asIntOrNull(cell.display_row ?? cell.row);
+  const col = asIntOrNull(cell.col);
+  if (display_row == null || col == null) return null;
+  return {
+    display_row,
+    col,
+    label: cell.label != null ? String(cell.label) : "",
+  };
+}
+
+function uniqueBindCells(list) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of list || []) {
+    const cell = normalizeBindCell(raw);
+    if (!cell) continue;
+    const key = `${cell.display_row},${cell.col}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(cell);
+  }
+  return out;
+}
+
+/**
+ * Desktop generate_step3_xfer + _display_lines dump.
+ * face_index is row-major over path_list rings (same as KnittingStitches.obj).
+ * Transfer X / X+ cells are not listed on faces (path_index=term_index=-1).
+ */
+export function parseStitchMapBind(data) {
+  if (data == null || data === "") return null;
+  const parsed = typeof data === "string" ? JSON.parse(data) : data;
+  if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.faces)) return null;
+  const byIndex = new Map();
+  const faces = [];
+  for (const raw of parsed.faces) {
+    if (!raw || typeof raw !== "object") continue;
+    const face_index = asIntOrNull(raw.face_index);
+    if (face_index == null) continue;
+    const rec = {
+      face_index,
+      path_index: asIntOrNull(raw.path_index),
+      term_index: asIntOrNull(raw.term_index),
+      term_type: raw.term_type,
+      cells: uniqueBindCells(raw.cells),
+      n_cells: asIntOrNull(raw.n_cells) ?? uniqueBindCells(raw.cells).length,
+    };
+    faces.push(rec);
+    byIndex.set(face_index, rec);
+  }
+  const termToCells = {};
+  const rawTerms = parsed.term_to_cells || parsed.termToCells || {};
+  if (rawTerms && typeof rawTerms === "object") {
+    for (const [key, cells] of Object.entries(rawTerms)) {
+      termToCells[key] = uniqueBindCells(cells);
+    }
+  }
+  return {
+    source: parsed.source || "stitch_map_bind",
+    n_faces: asIntOrNull(parsed.n_faces) ?? faces.length,
+    n_display_rows: asIntOrNull(parsed.n_display_rows),
+    n_knit_rows: asIntOrNull(parsed.n_knit_rows),
+    n_xfer_rows: asIntOrNull(parsed.n_xfer_rows),
+    n_unbound_faces: asIntOrNull(parsed.n_unbound_faces) ?? 0,
+    n_multi_cell_terms: asIntOrNull(parsed.n_multi_cell_terms),
+    display_rows: Array.isArray(parsed.display_rows) ? parsed.display_rows : [],
+    faces,
+    byIndex,
+    termToCells,
+  };
+}
+
+export function mapCellsForStitch(stitch, bind = null) {
+  if (Array.isArray(stitch?.mapCells) && stitch.mapCells.length) {
+    return stitch.mapCells;
+  }
+  const index = Number(stitch?.index);
+  const rec =
+    (Number.isFinite(index) && bind?.byIndex?.get(index)) ||
+    (Number.isFinite(index) ? bind?.faces?.find((f) => f.face_index === index) : null);
+  if (!rec) return [];
+  if (rec.cells?.length) return rec.cells;
+  const key = `${rec.path_index},${rec.term_index}`;
+  return bind?.termToCells?.[key] || [];
+}
+
+/**
+ * Annotate KnittingStitches faces from desktop stitch_map_bind.json.
+ * Does not invent Term.Type or rematch by geometry.
+ */
+export function applyStitchMapBind(stitches, bind) {
+  const list = stitches || [];
+  if (!bind?.byIndex && !bind?.faces?.length) return list;
+  for (const stitch of list) {
+    const rec = bind.byIndex?.get(stitch.index) || bind.faces?.find((f) => f.face_index === stitch.index);
+    if (!rec) {
+      stitch.path_index = null;
+      stitch.term_index = null;
+      stitch.mapCells = [];
+      continue;
+    }
+    const fromTerm =
+      rec.path_index != null && rec.term_index != null
+        ? bind.termToCells?.[`${rec.path_index},${rec.term_index}`]
+        : null;
+    const cells = uniqueBindCells([...(rec.cells || []), ...(fromTerm || [])]);
+    stitch.path_index = rec.path_index;
+    stitch.term_index = rec.term_index;
+    stitch.mapCells = cells;
+    if (cells.length) {
+      stitch.col = cells[0].col;
+      stitch.token = cells[0].label || stitch.token;
+    }
+  }
+  return list;
 }
 
 export function columnHue(col, columns) {

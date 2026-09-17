@@ -36,6 +36,8 @@ import {
   parseReadableMap,
   parseReadableMapHeader,
   parseReadableMapXfers,
+  parseStitchMapBind,
+  applyStitchMapBind,
   stitchesInRingRange,
   termCountsForRings,
   uniqueColIdsFromXls,
@@ -81,6 +83,10 @@ assert(
   "manifest must list faces_ring_layout.json",
 );
 assert(
+  refs.some((r) => /stitch_map_bind\.json$/.test(r)),
+  "manifest must list desktop stitch_map_bind.json",
+);
+assert(
   refs.some((r) => /readable_map_step3_xfer\.xls$/.test(r)),
   "manifest must list the step3 Excel readable_map",
 );
@@ -119,6 +125,7 @@ if (!fromManifest.outputs[0].colsResampleXlsFile) throw new Error("expected cols
 if (fromManifest.outputs[0].colsResampleJsonFile) throw new Error("sample should not ship a cols_resample sidecar");
 if (!fromManifest.outputs[0].firstRowsFile) throw new Error("expected first_rows xls");
 if (!fromManifest.outputs[0].facesRingLayoutFile) throw new Error("expected faces_ring_layout.json");
+if (!fromManifest.outputs[0].stitchMapBindFile) throw new Error("expected stitch_map_bind.json");
 
 const fromDiscovery = projectFromDiscovery(index);
 if (fromDiscovery.outputs.length !== 1) {
@@ -130,6 +137,7 @@ if (!fromDiscovery.outputs[0].colsResampleXlsFile) throw new Error("discovery sh
 if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery should not require a cols_resample sidecar");
 if (!fromDiscovery.outputs[0].firstRowsFile) throw new Error("discovery should attach first_rows xls");
 if (!fromDiscovery.outputs[0].facesRingLayoutFile) throw new Error("discovery should attach faces_ring_layout.json");
+if (!fromDiscovery.outputs[0].stitchMapBindFile) throw new Error("discovery should attach stitch_map_bind.json");
 if (!/step3_xfer\.xls$/i.test(fromDiscovery.outputs[0].readableMapFile?.name || "")) {
   throw new Error("discovery should prefer the step3 xls over readable_map.txt");
 }
@@ -270,31 +278,48 @@ assert(excelGrid.grid[0][20 - excelGrid.colMin].token === "vR", "row0 col20 is v
 assert(excelGrid.grid[1][0 - excelGrid.colMin].token === "←1", "X+ row is a real grid row, not a drawn arrow");
 assert(excelGrid.grid[0][20 - excelGrid.colMin].termColor == null, "Excel cells do not carry Term.Type colors");
 assert(excelGrid.xfers.length === 0, "do not invent extra xfer arrow rows on top of X/X+");
+assert(excelGrid.grid[1][0 - excelGrid.colMin].isTransfer, "X+ cells are marked transfer / not stitch");
+
+const stitchBind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
+assert(stitchBind?.faces.length === 475, `bind lists 475 faces, got ${stitchBind?.faces.length}`);
+assert(stitchBind.n_unbound_faces === 0, "desktop dump binds every face");
+assert(stitchBind.n_knit_rows === 65 && stitchBind.n_xfer_rows === 32, "65 knit + 32 transfer display rows");
+assert(stitchBind.n_multi_cell_terms === 4, "four increase terms span multiple knit cells");
+assert(stitchBind.byIndex.get(20)?.cells[0].display_row === 0 && stitchBind.byIndex.get(20)?.cells[0].col === 20, "face 20 is display 0 × col 20");
+assert(stitchBind.byIndex.get(21)?.cells.length === 2, "face 21 is a 2-cell increase");
+applyStitchMapBind(bound.stitches, stitchBind);
+assert(bound.stitches[20].path_index === 0 && bound.stitches[20].term_index === 20, "face 20 keeps desktop path/term");
+assert(bound.stitches[21].mapCells.length === 2, "increase face keeps both span cells");
 {
-  const pickKeys = highlightKeysForStitch(pickFace, { map: excelMap, grid: excelGrid });
-  assert(pickKeys.size === 1 && pickKeys.has("0,20"), "face 20 lights Excel knit row 0 × needle 20, not a generation-order X cell");
+  const pickKeys = highlightKeysForStitch(bound.stitches[20], { map: excelMap, grid: excelGrid });
+  assert(pickKeys.size === 1 && pickKeys.has("0,20"), "face 20 lights only its bind knit cell 0,20");
   assert(excelGrid.grid[0][20 - excelGrid.colMin].knitRow === 0, "first R row is knit identity 0");
   const xCell = excelMap.cells.find((c) => c.token === "←1");
-  assert(xCell && xCell.row !== 0, "transfer cells are not knit row 0");
+  assert(xCell && xCell.dir === "X+", "←1 lives on a transfer row");
+  assert(!pickKeys.has(`${xCell.row},${xCell.col}`), "stitch click never lights X/X+");
+  const incKeys = highlightKeysForStitch(bound.stitches[21], { map: excelMap, grid: excelGrid });
+  assert(incKeys.has("2,20") && incKeys.has("2,19") && incKeys.size === 2, "increase term lights every span cell");
+  const triple = highlightKeysForStitch(bound.stitches[374], { map: excelMap, grid: excelGrid });
+  assert(triple.has("63,10") && triple.has("63,11") && triple.has("63,12") && triple.size === 3, "+R2 span lights 3 cells");
+  const xferDirs = new Set(
+    [...pickKeys, ...incKeys, ...triple].map((key) => {
+      const [rs, cs] = key.split(",");
+      return excelGrid.grid[Number(rs)][Number(cs) - excelGrid.colMin]?.dir;
+    }),
+  );
+  assert([...xferDirs].every((d) => d === "R" || d === "L"), "bind highlights stay on R/L knit rows");
   assert(
-    highlightKeysForStitch({ index: 20, row: 0, col: 20 }, { map: excelMap, grid: excelGrid }).has("0,20"),
-    "chip col + knit-row identity is enough without generation-order",
+    highlightKeysForStitch({ index: 20, row: 0, col: 20 }, { map: excelMap, grid: excelGrid }).size === 0,
+    "Excel highlight without stitch_map_bind cells is empty",
   );
   const onlyCol = highlightKeysForStitch({ index: 999, col: 20 }, { map: excelMap, grid: excelGrid });
-  assert(onlyCol.has("0,20") && onlyCol.size > 1, "ambiguous pick still highlights by needle/col");
-  const emptyAtKnit = highlightKeysForStitch(
-    { index: 360, row: 44, col: 14 },
-    { map: excelMap, grid: excelGrid },
-  );
-  assert(!emptyAtKnit.has("57,14"), "do not highlight an empty Excel cell just because knit-row + col match");
-  assert(
-    [...emptyAtKnit].every((k) => k.endsWith(",14")) && emptyAtKnit.size > 0,
-    "when that knit cell is empty, fall back to occupied needle/col cells",
-  );
+  assert(onlyCol.size === 0, "do not fall back to every token in a needle column");
   assert(
     highlightKeysFromStitches(bound.stitches.slice(0, 21), { map: excelMap, grid: excelGrid }).has("0,20"),
-    "slider highlight remaps knit-row + col onto the Excel grid",
+    "slider highlight uses bind cells on the Excel grid",
   );
+  const sliderKeys = highlightKeysFromStitches(bound.stitches.slice(0, 22), { map: excelMap, grid: excelGrid });
+  assert(![...sliderKeys].some((k) => k.startsWith("1,")), "slider highlight skips the X+ row");
 }
 
 const chunks = faceChunksFromFaces(parsed.faces);
@@ -686,12 +711,18 @@ assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "righ
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
 assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMapGrid"), "main mounts the 2D map");
 assert(mainSrc.includes("parseExcelReadableMap"), "main prefers the step3 xls for the 2D map");
+assert(mainSrc.includes("parseStitchMapBind") && mainSrc.includes("applyStitchMapBind"), "main loads desktop stitch_map_bind.json");
 assert(mainSrc.includes("highlightKeysForStitch") && mainSrc.includes("setPickHighlight") && mainSrc.includes("ensureVisible"), "click lights bound map cells and pans them into view");
+assert(!mainSrc.includes("excelMapAsBindMap"), "do not pair Excel cells in generation order");
 assert(mainSrc.includes("dataset.mapCells"), "chip records the bound map cell keys for the pick");
 assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("pickedStitch"), "map pick highlight follows the stitch chip");
 assert(mainSrc.includes("narrow-split") && mainSrc.includes("max-width: 719px"), "wide layout splits; phone uses a pane toggle");
 const mapViewSrc = readFileSync(join(root, "src", "map-view.js"), "utf8");
 assert(mapViewSrc.includes("pickHighlight") && mapViewSrc.includes("ensureVisible") && mapViewSrc.includes("panToKeepRectVisible"), "map view can outline a pick and ensureVisible");
+assert(mapViewSrc.includes("isTransferDir"), "Excel view marks X/X+ rows as transfer / not stitch");
+const readableSrc = readFileSync(join(root, "src", "readable-map.js"), "utf8");
+assert(readableSrc.includes("mapCellsForStitch"), "Excel pick uses stitch_map_bind cells");
+assert(!readableSrc.includes("every occupied cell in that needle column"), "column-wide Excel fallback is gone");
 
 const css = readFileSync(join(root, "src", "style.css"), "utf8");
 assert(/\.dock\s*\{[^}]*overflow:\s*visible/.test(css), "dock does not clip the upward Base menu");

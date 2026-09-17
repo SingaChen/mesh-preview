@@ -17,6 +17,7 @@ import {
   readEntryText,
 } from "./project.js";
 import {
+  applyStitchMapBind,
   bindStitchesToMap,
   collectManifestRefs,
   faceChunksFromFaces,
@@ -27,8 +28,9 @@ import {
   parseFacesRingLayout,
   parseFirstRows,
   parseReadableMap,
+  parseStitchMapBind,
 } from "./stitches.js";
-import { excelMapAsBindMap, parseExcelReadableMap } from "./excel-map.js";
+import { parseExcelReadableMap } from "./excel-map.js";
 import { bindDualRange } from "./dual-range.js";
 import {
   activeRingIndex,
@@ -278,8 +280,6 @@ async function loadStitches(output) {
   if (txtEntry) {
     const mapText = await loadText(txtEntry);
     bindMap = parseReadableMap(mapText);
-  } else if (displayMap?.source === "excel") {
-    bindMap = excelMapAsBindMap(displayMap);
   }
   parsedMap = displayMap || bindMap;
   if (bindMap?.cells?.length) bound = bindStitchesToMap(parsed.faces, bindMap);
@@ -292,6 +292,9 @@ async function loadStitches(output) {
         col: 0,
         token: null,
         dir: null,
+        path_index: null,
+        term_index: null,
+        mapCells: [],
       })),
       columns: [0],
       rowMin: 0,
@@ -300,6 +303,12 @@ async function loadStitches(output) {
       leftoverCells: 0,
     };
   }
+  let stitchBind = null;
+  if (output.stitchMapBindFile) {
+    const bindText = await loadText(output.stitchMapBindFile);
+    if (bindText) stitchBind = parseStitchMapBind(bindText);
+  }
+  if (stitchBind) applyStitchMapBind(bound.stitches, stitchBind);
   let firstRows = null;
   if (output.firstRowsFile) {
     const buf = await loadBuffer(output.firstRowsFile);
@@ -319,7 +328,7 @@ async function loadStitches(output) {
     colors: layout?.colors,
   });
   bound.edgeColor = layout?.edgeColor || { r: 0, g: 0, b: 0 };
-  return { bound, faceChunks, rowChunks, firstRows, layout, stitchEntry, mapEntry, map: parsedMap };
+  return { bound, faceChunks, rowChunks, firstRows, layout, stitchBind, stitchEntry, mapEntry, map: parsedMap };
 }
 
 async function loadCols(output) {

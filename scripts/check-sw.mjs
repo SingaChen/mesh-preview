@@ -51,12 +51,14 @@ const origin = "https://singachen.github.io";
 const sampleXls = new URL("/mesh-preview/sample/cylinder/iteration_0_cut_cols_resample.xls", origin);
 const sampleObj = new URL("/mesh-preview/sample/cylinder/iteration_0_cut_cols_resample_field.obj", origin);
 const sampleJson = new URL("/mesh-preview/sample/cylinder/faces_ring_layout.json", origin);
+const sampleBind = new URL("/mesh-preview/sample/cylinder/stitch_map_bind.json", origin);
 const hashedJs = new URL("/mesh-preview/assets/index-5GrU1-u7.js", origin);
 const html = new URL("/mesh-preview/", origin);
 
 assert(policy.isSampleOrMutableData(sampleXls), "sample xls must be treated as mutable");
 assert(policy.isSampleOrMutableData(sampleObj), "sample obj must be treated as mutable");
 assert(policy.isSampleOrMutableData(sampleJson), "sample faces_ring_layout.json must be treated as mutable");
+assert(policy.isSampleOrMutableData(sampleBind), "sample stitch_map_bind.json must be treated as mutable");
 assert(policy.isHashedAsset(hashedJs), "Vite hashed /assets/* must match");
 assert(
   policy.shouldBypassHttpCache({ mode: "navigate", destination: "document" }, html),

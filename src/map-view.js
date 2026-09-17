@@ -1,3 +1,4 @@
+import { isTransferDir } from "./excel-map.js";
 import { cellFill } from "./readable-map.js";
 
 const CELL = 22;
@@ -314,11 +315,16 @@ export class ReadableMapView {
       const row = g.rowMin + r;
       const y = this._rowY(row);
       const meta = g.rows[r] || g.rows.find((rowMeta) => rowMeta.row === row);
-      ctx.fillStyle = "#ffffff";
+      const transfer = isTransferDir(meta?.dir);
+      ctx.fillStyle = transfer ? "#eef1f6" : "#ffffff";
       ctx.fillRect(0, y, LABEL_W, CELL);
       ctx.strokeStyle = gridLine;
       ctx.strokeRect(0.5, y + 0.5, LABEL_W - 1, CELL - 1);
-      ctx.fillStyle = labelInk;
+      if (transfer) {
+        ctx.fillStyle = "#c8c8e0";
+        ctx.fillRect(0, y, 3, CELL);
+      }
+      ctx.fillStyle = transfer ? "#6b7280" : labelInk;
       ctx.textAlign = "center";
       ctx.fillText(String(meta?.dir || ""), LABEL_W / 2, y + CELL / 2);
 

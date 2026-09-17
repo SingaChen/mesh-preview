@@ -186,7 +186,11 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
   };
 }
 
-/** Generation-order fallback when no txt companion exists. Skip X/X+. */
+/**
+ * Generation-order knit-cell list. Do not use this to highlight Excel
+ * cells — stitch_map_bind.json is the desktop pairing. Kept for callers
+ * that only need a knit-token walk.
+ */
 export function excelMapAsBindMap(map) {
   const cells = [];
   const knitRows = [];
