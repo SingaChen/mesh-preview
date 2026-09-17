@@ -64,7 +64,9 @@ npm run preview
 - 双指捏合：缩放；双指拖：平移 pan
 - **适应 Fit**：框住当前网格
 - **cols_resample / row / term**：桌面端同款半开区间双手柄；手机上轨道更瘦，手柄仍可点
-- **线框 Wire** / **针迹 Stitch** / **底模 Base**（半透明 `cut_iteration_0` 底层；默认开，关掉只藏底模，不影响针迹 / 滑块）
+- **底模 Base**（下拉）：隐藏 Off / 线框 Wire / 面 Faces（半透明 cut 底层，默认）/ 点 Points。独立的线框开关已去掉。
+- **列 Warp**：显隐 `cols_resample` 列折线。
+- **针迹 Stitch**：显隐 KnittingStitches。
 - **收起 Hide**：收起顶栏和底部控件，网格全屏。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
 - 点按一根针迹：第二滑块收到该 ring `[i, i+1)`，第三滑块收到该 term `[t, t+1)`；再点同一针恢复全部环 / 全部 term
 
@@ -138,7 +140,7 @@ npm run preview
 
 ## 范围 / Scope
 
-包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模显隐、控件收起、画布宽高比同步、可选清单、触摸轨道、线框、适应视野、离线应用壳。
+包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模模式（线框/面/点）、列 Warp、针迹、控件收起、画布宽高比同步、可选清单、触摸轨道、适应视野、离线应用壳。
 
 不做：原生 Android、账号、云同步、完整 `readable_map` 编辑器。
 

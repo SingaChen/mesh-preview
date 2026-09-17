@@ -34,6 +34,7 @@ import {
   formatHalfOpenRangeLabel,
   registerDisplayModel,
 } from "./range.js";
+import { normalizeBaseMode } from "./display.js";
 
 const canvas = document.querySelector("#viewport");
 const folderInput = document.querySelector("#folder-input");
@@ -61,9 +62,9 @@ const countEl = document.querySelector("#mesh-count");
 const projectEl = document.querySelector("#project-name");
 const statsEl = document.querySelector("#mesh-stats");
 const statusEl = document.querySelector("#status");
-const wireBtn = document.querySelector("#toggle-wire");
 const overlayBtn = document.querySelector("#toggle-overlay");
-const bodyBtn = document.querySelector("#toggle-body");
+const warpBtn = document.querySelector("#toggle-warp");
+const baseModeEl = document.querySelector("#base-mode");
 const hideChromeBtn = document.querySelector("#hide-chrome");
 const showChromeBtn = document.querySelector("#show-chrome");
 
@@ -110,6 +111,7 @@ function updateChrome() {
     ? `${project.name} · ${project.source === "manifest" ? "清单 manifest" : "自动发现 auto"}`
     : "未打开项目 / No project";
   overlayBtn.disabled = !current?.overlayFile && !current?.stitchFile && !scene?.stitches;
+  if (warpBtn) warpBtn.disabled = !scene?.columns?.length;
 
   const hasCols = Boolean(scene?.columns?.length);
   const hasStitches = Boolean(scene?.stitches?.rowChunks?.length);
@@ -363,9 +365,9 @@ async function showOutput(index, { fit = false } = {}) {
     const meshGeom = await loadGeometry(output.meshFile);
     const stitches = await loadStitches(output);
     const cols = await loadCols(output);
-    viewer.setWireframe(wireBtn.getAttribute("aria-pressed") === "true");
+    viewer.setBaseMode(normalizeBaseMode(baseModeEl?.value));
     viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
-    viewer.setShowBody(bodyBtn.getAttribute("aria-pressed") === "true");
+    viewer.setShowWarp(warpBtn.getAttribute("aria-pressed") === "true");
 
     const models = [];
     const cutName = modelNameFromFile(output.meshFile, "cut_iteration_0");
@@ -599,22 +601,20 @@ fitBtn.addEventListener("click", () => {
 hideChromeBtn?.addEventListener("click", () => setChromeCollapsed(true));
 showChromeBtn?.addEventListener("click", () => setChromeCollapsed(false));
 
-wireBtn.addEventListener("click", () => {
-  const on = wireBtn.getAttribute("aria-pressed") !== "true";
-  pressed(wireBtn, on);
-  viewer.setWireframe(on);
+baseModeEl?.addEventListener("change", () => {
+  viewer.setBaseMode(normalizeBaseMode(baseModeEl.value));
+});
+
+warpBtn.addEventListener("click", () => {
+  const on = warpBtn.getAttribute("aria-pressed") !== "true";
+  pressed(warpBtn, on);
+  viewer.setShowWarp(on);
 });
 
 overlayBtn.addEventListener("click", () => {
   const on = overlayBtn.getAttribute("aria-pressed") !== "true";
   pressed(overlayBtn, on);
   viewer.setShowOverlay(on);
-});
-
-bodyBtn.addEventListener("click", () => {
-  const on = bodyBtn.getAttribute("aria-pressed") !== "true";
-  pressed(bodyBtn, on);
-  viewer.setShowBody(on);
 });
 
 let pointer = { x: 0, y: 0, moved: false };

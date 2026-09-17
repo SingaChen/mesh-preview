@@ -4,6 +4,7 @@ import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { columnHue, triangulate } from "./stitches.js";
 import { stitchesVisibleForSliders } from "./range.js";
 import { aspectFromSize, displayedSize, needsViewportSync } from "./viewport.js";
+import { normalizeBaseMode } from "./display.js";
 
 const YARN = 0xe8d5c4;
 const OVERLAY = 0x5eead4;
@@ -12,9 +13,12 @@ export class MeshViewer {
   constructor(canvas) {
     this.canvas = canvas;
     this.loader = new OBJLoader();
-    this.wireframe = false;
+    this.baseMode = "faces";
     this.showOverlay = true;
+    this.showWarp = true;
     this.showBody = true;
+    this.bodyGeom = null;
+    this.bodyName = "cut_iteration_0";
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -135,10 +139,9 @@ export class MeshViewer {
   setGeometries(meshGeom, overlayGeom = null) {
     this.clearMeshes();
     this._stitchState = null;
-    this.mesh = new THREE.Mesh(meshGeom, this._meshMaterial());
-    this.mesh.userData.modelName = "cut_iteration_0";
-    this.root.add(this.mesh);
-    this._applyBodyVisibility();
+    this.bodyGeom = meshGeom;
+    this.bodyName = "cut_iteration_0";
+    this._rebuildBase();
     if (overlayGeom) {
       this.overlay = new THREE.Mesh(overlayGeom, this._overlayMaterial());
       this.overlay.visible = this.showOverlay;
@@ -158,12 +161,9 @@ export class MeshViewer {
       termEnd: Infinity,
     };
     this._colsState = colsColumns?.length ? { columns: colsColumns, start: 0, end: colsColumns.length } : null;
-    if (bodyGeom) {
-      this.mesh = new THREE.Mesh(bodyGeom, this._bodyMaterial());
-      this.mesh.userData.modelName = "cut_iteration_0";
-      this.root.add(this.mesh);
-      this._applyBodyVisibility();
-    }
+    this.bodyGeom = bodyGeom || null;
+    this.bodyName = "cut_iteration_0";
+    this._rebuildBase();
     this._rebuildCols();
     this._rebuildStitches();
   }
@@ -184,12 +184,9 @@ export class MeshViewer {
     this._colsState = colsColumns?.length
       ? { columns: colsColumns, start: 0, end: colsColumns.length }
       : null;
-    if (bodyGeom) {
-      this.mesh = new THREE.Mesh(bodyGeom, this._bodyMaterial());
-      this.mesh.userData.modelName = bodyName;
-      this.root.add(this.mesh);
-      this._applyBodyVisibility();
-    }
+    this.bodyGeom = bodyGeom || null;
+    this.bodyName = bodyName;
+    this._rebuildBase();
     this._rebuildCols();
     this._rebuildStitches();
   }
@@ -197,7 +194,7 @@ export class MeshViewer {
   setModelVisible(name, visible) {
     this._modelVisibility.set(name, visible);
     if (this.mesh && this.mesh.userData.modelName === name) this._applyBodyVisibility();
-    if (name === "cols_resample" && this.colsGroup) this.colsGroup.visible = visible;
+    if (name === "cols_resample") this._applyWarpVisibility();
     if (name === "KnittingStitches") {
       const on = visible && this.showOverlay;
       if (this.stitchMesh) this.stitchMesh.visible = on;
@@ -211,8 +208,7 @@ export class MeshViewer {
     this._colsState.start = start;
     this._colsState.end = end;
     this._rebuildCols();
-    const vis = this._modelVisibility.get("cols_resample");
-    if (this.colsGroup && vis === false) this.colsGroup.visible = false;
+    this._applyWarpVisibility();
   }
 
   setFacesRingRange(start, end) {
@@ -404,7 +400,7 @@ export class MeshViewer {
 
     this.colsGroup = new THREE.Group();
     this.colsGroup.userData.modelName = "cols_resample";
-    this.colsGroup.visible = this._modelVisibility.get("cols_resample") !== false;
+    this._applyWarpVisibility();
 
     if (positions.length) {
       const geom = new THREE.BufferGeometry();
@@ -431,13 +427,49 @@ export class MeshViewer {
     this.root.add(this.colsGroup);
   }
 
-  setWireframe(on) {
-    this.wireframe = on;
-    if (this.mesh) this.mesh.material.wireframe = on;
+  setBaseMode(mode) {
+    this.baseMode = normalizeBaseMode(mode);
+    this.showBody = this.baseMode !== "off";
+    this._rebuildBase();
   }
 
-  setShowBody(on) {
-    this.showBody = Boolean(on);
+  setShowWarp(on) {
+    this.showWarp = Boolean(on);
+    this._applyWarpVisibility();
+  }
+
+  _applyWarpVisibility() {
+    if (!this.colsGroup) return;
+    const modelOn = this._modelVisibility.get("cols_resample");
+    this.colsGroup.visible = this.showWarp && modelOn !== false;
+  }
+
+  _disposeBaseObject() {
+    if (!this.mesh) return;
+    this.root.remove(this.mesh);
+    this.mesh.material?.dispose();
+    this.mesh = null;
+  }
+
+  _rebuildBase() {
+    this._disposeBaseObject();
+    const geom = this.bodyGeom;
+    if (!geom || this.baseMode === "off") return;
+    if (this.baseMode === "points") {
+      this.mesh = new THREE.Points(
+        geom,
+        new THREE.PointsMaterial({
+          color: YARN,
+          size: 0.055,
+          sizeAttenuation: true,
+        }),
+      );
+    } else {
+      const material = this.baseMode === "wire" ? this._wireMaterial() : this._bodyMaterial();
+      this.mesh = new THREE.Mesh(geom, material);
+    }
+    this.mesh.userData.modelName = this.bodyName;
+    this.root.add(this.mesh);
     this._applyBodyVisibility();
   }
 
@@ -445,7 +477,7 @@ export class MeshViewer {
     if (!this.mesh) return;
     const name = this.mesh.userData.modelName;
     const modelOn = name ? this._modelVisibility.get(name) : undefined;
-    this.mesh.visible = this.showBody && modelOn !== false;
+    this.mesh.visible = this.baseMode !== "off" && modelOn !== false;
   }
 
   setShowOverlay(on) {
@@ -492,13 +524,11 @@ export class MeshViewer {
     this.ground.scale.setScalar(Math.max(1, size / 8));
   }
 
-  _meshMaterial() {
-    return new THREE.MeshStandardMaterial({
+  _wireMaterial() {
+    return new THREE.MeshBasicMaterial({
       color: YARN,
-      roughness: 0.62,
-      metalness: 0.04,
+      wireframe: true,
       side: THREE.DoubleSide,
-      wireframe: this.wireframe,
     });
   }
 
@@ -510,7 +540,6 @@ export class MeshViewer {
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.42,
-      wireframe: this.wireframe,
     });
   }
 
@@ -534,9 +563,10 @@ export class MeshViewer {
   clearMeshes() {
     for (const child of [...this.root.children]) {
       this.root.remove(child);
-      child.geometry?.dispose();
+      if (child.geometry && child.geometry !== this.bodyGeom) child.geometry.dispose();
       child.material?.dispose();
     }
+    this.bodyGeom = null;
     this.mesh = null;
     this.overlay = null;
     this.stitchMesh = null;
