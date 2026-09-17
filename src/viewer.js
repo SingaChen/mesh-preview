@@ -4,7 +4,7 @@ import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { columnHue, triangulate } from "./stitches.js";
 import { stitchesVisibleForSliders } from "./range.js";
 import { aspectFromSize, displayedSize, needsViewportSync } from "./viewport.js";
-import { normalizeBaseMode } from "./display.js";
+import { defaultBaseLayers, isBaseHidden, normalizeBaseLayers } from "./display.js";
 
 const YARN = 0xe8d5c4;
 const OVERLAY = 0x5eead4;
@@ -13,7 +13,7 @@ export class MeshViewer {
   constructor(canvas) {
     this.canvas = canvas;
     this.loader = new OBJLoader();
-    this.baseMode = "faces";
+    this.baseLayers = defaultBaseLayers();
     this.showOverlay = true;
     this.showWarp = true;
     this.showBody = true;
@@ -427,9 +427,9 @@ export class MeshViewer {
     this.root.add(this.colsGroup);
   }
 
-  setBaseMode(mode) {
-    this.baseMode = normalizeBaseMode(mode);
-    this.showBody = this.baseMode !== "off";
+  setBaseLayers(layers) {
+    this.baseLayers = normalizeBaseLayers(layers);
+    this.showBody = !isBaseHidden(this.baseLayers);
     this._rebuildBase();
   }
 
@@ -447,29 +447,25 @@ export class MeshViewer {
   _disposeBaseObject() {
     if (!this.mesh) return;
     this.root.remove(this.mesh);
-    this.mesh.material?.dispose();
+    this.mesh.traverse((child) => {
+      if (child.material && child.geometry !== this.bodyGeom) child.geometry?.dispose();
+      child.material?.dispose();
+    });
     this.mesh = null;
   }
 
   _rebuildBase() {
     this._disposeBaseObject();
     const geom = this.bodyGeom;
-    if (!geom || this.baseMode === "off") return;
-    if (this.baseMode === "points") {
-      this.mesh = new THREE.Points(
-        geom,
-        new THREE.PointsMaterial({
-          color: YARN,
-          size: 0.12,
-          sizeAttenuation: true,
-        }),
-      );
-    } else {
-      const material = this.baseMode === "wire" ? this._wireMaterial() : this._bodyMaterial();
-      this.mesh = new THREE.Mesh(geom, material);
-    }
-    this.mesh.userData.modelName = this.bodyName;
-    this.root.add(this.mesh);
+    const layers = this.baseLayers;
+    if (!geom || isBaseHidden(layers)) return;
+    const group = new THREE.Group();
+    if (layers.faces) group.add(new THREE.Mesh(geom, this._bodyMaterial()));
+    if (layers.wire) group.add(new THREE.Mesh(geom, this._wireMaterial()));
+    if (layers.points) group.add(new THREE.Points(geom, this._pointsMaterial()));
+    group.userData.modelName = this.bodyName;
+    this.mesh = group;
+    this.root.add(group);
     this._applyBodyVisibility();
   }
 
@@ -477,7 +473,7 @@ export class MeshViewer {
     if (!this.mesh) return;
     const name = this.mesh.userData.modelName;
     const modelOn = name ? this._modelVisibility.get(name) : undefined;
-    this.mesh.visible = this.baseMode !== "off" && modelOn !== false;
+    this.mesh.visible = !isBaseHidden(this.baseLayers) && modelOn !== false;
   }
 
   setShowOverlay(on) {
@@ -522,6 +518,14 @@ export class MeshViewer {
     this.ground.position.y = box.min.y - 0.02;
     const size = box.getSize(new THREE.Vector3()).length();
     this.ground.scale.setScalar(Math.max(1, size / 8));
+  }
+
+  _pointsMaterial() {
+    return new THREE.PointsMaterial({
+      color: YARN,
+      size: 0.55,
+      sizeAttenuation: true,
+    });
   }
 
   _wireMaterial() {

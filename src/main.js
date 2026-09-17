@@ -34,7 +34,7 @@ import {
   formatHalfOpenRangeLabel,
   registerDisplayModel,
 } from "./range.js";
-import { normalizeBaseMode } from "./display.js";
+import { applyBaseChoice, defaultBaseLayers, isBaseHidden } from "./display.js";
 
 const canvas = document.querySelector("#viewport");
 const folderInput = document.querySelector("#folder-input");
@@ -64,7 +64,16 @@ const statsEl = document.querySelector("#mesh-stats");
 const statusEl = document.querySelector("#status");
 const overlayBtn = document.querySelector("#toggle-overlay");
 const warpBtn = document.querySelector("#toggle-warp");
-const baseModeEl = document.querySelector("#base-mode");
+const baseMenu = document.querySelector("#base-menu");
+const baseMenuBtn = document.querySelector("#base-menu-btn");
+const baseMenuList = document.querySelector("#base-menu-list");
+const baseChecks = {
+  off: document.querySelector("#base-off"),
+  wire: document.querySelector("#base-wire"),
+  faces: document.querySelector("#base-faces"),
+  points: document.querySelector("#base-points"),
+};
+let baseLayers = defaultBaseLayers();
 const hideChromeBtn = document.querySelector("#hide-chrome");
 const showChromeBtn = document.querySelector("#show-chrome");
 
@@ -365,7 +374,7 @@ async function showOutput(index, { fit = false } = {}) {
     const meshGeom = await loadGeometry(output.meshFile);
     const stitches = await loadStitches(output);
     const cols = await loadCols(output);
-    viewer.setBaseMode(normalizeBaseMode(baseModeEl?.value));
+    viewer.setBaseLayers(baseLayers);
     viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
     viewer.setShowWarp(warpBtn.getAttribute("aria-pressed") === "true");
 
@@ -530,7 +539,10 @@ document.addEventListener("pointerdown", (ev) => {
 });
 
 document.addEventListener("keydown", (ev) => {
-  if (ev.key === "Escape") setOpenMenu(false);
+  if (ev.key === "Escape") {
+    setOpenMenu(false);
+    setBaseMenuOpen(false);
+  }
 });
 
 openFolderBtn.addEventListener("click", async () => {
@@ -601,9 +613,42 @@ fitBtn.addEventListener("click", () => {
 hideChromeBtn?.addEventListener("click", () => setChromeCollapsed(true));
 showChromeBtn?.addEventListener("click", () => setChromeCollapsed(false));
 
-baseModeEl?.addEventListener("change", () => {
-  viewer.setBaseMode(normalizeBaseMode(baseModeEl.value));
+function setBaseMenuOpen(open) {
+  if (!baseMenuBtn || !baseMenuList) return;
+  baseMenuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  baseMenuList.hidden = !open;
+}
+
+function paintBaseChecks() {
+  if (baseChecks.off) baseChecks.off.checked = Boolean(baseLayers.off);
+  if (baseChecks.wire) baseChecks.wire.checked = Boolean(baseLayers.wire);
+  if (baseChecks.faces) baseChecks.faces.checked = Boolean(baseLayers.faces);
+  if (baseChecks.points) baseChecks.points.checked = Boolean(baseLayers.points);
+  if (baseMenuBtn) {
+    baseMenuBtn.setAttribute("aria-pressed", isBaseHidden(baseLayers) ? "false" : "true");
+  }
+}
+
+function onBaseCheck(layer, checked) {
+  baseLayers = applyBaseChoice(baseLayers, layer, checked);
+  paintBaseChecks();
+  viewer.setBaseLayers(baseLayers);
+}
+
+baseMenuBtn?.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  setBaseMenuOpen(baseMenuBtn.getAttribute("aria-expanded") !== "true");
 });
+
+document.addEventListener("pointerdown", (ev) => {
+  if (baseMenu && !baseMenu.contains(ev.target)) setBaseMenuOpen(false);
+});
+
+for (const [layer, el] of Object.entries(baseChecks)) {
+  el?.addEventListener("change", () => onBaseCheck(layer, el.checked));
+}
+
+paintBaseChecks();
 
 warpBtn.addEventListener("click", () => {
   const on = warpBtn.getAttribute("aria-pressed") !== "true";

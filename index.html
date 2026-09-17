@@ -102,15 +102,17 @@
           </div>
         </div>
         <div class="display-bar">
-          <label class="base-field" for="base-mode">
-            <span class="base-field-label">底模 <span class="en">Base</span></span>
-            <select id="base-mode" aria-label="底模 Base">
-              <option value="off">隐藏 Off</option>
-              <option value="wire">线框 Wire</option>
-              <option value="faces" selected>面 Faces</option>
-              <option value="points">点 Points</option>
-            </select>
-          </label>
+          <div class="base-menu" id="base-menu">
+            <button class="btn toggle" id="base-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-pressed="true" aria-controls="base-menu-list">
+              底模 <span class="en">Base</span>
+            </button>
+            <div class="base-menu-list" id="base-menu-list" hidden>
+              <label class="base-check"><input type="checkbox" id="base-off" value="off" /> 隐藏 <span class="en">Off</span></label>
+              <label class="base-check"><input type="checkbox" id="base-wire" value="wire" /> 线框 <span class="en">Wire</span></label>
+              <label class="base-check"><input type="checkbox" id="base-faces" value="faces" checked /> 面 <span class="en">Faces</span></label>
+              <label class="base-check"><input type="checkbox" id="base-points" value="points" /> 点 <span class="en">Points</span></label>
+            </div>
+          </div>
           <button class="btn toggle" id="toggle-warp" type="button" aria-pressed="true">列 <span class="en">Warp</span></button>
           <button class="btn toggle" id="toggle-overlay" type="button" aria-pressed="true">针迹 <span class="en">Stitch</span></button>
         </div>
