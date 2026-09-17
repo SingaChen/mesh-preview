@@ -38,13 +38,22 @@ import {
   parseReadableMapXfers,
   parseStitchMapBind,
   applyStitchMapBind,
+  bindFaceForMapCell,
   stitchesInRingRange,
   termCountsForRings,
   uniqueColIdsFromXls,
   xlsScaleMatrixRowCount,
 } from "../src/stitches.js";
-import { buildReadableMapGrid, cellFill, highlightKeysForStitch, highlightKeysFromStitches, tokenKind } from "../src/readable-map.js";
-import { panToKeepRectVisible } from "../src/map-view.js";
+import {
+  buildReadableMapGrid,
+  cellFill,
+  highlightKeysForMapCell,
+  highlightKeysForStitch,
+  highlightKeysFromStitches,
+  stitchForMapCell,
+  tokenKind,
+} from "../src/readable-map.js";
+import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
@@ -320,6 +329,34 @@ assert(bound.stitches[21].mapCells.length === 2, "increase face keeps both span 
   );
   const sliderKeys = highlightKeysFromStitches(bound.stitches.slice(0, 22), { map: excelMap, grid: excelGrid });
   assert(![...sliderKeys].some((k) => k.startsWith("1,")), "slider highlight skips the X+ row");
+}
+
+{
+  assert(stitchBind.byCell instanceof Map && stitchBind.byCell.get("0,20")?.face_index === 20, "bind builds reverse cell→face index on load");
+  assert(bindFaceForMapCell(0, 20, stitchBind)?.face_index === 20, "bindFaceForMapCell uses display_row,col");
+  const face20 = stitchForMapCell(0, 20, stitchBind, bound.stitches);
+  assert(face20 === bound.stitches[20] && face20.index === 20, "knit cell 0,20 reverse-selects face 20");
+  assert(stitchForMapCell(0, 20, stitchBind)?.index === 20, "bind-only reverse lookup still returns face_index");
+  for (const col of [10, 11, 12]) {
+    const hit = stitchForMapCell(63, col, stitchBind, bound.stitches);
+    assert(hit === bound.stitches[374] && hit.index === 374, `+R2 span cell 63,${col} reverse-selects face 374`);
+    const keys = highlightKeysForMapCell(63, col, { map: excelMap, grid: excelGrid, bind: stitchBind });
+    assert(
+      keys.has("63,10") && keys.has("63,11") && keys.has("63,12") && keys.size === 3,
+      `clicking 63,${col} highlights the whole +R2 term`,
+    );
+  }
+  assert(stitchForMapCell(1, 0, stitchBind, bound.stitches) == null, "X+ transfer cell has no stitch");
+  assert(stitchForMapCell(0, -5, stitchBind, bound.stitches) == null, "empty gray cell has no stitch");
+  assert(highlightKeysForMapCell(1, 0, { map: excelMap, grid: excelGrid, bind: stitchBind }).size === 0, "transfer reverse highlight is empty");
+  const contentHit = hitTestContent(
+    excelGrid,
+    MAP_LABEL_W + (20 - excelGrid.colMin) * MAP_CELL + 2,
+    MAP_HEAD_H + 2,
+  );
+  assert(contentHit?.row === 0 && contentHit?.col === 20, "hitTestContent maps Excel content coords to 0,20");
+  assert(hitTestContent(excelGrid, 10, 10) == null, "header / dir label is not a map cell");
+  assert(MAP_CLICK_SLOP === 8, "map click slop matches the 3D canvas");
 }
 
 const chunks = faceChunksFromFaces(parsed.faces);
@@ -713,15 +750,19 @@ assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMap
 assert(mainSrc.includes("parseExcelReadableMap"), "main prefers the step3 xls for the 2D map");
 assert(mainSrc.includes("parseStitchMapBind") && mainSrc.includes("applyStitchMapBind"), "main loads desktop stitch_map_bind.json");
 assert(mainSrc.includes("highlightKeysForStitch") && mainSrc.includes("setPickHighlight") && mainSrc.includes("ensureVisible"), "click lights bound map cells and pans them into view");
+assert(mainSrc.includes("onCellPick") && mainSrc.includes("onMapCellPick") && mainSrc.includes("stitchForMapCell"), "map click reverse-selects the bound stitch");
+assert(mainSrc.includes("paintStitchPick(stitch)") && mainSrc.includes("isTransferDir"), "map knit pick reuses paintStitchPick; X/X+ does not");
 assert(!mainSrc.includes("excelMapAsBindMap"), "do not pair Excel cells in generation order");
 assert(mainSrc.includes("dataset.mapCells"), "chip records the bound map cell keys for the pick");
 assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("pickedStitch"), "map pick highlight follows the stitch chip");
 assert(mainSrc.includes("narrow-split") && mainSrc.includes("max-width: 719px"), "wide layout splits; phone uses a pane toggle");
 const mapViewSrc = readFileSync(join(root, "src", "map-view.js"), "utf8");
 assert(mapViewSrc.includes("pickHighlight") && mapViewSrc.includes("ensureVisible") && mapViewSrc.includes("panToKeepRectVisible"), "map view can outline a pick and ensureVisible");
+assert(mapViewSrc.includes("hitTest") && mapViewSrc.includes("onCellPick") && mapViewSrc.includes("MAP_CLICK_SLOP"), "map view hit-tests cells and ignores pan/pinch");
 assert(mapViewSrc.includes("isTransferDir"), "Excel view marks X/X+ rows as transfer / not stitch");
 const readableSrc = readFileSync(join(root, "src", "readable-map.js"), "utf8");
 assert(readableSrc.includes("mapCellsForStitch"), "Excel pick uses stitch_map_bind cells");
+assert(readableSrc.includes("stitchForMapCell") && readableSrc.includes("highlightKeysForMapCell"), "reverse lookup expands multi-cell terms");
 assert(!readableSrc.includes("every occupied cell in that needle column"), "column-wide Excel fallback is gone");
 
 const css = readFileSync(join(root, "src", "style.css"), "utf8");

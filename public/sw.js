@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: sample now includes stitch_map_bind.json (desktop face↔cell dump).
+// Bump note: sample stitch_map_bind.json + map cells reverse-select stitch faces.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {

@@ -5,7 +5,7 @@
  */
 
 import { excelInk, excelLegendKind, isKnitDir, isTransferDir } from "./excel-map.js";
-import { mapCellsForStitch } from "./stitches.js";
+import { bindFaceForMapCell, mapCellsForStitch } from "./stitches.js";
 
 export function tokenKind(token) {
   const t = String(token ?? "");
@@ -251,4 +251,53 @@ export function highlightKeysFromStitches(stitches, { map = null, grid = null, b
     keys.add(cellKey(s.row, s.col));
   }
   return keys;
+}
+
+function findBoundStitch(rec, stitches) {
+  if (!rec) return null;
+  const list = stitches || [];
+  return (
+    list.find((s) => s.index === rec.face_index) ||
+    list.find(
+      (s) =>
+        s.path_index != null &&
+        s.term_index != null &&
+        s.path_index === rec.path_index &&
+        s.term_index === rec.term_index,
+    ) ||
+    null
+  );
+}
+
+/**
+ * Reverse bind: Excel display_row + needle → KnittingStitches face.
+ * Any cell of a multi-cell increase span resolves to the same face.
+ * Transfer / empty cells have no face.
+ */
+export function stitchForMapCell(row, col, bind, stitches = null) {
+  const rec = bindFaceForMapCell(row, col, bind);
+  if (!rec) return null;
+  if (Array.isArray(stitches)) return findBoundStitch(rec, stitches);
+  return {
+    index: rec.face_index,
+    face_index: rec.face_index,
+    path_index: rec.path_index,
+    term_index: rec.term_index,
+    mapCells: rec.cells,
+  };
+}
+
+/** Same keys as clicking the bound stitch face (whole term span). */
+export function highlightKeysForMapCell(row, col, { map = null, grid = null, bind = null } = {}) {
+  const rec = bindFaceForMapCell(row, col, bind);
+  if (!rec) return new Set();
+  return highlightKeysForStitch(
+    {
+      index: rec.face_index,
+      path_index: rec.path_index,
+      term_index: rec.term_index,
+      mapCells: rec.cells,
+    },
+    { map, grid, bind },
+  );
 }

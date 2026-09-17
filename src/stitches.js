@@ -315,6 +315,40 @@ export function parseStitchMapBind(data) {
       termToCells[key] = uniqueBindCells(cells);
     }
   }
+  const display_rows = Array.isArray(parsed.display_rows) ? parsed.display_rows : [];
+  const byPathTerm = new Map();
+  const byCell = new Map();
+  const rememberCell = (row, col, rec) => {
+    if (row == null || col == null || !rec) return;
+    const key = `${row},${col}`;
+    if (!byCell.has(key)) byCell.set(key, rec);
+  };
+  for (const rec of faces) {
+    if (rec.path_index != null && rec.term_index != null && rec.path_index >= 0 && rec.term_index >= 0) {
+      byPathTerm.set(`${rec.path_index},${rec.term_index}`, rec);
+    }
+    for (const cell of rec.cells) rememberCell(cell.display_row, cell.col, rec);
+  }
+  for (const [key, cells] of Object.entries(termToCells)) {
+    const rec = byPathTerm.get(key);
+    if (!rec) continue;
+    for (const cell of cells) rememberCell(cell.display_row, cell.col, rec);
+  }
+  for (const row of display_rows) {
+    if (row?.is_transfer || row?.is_knit === false) continue;
+    if (row?.dir === "X" || row?.dir === "X+") continue;
+    const display_row = asIntOrNull(row.display_row);
+    if (display_row == null) continue;
+    for (const cell of row.cells || []) {
+      if (cell?.bindable === false) continue;
+      const path_index = asIntOrNull(cell.path_index);
+      const term_index = asIntOrNull(cell.term_index);
+      if (path_index == null || term_index == null || path_index < 0 || term_index < 0) continue;
+      const rec = byPathTerm.get(`${path_index},${term_index}`);
+      if (!rec) continue;
+      rememberCell(display_row, asIntOrNull(cell.col), rec);
+    }
+  }
   return {
     source: parsed.source || "stitch_map_bind",
     n_faces: asIntOrNull(parsed.n_faces) ?? faces.length,
@@ -323,11 +357,25 @@ export function parseStitchMapBind(data) {
     n_xfer_rows: asIntOrNull(parsed.n_xfer_rows),
     n_unbound_faces: asIntOrNull(parsed.n_unbound_faces) ?? 0,
     n_multi_cell_terms: asIntOrNull(parsed.n_multi_cell_terms),
-    display_rows: Array.isArray(parsed.display_rows) ? parsed.display_rows : [],
+    display_rows,
     faces,
     byIndex,
+    byPathTerm,
+    byCell,
     termToCells,
   };
+}
+
+/** Reverse: Excel `${display_row},${col}` → bind face. Built once in parseStitchMapBind. */
+export function bindFaceForMapCell(row, col, bind) {
+  if (!bind || row == null || col == null) return null;
+  const key = `${Number(row)},${Number(col)}`;
+  const indexed = bind.byCell?.get(key);
+  if (indexed) return indexed;
+  for (const rec of bind.faces || []) {
+    if (rec.cells?.some((cell) => cell.display_row === row && cell.col === col)) return rec;
+  }
+  return null;
 }
 
 export function mapCellsForStitch(stitch, bind = null) {
