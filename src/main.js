@@ -59,7 +59,6 @@ const projectEl = document.querySelector("#project-name");
 const statsEl = document.querySelector("#mesh-stats");
 const statusEl = document.querySelector("#status");
 const wireBtn = document.querySelector("#toggle-wire");
-const shadeBtn = document.querySelector("#toggle-shade");
 const overlayBtn = document.querySelector("#toggle-overlay");
 const bodyBtn = document.querySelector("#toggle-body");
 
@@ -360,7 +359,6 @@ async function showOutput(index, { fit = false } = {}) {
     const stitches = await loadStitches(output);
     const cols = await loadCols(output);
     viewer.setWireframe(wireBtn.getAttribute("aria-pressed") === "true");
-    viewer.setFlat(shadeBtn.getAttribute("aria-pressed") === "true");
     viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
     viewer.setShowBody(bodyBtn.getAttribute("aria-pressed") === "true");
 
@@ -547,12 +545,6 @@ wireBtn.addEventListener("click", () => {
   const on = wireBtn.getAttribute("aria-pressed") !== "true";
   pressed(wireBtn, on);
   viewer.setWireframe(on);
-});
-
-shadeBtn.addEventListener("click", () => {
-  const on = shadeBtn.getAttribute("aria-pressed") !== "true";
-  pressed(shadeBtn, on);
-  viewer.setFlat(on);
 });
 
 overlayBtn.addEventListener("click", () => {

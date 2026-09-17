@@ -19,7 +19,7 @@ Open a project folder or manifest, orbit the mesh, and scrub the same three dual
 - 默认加载真实 **Test Cylinder**（`Single_Cylinder_Test`）。
 - 三个双向滑块（半开区间 `[start, end)`，相邻手柄显示 1 项）：
   - **cols_resample**：过滤 `*_cols_resample_field.obj` 的列折线，标签如 `cols_resample: idx a-b / N`（圆柱 **42**）
-  - **row**（副标题 faces_ring）：按 `first_rows` 的 face ring 过滤 KnittingStitches。半开区间 `[start, end)`，圆柱 **5** 环（`N_seed-1`，跳过种子列 `row_0`）。切片宽度 **46, 136, 110, 106, 77**（合计 **475**）。sidecar 的 stuck_all 最后一环是 73 个 typed term，多出的 4 个 OBJ 面会并进最后一环并保持粉色。**不是** 475/5 均分。标签如 `row: idx 0-4 / 5`
+  - **row**（副标题 faces_ring）：按 `first_rows` 的 face ring 过滤 KnittingStitches。半开区间 `[start, end)`，圆柱 **5** 环（`N_seed-1`，跳过种子列 `row_0`）。切片宽度 **46, 136, 110, 106, 77**（合计 **475**）。sidecar stuck_all 最后一环是 73 个 typed term；缺 Type 的面从 OBJ 顶点色推断，**不会**填默认粉。**不是** 475/5 均分。标签如 `row: idx 0-4 / 5`
   - **term**（副标题 `ring N`）：只切第二滑块右端那一环（active = `r1 - 1`）里的 term。更早的环整环保留。默认 `term: idx 0-76 / 77`（全选 `[0,5)` 时最大环是第 5 环 / 77 针）
 - **文件夹 Folder** / **文件 Files** 仍从**手机本地**读取 OBJ 或清单（不上传服务器）。
 - **示例 Sample** 重新加载内置圆柱。
@@ -64,7 +64,7 @@ npm run preview
 - 双指捏合：缩放；双指拖：平移 pan
 - **适应 Fit**：框住当前网格
 - **cols_resample / row / term**：桌面端同款半开区间双手柄（针迹视图不再把第三槽给 `display_models`）
-- **线框 Wire** / **平面 Flat** / **针迹 Stitch** / **底模 Base**（半透明 `cut_iteration_0` 底层；默认开，关掉只藏底模，不影响针迹 / 滑块）
+- **线框 Wire** / **针迹 Stitch** / **底模 Base**（半透明 `cut_iteration_0` 底层；默认开，关掉只藏底模，不影响针迹 / 滑块）
 - 点按一根针迹：第二滑块收到该 ring `[i, i+1)`，第三滑块收到该 term `[t, t+1)`；再点同一针恢复全部环 / 全部 term
 
 ## 三个滑块怎么对应 SingaLab
@@ -86,7 +86,7 @@ npm run preview
 
 `_normalize_half_open_slider` 保证 `end >= start + 1`。标签：`cols_resample: idx a-b / N`；`row: idx a-b / 5`；`term: idx a-b / N`（副标题 `ring N`）。没有针迹的项目才显示旧的 `display_models` 滑块。
 
-`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即 `faces_allin` 展平（`for path in paths: for term in path`）。`first_rows.xls` 决定有多少个 face ring；`faces_ring_layout.json` 用各环 `n_terms` + `types[]` 上色。圆柱切片是 **46, 136, 110, 106, 77**（475）：sidecar stuck_all 是 73 个 typed term，余下 4 面并进最后一环、默认粉色。不要均分 475/5，也不要把 65 个 `rowNNN` 或 6 个种子列当成 N。
+`iteration_0_cut_KnittingStitches.obj` 每个面是一针，文件顺序即 `faces_allin` 展平（`for path in paths: for term in path`）。`first_rows.xls` 决定有多少个 face ring；`faces_ring_layout.json` 用各环 `n_terms` + `types[]` 上色。圆柱切片是 **46, 136, 110, 106, 77**（475）。sidecar 若短于面数，缺 Type 的面按 OBJ 顶点色对齐到 0–9，**不用** default 粉去填空。粉只表示 Type 7/8/9。不要均分 475/5，也不要把 65 个 `rowNNN` 或 6 个种子列当成 N。
 
 针迹面按桌面 `build_and_show_knitting_stitches` 的 Term.Type 上色（灰 / 白 / 黑 / 红 / 绿 / 黄 / 蓝 / 粉），边线黑色（`edge_color: [0,0,0]`）。没有 sidecar 时才按 N 环均分。
 
@@ -137,7 +137,7 @@ npm run preview
 
 ## 范围 / Scope
 
-包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模显隐、可选清单、触摸轨道、线框/平面、适应视野、离线应用壳。
+包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模显隐、可选清单、触摸轨道、线框、适应视野、离线应用壳。
 
 不做：原生 Android、账号、云同步、完整 `readable_map` 编辑器。
 
