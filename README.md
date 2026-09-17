@@ -67,7 +67,8 @@ npm run preview
 - **底模 Base**（和 Warp / Stitch 同尺寸的多选按钮）：可同时勾选 线框 Wire / 面 Faces / 点 Points。勾选 **隐藏 Off** 会清掉其余三项并藏底模；再勾选任一绘制层会取消 Off。默认只开 Faces。点模式用更大的世界尺寸点，手机上也能看清。
 - **列 Warp**：显隐 `cols_resample` 列折线。
 - **针迹 Stitch**：显隐 KnittingStitches。
-- **收起 Hide**：收起顶栏和底部控件，网格全屏。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
+- **收起 Hide**：收起顶栏和底部控件；左右分栏仍在，3D 与生长图都保留。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
+- **生长图 Map**：宽屏左侧 3D、右侧 `iteration_0_cut_readable_map.txt`（step3 / 最终 cut）。格子是导出的 `rowNNN × col`，符号与 txt 一致（`·` / `[R` / `-R2` / …）；有绑定针迹时用 Term.Type 色。滚轮 / 捏合 / 按钮缩放，拖动平移，加载时适应。窄屏用 **3D / 图 Map** 切换，不硬挤并排。
 - 点按一根针迹：第二滑块收到该 ring `[i, i+1)`，第三滑块收到该 term `[t, t+1)`；再点同一针恢复全部环 / 全部 term
 
 ## 三个滑块怎么对应 SingaLab
@@ -140,7 +141,7 @@ npm run preview
 
 ## 范围 / Scope
 
-包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模模式（线框/面/点）、列 Warp、针迹、控件收起、画布宽高比同步、可选清单、触摸轨道、适应视野、离线应用壳。
+包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模模式（线框/面/点）、列 Warp、针迹、控件收起、画布宽高比同步、左右分栏生长图（pan/zoom）、可选清单、触摸轨道、适应视野、离线应用壳。
 
 不做：原生 Android、账号、云同步、完整 `readable_map` 编辑器。
 

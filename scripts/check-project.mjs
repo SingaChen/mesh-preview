@@ -31,11 +31,14 @@ import {
   parseFacesRingLayout,
   parseFirstRows,
   parseReadableMap,
+  parseReadableMapHeader,
+  parseReadableMapXfers,
   stitchesInRingRange,
   termCountsForRings,
   uniqueColIdsFromXls,
   xlsScaleMatrixRowCount,
 } from "../src/stitches.js";
+import { buildReadableMapGrid, tokenKind } from "../src/readable-map.js";
 import { parseXlsWorkbook } from "../src/xls.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
@@ -127,6 +130,19 @@ if (map.rows.length !== 65) throw new Error(`expected 65 readable rows, got ${ma
 if (map.rowMax !== 64) throw new Error(`expected rowMax 64, got ${map.rowMax}`);
 if (map.cells.length < 475) throw new Error(`expected at least 475 map cells, got ${map.cells.length}`);
 if (map.rows[0].tokens.length !== 21) throw new Error("row000 should list 21 needle tokens");
+const mapHeader = parseReadableMapHeader(mapText);
+assert(mapHeader?.rows === 65 && mapHeader?.cells === 479, "header is 65 machine rows / 479 cells");
+assert(mapHeader.circle === 21 && mapHeader.front === 11 && mapHeader.back === 10, "header keeps first_row circle split");
+assert(map.header?.cells === 479 && map.header?.circle === 21, "parseReadableMap keeps the txt header");
+assert(map.colMin === -4 && map.colMax === 36, "needle columns come from col[start..end], including negatives");
+const xfers = parseReadableMapXfers(mapText);
+assert(xfers.length > 0 && xfers[0].moves[0].raw.includes("@"), "xfer lines are parsed from the same txt, not invented");
+assert(map.xfers.length === xfers.length, "parseReadableMap keeps xfer arrows");
+const grid = buildReadableMapGrid(map);
+assert(grid.nRows === 65 && grid.nCols === 41, "2D grid is 65 machine rows × needles -4..36");
+assert(grid.grid[0][4].token === "·" && grid.grid[0][4].col === 0, "row000 col0 is a knit token from the txt");
+assert(tokenKind("·") === "knit" && tokenKind("-R2") === "decrease" && tokenKind("+L2") === "increase", "token kinds follow the written glyphs");
+assert(grid.nRows === map.rows.length, "do not invent extra map rows beyond rowNNN");
 
 const bound = bindStitchesToMap(parsed.faces, map);
 if (bound.stitches.length !== 475) throw new Error("bind should keep every face");
@@ -487,6 +503,10 @@ assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "
 assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') && html.includes('id="open-files"'), "Sample / Folder / Files stay as menu items");
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
+assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");
+assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
+assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMapGrid"), "main mounts the 2D map");
+assert(mainSrc.includes("narrow-split") && mainSrc.includes("max-width: 719px"), "wide layout splits; phone uses a pane toggle");
 
 const css = readFileSync(join(root, "src", "style.css"), "utf8");
 assert(/\.dock\s*\{[^}]*overflow:\s*visible/.test(css), "dock does not clip the upward Base menu");
@@ -498,6 +518,7 @@ assert(css.includes(".open-menu") && css.includes(".open-menu-list"), "Open cont
 assert(!/\.actions\s*\{/.test(css), "old .actions button row is gone");
 assert(css.includes("chrome-collapsed"), "collapsed chrome hides topbar + dock");
 assert(css.includes(".stage canvas") && css.includes("width: 100%") && css.includes("height: 100%"), "canvas CSS fills the stage");
+assert(css.includes(".split") && css.includes(".map-pane") && css.includes("narrow-split"), "layout is a left-right split with a narrow fallback");
 
 assert(aspectFromSize(800, 400) === 2, "wide stage is aspect 2, not the constructor default 1");
 assert(aspectFromSize(390, 844) === 390 / 844, "phone portrait uses true canvas aspect");

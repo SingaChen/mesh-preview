@@ -109,6 +109,46 @@ export function parseColoredObj(text) {
   return { verts, faces, lines };
 }
 
+export function parseReadableMapHeader(text) {
+  const m = String(text).match(
+    /readable_map:\s*(\d+)\s*rows,\s*(\d+)\s*cells(?:\s+circle=(\d+)\s+front=(\d+)\s+back=(\d+))?/i,
+  );
+  if (!m) return null;
+  return {
+    rows: Number(m[1]),
+    cells: Number(m[2]),
+    circle: m[3] != null ? Number(m[3]) : null,
+    front: m[4] != null ? Number(m[4]) : null,
+    back: m[5] != null ? Number(m[5]) : null,
+  };
+}
+
+export function parseReadableMapXfers(text) {
+  const xfers = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    const m = line.match(/^\s*(\+)?xfer(\d+)\.(\d+):\s*(.*)$/i);
+    if (!m) continue;
+    const moves = [];
+    for (const tok of m[4].trim().split(/\s+/).filter(Boolean)) {
+      const tm = tok.match(/^([←→])(\d+)@(-?\d+)$/);
+      if (!tm) continue;
+      moves.push({
+        dir: tm[1] === "→" ? 1 : -1,
+        count: Number(tm[2]),
+        col: Number(tm[3]),
+        raw: tok,
+      });
+    }
+    xfers.push({
+      plus: Boolean(m[1]),
+      row: Number(m[2]),
+      index: Number(m[3]),
+      moves,
+    });
+  }
+  return xfers;
+}
+
 export function parseReadableMap(text) {
   const rows = [];
   for (const line of String(text).split(/\r?\n/)) {
@@ -141,11 +181,19 @@ export function parseReadableMap(text) {
   }
 
   const rowIds = rows.map((r) => r.row);
+  const colStarts = rows.map((r) => r.colStart);
+  const colEnds = rows.map((r) => r.colEnd);
+  const cellCols = cells.map((c) => c.col);
+  const allCols = [...colStarts, ...colEnds, ...cellCols];
   return {
     rows,
     cells,
+    header: parseReadableMapHeader(text),
+    xfers: parseReadableMapXfers(text),
     rowMin: rowIds.length ? Math.min(...rowIds) : 0,
     rowMax: rowIds.length ? Math.max(...rowIds) : 0,
+    colMin: allCols.length ? Math.min(...allCols) : 0,
+    colMax: allCols.length ? Math.max(...allCols) : 0,
   };
 }
 

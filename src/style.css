@@ -173,19 +173,145 @@ input {
   cursor: default;
 }
 
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane-switch {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px 8px 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.pane-switch:not([hidden]) {
+  display: grid;
+}
+
+.split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+
 .stage {
   position: relative;
-  flex: 1;
+  flex: 1 1 50%;
+  min-width: 0;
   min-height: 0;
   background:
     radial-gradient(120% 80% at 50% 0%, #1a222d 0%, var(--bg) 55%);
 }
 
-.stage canvas {
+.stage canvas,
+.map-pane canvas {
   display: block;
   width: 100%;
   height: 100%;
   touch-action: none;
+}
+
+.map-pane {
+  position: relative;
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #10151c;
+  border-left: 1px solid var(--line);
+}
+
+.map-pane[hidden] {
+  display: none;
+}
+
+.map-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(14, 18, 24, 0.92);
+  z-index: 2;
+}
+
+.map-title {
+  min-width: 0;
+}
+
+.map-title strong {
+  display: block;
+  font-size: 13px;
+}
+
+.map-title span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-zoom {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.map-zoom .fit {
+  min-width: var(--touch);
+}
+
+.map-pane canvas {
+  flex: 1;
+  min-height: 0;
+  background: #10151c;
+}
+
+.map-empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.map-empty[hidden] {
+  display: none;
+}
+
+body.narrow-split .split {
+  display: block;
+}
+
+body.narrow-split .stage,
+body.narrow-split .map-pane {
+  flex: 1 1 auto;
+  height: 100%;
+  border-left: 0;
+}
+
+body.narrow-split.show-map .stage {
+  display: none;
+}
+
+body.narrow-split.show-3d .map-pane:not([hidden]) {
+  display: none;
+}
+
+@media (max-width: 719px) {
+  .pane-switch:not([hidden]) {
+    display: grid;
+  }
 }
 
 .hud {
@@ -269,6 +395,7 @@ body.chrome-collapsed .dock {
   display: none;
 }
 
+body.chrome-collapsed .workspace,
 body.chrome-collapsed .stage {
   flex: 1 1 auto;
 }

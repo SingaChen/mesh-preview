@@ -33,8 +33,11 @@ import {
   formatDisplayModelsLabel,
   formatHalfOpenRangeLabel,
   registerDisplayModel,
+  stitchesVisibleForSliders,
 } from "./range.js";
 import { applyBaseChoice, defaultBaseLayers, isBaseHidden } from "./display.js";
+import { buildReadableMapGrid, highlightKeysFromStitches } from "./readable-map.js";
+import { ReadableMapView } from "./map-view.js";
 
 const canvas = document.querySelector("#viewport");
 const folderInput = document.querySelector("#folder-input");
@@ -76,8 +79,21 @@ const baseChecks = {
 let baseLayers = defaultBaseLayers();
 const hideChromeBtn = document.querySelector("#hide-chrome");
 const showChromeBtn = document.querySelector("#show-chrome");
+const mapPane = document.querySelector("#map-pane");
+const mapCanvas = document.querySelector("#map-canvas");
+const mapMeta = document.querySelector("#map-meta");
+const mapEmpty = document.querySelector("#map-empty");
+const paneSwitch = document.querySelector("#pane-switch");
+const pane3dBtn = document.querySelector("#pane-3d");
+const paneMapBtn = document.querySelector("#pane-map");
+const mapZoomIn = document.querySelector("#map-zoom-in");
+const mapZoomOut = document.querySelector("#map-zoom-out");
+const mapFitBtn = document.querySelector("#map-fit");
 
 const viewer = new MeshViewer(canvas);
+const mapView = mapCanvas ? new ReadableMapView(mapCanvas) : null;
+const narrowSplitMq = window.matchMedia("(max-width: 719px)");
+let mobilePane = "3d";
 const colsRange = bindDualRange(document.querySelector("#cols-range"));
 const facesRange = bindDualRange(document.querySelector("#faces-range"));
 const modelsRange = bindDualRange(document.querySelector("#models-range"));
@@ -186,6 +202,14 @@ async function loadBuffer(entry) {
   return buffer;
 }
 
+async function loadReadableMap(output) {
+  const mapEntry = output.readableMapFile;
+  if (!mapEntry) return null;
+  const mapText = await loadText(mapEntry);
+  const map = parseReadableMap(mapText);
+  return map?.cells?.length ? map : null;
+}
+
 async function loadStitches(output) {
   const stitchEntry = output.stitchFile || output.overlayFile;
   const mapEntry = output.readableMapFile;
@@ -195,10 +219,11 @@ async function loadStitches(output) {
   const parsed = parseColoredObj(stitchText);
   if (!parsed.faces.length) return null;
   let bound = null;
+  let parsedMap = null;
   if (mapEntry) {
     const mapText = await loadText(mapEntry);
-    const map = parseReadableMap(mapText);
-    if (map.cells.length) bound = bindStitchesToMap(parsed.faces, map);
+    parsedMap = parseReadableMap(mapText);
+    if (parsedMap.cells.length) bound = bindStitchesToMap(parsed.faces, parsedMap);
   }
   if (!bound) {
     bound = {
@@ -236,7 +261,7 @@ async function loadStitches(output) {
     colors: layout?.colors,
   });
   bound.edgeColor = layout?.edgeColor || { r: 0, g: 0, b: 0 };
-  return { bound, faceChunks, rowChunks, firstRows, layout, stitchEntry, mapEntry };
+  return { bound, faceChunks, rowChunks, firstRows, layout, stitchEntry, mapEntry, map: parsedMap };
 }
 
 async function loadCols(output) {
@@ -322,11 +347,13 @@ function applyTermsRange() {
   if (r1 <= r0) {
     viewer.setKnitRange(r0, r1, 0, 0);
     paintTermChrome();
+    paintMapHighlight();
     return;
   }
   const [t0, t1] = termsRange.value;
   viewer.setKnitRange(r0, r1, t0, t1);
   paintTermChrome();
+  paintMapHighlight();
 }
 
 function applyModelsRange() {
@@ -402,6 +429,7 @@ async function showOutput(index, { fit = false } = {}) {
       });
     }
 
+    const readableMap = stitches?.map || (await loadReadableMap(output));
     scene = {
       models,
       columns: cols?.columns || null,
@@ -410,7 +438,9 @@ async function showOutput(index, { fit = false } = {}) {
       prevFacesItem: stitches ? "KnittingStitches" : null,
       prevActiveRing: null,
       cutName,
+      readableMap,
     };
+    paintReadableMap();
 
     if (stitches || cols) {
       viewer.setDisplayScene({
@@ -452,6 +482,7 @@ async function showOutput(index, { fit = false } = {}) {
   } catch (err) {
     statsEl.textContent = "";
     scene = null;
+    paintReadableMap();
     updateChrome();
     setStatus(err.message || String(err), true);
   }
@@ -516,7 +547,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("圆柱 · cols_resample / faces_ring / term · drag to orbit");
+      setStatus("左 3D · 右 readable_map · 窄屏切 3D/图");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -599,16 +630,100 @@ function setChromeCollapsed(collapsed) {
 
 function syncViewportAfterLayout(after) {
   viewer.resize();
+  mapView?.resize();
   requestAnimationFrame(() => {
     viewer.resize();
+    mapView?.resize();
     after?.();
   });
+}
+
+function paintReadableMap() {
+  const map = scene?.readableMap;
+  const hasMap = Boolean(map?.cells?.length);
+  if (mapPane) mapPane.hidden = !hasMap;
+  if (mapEmpty) mapEmpty.hidden = hasMap;
+  if (!hasMap) {
+    mapView?.clear();
+    if (mapMeta) mapMeta.textContent = "readable_map";
+    syncPaneLayout();
+    return;
+  }
+  const stitches = scene?.stitches?.bound?.stitches || [];
+  const grid = buildReadableMapGrid(map, stitches);
+  mapView?.setGrid(grid);
+  const h = map.header;
+  if (mapMeta) {
+    mapMeta.textContent = h
+      ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
+      : `${map.rows.length} rows · ${map.cells.length} cells`;
+  }
+  paintMapHighlight();
+  syncPaneLayout();
+  requestAnimationFrame(() => {
+    mapView?.resize();
+    mapView?.fit();
+  });
+}
+
+function paintMapHighlight() {
+  if (!mapView || !scene?.stitches?.bound?.stitches?.length) return;
+  const [r0, r1] = facesRange.value;
+  const [t0, t1] = termsRange.value;
+  const visible = stitchesVisibleForSliders(scene.stitches.bound.stitches, r0, r1, t0, t1);
+  mapView.setHighlight(highlightKeysFromStitches(visible));
+}
+
+function syncPaneLayout() {
+  const hasMap = Boolean(scene?.readableMap?.cells?.length) && mapPane && !mapPane.hidden;
+  const narrow = narrowSplitMq.matches;
+  document.body.classList.toggle("narrow-split", narrow && hasMap);
+  if (paneSwitch) paneSwitch.hidden = !(narrow && hasMap);
+  if (!hasMap) {
+    document.body.classList.remove("show-map", "show-3d");
+    return;
+  }
+  if (narrow) {
+    document.body.classList.toggle("show-map", mobilePane === "map");
+    document.body.classList.toggle("show-3d", mobilePane === "3d");
+    if (pane3dBtn) pane3dBtn.setAttribute("aria-pressed", mobilePane === "3d" ? "true" : "false");
+    if (paneMapBtn) paneMapBtn.setAttribute("aria-pressed", mobilePane === "map" ? "true" : "false");
+  } else {
+    document.body.classList.remove("show-map", "show-3d");
+  }
+  syncViewportAfterLayout();
+}
+
+function setMobilePane(pane) {
+  mobilePane = pane === "map" ? "map" : "3d";
+  syncPaneLayout();
+  if (mobilePane === "map") {
+    requestAnimationFrame(() => {
+      mapView?.resize();
+      mapView?.fit();
+    });
+  }
 }
 
 fitBtn.addEventListener("click", () => {
   viewer.resize();
   viewer.fitToView();
 });
+
+mapZoomIn?.addEventListener("click", () => {
+  mapView?.zoomBy(1.2, (mapView._cssW || 1) / 2, (mapView._cssH || 1) / 2);
+});
+mapZoomOut?.addEventListener("click", () => {
+  mapView?.zoomBy(1 / 1.2, (mapView._cssW || 1) / 2, (mapView._cssH || 1) / 2);
+});
+mapFitBtn?.addEventListener("click", () => {
+  mapView?.resize();
+  mapView?.fit({ overview: true });
+});
+pane3dBtn?.addEventListener("click", () => setMobilePane("3d"));
+paneMapBtn?.addEventListener("click", () => setMobilePane("map"));
+narrowSplitMq.addEventListener?.("change", () => syncPaneLayout());
+narrowSplitMq.addListener?.(() => syncPaneLayout());
 
 hideChromeBtn?.addEventListener("click", () => setChromeCollapsed(true));
 showChromeBtn?.addEventListener("click", () => setChromeCollapsed(false));
