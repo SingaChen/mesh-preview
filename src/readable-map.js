@@ -216,7 +216,11 @@ export function highlightKeysForStitch(stitch, { map = null, grid = null } = {})
     const knitRow = stitch.row;
     const knitHits = excelCellsMatching(
       grid,
-      (cell) => cell.col === col && cell.knitRow === knitRow && isKnitDir(cell.dir),
+      (cell) =>
+        cell.col === col &&
+        cell.knitRow === knitRow &&
+        isKnitDir(cell.dir) &&
+        Boolean(cell.token),
     );
     if (knitHits.length) {
       for (const cell of knitHits) keys.add(cellKey(cell.row, cell.col));

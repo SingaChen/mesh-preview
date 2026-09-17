@@ -282,6 +282,15 @@ assert(excelGrid.xfers.length === 0, "do not invent extra xfer arrow rows on top
   );
   const onlyCol = highlightKeysForStitch({ index: 999, col: 20 }, { map: excelMap, grid: excelGrid });
   assert(onlyCol.has("0,20") && onlyCol.size > 1, "ambiguous pick still highlights by needle/col");
+  const emptyAtKnit = highlightKeysForStitch(
+    { index: 360, row: 44, col: 14 },
+    { map: excelMap, grid: excelGrid },
+  );
+  assert(!emptyAtKnit.has("57,14"), "do not highlight an empty Excel cell just because knit-row + col match");
+  assert(
+    [...emptyAtKnit].every((k) => k.endsWith(",14")) && emptyAtKnit.size > 0,
+    "when that knit cell is empty, fall back to occupied needle/col cells",
+  );
   assert(
     highlightKeysFromStitches(bound.stitches.slice(0, 21), { map: excelMap, grid: excelGrid }).has("0,20"),
     "slider highlight remaps knit-row + col onto the Excel grid",
