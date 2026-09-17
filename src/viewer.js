@@ -460,7 +460,7 @@ export class MeshViewer {
         geom,
         new THREE.PointsMaterial({
           color: YARN,
-          size: 0.055,
+          size: 0.12,
           sizeAttenuation: true,
         }),
       );
