@@ -38,6 +38,7 @@ import {
 } from "../src/stitches.js";
 import { parseXlsWorkbook } from "../src/xls.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
+import { BASE_MODES, normalizeBaseMode } from "../src/display.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sampleDir = join(root, "public", "sample");
@@ -437,22 +438,30 @@ const keep = applyDisplayModelsRange(models, 1, 3, "stitches");
 assert(keep.bind?.name === "KnittingStitches" && keep.resetRange === false, "dragging left handle does not rebind");
 
 const html = readFileSync(join(root, "index.html"), "utf8");
-assert(html.includes('id="toggle-body"'), "base-mesh toggle is in the dock");
-assert(
-  /id="toggle-body"[^>]*aria-pressed="true"/.test(html),
-  "base-mesh toggle defaults on",
-);
-assert(html.includes("底模") && html.includes("Base"), "toggle label is 底模 / Base");
+assert(html.includes('id="base-mode"'), "Base is a select, not a boolean toggle");
+assert(/<option value="off">/.test(html) && /<option value="wire">/.test(html), "Base can hide or show wire");
+assert(/<option value="faces" selected>/.test(html), "Base defaults to Faces / surface");
+assert(/<option value="points">/.test(html), "Base has a Points mode");
+assert(html.includes("底模") && html.includes("Base"), "Base control is labelled 底模 / Base");
+assert(html.includes('id="toggle-warp"') && html.includes("列") && html.includes("Warp"), "Warp toggle shows cols_resample");
+assert(/id="toggle-warp"[^>]*aria-pressed="true"/.test(html), "Warp defaults on");
+assert(html.includes('id="toggle-overlay"') && html.includes("针迹") && html.includes("Stitch"), "Stitch toggle stays");
+assert(!html.includes("toggle-wire") && !html.includes("toggle-body"), "standalone Wire / Base toggles are gone");
 assert(!html.includes("toggle-shade") && !html.includes("平面"), "Flat toggle is gone");
 const mainSrc = readFileSync(join(root, "src", "main.js"), "utf8");
-assert(mainSrc.includes("setShowBody"), "main wires the base-mesh toggle");
-assert(mainSrc.includes("#toggle-body"), "main binds #toggle-body");
+assert(mainSrc.includes("setBaseMode") && mainSrc.includes("#base-mode"), "main wires the Base select");
+assert(mainSrc.includes("setShowWarp") && mainSrc.includes("#toggle-warp"), "main wires the Warp toggle");
+assert(!mainSrc.includes("setWireframe") && !mainSrc.includes("toggle-wire"), "main no longer has a standalone Wire toggle");
 assert(!mainSrc.includes("setFlat") && !mainSrc.includes("toggle-shade"), "main no longer wires Flat");
 const viewerSrc = readFileSync(join(root, "src", "viewer.js"), "utf8");
-assert(viewerSrc.includes("setShowBody"), "viewer can hide the translucent cut body");
-assert(viewerSrc.includes("this.showBody = true"), "cut body starts visible");
-assert(viewerSrc.includes("opacity: 0.42"), "cut body stays the semi-transparent underlay");
+assert(viewerSrc.includes("setBaseMode") && viewerSrc.includes("setShowWarp"), "viewer has Base modes and Warp visibility");
+assert(viewerSrc.includes('this.baseMode = "faces"'), "cut body starts as Faces");
+assert(viewerSrc.includes("opacity: 0.42"), "Faces mode stays the semi-transparent underlay");
+assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("PointsMaterial"), "Wire and Points rebuild the base object");
+assert(!viewerSrc.includes("setWireframe"), "wireframe is only a Base mode");
 assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
+assert.deepEqual(BASE_MODES, ["off", "wire", "faces", "points"], "Base modes are off/wire/faces/points");
+assert(normalizeBaseMode("wire") === "wire" && normalizeBaseMode("nope") === "faces", "unknown Base mode falls back to Faces");
 assert(viewerSrc.includes("ResizeObserver"), "viewer observes stage/canvas layout, not only window.resize");
 assert(viewerSrc.includes("displayedSize") && viewerSrc.includes("visualViewport"), "aspect tracks the CSS canvas box");
 assert(!/scale\.set\((?!Scalar)/.test(viewerSrc), "mesh scale stays uniform");
@@ -461,7 +470,7 @@ assert(mainSrc.includes("syncViewportAfterLayout"), "layout changes resync camer
 
 assert(html.includes('id="hide-chrome"') && html.includes("收起"), "dock has a Hide / 收起 control");
 assert(html.includes('id="show-chrome"') && html.includes("控件"), "collapsed chrome has a UI chip to restore");
-assert(html.includes('id="toggle-body"') && !html.includes("toggle-shade"), "toggles stay Wire / Stitch / Base");
+assert(html.includes('id="base-mode"') && html.includes('id="toggle-warp"') && html.includes('id="toggle-overlay"'), "bottom chrome is Base / Warp / Stitch");
 assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "top bar uses one Open menu");
 assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') && html.includes('id="open-files"'), "Sample / Folder / Files stay as menu items");
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");

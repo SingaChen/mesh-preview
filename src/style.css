@@ -415,15 +415,51 @@ input[type="range"]:disabled {
   opacity: 0.4;
 }
 
-.toggles {
+.display-bar {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(7.2rem, 1.45fr) 1fr 1fr;
   gap: 4px;
+  align-items: stretch;
 }
 
-.toggles .btn {
+.display-bar .btn {
   width: 100%;
-  padding: 0 8px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.base-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-height: var(--touch);
+  min-width: 0;
+  padding: 2px 6px 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--btn);
+}
+
+.base-field-label {
+  font-size: 10px;
+  font-weight: 650;
+  color: var(--muted);
+  line-height: 1.1;
+}
+
+.base-field select {
+  width: 100%;
+  min-height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  color-scheme: dark;
 }
 
 .status {
