@@ -331,6 +331,52 @@ export function colorForTermType(type, palette = DEFAULT_TERM_FACE_COLORS) {
   return { r: Number(c[0]) || 0, g: Number(c[1]) || 0, b: Number(c[2]) || 0, a: c[3] ?? 1 };
 }
 
+/**
+ * Short labels for a stitch-pick readout. Only Type 0 has a documented
+ * stitch name (PLAIN / 平针). 1–9 use the documented palette colour
+ * names. Do not invent 左向 or other desktop Type names here.
+ */
+export const TERM_TYPE_LABELS = {
+  0: { zh: "平针", en: "PLAIN" },
+  1: { zh: "白", en: "white" },
+  2: { zh: "黑", en: "black" },
+  3: { zh: "红", en: "red" },
+  4: { zh: "绿", en: "green" },
+  5: { zh: "黄", en: "yellow" },
+  6: { zh: "蓝", en: "blue" },
+  7: { zh: "粉", en: "pink" },
+  8: { zh: "粉", en: "pink" },
+  9: { zh: "粉", en: "pink" },
+};
+
+export function termTypeShortLabel(type) {
+  if (type == null || type === "") return "";
+  const n = Number(type);
+  const lab = TERM_TYPE_LABELS[n];
+  if (!lab) return "";
+  return n === 0 ? `${lab.zh} ${lab.en}` : lab.zh;
+}
+
+export function formatStitchPickParts(stitch) {
+  if (!stitch) return null;
+  const col = stitch.col != null && stitch.col !== "" ? stitch.col : "—";
+  const ring = stitch.ring != null && Number.isFinite(stitch.ring) ? stitch.ring : "—";
+  const term = stitch.termInRing != null && Number.isFinite(stitch.termInRing) ? stitch.termInRing : "—";
+  const face = stitch.index != null && Number.isFinite(stitch.index) ? stitch.index : "—";
+  const type = stitch.termType != null && stitch.termType !== "" ? stitch.termType : "—";
+  const short = termTypeShortLabel(stitch.termType);
+  return {
+    title: `列 col ${col}`,
+    detail: `ring ${ring} · term ${term} · face ${face} · Type ${type}${short ? ` ${short}` : ""}`,
+  };
+}
+
+export function formatStitchPick(stitch) {
+  const parts = formatStitchPickParts(stitch);
+  if (!parts) return "";
+  return `${parts.title} · ${parts.detail}`;
+}
+
 function applySidecarType(stitch, type, colors, where) {
   if (type == null || type === "") {
     throw new Error(`missing Term.Type at ${where}`);

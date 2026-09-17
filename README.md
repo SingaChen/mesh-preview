@@ -69,7 +69,7 @@ npm run preview
 - **针迹 Stitch**：显隐 KnittingStitches。
 - **收起 Hide**：收起顶栏和底部控件；左右分栏仍在，3D 与生长图都保留。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
 - **生长图 Map**：宽屏左侧 3D、右侧 `iteration_0_cut_readable_map.txt`（step3 / 最终 cut）。格子是导出的 `rowNNN × col`，符号与 txt 一致（`·` / `[R` / `-R2` / …）；有绑定针迹时用 Term.Type 色。滚轮 / 捏合 / 按钮缩放，拖动平移，加载时适应。窄屏用 **3D / 图 Map** 切换，不硬挤并排。
-- 点按一根针迹：第二滑块收到该 ring `[i, i+1)`，第三滑块收到该 term `[t, t+1)`；再点同一针恢复全部环 / 全部 term
+- 点按一根针迹：保留命中，HUD 芯片显示 **列 col**（readable_map 针位）、**ring / term / face**、**Term.Type**（Type0=平针 PLAIN；其余用调色板短名）。不隔离、不改滑块。空白处再点清空。选中面有一圈浅色描边，其它面仍在。
 
 ## 三个滑块怎么对应 SingaLab
 
@@ -141,7 +141,7 @@ npm run preview
 
 ## 范围 / Scope
 
-包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模模式（线框/面/点）、列 Warp、针迹、控件收起、画布宽高比同步、左右分栏生长图（pan/zoom）、可选清单、触摸轨道、适应视野、离线应用壳。
+包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模模式（线框/面/点）、列 Warp、针迹、点按针迹读数列/面/Type（不隔离）、控件收起、画布宽高比同步、左右分栏生长图（pan/zoom）、可选清单、触摸轨道、适应视野、离线应用壳。
 
 不做：原生 Android、账号、云同步、完整 `readable_map` 编辑器。
 

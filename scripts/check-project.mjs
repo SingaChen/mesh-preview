@@ -23,6 +23,9 @@ import {
   bindStitchesToMap,
   collectManifestRefs,
   colorForTermType,
+  formatStitchPick,
+  formatStitchPickParts,
+  termTypeShortLabel,
   faceChunksFromFaces,
   facesRingChunksFromStitches,
   parseColoredObj,
@@ -326,6 +329,32 @@ assert(stitchesVisibleForSliders(bound.stitches, 0, 1, 5, 8).length === 3, "sing
 assert(stitchesVisibleForSliders(bound.stitches, 2, 2, 0, 10).length === 0, "empty second range hides everything");
 assert(stitchesInRingRange(bound.stitches, 0, 5).length === 475, "ring range helper covers every face");
 
+assert(termTypeShortLabel(0) === "平针 PLAIN", "Type 0 is the documented PLAIN / 平针 name");
+assert(termTypeShortLabel(1) === "白" && termTypeShortLabel(6) === "蓝", "other Types use palette colour names only");
+assert(termTypeShortLabel(null) === "" && termTypeShortLabel(99) === "", "unknown Type is not invented");
+assert(!termTypeShortLabel(0).includes("左向"), "do not invent undocumented Type names");
+
+const pick0 = bound.stitches.find((s) => s.termType === 0 && s.col != null);
+const pick6 = bound.stitches.find((s) => s.termType === 6);
+assert(pick0 && pick6, "sample has a gray PLAIN face and a blue Type 6 face");
+assert(formatStitchPick(null) === "", "empty pick is an empty readout");
+assert(formatStitchPick(pick0).includes(`列 col ${pick0.col}`), "readout keeps the map needle column");
+assert(formatStitchPick(pick0).includes(`ring ${pick0.ring}`), "readout keeps face-ring index");
+assert(formatStitchPick(pick0).includes(`term ${pick0.termInRing}`), "readout keeps termInRing");
+assert(formatStitchPick(pick0).includes(`face ${pick0.index}`), "readout keeps global face index");
+assert(formatStitchPick(pick0).includes("Type 0") && formatStitchPick(pick0).includes("平针"), "Type 0 readout says 平针");
+assert(formatStitchPick(pick6).includes("Type 6") && formatStitchPick(pick6).includes("蓝"), "Type 6 readout uses 蓝");
+{
+  const parts = formatStitchPickParts(pick0);
+  const expected = {
+    title: `列 col ${pick0.col}`,
+    detail: `ring ${pick0.ring} · term ${pick0.termInRing} · face ${pick0.index} · Type 0 平针 PLAIN`,
+  };
+  if (JSON.stringify(parts) !== JSON.stringify(expected)) {
+    throw new Error(`chip splits column vs ring/term/type: ${JSON.stringify(parts)}`);
+  }
+}
+
 const workbook = parseXlsWorkbook(xlsBuf);
 const xlsColIds = uniqueColIdsFromXls(workbook);
 const xlsRows = xlsScaleMatrixRowCount(workbook);
@@ -454,6 +483,7 @@ const keep = applyDisplayModelsRange(models, 1, 3, "stitches");
 assert(keep.bind?.name === "KnittingStitches" && keep.resetRange === false, "dragging left handle does not rebind");
 
 const html = readFileSync(join(root, "index.html"), "utf8");
+assert(html.includes('id="stitch-pick"') && html.includes('id="stitch-pick-title"') && html.includes('id="stitch-pick-text"'), "HUD has a stitch-pick chip");
 assert(html.includes('id="base-menu-btn"') && html.includes('id="base-menu-list"'), "Base is a same-size menu button, not a native select");
 assert(!html.includes("<select") && !html.includes("base-mode"), "exclusive Base <select> is gone");
 assert(html.includes('id="base-off"') && html.includes('id="base-wire"') && html.includes('id="base-faces"') && html.includes('id="base-points"'), "Base has Off / Wire / Faces / Points checkboxes");
@@ -466,6 +496,10 @@ assert(html.includes('id="toggle-overlay"') && html.includes("针迹") && html.i
 assert(!html.includes("toggle-wire") && !html.includes("toggle-body"), "standalone Wire / Base toggles are gone");
 assert(!html.includes("toggle-shade") && !html.includes("平面"), "Flat toggle is gone");
 const mainSrc = readFileSync(join(root, "src", "main.js"), "utf8");
+assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("formatStitchPickParts") && mainSrc.includes("setSelectedStitch"), "click paints a stitch readout instead of isolating");
+assert(mainSrc.includes("viewer.pickStitch"), "click still raycasts stitch faces");
+assert(!/facesRange\.configure\(\s*nRings\s*,\s*\[\s*ring/.test(mainSrc), "click does not collapse faces_ring to the hit ring");
+assert(!/termsRange\.configure\(\s*nTerms\s*,\s*\[\s*term/.test(mainSrc), "click does not collapse term to the hit face");
 assert(mainSrc.includes("setBaseLayers") && mainSrc.includes("applyBaseChoice"), "main wires Base multi-select");
 assert(mainSrc.includes("setShowWarp") && mainSrc.includes("#toggle-warp"), "main wires the Warp toggle");
 assert(!mainSrc.includes("setWireframe") && !mainSrc.includes("toggle-wire"), "main no longer has a standalone Wire toggle");
@@ -477,6 +511,7 @@ assert(viewerSrc.includes("opacity: 0.42"), "Faces mode stays the semi-transpare
 assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("_pointsMaterial"), "Wire and Points are composable overlays");
 assert(/size:\s*2\.8/.test(viewerSrc) && viewerSrc.includes("_pointsMaterial"), "Base points are substantially larger than the old 0.12/0.55 cloud");
 assert(viewerSrc.includes("CanvasTexture") && viewerSrc.includes("alphaMap") && viewerSrc.includes("arc("), "Base points use a circular sprite, not square GL_POINTS");
+assert(viewerSrc.includes("setSelectedStitch") && viewerSrc.includes("_rebuildSelectedOverlay"), "viewer can outline a picked face without rebuilding visibility");
 assert(!viewerSrc.includes("setWireframe"), "wireframe is only a Base layer");
 assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
 assert.deepEqual(defaultBaseLayers(), { off: false, wire: false, faces: true, points: false }, "default is Faces only");
@@ -520,6 +555,7 @@ assert(!/\.actions\s*\{/.test(css), "old .actions button row is gone");
 assert(css.includes("chrome-collapsed"), "collapsed chrome hides topbar + dock");
 assert(css.includes(".stage canvas") && css.includes("width: 100%") && css.includes("height: 100%"), "canvas CSS fills the stage");
 assert(css.includes(".split") && css.includes(".map-pane") && css.includes("narrow-split"), "layout is a left-right split with a narrow fallback");
+assert(css.includes(".stitch-pick") && css.includes(".hud-chips"), "stitch readout is a HUD chip under the mesh label");
 
 assert(aspectFromSize(800, 400) === 2, "wide stage is aspect 2, not the constructor default 1");
 assert(aspectFromSize(390, 844) === 390 / 844, "phone portrait uses true canvas aspect");

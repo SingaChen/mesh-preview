@@ -65,9 +65,11 @@ export class MeshViewer {
     this.overlay = null;
     this.stitchMesh = null;
     this.stitchEdges = null;
+    this.selectedOverlay = null;
     this.trailLines = null;
     this.colsGroup = null;
     this._stitchState = null;
+    this._selectedStitch = null;
     this._colsState = null;
     this._modelVisibility = new Map();
     this._raycaster = new THREE.Raycaster();
@@ -199,6 +201,7 @@ export class MeshViewer {
       const on = visible && this.showOverlay;
       if (this.stitchMesh) this.stitchMesh.visible = on;
       if (this.stitchEdges) this.stitchEdges.visible = on;
+      if (this.selectedOverlay) this.selectedOverlay.visible = on;
       if (this.trailLines) this.trailLines.visible = on;
     }
   }
@@ -226,6 +229,7 @@ export class MeshViewer {
     if (vis === false) {
       if (this.stitchMesh) this.stitchMesh.visible = false;
       if (this.stitchEdges) this.stitchEdges.visible = false;
+      if (this.selectedOverlay) this.selectedOverlay.visible = false;
       if (this.trailLines) this.trailLines.visible = false;
     }
   }
@@ -261,6 +265,11 @@ export class MeshViewer {
     return this.pickStitch(clientX, clientY)?.col ?? null;
   }
 
+  setSelectedStitch(stitch) {
+    this._selectedStitch = stitch || null;
+    this._rebuildSelectedOverlay();
+  }
+
   _rebuildStitches() {
     if (this.stitchMesh) {
       this.root.remove(this.stitchMesh);
@@ -280,6 +289,7 @@ export class MeshViewer {
       this.trailLines.material.dispose();
       this.trailLines = null;
     }
+    this._clearSelectedOverlay();
 
     const state = this._stitchState;
     if (!state) return;
@@ -365,6 +375,76 @@ export class MeshViewer {
       this.stitchEdges.renderOrder = 1;
       this.root.add(this.stitchEdges);
     }
+    this._rebuildSelectedOverlay();
+  }
+
+  _clearSelectedOverlay() {
+    if (!this.selectedOverlay) return;
+    this.root.remove(this.selectedOverlay);
+    this.selectedOverlay.traverse((child) => {
+      child.geometry?.dispose();
+      child.material?.dispose();
+    });
+    this.selectedOverlay = null;
+  }
+
+  _rebuildSelectedOverlay() {
+    this._clearSelectedOverlay();
+    const s = this._selectedStitch;
+    if (!s?.verts?.length) return;
+    const stitchOn = this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
+    const group = new THREE.Group();
+    group.userData.modelName = "KnittingStitchesPick";
+    group.visible = stitchOn;
+
+    const vs = s.verts;
+    const edgePos = [];
+    for (let i = 0; i < vs.length; i++) {
+      const a = vs[i];
+      const b = vs[(i + 1) % vs.length];
+      edgePos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
+    const edgeGeom = new THREE.BufferGeometry();
+    edgeGeom.setAttribute("position", new THREE.Float32BufferAttribute(edgePos, 3));
+    const outline = new THREE.LineSegments(
+      edgeGeom,
+      new THREE.LineBasicMaterial({
+        color: OVERLAY,
+        transparent: true,
+        opacity: 0.95,
+        depthTest: false,
+      }),
+    );
+    outline.renderOrder = 3;
+    group.add(outline);
+
+    const positions = [];
+    for (const v of triangulate(vs)) {
+      positions.push(v.x, v.y, v.z);
+    }
+    if (positions.length) {
+      const fillGeom = new THREE.BufferGeometry();
+      fillGeom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      fillGeom.computeVertexNormals();
+      const fill = new THREE.Mesh(
+        fillGeom,
+        new THREE.MeshBasicMaterial({
+          color: OVERLAY,
+          transparent: true,
+          opacity: 0.16,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
+        }),
+      );
+      fill.renderOrder = 2;
+      group.add(fill);
+    }
+
+    this.selectedOverlay = group;
+    this.root.add(group);
   }
 
   _rebuildCols() {
@@ -498,6 +578,7 @@ export class MeshViewer {
       this.trailLines.visible = stitchOn;
       this.trailLines.material.opacity = stitchOn ? 0.95 : 0;
     }
+    if (this.selectedOverlay) this.selectedOverlay.visible = stitchOn;
   }
 
   fitToView() {
@@ -601,6 +682,8 @@ export class MeshViewer {
   }
 
   clearMeshes() {
+    this._clearSelectedOverlay();
+    this._selectedStitch = null;
     for (const child of [...this.root.children]) {
       this.root.remove(child);
       if (child.geometry && child.geometry !== this.bodyGeom) child.geometry.dispose();
@@ -611,9 +694,11 @@ export class MeshViewer {
     this.overlay = null;
     this.stitchMesh = null;
     this.stitchEdges = null;
+    this.selectedOverlay = null;
     this.trailLines = null;
     this.colsGroup = null;
     this._stitchState = null;
+    this._selectedStitch = null;
     this._colsState = null;
     this._modelVisibility = new Map();
   }
