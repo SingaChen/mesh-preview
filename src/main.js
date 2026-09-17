@@ -37,7 +37,7 @@ import {
   stitchesVisibleForSliders,
 } from "./range.js";
 import { applyBaseChoice, defaultBaseLayers, isBaseHidden } from "./display.js";
-import { buildReadableMapGrid, highlightKeysFromStitches } from "./readable-map.js";
+import { buildReadableMapGrid, highlightKeysForStitch, highlightKeysFromStitches } from "./readable-map.js";
 import { ReadableMapView } from "./map-view.js";
 
 const canvas = document.querySelector("#viewport");
@@ -106,6 +106,7 @@ const termsRange = bindDualRange(document.querySelector("#terms-range"));
 let project = null;
 let outputIndex = 0;
 let scene = null;
+let pickedStitch = null;
 const geomCache = new Map();
 const textCache = new Map();
 
@@ -115,18 +116,29 @@ function setStatus(message, isError = false) {
 }
 
 function paintStitchPick(stitch) {
+  pickedStitch = stitch || null;
   const parts = formatStitchPickParts(stitch);
   viewer.setSelectedStitch(parts ? stitch : null);
-  if (!stitchPickEl) return;
-  if (!parts) {
-    stitchPickEl.hidden = true;
-    if (stitchPickTitle) stitchPickTitle.textContent = "针迹 Stitch";
-    if (stitchPickText) stitchPickText.textContent = "";
-    return;
+  if (stitchPickEl) {
+    if (!parts) {
+      stitchPickEl.hidden = true;
+      if (stitchPickTitle) stitchPickTitle.textContent = "针迹 Stitch";
+      if (stitchPickText) stitchPickText.textContent = "";
+      delete stitchPickEl.dataset.mapCells;
+    } else {
+      stitchPickEl.hidden = false;
+      if (stitchPickTitle) stitchPickTitle.textContent = parts.title;
+      if (stitchPickText) stitchPickText.textContent = parts.detail;
+    }
   }
-  stitchPickEl.hidden = false;
-  if (stitchPickTitle) stitchPickTitle.textContent = parts.title;
-  if (stitchPickText) stitchPickText.textContent = parts.detail;
+  paintMapHighlight();
+  if (stitchPickEl && pickedStitch) {
+    const keys = highlightKeysForStitch(pickedStitch, {
+      map: scene?.readableMap,
+      grid: mapView?.grid,
+    });
+    stitchPickEl.dataset.mapCells = [...keys].join(" ");
+  }
 }
 
 function pressed(btn, on) {
@@ -682,12 +694,36 @@ function paintReadableMap() {
   syncPaneLayout();
   requestAnimationFrame(() => {
     mapView?.resize();
-    mapView?.fit();
+    if (pickedStitch) {
+      const keys = highlightKeysForStitch(pickedStitch, {
+        map: scene?.readableMap,
+        grid: mapView.grid,
+      });
+      mapView.ensureVisible(keys);
+    } else {
+      mapView?.fit();
+    }
   });
 }
 
 function paintMapHighlight() {
-  if (!mapView || !scene?.stitches?.bound?.stitches?.length) return;
+  if (!mapView) return;
+  if (pickedStitch) {
+    const keys = highlightKeysForStitch(pickedStitch, {
+      map: scene?.readableMap,
+      grid: mapView.grid,
+    });
+    mapView.setHighlight(new Set());
+    mapView.setPickHighlight(keys);
+    mapView.ensureVisible(keys);
+    return;
+  }
+  mapView.setPickHighlight(new Set());
+  mapView.ensureVisible(new Set());
+  if (!scene?.stitches?.bound?.stitches?.length) {
+    mapView.setHighlight(new Set());
+    return;
+  }
   const [r0, r1] = facesRange.value;
   const [t0, t1] = termsRange.value;
   const visible = stitchesVisibleForSliders(scene.stitches.bound.stitches, r0, r1, t0, t1);
@@ -720,7 +756,15 @@ function setMobilePane(pane) {
   if (mobilePane === "map") {
     requestAnimationFrame(() => {
       mapView?.resize();
-      mapView?.fit();
+      if (pickedStitch) {
+        const keys = highlightKeysForStitch(pickedStitch, {
+          map: scene?.readableMap,
+          grid: mapView.grid,
+        });
+        mapView.ensureVisible(keys);
+      } else {
+        mapView?.fit();
+      }
     });
   }
 }
