@@ -274,7 +274,6 @@ export const DEFAULT_TERM_FACE_COLORS = {
   7: [1, 0.35, 0.8, 1],
   8: [1, 0.35, 0.8, 1],
   9: [1, 0.35, 0.8, 1],
-  default: [1, 0.35, 0.8, 1],
 };
 
 export function colorForTermType(type, palette = DEFAULT_TERM_FACE_COLORS) {

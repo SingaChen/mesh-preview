@@ -14,7 +14,7 @@
   --shadow: 0 -8px 28px rgba(0, 0, 0, 0.35);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
-  --touch: 48px;
+  --touch: 44px;
   font-family: "SF Pro Text", "PingFang SC", "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
 }
 
@@ -52,8 +52,8 @@ input {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 6px 8px;
   background: rgba(14, 18, 24, 0.92);
   border-bottom: 1px solid var(--line);
   z-index: 2;
@@ -66,14 +66,14 @@ input {
 
 .brand h1 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 650;
   letter-spacing: 0.01em;
 }
 
 .brand p {
-  margin: 2px 0 0;
-  font-size: 12px;
+  margin: 1px 0 0;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -83,7 +83,7 @@ input {
 .actions {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
+  gap: 4px;
   flex: 1 1 100%;
 }
 
@@ -95,9 +95,9 @@ input {
 .btn {
   min-height: var(--touch);
   min-width: var(--touch);
-  padding: 0 10px;
+  padding: 0 8px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--btn);
   color: var(--text);
   cursor: pointer;
@@ -147,14 +147,20 @@ input {
 
 .hud {
   position: absolute;
-  left: 10px;
-  right: 10px;
-  top: 10px;
+  left: 8px;
+  right: 8px;
+  top: 8px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   pointer-events: none;
+}
+
+.hud-actions {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
 }
 
 .chip,
@@ -163,8 +169,8 @@ input {
 }
 
 .chip {
-  max-width: calc(100% - 76px);
-  padding: 8px 10px;
+  max-width: calc(100% - 168px);
+  padding: 6px 8px;
   border-radius: 10px;
   background: rgba(14, 18, 24, 0.72);
   border: 1px solid var(--line);
@@ -196,11 +202,11 @@ input {
   background: var(--panel);
   border-top: 1px solid var(--line);
   box-shadow: var(--shadow);
-  padding: 12px 14px calc(12px + var(--safe-b));
+  padding: 6px 8px calc(6px + var(--safe-b));
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: min(52vh, 460px);
+  gap: 6px;
+  max-height: min(46vh, 380px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -208,7 +214,16 @@ input {
 .dyn-controls {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
+}
+
+body.chrome-collapsed .topbar,
+body.chrome-collapsed .dock {
+  display: none;
+}
+
+body.chrome-collapsed .stage {
+  flex: 1 1 auto;
 }
 
 .slider-row.hidden,
@@ -220,16 +235,16 @@ input {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 2px;
 }
 
 .slider-row label {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   font-family: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
   color: var(--accent-2);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   word-break: break-word;
 }
 
@@ -359,7 +374,7 @@ input[type="range"]:disabled {
 .toggles {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
+  gap: 4px;
 }
 
 .toggles .btn {
@@ -368,8 +383,8 @@ input[type="range"]:disabled {
 }
 
 .status {
-  min-height: 18px;
-  font-size: 12px;
+  min-height: 14px;
+  font-size: 11px;
   color: var(--muted);
 }
 
@@ -400,7 +415,7 @@ input[type="range"]:disabled {
   }
 
   .dock {
-    padding-inline: 20px;
-    max-height: min(42vh, 520px);
+    padding-inline: 12px;
+    max-height: min(38vh, 420px);
   }
 }

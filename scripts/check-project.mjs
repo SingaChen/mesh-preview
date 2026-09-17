@@ -37,6 +37,7 @@ import {
   xlsScaleMatrixRowCount,
 } from "../src/stitches.js";
 import { parseXlsWorkbook } from "../src/xls.js";
+import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sampleDir = join(root, "public", "sample");
@@ -452,5 +453,37 @@ assert(viewerSrc.includes("setShowBody"), "viewer can hide the translucent cut b
 assert(viewerSrc.includes("this.showBody = true"), "cut body starts visible");
 assert(viewerSrc.includes("opacity: 0.42"), "cut body stays the semi-transparent underlay");
 assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
+assert(viewerSrc.includes("ResizeObserver"), "viewer observes stage/canvas layout, not only window.resize");
+assert(viewerSrc.includes("displayedSize") && viewerSrc.includes("visualViewport"), "aspect tracks the CSS canvas box");
+assert(!/scale\.set\((?!Scalar)/.test(viewerSrc), "mesh scale stays uniform");
+assert(mainSrc.includes("setChromeCollapsed") && mainSrc.includes("hide-chrome"), "main can stow the control chrome");
+assert(mainSrc.includes("syncViewportAfterLayout"), "layout changes resync camera.aspect");
+
+assert(html.includes('id="hide-chrome"') && html.includes("收起"), "dock has a Hide / 收起 control");
+assert(html.includes('id="show-chrome"') && html.includes("控件"), "collapsed chrome has a UI chip to restore");
+assert(html.includes('id="toggle-body"') && !html.includes("toggle-shade"), "toggles stay Wire / Stitch / Base");
+
+const css = readFileSync(join(root, "src", "style.css"), "utf8");
+assert(/--touch:\s*44px/.test(css), "touch targets stay at least 44px");
+assert(css.includes("chrome-collapsed"), "collapsed chrome hides topbar + dock");
+assert(css.includes(".stage canvas") && css.includes("width: 100%") && css.includes("height: 100%"), "canvas CSS fills the stage");
+
+assert(aspectFromSize(800, 400) === 2, "wide stage is aspect 2, not the constructor default 1");
+assert(aspectFromSize(390, 844) === 390 / 844, "phone portrait uses true canvas aspect");
+assert(displayedSize({ clientWidth: 800, clientHeight: 400 }).width === 800, "displayedSize reads the CSS box");
+assert(displayedSize({ getBoundingClientRect: () => ({ width: 390.4, height: 511.6 }) }).height === 512, "displayedSize rounds the painted box");
+assert(
+  !drawingMatchesDisplay(800, 800, 800, 400, 1),
+  "tall drawing buffer in a short CSS box is the squash bug",
+);
+assert(drawingMatchesDisplay(800, 400, 800, 400, 1), "matched buffer and CSS box is not stretched");
+assert(
+  needsViewportSync({ cssWidth: 800, cssHeight: 400, aspect: 1, bufferWidth: 800, bufferHeight: 800, pixelRatio: 1 }),
+  "stale aspect=1 or mismatched buffer must resync",
+);
+assert(
+  !needsViewportSync({ cssWidth: 800, cssHeight: 400, aspect: 2, bufferWidth: 800, bufferHeight: 400, pixelRatio: 1 }),
+  "matching aspect and buffer is clean",
+);
 
 console.log("project checks ok");
