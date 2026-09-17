@@ -48,13 +48,13 @@ npm run preview
 
 ## 打开 SingaLab 输出 / Load a project
 
-顶部按钮：
+顶部 **打开 Open** 一个下拉（不再并排三个按钮）：
 
-| 按钮 | 作用 |
+| 菜单项 | 作用 |
 | --- | --- |
+| **示例 Sample** | 重新加载内置 `public/sample/cylinder/`。 |
 | **文件夹 Folder** | 桌面 Chrome：File System Access 选目录。Android Chrome：回退为 `webkitdirectory` 多文件选择。 |
 | **文件 Files** | 多选 `.obj` / 清单 `.json` / `readable_map.txt` / `*_cols_resample.xls`（Android 上最稳）。 |
-| **示例 Sample** | 重新加载内置 `public/sample/cylinder/`。 |
 
 没有清单时，会收集选中的 Wavefront OBJ，按文件名自然排序。文件名含 `overlay` / `field` / `stitch` / `KnittingStitches` 的 OBJ 会当作叠加层；同目录的 `*_readable_map.txt` 与 `*_cols_resample.xls` 会自动绑到针迹 / 列场。
 
@@ -63,7 +63,7 @@ npm run preview
 - 单指拖动：旋转 orbit
 - 双指捏合：缩放；双指拖：平移 pan
 - **适应 Fit**：框住当前网格
-- **cols_resample / row / term**：桌面端同款半开区间双手柄（针迹视图不再把第三槽给 `display_models`）
+- **cols_resample / row / term**：桌面端同款半开区间双手柄；手机上轨道更瘦，手柄仍可点
 - **线框 Wire** / **针迹 Stitch** / **底模 Base**（半透明 `cut_iteration_0` 底层；默认开，关掉只藏底模，不影响针迹 / 滑块）
 - **收起 Hide**：收起顶栏和底部控件，网格全屏。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
 - 点按一根针迹：第二滑块收到该 ring `[i, i+1)`，第三滑块收到该 term `[t, t+1)`；再点同一针恢复全部环 / 全部 term

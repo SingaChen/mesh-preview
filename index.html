@@ -26,10 +26,15 @@
           <h1>mesh-preview</h1>
           <p id="project-name">未打开项目 / No project</p>
         </div>
-        <div class="actions">
-          <button class="btn primary" id="open-folder" type="button">文件夹 <span class="en">Folder</span></button>
-          <button class="btn" id="open-files" type="button">文件 <span class="en">Files</span></button>
-          <button class="btn" id="load-sample" type="button">示例 <span class="en">Sample</span></button>
+        <div class="open-menu" id="open-menu">
+          <button class="btn primary" id="open-menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="open-menu-list">
+            打开 <span class="en">Open</span>
+          </button>
+          <div class="open-menu-list" id="open-menu-list" role="menu" hidden>
+            <button class="open-item" id="load-sample" type="button" role="menuitem">示例 <span class="en">Sample</span></button>
+            <button class="open-item" id="open-folder" type="button" role="menuitem">文件夹 <span class="en">Folder</span></button>
+            <button class="open-item" id="open-files" type="button" role="menuitem">文件 <span class="en">Files</span></button>
+          </div>
         </div>
       </header>
 
