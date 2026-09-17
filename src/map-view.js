@@ -6,6 +6,44 @@ const LABEL_W = 44;
 const HEAD_H = 20;
 const XFER_H = 10;
 const PAD = 12;
+/** Same slop as the 3D canvas: only treat pointerup as a click if movement is small. */
+export const MAP_CLICK_SLOP = 8;
+export const MAP_CELL = CELL;
+export const MAP_LABEL_W = LABEL_W;
+export const MAP_HEAD_H = HEAD_H;
+
+function gridCellHit(grid, row, col) {
+  const rr = row - (grid.rowMin || 0);
+  const cc = col - grid.colMin;
+  const cell = grid.grid?.[rr]?.[cc] || null;
+  const meta = grid.rows?.[rr] || grid.rows?.find((rowMeta) => rowMeta.row === row);
+  return {
+    row,
+    col,
+    cell,
+    dir: cell?.dir || meta?.dir || null,
+  };
+}
+
+/** Content-space hit → {row, col, cell, dir} or null (header / label / outside). */
+export function hitTestContent(grid, x, y, { excel = false, rowY = null } = {}) {
+  if (!grid?.nRows || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  if (x < LABEL_W || y < HEAD_H) return null;
+  const col = grid.colMin + Math.floor((x - LABEL_W) / CELL);
+  if (col < grid.colMin || col > grid.colMax) return null;
+  const isExcel = excel || grid.theme === "excel" || grid.source === "excel";
+  if (isExcel) {
+    const row = grid.rowMin + Math.floor((y - HEAD_H) / CELL);
+    if (row < grid.rowMin || row > grid.rowMax) return null;
+    return gridCellHit(grid, row, col);
+  }
+  for (let r = 0; r < grid.nRows; r++) {
+    const row = grid.rowMin + r;
+    const y0 = typeof rowY === "function" ? rowY(row) : HEAD_H + (row - grid.rowMin) * CELL;
+    if (y >= y0 && y < y0 + CELL) return gridCellHit(grid, row, col);
+  }
+  return null;
+}
 
 /** Shift pan so a content-space rect stays inside the CSS view. */
 export function panToKeepRectVisible({
@@ -62,6 +100,9 @@ export class ReadableMapView {
     this._pointers = new Map();
     this._pinch = null;
     this._panning = null;
+    this._pick = null;
+    this._pinched = false;
+    this.onCellPick = null;
     this._dirty = true;
     this._raf = 0;
 
@@ -69,14 +110,15 @@ export class ReadableMapView {
     this._onDown = (ev) => this._pointerDown(ev);
     this._onMove = (ev) => this._pointerMove(ev);
     this._onUp = (ev) => this._pointerUp(ev);
+    this._onCancel = (ev) => this._pointerUp(ev);
     this._onResize = () => this.resize();
 
     canvas.addEventListener("wheel", this._onWheel, { passive: false });
     canvas.addEventListener("pointerdown", this._onDown);
     canvas.addEventListener("pointermove", this._onMove);
     canvas.addEventListener("pointerup", this._onUp);
-    canvas.addEventListener("pointercancel", this._onUp);
-    canvas.addEventListener("lostpointercapture", this._onUp);
+    canvas.addEventListener("pointercancel", this._onCancel);
+    canvas.addEventListener("lostpointercapture", this._onCancel);
     window.addEventListener("resize", this._onResize);
     this._ro = typeof ResizeObserver === "function" ? new ResizeObserver(() => this.resize()) : null;
     this._ro?.observe(canvas);
@@ -488,6 +530,18 @@ export class ReadableMapView {
     this.zoomBy(factor, ev.clientX - rect.left, ev.clientY - rect.top);
   }
 
+  hitTest(clientX, clientY) {
+    const g = this.grid;
+    if (!g?.nRows) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const x = (clientX - rect.left - this.tx) / this.scale;
+    const y = (clientY - rect.top - this.ty) / this.scale;
+    return hitTestContent(g, x, y, {
+      excel: this.isExcel(),
+      rowY: (row) => this._rowY(row),
+    });
+  }
+
   _pointerDown(ev) {
     this.canvas.setPointerCapture(ev.pointerId);
     this._pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
@@ -502,14 +556,23 @@ export class ReadableMapView {
         ty: this.ty,
       };
       this._panning = null;
+      this._pick = null;
+      this._pinched = true;
     } else if (this._pointers.size === 1) {
       this._panning = { x: ev.clientX, y: ev.clientY, tx: this.tx, ty: this.ty };
+      this._pick = { pointerId: ev.pointerId, x: ev.clientX, y: ev.clientY, moved: false };
+      this._pinched = false;
     }
   }
 
   _pointerMove(ev) {
     if (!this._pointers.has(ev.pointerId)) return;
     this._pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (this._pick && this._pick.pointerId === ev.pointerId) {
+      if (Math.hypot(ev.clientX - this._pick.x, ev.clientY - this._pick.y) > MAP_CLICK_SLOP) {
+        this._pick.moved = true;
+      }
+    }
     if (this._pointers.size >= 2 && this._pinch) {
       const pts = [...this._pointers.values()];
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
@@ -532,6 +595,13 @@ export class ReadableMapView {
   }
 
   _pointerUp(ev) {
+    const candidate = this._pick;
+    const isClick =
+      ev.type === "pointerup" &&
+      candidate &&
+      candidate.pointerId === ev.pointerId &&
+      !candidate.moved &&
+      !this._pinched;
     this._pointers.delete(ev.pointerId);
     if (this._pointers.size < 2) this._pinch = null;
     if (this._pointers.size === 1) {
@@ -540,10 +610,15 @@ export class ReadableMapView {
     } else {
       this._panning = null;
     }
+    if (candidate?.pointerId === ev.pointerId) this._pick = null;
+    if (this._pointers.size === 0) this._pinched = false;
     try {
       this.canvas.releasePointerCapture(ev.pointerId);
     } catch {
       /* already released */
+    }
+    if (isClick && typeof this.onCellPick === "function") {
+      this.onCellPick(this.hitTest(ev.clientX, ev.clientY));
     }
   }
 
@@ -553,8 +628,8 @@ export class ReadableMapView {
     this.canvas.removeEventListener("pointerdown", this._onDown);
     this.canvas.removeEventListener("pointermove", this._onMove);
     this.canvas.removeEventListener("pointerup", this._onUp);
-    this.canvas.removeEventListener("pointercancel", this._onUp);
-    this.canvas.removeEventListener("lostpointercapture", this._onUp);
+    this.canvas.removeEventListener("pointercancel", this._onCancel);
+    this.canvas.removeEventListener("lostpointercapture", this._onCancel);
     window.removeEventListener("resize", this._onResize);
     this._ro?.disconnect();
   }
