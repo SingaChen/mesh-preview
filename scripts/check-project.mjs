@@ -459,7 +459,7 @@ assert(viewerSrc.includes("setBaseLayers") && viewerSrc.includes("setShowWarp"),
 assert(viewerSrc.includes("defaultBaseLayers"), "cut body starts from default Faces");
 assert(viewerSrc.includes("opacity: 0.42"), "Faces mode stays the semi-transparent underlay");
 assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("_pointsMaterial"), "Wire and Points are composable overlays");
-assert(/size:\s*18/.test(viewerSrc) && /sizeAttenuation:\s*false/.test(viewerSrc), "Base points are a large screen-space size");
+assert(/size:\s*2\.8/.test(viewerSrc) && viewerSrc.includes("_pointsMaterial"), "Base points are substantially larger than the old 0.12/0.55 cloud");
 assert(!viewerSrc.includes("setWireframe"), "wireframe is only a Base layer");
 assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
 assert.deepEqual(defaultBaseLayers(), { off: false, wire: false, faces: true, points: false }, "default is Faces only");
