@@ -1,8 +1,12 @@
 /** Cut-body layers for the 底模 / Base multi-select. */
 export const BASE_LAYER_KEYS = ["off", "wire", "faces", "points"];
 
-export function defaultBaseLayers() {
+export function facesBaseLayers() {
   return { off: false, wire: false, faces: true, points: false };
+}
+
+export function defaultBaseLayers() {
+  return hiddenBaseLayers();
 }
 
 export function hiddenBaseLayers() {
@@ -19,6 +23,7 @@ export function normalizeBaseLayers(input) {
     const v = input.trim().toLowerCase();
     if (v === "off") return hiddenBaseLayers();
     if (v === "wire") return { off: false, wire: true, faces: false, points: false };
+    if (v === "faces") return facesBaseLayers();
     if (v === "points") return { off: false, wire: false, faces: false, points: true };
     return defaultBaseLayers();
   }
@@ -34,7 +39,7 @@ export function normalizeBaseLayers(input) {
 export function applyBaseChoice(state, layer, checked) {
   const key = String(layer ?? "").toLowerCase();
   if (key === "off") {
-    return checked ? hiddenBaseLayers() : defaultBaseLayers();
+    return checked ? hiddenBaseLayers() : facesBaseLayers();
   }
   if (key !== "wire" && key !== "faces" && key !== "points") {
     return normalizeBaseLayers(state);

@@ -539,7 +539,9 @@ assert(html.includes('id="base-menu-btn"') && html.includes('id="base-menu-list"
 assert(!html.includes("<select") && !html.includes("base-mode"), "exclusive Base <select> is gone");
 assert(html.includes('id="base-off"') && html.includes('id="base-wire"') && html.includes('id="base-faces"') && html.includes('id="base-points"'), "Base has Off / Wire / Faces / Points checkboxes");
 assert(html.includes("base-menu-sep") && html.includes("隐藏") && html.includes("Off"), "Off stays in the Base menu, separated from draw layers");
-assert(/id="base-faces"[^>]*checked/.test(html), "Base defaults to Faces checked");
+assert(/id="base-off"[^>]*checked/.test(html), "Base defaults to Off checked");
+assert(!/id="base-faces"[^>]*checked/.test(html) && !/id="base-wire"[^>]*checked/.test(html) && !/id="base-points"[^>]*checked/.test(html), "Wire / Faces / Points start unchecked");
+assert(/id="base-menu-btn"[^>]*aria-pressed="false"/.test(html), "Base button starts unpressed when Off");
 assert(html.includes("底模") && html.includes("Base"), "Base control is labelled 底模 / Base");
 assert(html.includes('id="toggle-warp"') && html.includes("列") && html.includes("Warp"), "Warp toggle shows cols_resample");
 assert(/id="toggle-warp"[^>]*aria-pressed="true"/.test(html), "Warp defaults on");
@@ -557,7 +559,7 @@ assert(!mainSrc.includes("setWireframe") && !mainSrc.includes("toggle-wire"), "m
 assert(!mainSrc.includes("setFlat") && !mainSrc.includes("toggle-shade"), "main no longer wires Flat");
 const viewerSrc = readFileSync(join(root, "src", "viewer.js"), "utf8");
 assert(viewerSrc.includes("setBaseLayers") && viewerSrc.includes("setShowWarp"), "viewer has Base layers and Warp visibility");
-assert(viewerSrc.includes("defaultBaseLayers"), "cut body starts from default Faces");
+assert(viewerSrc.includes("defaultBaseLayers"), "cut body starts from default Base layers");
 assert(viewerSrc.includes("opacity: 0.42"), "Faces mode stays the semi-transparent underlay");
 assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("_pointsMaterial"), "Wire and Points are composable overlays");
 assert(/size:\s*2\.8/.test(viewerSrc) && viewerSrc.includes("_pointsMaterial"), "Base points are substantially larger than the old 0.12/0.55 cloud");
@@ -565,9 +567,10 @@ assert(viewerSrc.includes("CanvasTexture") && viewerSrc.includes("alphaMap") && 
 assert(viewerSrc.includes("setSelectedStitch") && viewerSrc.includes("_rebuildSelectedOverlay"), "viewer can outline a picked face without rebuilding visibility");
 assert(!viewerSrc.includes("setWireframe"), "wireframe is only a Base layer");
 assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
-assert.deepEqual(defaultBaseLayers(), { off: false, wire: false, faces: true, points: false }, "default is Faces only");
-assert(isBaseHidden(hiddenBaseLayers()) && !isBaseHidden(defaultBaseLayers()), "Off hides the cut body");
-assert.deepEqual(applyBaseChoice(defaultBaseLayers(), "off", true), hiddenBaseLayers(), "Off clears Wire/Faces/Points");
+assert.deepEqual(defaultBaseLayers(), hiddenBaseLayers(), "default is Off / hidden");
+assert(isBaseHidden(defaultBaseLayers()) && isBaseHidden(hiddenBaseLayers()), "Off hides the cut body");
+assert.deepEqual(applyBaseChoice(defaultBaseLayers(), "off", true), hiddenBaseLayers(), "Off stays exclusive");
+assert.deepEqual(applyBaseChoice(hiddenBaseLayers(), "off", false), { off: false, wire: false, faces: true, points: false }, "unchecking Off restores Faces");
 assert.deepEqual(applyBaseChoice(hiddenBaseLayers(), "points", true), { off: false, wire: false, faces: false, points: true }, "checking a layer clears Off");
 assert.deepEqual(
   applyBaseChoice({ off: false, wire: false, faces: true, points: false }, "wire", true),
