@@ -718,7 +718,7 @@ mapZoomOut?.addEventListener("click", () => {
 });
 mapFitBtn?.addEventListener("click", () => {
   mapView?.resize();
-  mapView?.fit();
+  mapView?.fit({ overview: true });
 });
 pane3dBtn?.addEventListener("click", () => setMobilePane("3d"));
 paneMapBtn?.addEventListener("click", () => setMobilePane("map"));

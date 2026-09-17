@@ -70,7 +70,7 @@ export class ReadableMapView {
     };
   }
 
-  fit() {
+  fit({ overview = false } = {}) {
     const { w, h } = this.contentSize();
     const cssW = Math.max(1, this._cssW);
     const cssH = Math.max(1, this._cssH);
@@ -81,9 +81,17 @@ export class ReadableMapView {
       this._dirty = true;
       return;
     }
-    this.scale = Math.max(0.2, Math.min((cssW - PAD * 2) / w, (cssH - PAD * 2) / h, 2.4));
-    this.tx = (cssW - w * this.scale) / 2;
-    this.ty = (cssH - h * this.scale) / 2;
+    const widthScale = (cssW - PAD * 2) / w;
+    const heightScale = (cssH - PAD * 2) / h;
+    if (overview) {
+      this.scale = Math.max(0.2, Math.min(widthScale, heightScale, 2.4));
+      this.tx = (cssW - w * this.scale) / 2;
+      this.ty = (cssH - h * this.scale) / 2;
+    } else {
+      this.scale = Math.max(0.85, Math.min(widthScale, 2.4));
+      this.tx = Math.max(PAD, (cssW - w * this.scale) / 2);
+      this.ty = PAD;
+    }
     this._dirty = true;
   }
 
