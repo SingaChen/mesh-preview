@@ -69,7 +69,7 @@ npm run preview
 - **针迹 Stitch**：显隐 KnittingStitches。
 - **收起 Hide**：收起顶栏和底部控件；左右分栏仍在，3D 与生长图都保留。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
 - **生长图 Map**：宽屏左侧 3D、右侧 `iteration_0_cut_readable_map.txt`（step3 / 最终 cut）。格子是导出的 `rowNNN × col`，符号与 txt 一致（`·` / `[R` / `-R2` / …）；有绑定针迹时用 Term.Type 色。滚轮 / 捏合 / 按钮缩放，拖动平移，加载时适应。窄屏用 **3D / 图 Map** 切换，不硬挤并排。
-- 点按一根针迹：保留命中，HUD 芯片显示 **列 col**（readable_map 针位）、**ring / term / face**、**Term.Type**（Type0=平针 PLAIN；其余用调色板短名）。不隔离、不改滑块。空白处再点清空。选中面有一圈浅色描边，其它面仍在。
+- 点按一根针迹：保留命中，HUD 芯片显示 **列 col**（readable_map 针位）、**ring / term / face**、**Term.Type**（Type0=平针 PLAIN；其余用调色板短名）。右侧生长图用同一套 generation-order 绑定点亮对应格子（一针多格则全亮），必要时轻轻平移到可见。不隔离、不改滑块。空白处再点清空芯片和地图高亮。选中面有一圈浅色描边，其它面仍在。窄屏在 3D 页点选也会记下高亮，切到 **图 Map** 能看到。
 
 ## 三个滑块怎么对应 SingaLab
 

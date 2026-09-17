@@ -6,12 +6,53 @@ const HEAD_H = 20;
 const XFER_H = 10;
 const PAD = 12;
 
+/** Shift pan so a content-space rect stays inside the CSS view. */
+export function panToKeepRectVisible({
+  tx,
+  ty,
+  scale,
+  viewW,
+  viewH,
+  minX,
+  minY,
+  maxX,
+  maxY,
+  pad = PAD,
+}) {
+  const s = Math.max(Number(scale) || 1, 0.01);
+  const w = Math.max(1, Number(viewW) || 1);
+  const h = Math.max(1, Number(viewH) || 1);
+  const boxW = maxX - minX;
+  const boxH = maxY - minY;
+  const innerW = Math.max(1, w - pad * 2);
+  const innerH = Math.max(1, h - pad * 2);
+  let nextTx = tx;
+  let nextTy = ty;
+  if (boxW * s >= innerW) nextTx = w / 2 - ((minX + maxX) / 2) * s;
+  else {
+    const left = pad - minX * s;
+    const right = w - pad - maxX * s;
+    if (nextTx < left) nextTx = left;
+    else if (nextTx > right) nextTx = right;
+  }
+  if (boxH * s >= innerH) nextTy = h / 2 - ((minY + maxY) / 2) * s;
+  else {
+    const top = pad - minY * s;
+    const bottom = h - pad - maxY * s;
+    if (nextTy < top) nextTy = top;
+    else if (nextTy > bottom) nextTy = bottom;
+  }
+  return { tx: nextTx, ty: nextTy };
+}
+
 export class ReadableMapView {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.grid = null;
     this.highlight = new Set();
+    this.pickHighlight = new Set();
+    this._ensureKeys = null;
     this.scale = 1;
     this.tx = 0;
     this.ty = 0;
@@ -45,6 +86,8 @@ export class ReadableMapView {
   setGrid(grid) {
     this.grid = grid;
     this.highlight = new Set();
+    this.pickHighlight = new Set();
+    this._ensureKeys = null;
     this.resize();
     this.fit();
   }
@@ -54,9 +97,70 @@ export class ReadableMapView {
     this._dirty = true;
   }
 
+  setPickHighlight(keys) {
+    this.pickHighlight = keys instanceof Set ? keys : new Set(keys || []);
+    this._dirty = true;
+  }
+
+  ensureVisible(keys) {
+    const set = keys instanceof Set ? keys : new Set(keys || []);
+    this._ensureKeys = set.size ? set : null;
+    this._applyEnsureVisible();
+  }
+
+  _cellContentRect(row, col) {
+    return {
+      x: LABEL_W + (col - this.grid.colMin) * CELL,
+      y: this._rowY(row),
+      w: CELL,
+      h: CELL,
+    };
+  }
+
+  _applyEnsureVisible() {
+    const g = this.grid;
+    const keys = this._ensureKeys;
+    if (!g?.nRows || !keys?.size || this._cssW < 16 || this._cssH < 16) return;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const key of keys) {
+      const [rs, cs] = String(key).split(",");
+      const row = Number(rs);
+      const col = Number(cs);
+      if (!Number.isFinite(row) || !Number.isFinite(col)) continue;
+      const r = this._cellContentRect(row, col);
+      minX = Math.min(minX, r.x);
+      minY = Math.min(minY, r.y);
+      maxX = Math.max(maxX, r.x + r.w);
+      maxY = Math.max(maxY, r.y + r.h);
+    }
+    if (!Number.isFinite(minX)) return;
+    const next = panToKeepRectVisible({
+      tx: this.tx,
+      ty: this.ty,
+      scale: this.scale,
+      viewW: this._cssW,
+      viewH: this._cssH,
+      minX,
+      minY,
+      maxX,
+      maxY,
+      pad: PAD,
+    });
+    if (next.tx !== this.tx || next.ty !== this.ty) {
+      this.tx = next.tx;
+      this.ty = next.ty;
+      this._dirty = true;
+    }
+  }
+
   clear() {
     this.grid = null;
     this.highlight = new Set();
+    this.pickHighlight = new Set();
+    this._ensureKeys = null;
     this._dirty = true;
   }
 
@@ -117,6 +221,7 @@ export class ReadableMapView {
     this._cssW = cssW;
     this._cssH = cssH;
     this._dirty = true;
+    this._applyEnsureVisible();
   }
 
   _loop = () => {
@@ -191,7 +296,18 @@ export class ReadableMapView {
         const ink = cellFill(cell);
         ctx.fillStyle = ink.fill;
         ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
-        if (this.highlight.has(`${cell.row},${cell.col}`)) {
+        const key = `${cell.row},${cell.col}`;
+        const picked = this.pickHighlight.has(key);
+        if (picked) {
+          ctx.fillStyle = "rgba(94, 234, 212, 0.32)";
+          ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+          ctx.strokeStyle = "#5eead4";
+          ctx.lineWidth = 2.6;
+          ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+          ctx.strokeStyle = "rgba(255,255,255,0.85)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 3.2, y + 3.2, CELL - 6.4, CELL - 6.4);
+        } else if (this.highlight.has(key)) {
           ctx.strokeStyle = "#5eead4";
           ctx.lineWidth = 1.4;
           ctx.strokeRect(x + 1.2, y + 1.2, CELL - 2.4, CELL - 2.4);

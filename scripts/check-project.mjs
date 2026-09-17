@@ -41,7 +41,8 @@ import {
   uniqueColIdsFromXls,
   xlsScaleMatrixRowCount,
 } from "../src/stitches.js";
-import { buildReadableMapGrid, tokenKind } from "../src/readable-map.js";
+import { buildReadableMapGrid, highlightKeysForStitch, highlightKeysFromStitches, tokenKind } from "../src/readable-map.js";
+import { panToKeepRectVisible } from "../src/map-view.js";
 import { parseXlsWorkbook } from "../src/xls.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
@@ -156,6 +157,56 @@ if (bound.rowMin !== 0) throw new Error("bound rowMin should be 0");
 if (bound.rowMax < 50) throw new Error("bound rowMax should reach the upper courses");
 if (bound.columns.length < 20) throw new Error("expected dozens of needle columns");
 if (bound.leftoverCells < 1) throw new Error("map has extra tail tokens with no faces");
+
+const typedGrid = buildReadableMapGrid(map, bound.stitches);
+const pickFace = bound.stitches[20];
+assert(pickFace.row === 0 && pickFace.col === 20, "generation-order face 20 is row000 col 20");
+const pickKeys = highlightKeysForStitch(pickFace, { map, grid: typedGrid });
+assert(pickKeys.size === 1 && pickKeys.has("0,20"), "one stitch lights the bound row×needle cell");
+assert(
+  typedGrid.grid[0][20 - typedGrid.colMin].stitchIndex === 20,
+  "grid stitchIndex stays generation-order face index",
+);
+assert(highlightKeysForStitch(null).size === 0, "empty pick has no map cells");
+assert(
+  highlightKeysForStitch({ index: 999 }, { map, grid: typedGrid }).size === 0,
+  "unbound face index does not invent a cell",
+);
+{
+  const multi = highlightKeysForStitch(
+    { index: 7, row: 3, col: 4 },
+    {
+      grid: {
+        grid: [
+          [
+            { row: 3, col: 4, stitchIndex: 7 },
+            { row: 3, col: 5, stitchIndex: 7 },
+          ],
+        ],
+      },
+    },
+  );
+  assert(multi.has("3,4") && multi.has("3,5") && multi.size === 2, "one stitch can light every bound cell");
+}
+assert(
+  highlightKeysFromStitches(bound.stitches.slice(0, 21)).size === 21,
+  "slider highlight still uses the same row,col keys",
+);
+{
+  const pan = panToKeepRectVisible({
+    tx: 0,
+    ty: 0,
+    scale: 1,
+    viewW: 200,
+    viewH: 160,
+    minX: 400,
+    minY: 300,
+    maxX: 422,
+    maxY: 322,
+    pad: 12,
+  });
+  assert(pan.tx < 0 && pan.ty < 0, "ensureVisible pans so an off-screen cell enters the view");
+}
 
 const chunks = faceChunksFromFaces(parsed.faces);
 assert(chunks.length === 475, `faces_ring terms should be 475 faces, got ${chunks.length}`);
@@ -542,7 +593,11 @@ assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "m
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
 assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMapGrid"), "main mounts the 2D map");
+assert(mainSrc.includes("highlightKeysForStitch") && mainSrc.includes("setPickHighlight") && mainSrc.includes("ensureVisible"), "click lights bound map cells and pans them into view");
+assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("pickedStitch"), "map pick highlight follows the stitch chip");
 assert(mainSrc.includes("narrow-split") && mainSrc.includes("max-width: 719px"), "wide layout splits; phone uses a pane toggle");
+const mapViewSrc = readFileSync(join(root, "src", "map-view.js"), "utf8");
+assert(mapViewSrc.includes("pickHighlight") && mapViewSrc.includes("ensureVisible") && mapViewSrc.includes("panToKeepRectVisible"), "map view can outline a pick and ensureVisible");
 
 const css = readFileSync(join(root, "src", "style.css"), "utf8");
 assert(/\.dock\s*\{[^}]*overflow:\s*visible/.test(css), "dock does not clip the upward Base menu");

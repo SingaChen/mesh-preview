@@ -100,11 +100,41 @@ export function buildReadableMapGrid(map, stitches = []) {
   };
 }
 
+export function cellKey(row, col) {
+  return `${row},${col}`;
+}
+
 export function highlightKeysFromStitches(stitches) {
   const keys = new Set();
   for (const s of stitches || []) {
     if (s?.row == null || s?.col == null) continue;
-    keys.add(`${s.row},${s.col}`);
+    keys.add(cellKey(s.row, s.col));
+  }
+  return keys;
+}
+
+/**
+ * Readable_map cells bound to one KnittingStitches face.
+ * Uses the existing generation-order pairing (cell i ↔ face i) plus
+ * stitch.row/col from bindStitchesToMap. If several cells share that
+ * stitchIndex, all of them light up. Does not invent extra pairings.
+ */
+export function highlightKeysForStitch(stitch, { map = null, grid = null } = {}) {
+  const keys = new Set();
+  if (!stitch) return keys;
+  if (stitch.row != null && stitch.col != null) keys.add(cellKey(stitch.row, stitch.col));
+  const index = Number(stitch.index);
+  if (!Number.isFinite(index)) return keys;
+  const cell = map?.cells?.[index];
+  if (cell?.row != null && cell?.col != null) keys.add(cellKey(cell.row, cell.col));
+  const rows = grid?.grid;
+  if (!rows) return keys;
+  for (const row of rows) {
+    for (const mapped of row || []) {
+      if (!mapped || mapped.stitchIndex !== index) continue;
+      if (mapped.row == null || mapped.col == null) continue;
+      keys.add(cellKey(mapped.row, mapped.col));
+    }
   }
   return keys;
 }
