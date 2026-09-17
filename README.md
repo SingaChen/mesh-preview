@@ -64,7 +64,7 @@ npm run preview
 - 双指捏合：缩放；双指拖：平移 pan
 - **适应 Fit**：框住当前网格
 - **cols_resample / row / term**：桌面端同款半开区间双手柄；手机上轨道更瘦，手柄仍可点
-- **底模 Base**（和 Warp / Stitch 同尺寸的多选按钮）：可同时勾选 线框 Wire / 面 Faces / 点 Points。勾选 **隐藏 Off** 会清掉其余三项并藏底模；再勾选任一绘制层会取消 Off。默认只开 Faces。点模式用更大的圆形 sprite，手机上也能看清。
+- **底模 Base**（和 Warp / Stitch 同尺寸的多选按钮）：可同时勾选 线框 Wire / 面 Faces / 点 Points。默认 **隐藏 Off**（无线框/面/点）。勾选任一绘制层会取消 Off；再勾选 Off 会清掉其余三项并藏底模。点模式用更大的圆形 sprite，手机上也能看清。
 - **列 Warp**：显隐 `cols_resample` 列折线。
 - **针迹 Stitch**：显隐 KnittingStitches。
 - **收起 Hide**：收起顶栏和底部控件；左右分栏仍在，3D 与生长图都保留。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
