@@ -61,6 +61,7 @@ const statusEl = document.querySelector("#status");
 const wireBtn = document.querySelector("#toggle-wire");
 const shadeBtn = document.querySelector("#toggle-shade");
 const overlayBtn = document.querySelector("#toggle-overlay");
+const bodyBtn = document.querySelector("#toggle-body");
 
 const viewer = new MeshViewer(canvas);
 const colsRange = bindDualRange(document.querySelector("#cols-range"));
@@ -361,6 +362,7 @@ async function showOutput(index, { fit = false } = {}) {
     viewer.setWireframe(wireBtn.getAttribute("aria-pressed") === "true");
     viewer.setFlat(shadeBtn.getAttribute("aria-pressed") === "true");
     viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
+    viewer.setShowBody(bodyBtn.getAttribute("aria-pressed") === "true");
 
     const models = [];
     const cutName = modelNameFromFile(output.meshFile, "cut_iteration_0");
@@ -557,6 +559,12 @@ overlayBtn.addEventListener("click", () => {
   const on = overlayBtn.getAttribute("aria-pressed") !== "true";
   pressed(overlayBtn, on);
   viewer.setShowOverlay(on);
+});
+
+bodyBtn.addEventListener("click", () => {
+  const on = bodyBtn.getAttribute("aria-pressed") !== "true";
+  pressed(bodyBtn, on);
+  viewer.setShowBody(on);
 });
 
 let pointer = { x: 0, y: 0, moved: false };
