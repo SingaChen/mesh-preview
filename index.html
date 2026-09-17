@@ -47,9 +47,15 @@
           <section class="stage" id="stage-3d">
             <canvas id="viewport"></canvas>
             <div class="hud">
-              <div class="chip">
-                <strong id="mesh-label">—</strong>
-                <span id="mesh-stats">打开项目或加载示例</span>
+              <div class="hud-chips">
+                <div class="chip">
+                  <strong id="mesh-label">—</strong>
+                  <span id="mesh-stats">打开项目或加载示例</span>
+                </div>
+                <div class="chip stitch-pick" id="stitch-pick" hidden>
+                  <strong id="stitch-pick-title">针迹 Stitch</strong>
+                  <span id="stitch-pick-text"></span>
+                </div>
               </div>
               <div class="hud-actions">
                 <button class="fit" id="hide-chrome" type="button" aria-expanded="true" title="Hide controls">收起 <span class="en">Hide</span></button>

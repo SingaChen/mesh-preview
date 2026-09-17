@@ -19,6 +19,7 @@ import {
   collectManifestRefs,
   faceChunksFromFaces,
   facesRingChunksFromStitches,
+  formatStitchPickParts,
   parseColoredObj,
   parseColsResample,
   parseFacesRingLayout,
@@ -64,6 +65,9 @@ const labelEl = document.querySelector("#mesh-label");
 const countEl = document.querySelector("#mesh-count");
 const projectEl = document.querySelector("#project-name");
 const statsEl = document.querySelector("#mesh-stats");
+const stitchPickEl = document.querySelector("#stitch-pick");
+const stitchPickTitle = document.querySelector("#stitch-pick-title");
+const stitchPickText = document.querySelector("#stitch-pick-text");
 const statusEl = document.querySelector("#status");
 const overlayBtn = document.querySelector("#toggle-overlay");
 const warpBtn = document.querySelector("#toggle-warp");
@@ -108,6 +112,21 @@ const textCache = new Map();
 function setStatus(message, isError = false) {
   statusEl.textContent = message || "";
   statusEl.classList.toggle("error", isError);
+}
+
+function paintStitchPick(stitch) {
+  const parts = formatStitchPickParts(stitch);
+  viewer.setSelectedStitch(parts ? stitch : null);
+  if (!stitchPickEl) return;
+  if (!parts) {
+    stitchPickEl.hidden = true;
+    if (stitchPickTitle) stitchPickTitle.textContent = "针迹 Stitch";
+    if (stitchPickText) stitchPickText.textContent = "";
+    return;
+  }
+  stitchPickEl.hidden = false;
+  if (stitchPickTitle) stitchPickTitle.textContent = parts.title;
+  if (stitchPickText) stitchPickText.textContent = parts.detail;
 }
 
 function pressed(btn, on) {
@@ -396,6 +415,7 @@ async function showOutput(index, { fit = false } = {}) {
   outputIndex = Math.min(Math.max(0, index), project.outputs.length - 1);
   const output = project.outputs[outputIndex];
   scene = null;
+  paintStitchPick(null);
   setStatus("加载中 / Loading…");
   try {
     const meshGeom = await loadGeometry(output.meshFile);
@@ -786,28 +806,7 @@ canvas.addEventListener("pointermove", (ev) => {
 });
 canvas.addEventListener("pointerup", (ev) => {
   if (pointer.moved || !scene?.stitches?.rowChunks?.length) return;
-  const stitch = viewer.pickStitch(ev.clientX, ev.clientY);
-  const ring = stitch?.ring;
-  const term = stitch?.termInRing;
-  if (ring == null) return;
-  const nRings = scene.stitches.rowChunks.length;
-  const nTerms = scene.stitches.rowChunks[ring]?.faces.length ?? 0;
-  const [r0, r1] = facesRange.value;
-  const [t0, t1] = termsRange.value;
-  const sameRing = r0 === ring && r1 === ring + 1;
-  const sameTerm = sameRing && t0 === term && t1 === term + 1;
-  if (sameTerm) {
-    facesRange.configure(nRings, [0, nRings]);
-    applyFacesRange({ resetTerms: true });
-  } else {
-    facesRange.configure(nRings, [ring, ring + 1]);
-    applyFacesRange({ resetTerms: true });
-    if (term != null && nTerms) {
-      termsRange.configure(nTerms, [term, term + 1]);
-      applyTermsRange();
-    }
-  }
-  updateChrome();
+  paintStitchPick(viewer.pickStitch(ev.clientX, ev.clientY));
 });
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

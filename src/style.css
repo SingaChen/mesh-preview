@@ -326,6 +326,14 @@ body.narrow-split.show-3d .map-pane:not([hidden]) {
   pointer-events: none;
 }
 
+.hud-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  pointer-events: none;
+}
+
 .hud-actions {
   display: flex;
   gap: 6px;
@@ -353,6 +361,15 @@ body.narrow-split.show-3d .map-pane:not([hidden]) {
   color: var(--text);
   font-size: 13px;
   margin-bottom: 2px;
+}
+
+.chip.stitch-pick {
+  max-width: min(100%, 320px);
+  border-color: rgba(94, 234, 212, 0.45);
+}
+
+.chip.stitch-pick[hidden] {
+  display: none;
 }
 
 .fit {
