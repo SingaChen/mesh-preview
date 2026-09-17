@@ -164,9 +164,19 @@ export class ReadableMapView {
     this._dirty = true;
   }
 
+  isExcel() {
+    return this.grid?.theme === "excel" || this.grid?.source === "excel";
+  }
+
   contentSize() {
     const g = this.grid;
     if (!g?.nRows) return { w: 0, h: 0 };
+    if (this.isExcel()) {
+      return {
+        w: LABEL_W + g.nCols * CELL,
+        h: HEAD_H + g.nRows * CELL,
+      };
+    }
     const xferRows = new Set((g.xfers || []).map((x) => x.row)).size;
     return {
       w: LABEL_W + g.nCols * CELL,
@@ -235,6 +245,7 @@ export class ReadableMapView {
   _rowY(row) {
     const g = this.grid;
     const rr = row - g.rowMin;
+    if (this.isExcel()) return HEAD_H + rr * CELL;
     let extra = 0;
     const seen = new Set();
     for (const x of g.xfers || []) {
@@ -246,15 +257,113 @@ export class ReadableMapView {
     return HEAD_H + rr * CELL + extra;
   }
 
+  _paintPick(ctx, x, y, picked, highlighted) {
+    if (picked) {
+      ctx.fillStyle = "rgba(94, 234, 212, 0.32)";
+      ctx.fillRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+      ctx.strokeStyle = "#5eead4";
+      ctx.lineWidth = 2.6;
+      ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 3.2, y + 3.2, CELL - 6.4, CELL - 6.4);
+    } else if (highlighted) {
+      ctx.strokeStyle = "#0f766e";
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(x + 1.2, y + 1.2, CELL - 2.4, CELL - 2.4);
+    }
+  }
+
+  _drawExcel() {
+    const ctx = this.ctx;
+    const g = this.grid;
+    ctx.save();
+    ctx.translate(this.tx, this.ty);
+    ctx.scale(this.scale, this.scale);
+
+    ctx.font = "10px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const headerFill = "#e7e6e6";
+    const gridLine = "#b4b4b4";
+    const labelInk = "#333333";
+
+    ctx.fillStyle = headerFill;
+    ctx.fillRect(0, 0, LABEL_W, HEAD_H);
+    ctx.strokeStyle = gridLine;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, LABEL_W - 1, HEAD_H - 1);
+    ctx.fillStyle = labelInk;
+    ctx.font = "9px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+    ctx.fillText(g.headerLabel || "dir\\col", LABEL_W / 2, HEAD_H / 2);
+    ctx.font = "10px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+
+    for (let c = 0; c < g.nCols; c++) {
+      const col = g.colMin + c;
+      const x = LABEL_W + c * CELL;
+      ctx.fillStyle = headerFill;
+      ctx.fillRect(x, 0, CELL, HEAD_H);
+      ctx.strokeStyle = gridLine;
+      ctx.strokeRect(x + 0.5, 0.5, CELL - 1, HEAD_H - 1);
+      ctx.fillStyle = labelInk;
+      ctx.fillText(String(col), x + CELL / 2, HEAD_H / 2);
+    }
+
+    for (let r = 0; r < g.nRows; r++) {
+      const row = g.rowMin + r;
+      const y = this._rowY(row);
+      const meta = g.rows[r] || g.rows.find((rowMeta) => rowMeta.row === row);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, y, LABEL_W, CELL);
+      ctx.strokeStyle = gridLine;
+      ctx.strokeRect(0.5, y + 0.5, LABEL_W - 1, CELL - 1);
+      ctx.fillStyle = labelInk;
+      ctx.textAlign = "center";
+      ctx.fillText(String(meta?.dir || ""), LABEL_W / 2, y + CELL / 2);
+
+      for (let c = 0; c < g.nCols; c++) {
+        const cell = g.grid[r][c];
+        const x = LABEL_W + c * CELL;
+        const ink = cell ? cellFill(cell) : { fill: "#c0c0c0", text: "#111318" };
+        ctx.fillStyle = ink.fill;
+        ctx.fillRect(x, y, CELL, CELL);
+        ctx.strokeStyle = gridLine;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+        const key = cell ? `${cell.row},${cell.col}` : `${row},${g.colMin + c}`;
+        const picked = this.pickHighlight.has(key);
+        this._paintPick(ctx, x, y, picked, this.highlight.has(key));
+        if (cell?.token) {
+          ctx.fillStyle = ink.text;
+          const label = String(cell.token);
+          ctx.font =
+            label.length > 3
+              ? "8px Calibri, 'Segoe UI', ui-sans-serif, sans-serif"
+              : "11px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+          ctx.fillText(label, x + CELL / 2, y + CELL / 2);
+          ctx.font = "10px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
   _draw() {
     const ctx = this.ctx;
     const dpr = this.canvas.width / Math.max(1, this._cssW);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, this._cssW, this._cssH);
-    ctx.fillStyle = "#10151c";
+    const excel = this.isExcel();
+    ctx.fillStyle = excel ? "#ffffff" : "#10151c";
     ctx.fillRect(0, 0, this._cssW, this._cssH);
     const g = this.grid;
     if (!g?.nRows) return;
+    if (excel) {
+      this._drawExcel();
+      return;
+    }
 
     ctx.save();
     ctx.translate(this.tx, this.ty);

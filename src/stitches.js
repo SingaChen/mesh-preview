@@ -9,6 +9,11 @@
  * - readable_map.txt walks the same generation order: each token
  *   (including the leftover "-" after a -R2 decrease) is one stitch
  *   cell with an explicit row id and needle column.
+ * - The 2D map prefers iteration_*_readable_map_step3_xfer.xls (step3
+ *   sheet: dir\\col × needles, R/L/X/X+ rows, Excel legend fills).
+ *   Do not color that view from Term.Type. Stitch chip col/row still
+ *   come from the txt companion when present; highlight binds by
+ *   needle + knit-row, not generation-order onto X rows.
  * - This dump has 475 faces vs more map tokens (header 479 cells): leftover
  *   tokens are the last short rows with no stitch geometry. Do not invent
  *   rows; unmatched faces/cells stay unbound.
@@ -49,6 +54,8 @@ const MANIFEST_PATH_KEYS = [
   "stitch",
   "readableMap",
   "map",
+  "readableMapTxt",
+  "readable_map_txt",
   "firstRows",
   "first_rows",
   "facesRingLayout",

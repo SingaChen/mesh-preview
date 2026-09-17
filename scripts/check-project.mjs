@@ -41,9 +41,10 @@ import {
   uniqueColIdsFromXls,
   xlsScaleMatrixRowCount,
 } from "../src/stitches.js";
-import { buildReadableMapGrid, highlightKeysForStitch, highlightKeysFromStitches, tokenKind } from "../src/readable-map.js";
+import { buildReadableMapGrid, cellFill, highlightKeysForStitch, highlightKeysFromStitches, tokenKind } from "../src/readable-map.js";
 import { panToKeepRectVisible } from "../src/map-view.js";
-import { parseXlsWorkbook } from "../src/xls.js";
+import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
+import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 
@@ -80,6 +81,14 @@ assert(
   "manifest must list faces_ring_layout.json",
 );
 assert(
+  refs.some((r) => /readable_map_step3_xfer\.xls$/.test(r)),
+  "manifest must list the step3 Excel readable_map",
+);
+assert(
+  refs.some((r) => /readable_map\.txt$/.test(r)),
+  "manifest still ships the txt companion for stitch col/row bind",
+);
+assert(
   !refs.some((r) => /cols_resample_meta\.json$/.test(r)),
   "manifest must not list a cols_resample meta sidecar",
 );
@@ -101,6 +110,10 @@ const fromManifest = projectFromManifest(manifest, index, "sample/manifest.json"
 if (fromManifest.outputs.length !== 1) throw new Error("expected 1 cylinder output");
 if (!fromManifest.outputs[0].stitchFile) throw new Error("expected stitch file");
 if (!fromManifest.outputs[0].readableMapFile) throw new Error("expected readable_map");
+if (!/step3_xfer\.xls$/i.test(fromManifest.outputs[0].readableMapFile.name)) {
+  throw new Error("2D map must prefer the step3 xls, not the txt");
+}
+if (!fromManifest.outputs[0].readableMapTxtFile) throw new Error("expected readable_map txt companion");
 if (!fromManifest.outputs[0].colsResampleFile) throw new Error("expected cols_resample field");
 if (!fromManifest.outputs[0].colsResampleXlsFile) throw new Error("expected cols_resample xls");
 if (fromManifest.outputs[0].colsResampleJsonFile) throw new Error("sample should not ship a cols_resample sidecar");
@@ -117,6 +130,10 @@ if (!fromDiscovery.outputs[0].colsResampleXlsFile) throw new Error("discovery sh
 if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery should not require a cols_resample sidecar");
 if (!fromDiscovery.outputs[0].firstRowsFile) throw new Error("discovery should attach first_rows xls");
 if (!fromDiscovery.outputs[0].facesRingLayoutFile) throw new Error("discovery should attach faces_ring_layout.json");
+if (!/step3_xfer\.xls$/i.test(fromDiscovery.outputs[0].readableMapFile?.name || "")) {
+  throw new Error("discovery should prefer the step3 xls over readable_map.txt");
+}
+if (!fromDiscovery.outputs[0].readableMapTxtFile) throw new Error("discovery should keep the txt companion");
 if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
   throw new Error("overlay heuristic failed for KnittingStitches");
 }
@@ -206,6 +223,78 @@ assert(
     pad: 12,
   });
   assert(pan.tx < 0 && pan.ty < 0, "ensureVisible pans so an off-screen cell enters the view");
+}
+
+const excelBuf = readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls"));
+const excelMap = parseExcelReadableMap(excelBuf);
+assert(excelMap.source === "excel" && excelMap.sheet === "step3", "parse the step3 sheet, not txt");
+assert(excelMap.rows.length === 97, `step3 has 97 data rows, got ${excelMap.rows.length}`);
+assert(excelMap.needleCols.length === 42 && excelMap.colMin === -5 && excelMap.colMax === 36, "needles are −5…36");
+assert(excelMap.headerLabel === "dir\\col", "corner header is dir\\col");
+assert(excelMap.knitRows === 65, `R/L knit rows stay 65, got ${excelMap.knitRows}`);
+{
+  const dirs = excelMap.rows.map((r) => r.dir);
+  const hist = dirs.reduce((acc, d) => {
+    acc[d] = (acc[d] || 0) + 1;
+    return acc;
+  }, {});
+  assert(hist.R === 35 && hist.L === 30 && hist.X === 27 && hist["X+"] === 5, "row order keeps R/L/X/X+");
+  assert(excelMap.rows[0].dir === "R" && excelMap.rows[1].dir === "X+" && excelMap.rows[2].dir === "L", "transfer rows stay in Excel order");
+}
+assert(excelMap.rows[0].cells.find((c) => c.col === 0)?.token === "·", "first R row writes · at needle 0");
+assert(excelMap.rows[0].cells.find((c) => c.col === 20)?.token === "vR", "tokens stay as written, including vR");
+assert(excelMap.rows[1].cells.find((c) => c.col === 0)?.token === "←1", "X+ row writes ←1");
+assert(excelLegendKind("←1", "X+") === "transfer" && excelLegendKind("vL", "L") === "wrap", "legend kinds follow Singa tokens");
+{
+  const wrap = excelMap.rows[0].cells.find((c) => c.col === 20);
+  const plain = excelMap.rows[0].cells.find((c) => c.col === 0);
+  const xfer = excelMap.rows[1].cells.find((c) => c.col === 0);
+  const inc = excelMap.rows[2].cells.find((c) => c.col === 20);
+  const dec = excelMap.rows.find((r) => r.cells.some((c) => c.token === "-R1"))
+    .cells.find((c) => c.token === "-R1");
+  const lime = excelMap.rows[2].cells.find((c) => c.col === 19);
+  const empty = excelMap.rows[0].cells.find((c) => c.col === -5);
+  assert(wrap.fill === "rgb(255,204,0)", `gold wrap from XF, got ${wrap.fill}`);
+  assert(plain.fill === "rgb(255,255,255)", `plain · is white, got ${plain.fill}`);
+  assert(xfer.fill === "rgb(204,204,255)", `ice_blue transfer from XF, got ${xfer.fill}`);
+  assert(inc.fill === "rgb(204,255,204)", `green increase from XF, got ${inc.fill}`);
+  assert(dec.fill === "rgb(255,153,204)", `rose decrease from XF, got ${dec.fill}`);
+  assert(lime.token === "^R" && lime.fill === "rgb(153,204,0)", `lime wrap+inc from XF, got ${lime.fill}`);
+  assert(empty.fill === "rgb(192,192,192)", `empty cells keep Excel grey_25, got ${empty.fill}`);
+  assert(cellFill(wrap).fill === wrap.fill && cellFill(plain).fill === plain.fill, "Excel view uses XF/legend fills, not Term.Type");
+  assert(rgbForIcv(51).join(",") === "255,204,0" && rgbForIcv(31).join(",") === "204,204,255", "default palette matches gold / ice_blue");
+}
+const excelGrid = buildReadableMapGrid(excelMap, bound.stitches);
+assert(excelGrid.source === "excel" && excelGrid.nRows === 97 && excelGrid.nCols === 42, "2D Excel grid is 97×42");
+assert(excelGrid.grid[0][20 - excelGrid.colMin].token === "vR", "row0 col20 is vR");
+assert(excelGrid.grid[1][0 - excelGrid.colMin].token === "←1", "X+ row is a real grid row, not a drawn arrow");
+assert(excelGrid.grid[0][20 - excelGrid.colMin].termColor == null, "Excel cells do not carry Term.Type colors");
+assert(excelGrid.xfers.length === 0, "do not invent extra xfer arrow rows on top of X/X+");
+{
+  const pickKeys = highlightKeysForStitch(pickFace, { map: excelMap, grid: excelGrid });
+  assert(pickKeys.size === 1 && pickKeys.has("0,20"), "face 20 lights Excel knit row 0 × needle 20, not a generation-order X cell");
+  assert(excelGrid.grid[0][20 - excelGrid.colMin].knitRow === 0, "first R row is knit identity 0");
+  const xCell = excelMap.cells.find((c) => c.token === "←1");
+  assert(xCell && xCell.row !== 0, "transfer cells are not knit row 0");
+  assert(
+    highlightKeysForStitch({ index: 20, row: 0, col: 20 }, { map: excelMap, grid: excelGrid }).has("0,20"),
+    "chip col + knit-row identity is enough without generation-order",
+  );
+  const onlyCol = highlightKeysForStitch({ index: 999, col: 20 }, { map: excelMap, grid: excelGrid });
+  assert(onlyCol.has("0,20") && onlyCol.size > 1, "ambiguous pick still highlights by needle/col");
+  const emptyAtKnit = highlightKeysForStitch(
+    { index: 360, row: 44, col: 14 },
+    { map: excelMap, grid: excelGrid },
+  );
+  assert(!emptyAtKnit.has("57,14"), "do not highlight an empty Excel cell just because knit-row + col match");
+  assert(
+    [...emptyAtKnit].every((k) => k.endsWith(",14")) && emptyAtKnit.size > 0,
+    "when that knit cell is empty, fall back to occupied needle/col cells",
+  );
+  assert(
+    highlightKeysFromStitches(bound.stitches.slice(0, 21), { map: excelMap, grid: excelGrid }).has("0,20"),
+    "slider highlight remaps knit-row + col onto the Excel grid",
+  );
 }
 
 const chunks = faceChunksFromFaces(parsed.faces);
@@ -596,6 +685,7 @@ assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "m
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
 assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMapGrid"), "main mounts the 2D map");
+assert(mainSrc.includes("parseExcelReadableMap"), "main prefers the step3 xls for the 2D map");
 assert(mainSrc.includes("highlightKeysForStitch") && mainSrc.includes("setPickHighlight") && mainSrc.includes("ensureVisible"), "click lights bound map cells and pans them into view");
 assert(mainSrc.includes("dataset.mapCells"), "chip records the bound map cell keys for the pick");
 assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("pickedStitch"), "map pick highlight follows the stitch chip");
