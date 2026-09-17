@@ -245,17 +245,21 @@ assert(
 const excelBuf = readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls"));
 const excelMap = parseExcelReadableMap(excelBuf);
 assert(excelMap.source === "excel" && excelMap.sheet === "step3", "parse the step3 sheet, not txt");
-assert(excelMap.rows.length === 97, `step3 has 97 data rows, got ${excelMap.rows.length}`);
-assert(excelMap.needleCols.length === 42 && excelMap.colMin === -5 && excelMap.colMax === 36, "needles are −5…36");
+assert(excelMap.rows.length === 96, `step3 has 96 data rows, got ${excelMap.rows.length}`);
+assert(excelMap.needleCols.length === 43 && excelMap.colMin === -4 && excelMap.colMax === 38, "needles are −4…38");
 assert(excelMap.headerLabel === "dir\\col", "corner header is dir\\col");
 assert(excelMap.knitRows === 65, `R/L knit rows stay 65, got ${excelMap.knitRows}`);
+{
+  const knitOccupied = excelMap.cells.filter((c) => c.token && (c.dir === "R" || c.dir === "L")).length;
+  assert(knitOccupied === 507, `decrease-span dump occupies 507 knit cells, got ${knitOccupied}`);
+}
 {
   const dirs = excelMap.rows.map((r) => r.dir);
   const hist = dirs.reduce((acc, d) => {
     acc[d] = (acc[d] || 0) + 1;
     return acc;
   }, {});
-  assert(hist.R === 35 && hist.L === 30 && hist.X === 27 && hist["X+"] === 5, "row order keeps R/L/X/X+");
+  assert(hist.R === 35 && hist.L === 30 && hist.X === 26 && hist["X+"] === 5, "row order keeps R/L/X/X+");
   assert(excelMap.rows[0].dir === "R" && excelMap.rows[1].dir === "X+" && excelMap.rows[2].dir === "L", "transfer rows stay in Excel order");
 }
 assert(excelMap.rows[0].cells.find((c) => c.col === 0)?.token === "·", "first R row writes · at needle 0");
@@ -270,7 +274,7 @@ assert(excelLegendKind("←1", "X+") === "transfer" && excelLegendKind("vL", "L"
   const dec = excelMap.rows.find((r) => r.cells.some((c) => c.token === "-R1"))
     .cells.find((c) => c.token === "-R1");
   const lime = excelMap.rows[2].cells.find((c) => c.col === 19);
-  const empty = excelMap.rows[0].cells.find((c) => c.col === -5);
+  const empty = excelMap.rows[0].cells.find((c) => c.col === -4);
   assert(wrap.fill === "rgb(255,204,0)", `gold wrap from XF, got ${wrap.fill}`);
   assert(plain.fill === "rgb(255,255,255)", `plain · is white, got ${plain.fill}`);
   assert(xfer.fill === "rgb(204,204,255)", `ice_blue transfer from XF, got ${xfer.fill}`);
@@ -282,7 +286,7 @@ assert(excelLegendKind("←1", "X+") === "transfer" && excelLegendKind("vL", "L"
   assert(rgbForIcv(51).join(",") === "255,204,0" && rgbForIcv(31).join(",") === "204,204,255", "default palette matches gold / ice_blue");
 }
 const excelGrid = buildReadableMapGrid(excelMap, bound.stitches);
-assert(excelGrid.source === "excel" && excelGrid.nRows === 97 && excelGrid.nCols === 42, "2D Excel grid is 97×42");
+assert(excelGrid.source === "excel" && excelGrid.nRows === 96 && excelGrid.nCols === 43, "2D Excel grid is 96×43");
 assert(excelGrid.grid[0][20 - excelGrid.colMin].token === "vR", "row0 col20 is vR");
 assert(excelGrid.grid[1][0 - excelGrid.colMin].token === "←1", "X+ row is a real grid row, not a drawn arrow");
 assert(excelGrid.grid[0][20 - excelGrid.colMin].termColor == null, "Excel cells do not carry Term.Type colors");
@@ -292,13 +296,16 @@ assert(excelGrid.grid[1][0 - excelGrid.colMin].isTransfer, "X+ cells are marked 
 const stitchBind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
 assert(stitchBind?.faces.length === 475, `bind lists 475 faces, got ${stitchBind?.faces.length}`);
 assert(stitchBind.n_unbound_faces === 0, "desktop dump binds every face");
-assert(stitchBind.n_knit_rows === 65 && stitchBind.n_xfer_rows === 32, "65 knit + 32 transfer display rows");
-assert(stitchBind.n_multi_cell_terms === 4, "four increase terms span multiple knit cells");
+assert(stitchBind.n_knit_rows === 65 && stitchBind.n_xfer_rows === 31, "65 knit + 31 transfer display rows");
+assert(stitchBind.n_display_rows === 96, "display rows match the step3 sheet");
+assert(stitchBind.n_multi_cell_terms === 29, "increase + decrease terms span multiple knit cells");
 assert(stitchBind.byIndex.get(20)?.cells[0].display_row === 0 && stitchBind.byIndex.get(20)?.cells[0].col === 20, "face 20 is display 0 × col 20");
 assert(stitchBind.byIndex.get(21)?.cells.length === 2, "face 21 is a 2-cell increase");
+assert(stitchBind.byIndex.get(51)?.cells.length === 2, "face 51 is a 2-cell -R1 decrease");
 applyStitchMapBind(bound.stitches, stitchBind);
 assert(bound.stitches[20].path_index === 0 && bound.stitches[20].term_index === 20, "face 20 keeps desktop path/term");
 assert(bound.stitches[21].mapCells.length === 2, "increase face keeps both span cells");
+assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 span cells");
 {
   const pickKeys = highlightKeysForStitch(bound.stitches[20], { map: excelMap, grid: excelGrid });
   assert(pickKeys.size === 1 && pickKeys.has("0,20"), "face 20 lights only its bind knit cell 0,20");
@@ -309,9 +316,16 @@ assert(bound.stitches[21].mapCells.length === 2, "increase face keeps both span 
   const incKeys = highlightKeysForStitch(bound.stitches[21], { map: excelMap, grid: excelGrid });
   assert(incKeys.has("2,20") && incKeys.has("2,19") && incKeys.size === 2, "increase term lights every span cell");
   const triple = highlightKeysForStitch(bound.stitches[374], { map: excelMap, grid: excelGrid });
-  assert(triple.has("63,10") && triple.has("63,11") && triple.has("63,12") && triple.size === 3, "+R2 span lights 3 cells");
+  assert(triple.has("63,9") && triple.has("63,10") && triple.has("63,11") && triple.size === 3, "+R2 span lights 3 cells");
+  const decKeys = highlightKeysForStitch(bound.stitches[51], { map: excelMap, grid: excelGrid });
+  assert(decKeys.has("7,5") && decKeys.has("7,6") && decKeys.size === 2, "-R1 decrease span lights hang+1 cells");
+  const decTriple = highlightKeysForStitch(bound.stitches[385], { map: excelMap, grid: excelGrid });
+  assert(
+    decTriple.has("69,16") && decTriple.has("69,17") && decTriple.has("69,18") && decTriple.size === 3,
+    "-R2 decrease span lights three knit cells",
+  );
   const xferDirs = new Set(
-    [...pickKeys, ...incKeys, ...triple].map((key) => {
+    [...pickKeys, ...incKeys, ...triple, ...decKeys, ...decTriple].map((key) => {
       const [rs, cs] = key.split(",");
       return excelGrid.grid[Number(rs)][Number(cs) - excelGrid.colMin]?.dir;
     }),
@@ -337,17 +351,23 @@ assert(bound.stitches[21].mapCells.length === 2, "increase face keeps both span 
   const face20 = stitchForMapCell(0, 20, stitchBind, bound.stitches);
   assert(face20 === bound.stitches[20] && face20.index === 20, "knit cell 0,20 reverse-selects face 20");
   assert(stitchForMapCell(0, 20, stitchBind)?.index === 20, "bind-only reverse lookup still returns face_index");
-  for (const col of [10, 11, 12]) {
+  for (const col of [9, 10, 11]) {
     const hit = stitchForMapCell(63, col, stitchBind, bound.stitches);
     assert(hit === bound.stitches[374] && hit.index === 374, `+R2 span cell 63,${col} reverse-selects face 374`);
     const keys = highlightKeysForMapCell(63, col, { map: excelMap, grid: excelGrid, bind: stitchBind });
     assert(
-      keys.has("63,10") && keys.has("63,11") && keys.has("63,12") && keys.size === 3,
+      keys.has("63,9") && keys.has("63,10") && keys.has("63,11") && keys.size === 3,
       `clicking 63,${col} highlights the whole +R2 term`,
     );
   }
+  for (const col of [5, 6]) {
+    const hit = stitchForMapCell(7, col, stitchBind, bound.stitches);
+    assert(hit === bound.stitches[51] && hit.index === 51, `-R1 span cell 7,${col} reverse-selects face 51`);
+    const keys = highlightKeysForMapCell(7, col, { map: excelMap, grid: excelGrid, bind: stitchBind });
+    assert(keys.has("7,5") && keys.has("7,6") && keys.size === 2, `clicking 7,${col} highlights the whole -R1 term`);
+  }
   assert(stitchForMapCell(1, 0, stitchBind, bound.stitches) == null, "X+ transfer cell has no stitch");
-  assert(stitchForMapCell(0, -5, stitchBind, bound.stitches) == null, "empty gray cell has no stitch");
+  assert(stitchForMapCell(0, -4, stitchBind, bound.stitches) == null, "empty gray cell has no stitch");
   assert(highlightKeysForMapCell(1, 0, { map: excelMap, grid: excelGrid, bind: stitchBind }).size === 0, "transfer reverse highlight is empty");
   const contentHit = hitTestContent(
     excelGrid,
