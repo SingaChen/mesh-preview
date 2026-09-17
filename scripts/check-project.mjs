@@ -23,8 +23,6 @@ import {
   bindStitchesToMap,
   collectManifestRefs,
   colorForTermType,
-  inferTermTypeFromVerts,
-  resolveTermAppearance,
   faceChunksFromFaces,
   facesRingChunksFromStitches,
   parseColoredObj,
@@ -39,6 +37,7 @@ import {
   xlsScaleMatrixRowCount,
 } from "../src/stitches.js";
 import { parseXlsWorkbook } from "../src/xls.js";
+import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sampleDir = join(root, "public", "sample");
@@ -187,13 +186,14 @@ assert(facesRingSliderN({ rowChunks: evenChunks, faceChunks: chunks }) === 5, "b
 const layoutText = readFileSync(join(cylDir, "faces_ring_layout.json"), "utf8");
 const layout = parseFacesRingLayout(layoutText);
 assert(layout.nFacesRing === 5, `sidecar n_faces_ring is 5, got ${layout.nFacesRing}`);
-assert(layout.termCounts.join(",") === "46,136,110,106,73", `stuck_all n_terms stay 73 on last ring, got ${layout.termCounts}`);
-assert(layout.termTotal === 471, `term_total is 471 typed terms, got ${layout.termTotal}`);
+assert(layout.termCounts.join(",") === "46,136,110,106,77", `sidecar n_terms, got ${layout.termCounts}`);
+assert(layout.termTotal === 475, `term_total is 475, got ${layout.termTotal}`);
 assert(layout.edgeColor.r === 0 && layout.edgeColor.g === 0 && layout.edgeColor.b === 0, "edge_color is black");
 assert(layout.ringTypes?.length === 5 && layout.ringTypes[0].length === 46, "each ring carries Term.Type[]");
+assert(layout.ringTypes[4].length === 77, "last ring types cover all 77 faces");
 assert(
   termCountsForRings(475, 5, layout.termCounts).join(",") === "46,136,110,106,77",
-  "sample slicing folds 4 remainder faces into the last ring",
+  "prefix counts already sum to 475",
 );
 
 const rowChunks = facesRingChunksFromStitches(bound.stitches, {
@@ -215,35 +215,42 @@ assert(
 assert(rowChunks[0].faces[0].index === 0, "ring 0 starts at OBJ face 0");
 assert(rowChunks[1].faces[0].index === 46, "ring 1 starts after 46 terms");
 assert(rowChunks[4].faces[0].index === 46 + 136 + 110 + 106, "ring 4 starts at face 398");
-assert(rowChunks[4].faces[72].index === 470, "last typed term is face 470");
 assert(rowChunks[4].faces.length === 77 && rowChunks[4].faces[76].index === 474, "last ring width is 77");
-assert(layout.ringTypes[4].length === 73, "sidecar types[] cover the 73 stuck_all terms");
 assert(
-  rowChunks[4].faces.slice(0, 73).every((s, i) => s.termType === layout.ringTypes[4][i]),
-  "first 73 last-ring faces keep JSON Term.Type colors",
+  rowChunks.every((c) => c.faces.every((s, i) => s.termType === layout.ringTypes[c.ring][i])),
+  "every face Type is exactly rings[].types, no inference",
 );
 
-const folded = bound.stitches.filter((s) => s.ring === 4 && s.index >= 471);
-assert(folded.length === 4, `4 remainder faces fold into ring 4, got ${folded.length}`);
+const typeHist = {};
+for (const s of bound.stitches) {
+  if (s.termType == null) throw new Error(`missing Term.Type on face ${s.index}`);
+  typeHist[s.termType] = (typeHist[s.termType] || 0) + 1;
+}
+assert(bound.stitches.length === 475, "475 faces");
+assert(Object.values(typeHist).reduce((a, b) => a + b, 0) === 475, "sum of types is 475");
+assert(typeHist[0] === 331, `Type0=331, got ${typeHist[0]}`);
+assert(typeHist[1] === 60, `Type1=60, got ${typeHist[1]}`);
+assert(typeHist[2] === 55 && typeHist[3] === 22 && typeHist[4] === 2 && typeHist[5] === 3 && typeHist[6] === 2, "remaining hist matches dump");
+assert(bound.stitches.filter((s) => s.termType === 0).every((s) => s.termColor.r === 0.55), "Type 0 is gray only");
+assert(bound.stitches.filter((s) => s.termType === 1).every((s) => s.termColor.r === 1 && s.termColor.g === 1), "Type 1 is white only");
 assert(
-  folded.map((s) => s.termType).join(",") === "0,0,3,0",
-  `folded faces infer Type from OBJ verts, got ${folded.map((s) => s.termType)}`,
+  bound.stitches.every((s) => !(s.termColor.r === 1 && s.termColor.g === 1 && s.termColor.b === 1) || s.termType === 1),
+  "white faces are Type 1 only",
 );
-assert(
-  folded.every((s) => s.typeSource === "verts" && s.termInRing >= 73),
-  "incomplete sidecar uses vertex colours, not default pink",
-);
-assert(folded[2].termColor.r === 1 && folded[2].termColor.g === 0 && folded[2].termColor.b === 0, "face 473 is Type 3 red");
-assert(folded[0].termColor.r === 0.55, "face 471 is Type 0 gray");
 assert(bound.stitches.every((s) => s.ring != null), "no face is left outside a ring");
-assert(
-  bound.stitches.every((s) => s.termType === 7 || s.termType === 8 || s.termType === 9 || s.termColor.g !== 0.35),
-  "no invented pink: pink only if Type is 7/8/9",
-);
-assert(
-  bound.stitches.filter((s) => s.termType === 7 || s.termType === 8 || s.termType === 9).length === 0,
-  "this sample has no real Type 7/8/9",
-);
+
+let missingFailed = false;
+try {
+  facesRingChunksFromStitches(bound.stitches.slice(0, 10), {
+    nRings: 1,
+    termCounts: [10],
+    ringTypes: [[]],
+    colors: layout.colors,
+  });
+} catch (err) {
+  missingFailed = /missing Term.Type/.test(err.message);
+}
+assert(missingFailed, "incomplete types[] must fail, never invent a color");
 
 const gray = colorForTermType(0, layout.colors);
 const white = colorForTermType(1, layout.colors);
@@ -262,12 +269,7 @@ assert(yellow.r === 1 && yellow.g === 1 && yellow.b === 0, "type 5 RIGHT_DOWN ye
 assert(blue.r === 0 && blue.g === 0 && blue.b === 1, "type 6 RIGHT_UP blue");
 assert(pink.r === 1 && pink.g === 0.35 && pink.b === 0.8, "type 7 LEFT_DOWN pink");
 assert(colorForTermType(8).g === 0.35 && colorForTermType(9).g === 0.35, "types 8/9 pink");
-assert(colorForTermType(null) == null && colorForTermType(99) == null, "missing/unknown Type is not default pink");
-assert(inferTermTypeFromVerts([{ r: 0.55, g: 0.55, b: 0.55 }]) === 0, "gray verts infer Type 0");
-assert(inferTermTypeFromVerts([{ r: 1, g: 0, b: 0 }]) === 3, "red verts infer Type 3");
-assert(inferTermTypeFromVerts([{ r: 1, g: 0.35, b: 0.8 }]) === 7, "pink verts infer Type 7 only when they match");
-assert(resolveTermAppearance(null, [{ r: 0.55, g: 0.55, b: 0.55 }]).termType === 0, "resolve missing Type from verts");
-assert(resolveTermAppearance(2, [{ r: 1, g: 1, b: 1 }]).termType === 2, "sidecar Type wins over vert colour");
+assert(colorForTermType(null) == null && colorForTermType(99) == null, "missing/unknown Type is not invented");
 
 assert(rowChunks[0].faces[20].termType === 2 && rowChunks[0].faces[20].termColor.r === 0, "ring0 term 20 is black apex");
 assert(rowChunks[0].faces[21].termType === 6 && rowChunks[0].faces[21].termColor.b === 1, "ring0 term 21 is blue");
@@ -286,8 +288,8 @@ const fullTyped = stitchesVisibleForSliders(bound.stitches, 0, 5, 0, 77);
 assert(fullTyped.length === 475, `full rings + full last-ring terms show 475, got ${fullTyped.length}`);
 assert(fullTyped.filter((s) => s.ring === 4).length === 77, "default last ring shows all 77 terms");
 assert(
-  fullTyped.filter((s) => s.ring === 4 && s.index >= 471).map((s) => s.termType).join(",") === "0,0,3,0",
-  "last-ring tail is gray/gray/red/gray, not pink",
+  fullTyped.filter((s) => s.ring === 4 && s.index >= 471).every((s) => s.termType === layout.ringTypes[4][s.termInRing]),
+  "last-ring tail Types come from sidecar types[], not verts",
 );
 
 const lastOne = stitchesVisibleForSliders(bound.stitches, 0, 5, 0, 1);
@@ -451,5 +453,37 @@ assert(viewerSrc.includes("setShowBody"), "viewer can hide the translucent cut b
 assert(viewerSrc.includes("this.showBody = true"), "cut body starts visible");
 assert(viewerSrc.includes("opacity: 0.42"), "cut body stays the semi-transparent underlay");
 assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
+assert(viewerSrc.includes("ResizeObserver"), "viewer observes stage/canvas layout, not only window.resize");
+assert(viewerSrc.includes("displayedSize") && viewerSrc.includes("visualViewport"), "aspect tracks the CSS canvas box");
+assert(!/scale\.set\((?!Scalar)/.test(viewerSrc), "mesh scale stays uniform");
+assert(mainSrc.includes("setChromeCollapsed") && mainSrc.includes("hide-chrome"), "main can stow the control chrome");
+assert(mainSrc.includes("syncViewportAfterLayout"), "layout changes resync camera.aspect");
+
+assert(html.includes('id="hide-chrome"') && html.includes("收起"), "dock has a Hide / 收起 control");
+assert(html.includes('id="show-chrome"') && html.includes("控件"), "collapsed chrome has a UI chip to restore");
+assert(html.includes('id="toggle-body"') && !html.includes("toggle-shade"), "toggles stay Wire / Stitch / Base");
+
+const css = readFileSync(join(root, "src", "style.css"), "utf8");
+assert(/--touch:\s*44px/.test(css), "touch targets stay at least 44px");
+assert(css.includes("chrome-collapsed"), "collapsed chrome hides topbar + dock");
+assert(css.includes(".stage canvas") && css.includes("width: 100%") && css.includes("height: 100%"), "canvas CSS fills the stage");
+
+assert(aspectFromSize(800, 400) === 2, "wide stage is aspect 2, not the constructor default 1");
+assert(aspectFromSize(390, 844) === 390 / 844, "phone portrait uses true canvas aspect");
+assert(displayedSize({ clientWidth: 800, clientHeight: 400 }).width === 800, "displayedSize reads the CSS box");
+assert(displayedSize({ getBoundingClientRect: () => ({ width: 390.4, height: 511.6 }) }).height === 512, "displayedSize rounds the painted box");
+assert(
+  !drawingMatchesDisplay(800, 800, 800, 400, 1),
+  "tall drawing buffer in a short CSS box is the squash bug",
+);
+assert(drawingMatchesDisplay(800, 400, 800, 400, 1), "matched buffer and CSS box is not stretched");
+assert(
+  needsViewportSync({ cssWidth: 800, cssHeight: 400, aspect: 1, bufferWidth: 800, bufferHeight: 800, pixelRatio: 1 }),
+  "stale aspect=1 or mismatched buffer must resync",
+);
+assert(
+  !needsViewportSync({ cssWidth: 800, cssHeight: 400, aspect: 2, bufferWidth: 800, bufferHeight: 400, pixelRatio: 1 }),
+  "matching aspect and buffer is clean",
+);
 
 console.log("project checks ok");

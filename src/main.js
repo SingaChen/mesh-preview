@@ -61,6 +61,8 @@ const statusEl = document.querySelector("#status");
 const wireBtn = document.querySelector("#toggle-wire");
 const overlayBtn = document.querySelector("#toggle-overlay");
 const bodyBtn = document.querySelector("#toggle-body");
+const hideChromeBtn = document.querySelector("#hide-chrome");
+const showChromeBtn = document.querySelector("#show-chrome");
 
 const viewer = new MeshViewer(canvas);
 const colsRange = bindDualRange(document.querySelector("#cols-range"));
@@ -432,7 +434,7 @@ async function showOutput(index, { fit = false } = {}) {
     else bits.push(`${models.length} models`);
     statsEl.textContent = bits.join(" · ");
     setStatus("三滑块半开区间 [start,end) · dual-range like SingaLab");
-    if (fit) viewer.fitToView();
+    syncViewportAfterLayout(fit ? () => viewer.fitToView() : undefined);
   } catch (err) {
     statsEl.textContent = "";
     scene = null;
@@ -539,7 +541,34 @@ slider.addEventListener("input", () => {
   showOutput(Number(slider.value));
 });
 
-fitBtn.addEventListener("click", () => viewer.fitToView());
+function setChromeCollapsed(collapsed) {
+  document.body.classList.toggle("chrome-collapsed", collapsed);
+  if (hideChromeBtn) {
+    hideChromeBtn.hidden = collapsed;
+    hideChromeBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+  if (showChromeBtn) {
+    showChromeBtn.hidden = !collapsed;
+    showChromeBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+  syncViewportAfterLayout();
+}
+
+function syncViewportAfterLayout(after) {
+  viewer.resize();
+  requestAnimationFrame(() => {
+    viewer.resize();
+    after?.();
+  });
+}
+
+fitBtn.addEventListener("click", () => {
+  viewer.resize();
+  viewer.fitToView();
+});
+
+hideChromeBtn?.addEventListener("click", () => setChromeCollapsed(true));
+showChromeBtn?.addEventListener("click", () => setChromeCollapsed(false));
 
 wireBtn.addEventListener("click", () => {
   const on = wireBtn.getAttribute("aria-pressed") !== "true";

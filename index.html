@@ -40,11 +40,15 @@
             <strong id="mesh-label">—</strong>
             <span id="mesh-stats">打开项目或加载示例</span>
           </div>
-          <button class="fit" id="fit-view" type="button" title="Fit to view">适应 <span class="en">Fit</span></button>
+          <div class="hud-actions">
+            <button class="fit" id="hide-chrome" type="button" aria-expanded="true" title="Hide controls">收起 <span class="en">Hide</span></button>
+            <button class="fit chrome-show" id="show-chrome" type="button" hidden aria-expanded="true" title="Show controls">控件 <span class="en">UI</span></button>
+            <button class="fit" id="fit-view" type="button" title="Fit to view">适应 <span class="en">Fit</span></button>
+          </div>
         </div>
       </main>
 
-      <section class="dock">
+      <section class="dock" id="dock">
         <div class="slider-row" id="mesh-row">
           <label for="mesh-slider">
             <span>网格 <span class="en">Mesh</span></span>

@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { columnHue, triangulate } from "./stitches.js";
 import { stitchesVisibleForSliders } from "./range.js";
+import { aspectFromSize, displayedSize, needsViewportSync } from "./viewport.js";
 
 const YARN = 0xe8d5c4;
 const OVERLAY = 0x5eead4;
@@ -68,23 +69,54 @@ export class MeshViewer {
     this._raycaster = new THREE.Raycaster();
     this._pointer = new THREE.Vector2();
     this._raf = 0;
+    this._cssW = 0;
+    this._cssH = 0;
+    this._bufSize = new THREE.Vector2();
     this._onResize = () => this.resize();
     window.addEventListener("resize", this._onResize);
+    window.visualViewport?.addEventListener("resize", this._onResize);
+    this._resizeObserver = typeof ResizeObserver === "function"
+      ? new ResizeObserver(() => this.resize())
+      : null;
+    const stage = this.canvas.parentElement || this.canvas;
+    this._resizeObserver?.observe(this.canvas);
+    if (stage !== this.canvas) this._resizeObserver?.observe(stage);
     this.resize();
     this.loop();
   }
 
   resize() {
-    const parent = this.canvas.parentElement || this.canvas;
-    const width = Math.max(1, parent.clientWidth);
-    const height = Math.max(1, parent.clientHeight);
+    const { width, height } = displayedSize(this.canvas);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const buffer = this.renderer.getDrawingBufferSize(this._bufSize);
+    const dirty =
+      this.renderer.getPixelRatio() !== dpr ||
+      needsViewportSync({
+        cssWidth: width,
+        cssHeight: height,
+        aspect: this.camera.aspect,
+        bufferWidth: buffer.x,
+        bufferHeight: buffer.y,
+        pixelRatio: dpr,
+      });
+    if (!dirty) {
+      this._cssW = width;
+      this._cssH = height;
+      return;
+    }
+    this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(width, height, false);
-    this.camera.aspect = width / height;
+    this.camera.aspect = aspectFromSize(width, height);
     this.camera.updateProjectionMatrix();
+    this._cssW = width;
+    this._cssH = height;
   }
 
   loop = () => {
     this._raf = requestAnimationFrame(this.loop);
+    if (this.canvas.clientWidth !== this._cssW || this.canvas.clientHeight !== this._cssH) {
+      this.resize();
+    }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   };
@@ -519,6 +551,9 @@ export class MeshViewer {
   dispose() {
     cancelAnimationFrame(this._raf);
     window.removeEventListener("resize", this._onResize);
+    window.visualViewport?.removeEventListener("resize", this._onResize);
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = null;
     this.clearMeshes();
     this.controls.dispose();
     this.renderer.dispose();
