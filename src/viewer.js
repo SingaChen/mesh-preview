@@ -449,7 +449,13 @@ export class MeshViewer {
     this.root.remove(this.mesh);
     this.mesh.traverse((child) => {
       if (child.material && child.geometry !== this.bodyGeom) child.geometry?.dispose();
-      child.material?.dispose();
+      const mat = child.material;
+      if (!mat) return;
+      if (mat.map === this._pointSprite) {
+        mat.map = null;
+        mat.alphaMap = null;
+      }
+      mat.dispose();
     });
     this.mesh = null;
   }
@@ -520,11 +526,41 @@ export class MeshViewer {
     this.ground.scale.setScalar(Math.max(1, size / 8));
   }
 
+  _circleSprite() {
+    if (this._pointSprite) return this._pointSprite;
+    const size = 64;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    const r = size / 2;
+    const glow = ctx.createRadialGradient(r, r, 0, r, r, r);
+    glow.addColorStop(0, "rgba(255,255,255,1)");
+    glow.addColorStop(0.42, "rgba(255,255,255,0.95)");
+    glow.addColorStop(0.72, "rgba(255,255,255,0.28)");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(r, r, r, 0, Math.PI * 2);
+    ctx.fill();
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.needsUpdate = true;
+    this._pointSprite = tex;
+    return tex;
+  }
+
   _pointsMaterial() {
+    const sprite = this._circleSprite();
     return new THREE.PointsMaterial({
       color: YARN,
       size: 2.8,
       sizeAttenuation: true,
+      map: sprite,
+      alphaMap: sprite,
+      transparent: true,
+      depthWrite: false,
+      alphaTest: 0.08,
     });
   }
 
