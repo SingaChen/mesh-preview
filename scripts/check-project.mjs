@@ -23,6 +23,8 @@ import {
   bindStitchesToMap,
   collectManifestRefs,
   colorForTermType,
+  inferTermTypeFromVerts,
+  resolveTermAppearance,
   faceChunksFromFaces,
   facesRingChunksFromStitches,
   parseColoredObj,
@@ -224,14 +226,24 @@ assert(
 const folded = bound.stitches.filter((s) => s.ring === 4 && s.index >= 471);
 assert(folded.length === 4, `4 remainder faces fold into ring 4, got ${folded.length}`);
 assert(
-  folded.every((s) => s.termType == null && s.termInRing >= 73),
-  "folded faces stay untyped at the end of ring 4",
+  folded.map((s) => s.termType).join(",") === "0,0,3,0",
+  `folded faces infer Type from OBJ verts, got ${folded.map((s) => s.termType)}`,
 );
 assert(
-  folded.every((s) => s.termColor.r === 1 && s.termColor.g === 0.35 && s.termColor.b === 0.8),
-  "folded remainder is desktop pink",
+  folded.every((s) => s.typeSource === "verts" && s.termInRing >= 73),
+  "incomplete sidecar uses vertex colours, not default pink",
 );
+assert(folded[2].termColor.r === 1 && folded[2].termColor.g === 0 && folded[2].termColor.b === 0, "face 473 is Type 3 red");
+assert(folded[0].termColor.r === 0.55, "face 471 is Type 0 gray");
 assert(bound.stitches.every((s) => s.ring != null), "no face is left outside a ring");
+assert(
+  bound.stitches.every((s) => s.termType === 7 || s.termType === 8 || s.termType === 9 || s.termColor.g !== 0.35),
+  "no invented pink: pink only if Type is 7/8/9",
+);
+assert(
+  bound.stitches.filter((s) => s.termType === 7 || s.termType === 8 || s.termType === 9).length === 0,
+  "this sample has no real Type 7/8/9",
+);
 
 const gray = colorForTermType(0, layout.colors);
 const white = colorForTermType(1, layout.colors);
@@ -250,7 +262,12 @@ assert(yellow.r === 1 && yellow.g === 1 && yellow.b === 0, "type 5 RIGHT_DOWN ye
 assert(blue.r === 0 && blue.g === 0 && blue.b === 1, "type 6 RIGHT_UP blue");
 assert(pink.r === 1 && pink.g === 0.35 && pink.b === 0.8, "type 7 LEFT_DOWN pink");
 assert(colorForTermType(8).g === 0.35 && colorForTermType(9).g === 0.35, "types 8/9 pink");
-assert(colorForTermType(null).g === 0.35 && colorForTermType(99).g === 0.35, "unknown type pink");
+assert(colorForTermType(null) == null && colorForTermType(99) == null, "missing/unknown Type is not default pink");
+assert(inferTermTypeFromVerts([{ r: 0.55, g: 0.55, b: 0.55 }]) === 0, "gray verts infer Type 0");
+assert(inferTermTypeFromVerts([{ r: 1, g: 0, b: 0 }]) === 3, "red verts infer Type 3");
+assert(inferTermTypeFromVerts([{ r: 1, g: 0.35, b: 0.8 }]) === 7, "pink verts infer Type 7 only when they match");
+assert(resolveTermAppearance(null, [{ r: 0.55, g: 0.55, b: 0.55 }]).termType === 0, "resolve missing Type from verts");
+assert(resolveTermAppearance(2, [{ r: 1, g: 1, b: 1 }]).termType === 2, "sidecar Type wins over vert colour");
 
 assert(rowChunks[0].faces[20].termType === 2 && rowChunks[0].faces[20].termColor.r === 0, "ring0 term 20 is black apex");
 assert(rowChunks[0].faces[21].termType === 6 && rowChunks[0].faces[21].termColor.b === 1, "ring0 term 21 is blue");
@@ -268,7 +285,10 @@ assert(activeRingIndex(2, 2) == null, "empty range disables the term slider");
 const fullTyped = stitchesVisibleForSliders(bound.stitches, 0, 5, 0, 77);
 assert(fullTyped.length === 475, `full rings + full last-ring terms show 475, got ${fullTyped.length}`);
 assert(fullTyped.filter((s) => s.ring === 4).length === 77, "default last ring shows all 77 terms");
-assert(fullTyped.filter((s) => s.ring === 4 && s.termType == null).length === 4, "4 pink faces sit at the end of ring 4");
+assert(
+  fullTyped.filter((s) => s.ring === 4 && s.index >= 471).map((s) => s.termType).join(",") === "0,0,3,0",
+  "last-ring tail is gray/gray/red/gray, not pink",
+);
 
 const lastOne = stitchesVisibleForSliders(bound.stitches, 0, 5, 0, 1);
 assert(lastOne.length === 46 + 136 + 110 + 106 + 1, "earlier rings stay full; only max ring is term-filtered");
@@ -421,12 +441,15 @@ assert(
   "base-mesh toggle defaults on",
 );
 assert(html.includes("底模") && html.includes("Base"), "toggle label is 底模 / Base");
+assert(!html.includes("toggle-shade") && !html.includes("平面"), "Flat toggle is gone");
 const mainSrc = readFileSync(join(root, "src", "main.js"), "utf8");
 assert(mainSrc.includes("setShowBody"), "main wires the base-mesh toggle");
 assert(mainSrc.includes("#toggle-body"), "main binds #toggle-body");
+assert(!mainSrc.includes("setFlat") && !mainSrc.includes("toggle-shade"), "main no longer wires Flat");
 const viewerSrc = readFileSync(join(root, "src", "viewer.js"), "utf8");
 assert(viewerSrc.includes("setShowBody"), "viewer can hide the translucent cut body");
 assert(viewerSrc.includes("this.showBody = true"), "cut body starts visible");
 assert(viewerSrc.includes("opacity: 0.42"), "cut body stays the semi-transparent underlay");
+assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
 
 console.log("project checks ok");

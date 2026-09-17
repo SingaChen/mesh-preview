@@ -21,9 +21,10 @@
  * - faces_ring_layout.json { rings[].n_terms, types[], term_face_colors,
  *   edge_color } slices KnittingStitches in OBJ / generation order.
  *   Cylinder dump stuck_all n_terms: 46, 136, 110, 106, 73 (sum 471).
- *   Sample slicing folds the leftover 4 OBJ faces into the last ring
- *   → 46, 136, 110, 106, 77 (sum 475). Extra last-ring faces stay
- *   untyped / pink. Without a sidecar, faces split evenly across N_rings.
+ *   Sample slicing folds leftover OBJ faces into the last ring
+ *   → 46, 136, 110, 106, 77 (sum 475). Faces without a sidecar Type
+ *   inherit Type from OBJ vertex colours — never invent default pink.
+ *   Pink is only Type 7/8/9. Without a sidecar, faces split evenly.
  * - first_rows.xls / cols_resample.xls describe resampled field polylines.
  *   Desktop slider N is len(cols_resample) after extractRows (42 on this
  *   cylinder dump). Parse xls points_detail by col id 0..N-1, or sequential
@@ -277,9 +278,64 @@ export const DEFAULT_TERM_FACE_COLORS = {
 };
 
 export function colorForTermType(type, palette = DEFAULT_TERM_FACE_COLORS) {
-  const key = type == null || type === "" ? "default" : String(type);
-  const c = palette?.[key] || palette?.default || DEFAULT_TERM_FACE_COLORS.default;
+  if (type == null || type === "") return null;
+  const c = palette?.[String(type)];
+  if (!c) return null;
   return { r: Number(c[0]) || 0, g: Number(c[1]) || 0, b: Number(c[2]) || 0, a: c[3] ?? 1 };
+}
+
+function vertRgb(verts) {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  for (const v of verts || []) {
+    if (v?.r == null && v?.g == null && v?.b == null) continue;
+    r += Number(v.r) || 0;
+    g += Number(v.g) || 0;
+    b += Number(v.b) || 0;
+    n += 1;
+  }
+  return n ? { r: r / n, g: g / n, b: b / n } : null;
+}
+
+/** Nearest Term.Type 0–9 from face vertex colours. Null if not a palette match. */
+export function inferTermTypeFromVerts(verts, palette = DEFAULT_TERM_FACE_COLORS) {
+  const rgb = vertRgb(verts);
+  if (!rgb) return null;
+  let best = null;
+  let bestD = Infinity;
+  for (const [key, arr] of Object.entries(palette || {})) {
+    if (key === "default" || !Array.isArray(arr)) continue;
+    const t = Number(key);
+    if (!Number.isFinite(t)) continue;
+    const d = (rgb.r - arr[0]) ** 2 + (rgb.g - arr[1]) ** 2 + (rgb.b - arr[2]) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = t;
+    }
+  }
+  if (best == null || bestD > 0.02) return null;
+  return best;
+}
+
+/**
+ * Sidecar Type wins when present. Otherwise infer from OBJ verts.
+ * Never falls back to palette default pink for a missing type.
+ */
+export function resolveTermAppearance(type, verts, palette = DEFAULT_TERM_FACE_COLORS) {
+  const fromSidecar = colorForTermType(type, palette);
+  if (fromSidecar) {
+    return { termType: Number(type), termColor: fromSidecar, typeSource: "sidecar" };
+  }
+  const inferred = inferTermTypeFromVerts(verts, palette);
+  const inferredColor = colorForTermType(inferred, palette);
+  if (inferredColor) {
+    return { termType: inferred, termColor: inferredColor, typeSource: "verts" };
+  }
+  const rgb = vertRgb(verts);
+  if (rgb) return { termType: null, termColor: { ...rgb, a: 1 }, typeSource: "vert-rgb" };
+  return { termType: 0, termColor: colorForTermType(0, palette), typeSource: "plain" };
 }
 
 export function parseFacesRingLayout(data) {
@@ -349,11 +405,12 @@ export function facesRingChunksFromStitches(
     const faces = list.slice(offset, end);
     const types = ringTypes?.[i] || [];
     faces.forEach((s, k) => {
-      const type = types[k] ?? null;
+      const look = resolveTermAppearance(types[k], s.verts, colors);
       s.ring = i;
       s.termInRing = k;
-      s.termType = type;
-      s.termColor = colorForTermType(type, colors);
+      s.termType = look.termType;
+      s.termColor = look.termColor;
+      s.typeSource = look.typeSource;
     });
     chunks.push({
       row: i,
@@ -368,18 +425,22 @@ export function facesRingChunksFromStitches(
   if (leftover.length && chunks.length) {
     const last = chunks[chunks.length - 1];
     leftover.forEach((s, k) => {
+      const look = resolveTermAppearance(null, s.verts, colors);
       s.ring = last.ring;
       s.termInRing = last.faces.length + k;
-      s.termType = null;
-      s.termColor = colorForTermType(null, colors);
+      s.termType = look.termType;
+      s.termColor = look.termColor;
+      s.typeSource = look.typeSource;
     });
     last.faces.push(...leftover);
   } else {
     for (const s of leftover) {
+      const look = resolveTermAppearance(null, s.verts, colors);
       s.ring = null;
       s.termInRing = null;
-      s.termType = null;
-      s.termColor = colorForTermType(null, colors);
+      s.termType = look.termType;
+      s.termColor = look.termColor;
+      s.typeSource = look.typeSource;
     }
   }
   return chunks;

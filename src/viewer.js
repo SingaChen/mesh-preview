@@ -12,7 +12,6 @@ export class MeshViewer {
     this.canvas = canvas;
     this.loader = new OBJLoader();
     this.wireframe = false;
-    this.flat = false;
     this.showOverlay = true;
     this.showBody = true;
 
@@ -405,14 +404,6 @@ export class MeshViewer {
     if (this.mesh) this.mesh.material.wireframe = on;
   }
 
-  setFlat(on) {
-    this.flat = on;
-    if (this.mesh) {
-      this.mesh.material.flatShading = on;
-      this.mesh.material.needsUpdate = true;
-    }
-  }
-
   setShowBody(on) {
     this.showBody = Boolean(on);
     this._applyBodyVisibility();
@@ -476,7 +467,6 @@ export class MeshViewer {
       metalness: 0.04,
       side: THREE.DoubleSide,
       wireframe: this.wireframe,
-      flatShading: this.flat,
     });
   }
 
@@ -489,7 +479,6 @@ export class MeshViewer {
       transparent: true,
       opacity: 0.42,
       wireframe: this.wireframe,
-      flatShading: this.flat,
     });
   }
 
