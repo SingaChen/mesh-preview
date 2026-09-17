@@ -462,9 +462,17 @@ assert(mainSrc.includes("syncViewportAfterLayout"), "layout changes resync camer
 assert(html.includes('id="hide-chrome"') && html.includes("收起"), "dock has a Hide / 收起 control");
 assert(html.includes('id="show-chrome"') && html.includes("控件"), "collapsed chrome has a UI chip to restore");
 assert(html.includes('id="toggle-body"') && !html.includes("toggle-shade"), "toggles stay Wire / Stitch / Base");
+assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "top bar uses one Open menu");
+assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') && html.includes('id="open-files"'), "Sample / Folder / Files stay as menu items");
+assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
+assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
 
 const css = readFileSync(join(root, "src", "style.css"), "utf8");
-assert(/--touch:\s*44px/.test(css), "touch targets stay at least 44px");
+assert(/--touch:\s*44px/.test(css), "toggle / menu hit targets stay at least 44px");
+assert(/--dual-h:\s*36px/.test(css) && /--track-h:\s*4px/.test(css), "mobile dual sliders are skinny");
+assert(/--thumb:\s*28px/.test(css), "slider handles stay large enough to grab");
+assert(css.includes(".open-menu") && css.includes(".open-menu-list"), "Open control is a dropdown, not a 3-column grid");
+assert(!/\.actions\s*\{/.test(css), "old .actions button row is gone");
 assert(css.includes("chrome-collapsed"), "collapsed chrome hides topbar + dock");
 assert(css.includes(".stage canvas") && css.includes("width: 100%") && css.includes("height: 100%"), "canvas CSS fills the stage");
 

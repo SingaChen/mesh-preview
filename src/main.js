@@ -38,6 +38,9 @@ import {
 const canvas = document.querySelector("#viewport");
 const folderInput = document.querySelector("#folder-input");
 const filesInput = document.querySelector("#files-input");
+const openMenu = document.querySelector("#open-menu");
+const openMenuBtn = document.querySelector("#open-menu-btn");
+const openMenuList = document.querySelector("#open-menu-list");
 const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
 const sampleBtn = document.querySelector("#load-sample");
@@ -509,7 +512,27 @@ async function loadSample() {
   }
 }
 
+function setOpenMenu(open) {
+  if (!openMenuBtn || !openMenuList) return;
+  openMenuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  openMenuList.hidden = !open;
+}
+
+openMenuBtn?.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  setOpenMenu(openMenuBtn.getAttribute("aria-expanded") !== "true");
+});
+
+document.addEventListener("pointerdown", (ev) => {
+  if (openMenu && !openMenu.contains(ev.target)) setOpenMenu(false);
+});
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") setOpenMenu(false);
+});
+
 openFolderBtn.addEventListener("click", async () => {
+  setOpenMenu(false);
   try {
     if (hasDirectoryPicker()) {
       const entries = await pickDirectoryEntries();
@@ -522,8 +545,14 @@ openFolderBtn.addEventListener("click", async () => {
   clickInput(folderInput);
 });
 
-openFilesBtn.addEventListener("click", () => clickInput(filesInput));
-sampleBtn.addEventListener("click", () => loadSample());
+openFilesBtn.addEventListener("click", () => {
+  setOpenMenu(false);
+  clickInput(filesInput);
+});
+sampleBtn.addEventListener("click", () => {
+  setOpenMenu(false);
+  loadSample();
+});
 
 folderInput.addEventListener("change", async () => {
   const entries = entriesFromFileList(folderInput.files);
