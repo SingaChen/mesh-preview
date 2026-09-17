@@ -1,93 +1,24 @@
 {
-  "source": "path_generate+stuck_all",
-  "n_first_rows": 6,
+  "source": "path_list Term.Type from knittingMapGenerate_Auto(unit_w=5,unit_h=5) \u2014 desktop program, no inference",
   "skip_seed_row0": true,
   "n_faces_ring": 5,
-  "term_total": 471,
-  "type_hist": {
-    "0": 323,
-    "2": 61,
-    "6": 2,
-    "1": 66,
-    "3": 16,
-    "4": 2,
-    "5": 1
-  },
-  "knitting_stitches_faces_expected": 475,
-  "note": "OBJ face order follows path_list flatten: ring then term. If term_total!=475, map by prefix counts then leave remainder untyped pink.",
-  "term_face_colors": {
-    "0": [
-      0.55,
-      0.55,
-      0.55,
-      1
-    ],
-    "1": [
-      1,
-      1,
-      1,
-      1
-    ],
-    "2": [
-      0,
-      0,
-      0,
-      1
-    ],
-    "3": [
-      1,
-      0,
-      0,
-      1
-    ],
-    "4": [
-      0,
-      1,
-      0,
-      1
-    ],
-    "5": [
-      1,
-      1,
-      0,
-      1
-    ],
-    "6": [
-      0,
-      0,
-      1,
-      1
-    ],
-    "7": [
-      1,
-      0.35,
-      0.8,
-      1
-    ],
-    "8": [
-      1,
-      0.35,
-      0.8,
-      1
-    ],
-    "9": [
-      1,
-      0.35,
-      0.8,
-      1
-    ],
-    "default": [
-      1,
-      0.35,
-      0.8,
-      1
-    ]
-  },
-  "edge_color": [
-    0,
-    0,
-    0
+  "term_counts": [
+    46,
+    136,
+    110,
+    106,
+    77
   ],
+  "term_total": 475,
+  "type_hist": {
+    "0": 331,
+    "1": 60,
+    "2": 55,
+    "3": 22,
+    "4": 2,
+    "5": 3,
+    "6": 2
+  },
   "rings": [
     {
       "row": 0,
@@ -521,60 +452,33 @@
     },
     {
       "row": 4,
-      "first_rows_index": "5_all",
-      "kind": "stuck_all",
-      "n_terms": 73,
+      "first_rows_index": 5,
+      "kind": "ok",
+      "n_terms": 77,
       "types": [
         0,
         0,
         0,
         2,
         2,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        2,
-        2,
-        0,
-        0,
-        0,
-        0,
         1,
         1,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        2,
-        2,
         0,
         0,
         2,
         2,
         0,
-        2,
-        2,
         0,
         1,
         1,
         0,
         0,
         0,
-        1,
-        1,
+        3,
+        0,
+        0,
         2,
         2,
         0,
@@ -584,21 +488,120 @@
         0,
         0,
         0,
+        0,
+        3,
+        0,
+        3,
         1,
         1,
         0,
         0,
-        2,
-        2,
-        2,
-        2,
         0,
         0,
+        0,
+        0,
+        0,
+        2,
+        2,
         1,
         1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        2,
+        5,
         1,
-        1
+        1,
+        0,
+        2,
+        5,
+        0,
+        0,
+        0,
+        3,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0
       ]
     }
-  ]
+  ],
+  "term_face_colors": {
+    "0": [
+      0.55,
+      0.55,
+      0.55,
+      1
+    ],
+    "1": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "2": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "3": [
+      1,
+      0,
+      0,
+      1
+    ],
+    "4": [
+      0,
+      1,
+      0,
+      1
+    ],
+    "5": [
+      1,
+      1,
+      0,
+      1
+    ],
+    "6": [
+      0,
+      0,
+      1,
+      1
+    ],
+    "7": [
+      1,
+      0.35,
+      0.8,
+      1
+    ],
+    "8": [
+      1,
+      0.35,
+      0.8,
+      1
+    ],
+    "9": [
+      1,
+      0.35,
+      0.8,
+      1
+    ]
+  },
+  "edge_color": [
+    0,
+    0,
+    0
+  ],
+  "note": "Exact Term.Type per face in OBJ generation order. Do NOT infer from vertex colors. Do NOT invent default pink."
 }
