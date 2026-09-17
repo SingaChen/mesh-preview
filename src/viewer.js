@@ -14,6 +14,7 @@ export class MeshViewer {
     this.wireframe = false;
     this.flat = false;
     this.showOverlay = true;
+    this.showBody = true;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -106,6 +107,7 @@ export class MeshViewer {
     this.mesh = new THREE.Mesh(meshGeom, this._meshMaterial());
     this.mesh.userData.modelName = "cut_iteration_0";
     this.root.add(this.mesh);
+    this._applyBodyVisibility();
     if (overlayGeom) {
       this.overlay = new THREE.Mesh(overlayGeom, this._overlayMaterial());
       this.overlay.visible = this.showOverlay;
@@ -129,6 +131,7 @@ export class MeshViewer {
       this.mesh = new THREE.Mesh(bodyGeom, this._bodyMaterial());
       this.mesh.userData.modelName = "cut_iteration_0";
       this.root.add(this.mesh);
+      this._applyBodyVisibility();
     }
     this._rebuildCols();
     this._rebuildStitches();
@@ -154,6 +157,7 @@ export class MeshViewer {
       this.mesh = new THREE.Mesh(bodyGeom, this._bodyMaterial());
       this.mesh.userData.modelName = bodyName;
       this.root.add(this.mesh);
+      this._applyBodyVisibility();
     }
     this._rebuildCols();
     this._rebuildStitches();
@@ -161,7 +165,7 @@ export class MeshViewer {
 
   setModelVisible(name, visible) {
     this._modelVisibility.set(name, visible);
-    if (this.mesh && this.mesh.userData.modelName === name) this.mesh.visible = visible;
+    if (this.mesh && this.mesh.userData.modelName === name) this._applyBodyVisibility();
     if (name === "cols_resample" && this.colsGroup) this.colsGroup.visible = visible;
     if (name === "KnittingStitches") {
       const on = visible && this.showOverlay;
@@ -407,6 +411,18 @@ export class MeshViewer {
       this.mesh.material.flatShading = on;
       this.mesh.material.needsUpdate = true;
     }
+  }
+
+  setShowBody(on) {
+    this.showBody = Boolean(on);
+    this._applyBodyVisibility();
+  }
+
+  _applyBodyVisibility() {
+    if (!this.mesh) return;
+    const name = this.mesh.userData.modelName;
+    const modelOn = name ? this._modelVisibility.get(name) : undefined;
+    this.mesh.visible = this.showBody && modelOn !== false;
   }
 
   setShowOverlay(on) {

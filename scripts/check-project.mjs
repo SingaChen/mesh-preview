@@ -414,4 +414,19 @@ assert(onlyStitch.bind?.name === "KnittingStitches", "solo stitches still binds 
 const keep = applyDisplayModelsRange(models, 1, 3, "stitches");
 assert(keep.bind?.name === "KnittingStitches" && keep.resetRange === false, "dragging left handle does not rebind");
 
+const html = readFileSync(join(root, "index.html"), "utf8");
+assert(html.includes('id="toggle-body"'), "base-mesh toggle is in the dock");
+assert(
+  /id="toggle-body"[^>]*aria-pressed="true"/.test(html),
+  "base-mesh toggle defaults on",
+);
+assert(html.includes("底模") && html.includes("Base"), "toggle label is 底模 / Base");
+const mainSrc = readFileSync(join(root, "src", "main.js"), "utf8");
+assert(mainSrc.includes("setShowBody"), "main wires the base-mesh toggle");
+assert(mainSrc.includes("#toggle-body"), "main binds #toggle-body");
+const viewerSrc = readFileSync(join(root, "src", "viewer.js"), "utf8");
+assert(viewerSrc.includes("setShowBody"), "viewer can hide the translucent cut body");
+assert(viewerSrc.includes("this.showBody = true"), "cut body starts visible");
+assert(viewerSrc.includes("opacity: 0.42"), "cut body stays the semi-transparent underlay");
+
 console.log("project checks ok");

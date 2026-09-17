@@ -64,7 +64,7 @@ npm run preview
 - 双指捏合：缩放；双指拖：平移 pan
 - **适应 Fit**：框住当前网格
 - **cols_resample / row / term**：桌面端同款半开区间双手柄（针迹视图不再把第三槽给 `display_models`）
-- **线框 Wire** / **平面 Flat** / **针迹 Stitch**
+- **线框 Wire** / **平面 Flat** / **针迹 Stitch** / **底模 Base**（半透明 `cut_iteration_0` 底层；默认开，关掉只藏底模，不影响针迹 / 滑块）
 - 点按一根针迹：第二滑块收到该 ring `[i, i+1)`，第三滑块收到该 term `[t, t+1)`；再点同一针恢复全部环 / 全部 term
 
 ## 三个滑块怎么对应 SingaLab
@@ -137,7 +137,7 @@ npm run preview
 
 ## 范围 / Scope
 
-包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、可选清单、触摸轨道、线框/平面、适应视野、离线应用壳。
+包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模显隐、可选清单、触摸轨道、线框/平面、适应视野、离线应用壳。
 
 不做：原生 Android、账号、云同步、完整 `readable_map` 编辑器。
 
