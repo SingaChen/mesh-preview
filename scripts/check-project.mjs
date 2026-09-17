@@ -38,7 +38,7 @@ import {
 } from "../src/stitches.js";
 import { parseXlsWorkbook } from "../src/xls.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
-import { BASE_MODES, normalizeBaseMode } from "../src/display.js";
+import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sampleDir = join(root, "public", "sample");
@@ -438,10 +438,11 @@ const keep = applyDisplayModelsRange(models, 1, 3, "stitches");
 assert(keep.bind?.name === "KnittingStitches" && keep.resetRange === false, "dragging left handle does not rebind");
 
 const html = readFileSync(join(root, "index.html"), "utf8");
-assert(html.includes('id="base-mode"'), "Base is a select, not a boolean toggle");
-assert(/<option value="off">/.test(html) && /<option value="wire">/.test(html), "Base can hide or show wire");
-assert(/<option value="faces" selected>/.test(html), "Base defaults to Faces / surface");
-assert(/<option value="points">/.test(html), "Base has a Points mode");
+assert(html.includes('id="base-menu-btn"') && html.includes('id="base-menu-list"'), "Base is a same-size menu button, not a native select");
+assert(!html.includes("<select") && !html.includes("base-mode"), "exclusive Base <select> is gone");
+assert(html.includes('id="base-off"') && html.includes('id="base-wire"') && html.includes('id="base-faces"') && html.includes('id="base-points"'), "Base has Off / Wire / Faces / Points checkboxes");
+assert(html.includes("base-menu-sep") && html.includes("隐藏") && html.includes("Off"), "Off stays in the Base menu, separated from draw layers");
+assert(/id="base-faces"[^>]*checked/.test(html), "Base defaults to Faces checked");
 assert(html.includes("底模") && html.includes("Base"), "Base control is labelled 底模 / Base");
 assert(html.includes('id="toggle-warp"') && html.includes("列") && html.includes("Warp"), "Warp toggle shows cols_resample");
 assert(/id="toggle-warp"[^>]*aria-pressed="true"/.test(html), "Warp defaults on");
@@ -449,19 +450,29 @@ assert(html.includes('id="toggle-overlay"') && html.includes("针迹") && html.i
 assert(!html.includes("toggle-wire") && !html.includes("toggle-body"), "standalone Wire / Base toggles are gone");
 assert(!html.includes("toggle-shade") && !html.includes("平面"), "Flat toggle is gone");
 const mainSrc = readFileSync(join(root, "src", "main.js"), "utf8");
-assert(mainSrc.includes("setBaseMode") && mainSrc.includes("#base-mode"), "main wires the Base select");
+assert(mainSrc.includes("setBaseLayers") && mainSrc.includes("applyBaseChoice"), "main wires Base multi-select");
 assert(mainSrc.includes("setShowWarp") && mainSrc.includes("#toggle-warp"), "main wires the Warp toggle");
 assert(!mainSrc.includes("setWireframe") && !mainSrc.includes("toggle-wire"), "main no longer has a standalone Wire toggle");
 assert(!mainSrc.includes("setFlat") && !mainSrc.includes("toggle-shade"), "main no longer wires Flat");
 const viewerSrc = readFileSync(join(root, "src", "viewer.js"), "utf8");
-assert(viewerSrc.includes("setBaseMode") && viewerSrc.includes("setShowWarp"), "viewer has Base modes and Warp visibility");
-assert(viewerSrc.includes('this.baseMode = "faces"'), "cut body starts as Faces");
+assert(viewerSrc.includes("setBaseLayers") && viewerSrc.includes("setShowWarp"), "viewer has Base layers and Warp visibility");
+assert(viewerSrc.includes("defaultBaseLayers"), "cut body starts from default Faces");
 assert(viewerSrc.includes("opacity: 0.42"), "Faces mode stays the semi-transparent underlay");
-assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("PointsMaterial"), "Wire and Points rebuild the base object");
-assert(!viewerSrc.includes("setWireframe"), "wireframe is only a Base mode");
+assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("_pointsMaterial"), "Wire and Points are composable overlays");
+assert(/size:\s*2\.8/.test(viewerSrc) && viewerSrc.includes("_pointsMaterial"), "Base points are substantially larger than the old 0.12/0.55 cloud");
+assert(!viewerSrc.includes("setWireframe"), "wireframe is only a Base layer");
 assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
-assert.deepEqual(BASE_MODES, ["off", "wire", "faces", "points"], "Base modes are off/wire/faces/points");
-assert(normalizeBaseMode("wire") === "wire" && normalizeBaseMode("nope") === "faces", "unknown Base mode falls back to Faces");
+assert.deepEqual(defaultBaseLayers(), { off: false, wire: false, faces: true, points: false }, "default is Faces only");
+assert(isBaseHidden(hiddenBaseLayers()) && !isBaseHidden(defaultBaseLayers()), "Off hides the cut body");
+assert.deepEqual(applyBaseChoice(defaultBaseLayers(), "off", true), hiddenBaseLayers(), "Off clears Wire/Faces/Points");
+assert.deepEqual(applyBaseChoice(hiddenBaseLayers(), "points", true), { off: false, wire: false, faces: false, points: true }, "checking a layer clears Off");
+assert.deepEqual(
+  applyBaseChoice({ off: false, wire: false, faces: true, points: false }, "wire", true),
+  { off: false, wire: true, faces: true, points: false },
+  "Wire and Faces can be on together",
+);
+assert.deepEqual(applyBaseChoice({ off: false, wire: false, faces: true, points: false }, "faces", false), hiddenBaseLayers(), "unchecking the last layer becomes Off");
+assert.deepEqual(normalizeBaseLayers({ wire: true, faces: true, points: true }), { off: false, wire: true, faces: true, points: true }, "all three draw layers compose");
 assert(viewerSrc.includes("ResizeObserver"), "viewer observes stage/canvas layout, not only window.resize");
 assert(viewerSrc.includes("displayedSize") && viewerSrc.includes("visualViewport"), "aspect tracks the CSS canvas box");
 assert(!/scale\.set\((?!Scalar)/.test(viewerSrc), "mesh scale stays uniform");
@@ -470,13 +481,16 @@ assert(mainSrc.includes("syncViewportAfterLayout"), "layout changes resync camer
 
 assert(html.includes('id="hide-chrome"') && html.includes("收起"), "dock has a Hide / 收起 control");
 assert(html.includes('id="show-chrome"') && html.includes("控件"), "collapsed chrome has a UI chip to restore");
-assert(html.includes('id="base-mode"') && html.includes('id="toggle-warp"') && html.includes('id="toggle-overlay"'), "bottom chrome is Base / Warp / Stitch");
+assert(html.includes('id="base-menu-btn"') && html.includes('id="toggle-warp"') && html.includes('id="toggle-overlay"'), "bottom chrome is Base / Warp / Stitch");
+assert(/grid-template-columns:\s*1fr 1fr 1fr/.test(readFileSync(join(root, "src", "style.css"), "utf8")), "Base button shares the same 3-column size as Warp and Stitch");
 assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "top bar uses one Open menu");
 assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') && html.includes('id="open-files"'), "Sample / Folder / Files stay as menu items");
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
 
 const css = readFileSync(join(root, "src", "style.css"), "utf8");
+assert(/\.dock\s*\{[^}]*overflow:\s*visible/.test(css), "dock does not clip the upward Base menu");
+assert(/\.dyn-controls\s*\{[^}]*overflow-y:\s*auto/.test(css), "slider stack still scrolls inside the dock");
 assert(/--touch:\s*44px/.test(css), "toggle / menu hit targets stay at least 44px");
 assert(/--dual-h:\s*36px/.test(css) && /--track-h:\s*4px/.test(css), "mobile dual sliders are skinny");
 assert(/--thumb:\s*28px/.test(css), "slider handles stay large enough to grab");
