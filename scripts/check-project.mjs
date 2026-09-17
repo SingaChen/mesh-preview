@@ -594,6 +594,7 @@ assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "righ
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
 assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMapGrid"), "main mounts the 2D map");
 assert(mainSrc.includes("highlightKeysForStitch") && mainSrc.includes("setPickHighlight") && mainSrc.includes("ensureVisible"), "click lights bound map cells and pans them into view");
+assert(mainSrc.includes("dataset.mapCells"), "chip records the bound map cell keys for the pick");
 assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("pickedStitch"), "map pick highlight follows the stitch chip");
 assert(mainSrc.includes("narrow-split") && mainSrc.includes("max-width: 719px"), "wide layout splits; phone uses a pane toggle");
 const mapViewSrc = readFileSync(join(root, "src", "map-view.js"), "utf8");

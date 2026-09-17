@@ -124,6 +124,7 @@ function paintStitchPick(stitch) {
       stitchPickEl.hidden = true;
       if (stitchPickTitle) stitchPickTitle.textContent = "针迹 Stitch";
       if (stitchPickText) stitchPickText.textContent = "";
+      delete stitchPickEl.dataset.mapCells;
     } else {
       stitchPickEl.hidden = false;
       if (stitchPickTitle) stitchPickTitle.textContent = parts.title;
@@ -131,6 +132,13 @@ function paintStitchPick(stitch) {
     }
   }
   paintMapHighlight();
+  if (stitchPickEl && pickedStitch) {
+    const keys = highlightKeysForStitch(pickedStitch, {
+      map: scene?.readableMap,
+      grid: mapView?.grid,
+    });
+    stitchPickEl.dataset.mapCells = [...keys].join(" ");
+  }
 }
 
 function pressed(btn, on) {
