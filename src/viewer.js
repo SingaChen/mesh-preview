@@ -523,8 +523,8 @@ export class MeshViewer {
   _pointsMaterial() {
     return new THREE.PointsMaterial({
       color: YARN,
-      size: 0.55,
-      sizeAttenuation: true,
+      size: 18,
+      sizeAttenuation: false,
     });
   }
 

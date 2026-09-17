@@ -441,6 +441,7 @@ const html = readFileSync(join(root, "index.html"), "utf8");
 assert(html.includes('id="base-menu-btn"') && html.includes('id="base-menu-list"'), "Base is a same-size menu button, not a native select");
 assert(!html.includes("<select") && !html.includes("base-mode"), "exclusive Base <select> is gone");
 assert(html.includes('id="base-off"') && html.includes('id="base-wire"') && html.includes('id="base-faces"') && html.includes('id="base-points"'), "Base has Off / Wire / Faces / Points checkboxes");
+assert(html.includes("base-menu-sep") && html.includes("隐藏") && html.includes("Off"), "Off stays in the Base menu, separated from draw layers");
 assert(/id="base-faces"[^>]*checked/.test(html), "Base defaults to Faces checked");
 assert(html.includes("底模") && html.includes("Base"), "Base control is labelled 底模 / Base");
 assert(html.includes('id="toggle-warp"') && html.includes("列") && html.includes("Warp"), "Warp toggle shows cols_resample");
@@ -458,7 +459,7 @@ assert(viewerSrc.includes("setBaseLayers") && viewerSrc.includes("setShowWarp"),
 assert(viewerSrc.includes("defaultBaseLayers"), "cut body starts from default Faces");
 assert(viewerSrc.includes("opacity: 0.42"), "Faces mode stays the semi-transparent underlay");
 assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("_pointsMaterial"), "Wire and Points are composable overlays");
-assert(/size:\s*0\.55/.test(viewerSrc), "Base points are large enough to see");
+assert(/size:\s*18/.test(viewerSrc) && /sizeAttenuation:\s*false/.test(viewerSrc), "Base points are a large screen-space size");
 assert(!viewerSrc.includes("setWireframe"), "wireframe is only a Base layer");
 assert(!viewerSrc.includes("setFlat") && !viewerSrc.includes("flatShading"), "viewer dropped unused flat shading");
 assert.deepEqual(defaultBaseLayers(), { off: false, wire: false, faces: true, points: false }, "default is Faces only");
@@ -488,6 +489,8 @@ assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
 
 const css = readFileSync(join(root, "src", "style.css"), "utf8");
+assert(/\.dock\s*\{[^}]*overflow:\s*visible/.test(css), "dock does not clip the upward Base menu");
+assert(/\.dyn-controls\s*\{[^}]*overflow-y:\s*auto/.test(css), "slider stack still scrolls inside the dock");
 assert(/--touch:\s*44px/.test(css), "toggle / menu hit targets stay at least 44px");
 assert(/--dual-h:\s*36px/.test(css) && /--track-h:\s*4px/.test(css), "mobile dual sliders are skinny");
 assert(/--thumb:\s*28px/.test(css), "slider handles stay large enough to grab");
