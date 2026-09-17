@@ -38,18 +38,41 @@
         </div>
       </header>
 
-      <main class="stage">
-        <canvas id="viewport"></canvas>
-        <div class="hud">
-          <div class="chip">
-            <strong id="mesh-label">—</strong>
-            <span id="mesh-stats">打开项目或加载示例</span>
-          </div>
-          <div class="hud-actions">
-            <button class="fit" id="hide-chrome" type="button" aria-expanded="true" title="Hide controls">收起 <span class="en">Hide</span></button>
-            <button class="fit chrome-show" id="show-chrome" type="button" hidden aria-expanded="true" title="Show controls">控件 <span class="en">UI</span></button>
-            <button class="fit" id="fit-view" type="button" title="Fit to view">适应 <span class="en">Fit</span></button>
-          </div>
+      <main class="workspace" id="workspace">
+        <div class="pane-switch" id="pane-switch" hidden>
+          <button class="btn toggle" id="pane-3d" type="button" aria-pressed="true">3D</button>
+          <button class="btn toggle" id="pane-map" type="button" aria-pressed="false">图 <span class="en">Map</span></button>
+        </div>
+        <div class="split" id="split">
+          <section class="stage" id="stage-3d">
+            <canvas id="viewport"></canvas>
+            <div class="hud">
+              <div class="chip">
+                <strong id="mesh-label">—</strong>
+                <span id="mesh-stats">打开项目或加载示例</span>
+              </div>
+              <div class="hud-actions">
+                <button class="fit" id="hide-chrome" type="button" aria-expanded="true" title="Hide controls">收起 <span class="en">Hide</span></button>
+                <button class="fit chrome-show" id="show-chrome" type="button" hidden aria-expanded="true" title="Show controls">控件 <span class="en">UI</span></button>
+                <button class="fit" id="fit-view" type="button" title="Fit 3D">适应 <span class="en">Fit</span></button>
+              </div>
+            </div>
+          </section>
+          <section class="map-pane" id="map-pane" hidden>
+            <div class="map-toolbar">
+              <div class="map-title">
+                <strong>生长图 <span class="en">Map</span></strong>
+                <span id="map-meta">readable_map</span>
+              </div>
+              <div class="map-zoom">
+                <button class="fit" id="map-zoom-out" type="button" title="Zoom out">−</button>
+                <button class="fit" id="map-zoom-in" type="button" title="Zoom in">+</button>
+                <button class="fit" id="map-fit" type="button" title="Fit map">适应 <span class="en">Fit</span></button>
+              </div>
+            </div>
+            <canvas id="map-canvas"></canvas>
+            <p class="map-empty" id="map-empty" hidden>无生长图 / No readable_map</p>
+          </section>
         </div>
       </main>
 
