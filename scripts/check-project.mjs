@@ -53,7 +53,7 @@ import {
   stitchForMapCell,
   tokenKind,
 } from "../src/readable-map.js";
-import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible } from "../src/map-view.js";
+import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
@@ -181,6 +181,7 @@ assert(grid.nRows === 65 && grid.nCols === 41, "2D grid is 65 machine rows × ne
 assert(grid.grid[0][4].token === "·" && grid.grid[0][4].col === 0, "row000 col0 is a knit token from the txt");
 assert(tokenKind("·") === "knit" && tokenKind("-R2") === "decrease" && tokenKind("+L2") === "increase", "token kinds follow the written glyphs");
 assert(grid.nRows === map.rows.length, "do not invent extra map rows beyond rowNNN");
+assert(rowDirLabel(map.rows[0].row, map.rows[0].dir) === "0 R", "txt map left label uses the same 0-based row + dir");
 
 const bound = bindStitchesToMap(parsed.faces, map);
 if (bound.stitches.length !== 475) throw new Error("bind should keep every face");
@@ -430,6 +431,16 @@ assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 spa
   assert(contentHit?.row === 0 && contentHit?.col === 20, "hitTestContent maps Excel content coords to 0,20");
   assert(hitTestContent(excelGrid, 10, 10) == null, "header / dir label is not a map cell");
   assert(MAP_CLICK_SLOP === 8, "map click slop matches the 3D canvas");
+  assert(MAP_LABEL_W >= 56, "label column fits 3-digit display_row + dir");
+  assert(rowDirLabel(0, "R") === "0 R", "Excel first column uses 0-based display_row + dir");
+  assert(rowDirLabel(7, "X") === "7 X" && rowDirLabel(8, "R") === "8 R", "mid-row X stays on its own display_row");
+  assert(rowDirLabel(12, "X+") === "12 X+" && rowDirLabel(120, "X+") === "120 X+", "3-digit row + X+ still has a space");
+  assert(
+    rowDirLabel(excelMap.rows[0].row, excelMap.rows[0].dir) === "0 R" &&
+      rowDirLabel(excelMap.rows[7].row, excelMap.rows[7].dir) === "7 X" &&
+      rowDirLabel(excelMap.rows[8].row, excelMap.rows[8].dir) === "8 R",
+    "sample first-column labels match bind display_row",
+  );
 }
 
 const chunks = faceChunksFromFaces(parsed.faces);
