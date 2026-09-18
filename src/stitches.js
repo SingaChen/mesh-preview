@@ -9,8 +9,9 @@
  * - readable_map.txt walks the same generation order: each token
  *   (including the leftover "-" after a -R2 decrease) is one stitch
  *   cell with an explicit row id and needle column.
- * - The 2D map prefers iteration_*_readable_map_step3_xfer.xls (step3
- *   sheet: dir\\col × needles, R/L/X/X+ rows, Excel legend fills).
+ * - The 2D map prefers iteration_*_readable_map_step4_beds.xls (step4
+ *   sheet: dir\\col × needles, R/L/X/X+/Flip rows, F/B prefixes,
+ *   absolute ←L1/→R1, Excel legend fills). Falls back to step3 xfer.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
  *   needle + knit-row, not generation-order onto X rows.

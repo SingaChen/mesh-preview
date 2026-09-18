@@ -1,4 +1,4 @@
-import { isTransferDir } from "./excel-map.js";
+import { isFlipDir, isTransferDir } from "./excel-map.js";
 import { cellFill } from "./readable-map.js";
 
 const CELL = 22;
@@ -14,7 +14,7 @@ export const MAP_CELL = CELL;
 export const MAP_LABEL_W = LABEL_W;
 export const MAP_HEAD_H = HEAD_H;
 
-/** First-column label: 0-based display_row + dir, e.g. `0 R`, `7 X`, `12 X+`. */
+/** First-column label: 0-based display_row + dir, e.g. `0 R`, `7 X`, `6 Flip`. */
 export function rowDirLabel(row, dir) {
   const n = Number.isFinite(Number(row)) ? String(Math.trunc(Number(row))) : "";
   const d = dir == null || dir === "" ? "" : String(dir);
@@ -375,16 +375,20 @@ export class ReadableMapView {
       const y = this._rowY(row);
       const meta = g.rows[r] || g.rows.find((rowMeta) => rowMeta.row === row);
       const transfer = isTransferDir(meta?.dir);
-      ctx.fillStyle = transfer ? "#eef1f6" : "#ffffff";
+      const flip = isFlipDir(meta?.dir);
+      ctx.fillStyle = flip ? "#f6eefc" : transfer ? "#eef1f6" : "#ffffff";
       ctx.fillRect(0, y, LABEL_W, CELL);
       ctx.strokeStyle = gridLine;
       ctx.strokeRect(0.5, y + 0.5, LABEL_W - 1, CELL - 1);
-      if (transfer) {
+      if (flip) {
+        ctx.fillStyle = "#c9a0ff";
+        ctx.fillRect(0, y, 3, CELL);
+      } else if (transfer) {
         ctx.fillStyle = "#c8c8e0";
         ctx.fillRect(0, y, 3, CELL);
       }
       const rowLabel = rowDirLabel(displayRowIndex(g, r, meta), meta?.dir);
-      ctx.fillStyle = transfer ? "#6b7280" : labelInk;
+      ctx.fillStyle = flip ? "#6b4f8a" : transfer ? "#6b7280" : labelInk;
       ctx.textAlign = "center";
       ctx.font = rowLabel.length > 6 ? `8px ${LABEL_FONT}` : `9px ${LABEL_FONT}`;
       ctx.fillText(rowLabel, LABEL_W / 2, y + CELL / 2);
