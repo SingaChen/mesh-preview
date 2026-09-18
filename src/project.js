@@ -55,7 +55,7 @@ export function isStitchMapBindName(name) {
 
 export function isExcelReadableMapName(name) {
   const base = basename(name);
-  return isXlsName(base) && /readable_map|step3/i.test(base) && !/cols_resample|first_rows/i.test(base);
+  return isXlsName(base) && /readable_map|step[34]/i.test(base) && !/cols_resample|first_rows/i.test(base);
 }
 
 export function isTxtReadableMapName(name) {
@@ -310,18 +310,29 @@ function pickIterFile(files, meshFile) {
   return files[0];
 }
 
+function excelReadableMapRank(name) {
+  const n = String(name || "");
+  if (/step4/i.test(n) && /beds/i.test(n)) return 4;
+  if (/step4/i.test(n)) return 3;
+  if (/step3/i.test(n) && /xfer/i.test(n)) return 2;
+  if (/step3/i.test(n)) return 1;
+  return 0;
+}
+
 function findReadableMap(index, meshFile) {
   const xlsMaps = (index.xls || []).filter((f) => isExcelReadableMapName(f.name));
-  const preferred = xlsMaps.find((f) => /step3/i.test(f.name) && /xfer/i.test(f.name))
-    || xlsMaps.find((f) => /step3/i.test(f.name))
-    || pickIterFile(xlsMaps, meshFile);
+  const preferred =
+    [...xlsMaps].sort(
+      (a, b) => excelReadableMapRank(b.name) - excelReadableMapRank(a.name) || naturalCompare(a.name, b.name),
+    )[0] || pickIterFile(xlsMaps, meshFile);
   if (preferred) return preferred;
   return findReadableMapTxt(index, meshFile);
 }
 
 function findReadableMapTxt(index, meshFile) {
   const maps = (index.txts || []).filter((f) => isTxtReadableMapName(f.name));
-  return pickIterFile(maps, meshFile);
+  const classic = maps.find((f) => /readable_map\.txt$/i.test(f.name) && !/step[34]/i.test(f.name));
+  return classic || pickIterFile(maps, meshFile);
 }
 
 function matchOverlay(meshFile, overlays) {

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -55,7 +55,7 @@ import {
 } from "../src/readable-map.js";
 import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
-import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
+import { excelLegendKind, isFlipDir, namedExcelColorRgb, parseExcelReadableMap } from "../src/excel-map.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 
@@ -96,8 +96,12 @@ assert(
   "manifest must list desktop stitch_map_bind.json",
 );
 assert(
-  refs.some((r) => /readable_map_step3_xfer\.xls$/.test(r)),
-  "manifest must list the step3 Excel readable_map",
+  refs.some((r) => /readable_map_step4_beds\.xls$/.test(r)),
+  "manifest must list the step4 Excel readable_map",
+);
+assert(
+  existsSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")),
+  "step3 xls stays on disk as fallback",
 );
 assert(
   refs.some((r) => /readable_map\.txt$/.test(r)),
@@ -125,8 +129,8 @@ const fromManifest = projectFromManifest(manifest, index, "sample/manifest.json"
 if (fromManifest.outputs.length !== 1) throw new Error("expected 1 cylinder output");
 if (!fromManifest.outputs[0].stitchFile) throw new Error("expected stitch file");
 if (!fromManifest.outputs[0].readableMapFile) throw new Error("expected readable_map");
-if (!/step3_xfer\.xls$/i.test(fromManifest.outputs[0].readableMapFile.name)) {
-  throw new Error("2D map must prefer the step3 xls, not the txt");
+if (!/step4_beds\.xls$/i.test(fromManifest.outputs[0].readableMapFile.name)) {
+  throw new Error("2D map must prefer the step4 xls, not the txt");
 }
 if (!fromManifest.outputs[0].readableMapTxtFile) throw new Error("expected readable_map txt companion");
 if (!fromManifest.outputs[0].colsResampleFile) throw new Error("expected cols_resample field");
@@ -147,12 +151,38 @@ if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery sh
 if (!fromDiscovery.outputs[0].firstRowsFile) throw new Error("discovery should attach first_rows xls");
 if (!fromDiscovery.outputs[0].facesRingLayoutFile) throw new Error("discovery should attach faces_ring_layout.json");
 if (!fromDiscovery.outputs[0].stitchMapBindFile) throw new Error("discovery should attach stitch_map_bind.json");
-if (!/step3_xfer\.xls$/i.test(fromDiscovery.outputs[0].readableMapFile?.name || "")) {
-  throw new Error("discovery should prefer the step3 xls over readable_map.txt");
+if (!/step4_beds\.xls$/i.test(fromDiscovery.outputs[0].readableMapFile?.name || "")) {
+  throw new Error("discovery should prefer the step4 xls over readable_map.txt");
 }
 if (!fromDiscovery.outputs[0].readableMapTxtFile) throw new Error("discovery should keep the txt companion");
 if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
   throw new Error("overlay heuristic failed for KnittingStitches");
+}
+
+{
+  const diskEntries = readdirSync(cylDir)
+    .map((name) => {
+      const full = join(cylDir, name);
+      if (/\.xlsx?$/i.test(name)) return { name, path: `cylinder/${name}`, buffer: readFileSync(full) };
+      if (/\.(obj|json|txt)$/i.test(name)) return { name, path: `cylinder/${name}`, text: readFileSync(full, "utf8") };
+      return null;
+    })
+    .filter(Boolean);
+  const both = projectFromDiscovery(indexFiles(diskEntries));
+  assert(
+    /step4_beds\.xls$/i.test(both.outputs[0].readableMapFile?.name || ""),
+    "folder discovery prefers step4 beds xls when both step4 and step3 are present",
+  );
+  assert(
+    /readable_map\.txt$/i.test(both.outputs[0].readableMapTxtFile?.name || "") &&
+      !/step[34]/i.test(both.outputs[0].readableMapTxtFile?.name || ""),
+    "txt companion stays the classic readable_map.txt, not the step4 dump",
+  );
+  const noStep4 = projectFromDiscovery(indexFiles(diskEntries.filter((e) => !/step4/i.test(e.name))));
+  assert(
+    /step3_xfer\.xls$/i.test(noStep4.outputs[0].readableMapFile?.name || ""),
+    "discovery falls back to step3 xls if step4 is missing",
+  );
 }
 
 const stitchText = readFileSync(join(cylDir, "iteration_0_cut_KnittingStitches.obj"), "utf8");
@@ -477,6 +507,51 @@ assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 spa
       rowDirLabel(excelMap.rows[8].row, excelMap.rows[8].dir) === "8 R",
     "sample first-column labels match bind display_row",
   );
+}
+
+const step4Buf = readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_beds.xls"));
+const step4Map = parseExcelReadableMap(step4Buf);
+assert(step4Map.source === "excel" && step4Map.sheet === "step4", "parse the step4 sheet when present");
+assert(step4Map.rows.length === 134, `step4 has 134 data rows, got ${step4Map.rows.length}`);
+assert(step4Map.needleCols.length === 42 && step4Map.colMin === -5 && step4Map.colMax === 36, "step4 needles stay −5…36");
+assert(step4Map.knitRows === 89, `step4 keeps 89 knit segments, got ${step4Map.knitRows}`);
+{
+  const knitOccupied = step4Map.cells.filter((c) => c.token && (c.dir === "R" || c.dir === "L")).length;
+  assert(knitOccupied === 507, `step4 still occupies 507 knit cells, got ${knitOccupied}`);
+  const hist = step4Map.rows.map((r) => r.dir).reduce((acc, d) => {
+    acc[d] = (acc[d] || 0) + 1;
+    return acc;
+  }, {});
+  assert(hist.R === 51 && hist.L === 38 && hist.Flip === 12 && hist.X === 28 && hist["X+"] === 5, "step4 adds 12 Flip rows and one extra X");
+  assert(step4Map.rows[0].dir === "R" && step4Map.rows[1].dir === "X+" && step4Map.rows[6].dir === "Flip", "first Flip sits after the opening knit block");
+  assert(step4Map.rows[7].dir === "R" && step4Map.rows[8].dir === "X" && step4Map.rows[9].dir === "R", "decrease still splits R around X after the Flip row");
+  assert(step4Map.rows[0].cells.find((c) => c.col === 0)?.token === "F·", "step4 prefixes front knits with F");
+  assert(step4Map.rows[0].cells.find((c) => c.col === 11)?.token === "B·", "step4 prefixes back knits with B");
+  assert(step4Map.rows[0].cells.find((c) => c.col === 20)?.token === "BvR", "wrap tokens keep the bed prefix");
+  assert(step4Map.rows[1].cells.find((c) => c.col === 0)?.token === "F←L1", "absolute front transfer is F←L1");
+  assert(step4Map.rows[1].cells.find((c) => c.col === 11)?.token === "B→R1", "absolute back transfer is B→R1");
+  const flipCell = step4Map.rows[6].cells.find((c) => c.token === "F↔B");
+  assert(flipCell?.col === 10 && flipCell.fill === "rgb(204,153,255)", `Flip F↔B uses SingaLab lavender, got ${flipCell?.fill}`);
+  assert(step4Map.rows[0].cells.find((c) => c.col === 11)?.fill === "rgb(204,255,255)", "plain back cells keep the turquoise wash");
+  assert(excelLegendKind("F↔B", "Flip") === "flip" && isFlipDir("Flip"), "Flip is its own legend kind");
+  assert(excelLegendKind("F←L1", "X+") === "transfer" && excelLegendKind("→R1", "X") === "transfer", "absolute L/R arrows stay transfer");
+  assert(excelLegendKind("FvR", "R") === "wrap" && excelLegendKind("F-R1", "R") === "decrease" && excelLegendKind("B+R1", "L") === "increase", "F/B prefixes still classify");
+  assert(namedExcelColorRgb("lavender").join(",") === "204,153,255", "lavender matches Excel icv 46");
+  assert(rowDirLabel(6, "Flip") === "6 Flip", "first column can label Flip rows");
+}
+const step4Grid = buildReadableMapGrid(step4Map, bound.stitches);
+assert(step4Grid.source === "excel" && step4Grid.nRows === 134 && step4Grid.nCols === 42, "2D Excel grid is 134×42 for step4");
+assert(step4Grid.grid[6][10 - step4Grid.colMin].token === "F↔B" && step4Grid.grid[6][10 - step4Grid.colMin].isFlip, "Flip cells are marked flip / not stitch");
+assert(step4Grid.grid[1][0 - step4Grid.colMin].token === "F←L1" && step4Grid.grid[1][0 - step4Grid.colMin].isTransfer, "absolute xfer cells stay transfer");
+assert(step4Grid.grid[0][20 - step4Grid.colMin].token === "BvR" && step4Grid.grid[0][20 - step4Grid.colMin].isKnit, "opening wrap is still a knit cell");
+{
+  assert(step4Map.rows.length !== stitchBind.n_display_rows, "step4 Flip rows shift display_row vs the step3 bind dump");
+  assert(stitchBind.display_rows[6].dir === "R" && step4Map.rows[6].dir === "Flip", "bind row 6 is still a knit; step4 row 6 is Flip");
+  const early = highlightKeysForStitch(bound.stitches[20], { map: step4Map, grid: step4Grid, bind: stitchBind });
+  assert(early.size === 1 && early.has("0,20"), "knit cells before the first Flip still bind");
+  const staleDec = highlightKeysForStitch(bound.stitches[51], { map: step4Map, grid: step4Grid, bind: stitchBind });
+  assert(staleDec.size === 0, "do not highlight Flip cells when step3 bind coords land on them");
+  assert(stitchForMapCell(6, 5, stitchBind, bound.stitches)?.index === 51, "raw bind is unchanged; UI skips Flip clicks instead of inventing coords");
 }
 
 const chunks = faceChunksFromFaces(parsed.faces);
@@ -867,11 +942,11 @@ assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "m
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
 assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMapGrid"), "main mounts the 2D map");
-assert(mainSrc.includes("parseExcelReadableMap"), "main prefers the step3 xls for the 2D map");
+assert(mainSrc.includes("parseExcelReadableMap"), "main loads the Excel readable_map for the 2D view");
 assert(mainSrc.includes("parseStitchMapBind") && mainSrc.includes("applyStitchMapBind"), "main loads desktop stitch_map_bind.json");
 assert(mainSrc.includes("highlightKeysForStitch") && mainSrc.includes("setPickHighlight") && mainSrc.includes("ensureVisible"), "click lights bound map cells and pans them into view");
 assert(mainSrc.includes("onCellPick") && mainSrc.includes("onMapCellPick") && mainSrc.includes("stitchForMapCell"), "map click reverse-selects the bound stitch");
-assert(mainSrc.includes("paintStitchPick(stitch)") && mainSrc.includes("isTransferDir"), "map knit pick reuses paintStitchPick; X/X+ does not");
+assert(mainSrc.includes("paintStitchPick(stitch)") && mainSrc.includes("isTransferDir") && mainSrc.includes("isFlipDir"), "map knit pick reuses paintStitchPick; X/X+/Flip do not");
 assert(!mainSrc.includes("excelMapAsBindMap"), "do not pair Excel cells in generation order");
 assert(mainSrc.includes("dataset.mapCells"), "chip records the bound map cell keys for the pick");
 assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("pickedStitch"), "map pick highlight follows the stitch chip");
@@ -879,7 +954,7 @@ assert(mainSrc.includes("narrow-split") && mainSrc.includes("max-width: 719px"),
 const mapViewSrc = readFileSync(join(root, "src", "map-view.js"), "utf8");
 assert(mapViewSrc.includes("pickHighlight") && mapViewSrc.includes("ensureVisible") && mapViewSrc.includes("panToKeepRectVisible"), "map view can outline a pick and ensureVisible");
 assert(mapViewSrc.includes("hitTest") && mapViewSrc.includes("onCellPick") && mapViewSrc.includes("MAP_CLICK_SLOP"), "map view hit-tests cells and ignores pan/pinch");
-assert(mapViewSrc.includes("isTransferDir"), "Excel view marks X/X+ rows as transfer / not stitch");
+assert(mapViewSrc.includes("isTransferDir") && mapViewSrc.includes("isFlipDir"), "Excel view marks X/X+ and Flip rows as non-stitch");
 const readableSrc = readFileSync(join(root, "src", "readable-map.js"), "utf8");
 assert(readableSrc.includes("mapCellsForStitch"), "Excel pick uses stitch_map_bind cells");
 assert(readableSrc.includes("stitchForMapCell") && readableSrc.includes("highlightKeysForMapCell"), "reverse lookup expands multi-cell terms");

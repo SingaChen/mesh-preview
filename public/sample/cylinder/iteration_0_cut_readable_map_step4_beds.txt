@@ -1,0 +1,212 @@
+readable_map_step4: F/B beds + absolute L/R + Flip  65 rows, 507 cells
+  row000 dir=R col[0..20]: F· F· F· F· F· F· F· F· F· F· F· B· B· B· B· B· B· B· B· B· BvR
+  knit000.0: F·@0 F·@1 F·@2 F·@3 F·@4 F·@5 F·@6 F·@7 F·@8 F·@9 F·@10 B·@11 B·@12 B·@13 B·@14 B·@15 B·@16 B·@17 B·@18 B·@19 BvR@20
+  row001 dir=L col[18..20]: B+R1 B^R BvL
+  +xfer001.0: F←L1@0 F←L1@1 F←L1@2 F←L1@3 F←L1@4 F←L1@5 F←L1@6 F←L1@7 F←L1@8 F←L1@9 F←L1@10 B→R1@11 B→R1@12 B→R1@13 B→R1@14 B→R1@15 B→R1@16 B→R1@17 B→R1@18 B→R1@19
+  knit001.0: B+R1@20 B^R@19 BvL@18
+  row002 dir=R col[18..22]: B^L B· B· B· BvR
+  knit002.0: B^L@18 B·@19 B·@20 B·@21 BvR@22
+  row003 dir=L col[21..22]: B^R BvL
+  knit003.0: B^R@22 BvL@21
+  row004 dir=R col[21..36]: B^L B· B· B· B· B· B· B· B· B· B· B· B· B· B· B·
+  knit004.0: B^L@21 B·@22 B·@23 B·@24 B·@25 B·@26 B·@27 B·@28 B·@29 B·@30 B·@31 B·@32 B·@33 B·@34 B·@35 B·@36
+  flip004: F↔B@10 F↔B@11 F↔B@12 F↔B@13 F↔B@14 F↔B@15 F↔B@16 F↔B@17
+  row005 dir=R col[0..15]: F· F· F· F· F· F-R1 F· · · · · · · · · vR
+  knit005.0: F·@0 F·@1 F·@2 F·@3 F·@4 F-R1@5 F·@6
+  xfer005.0: F←L1@6 F←L1@7 F←L1@8 F←L1@9 F←L1@10 F←L1@11 F←L1@12 F←L1@13 F←L1@14 F←L1@15 F←L1@16 F←L1@17 B→R1@18 B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30 B→R1@31 B→R1@32 B→R1@33 B→R1@34 B→R1@35 B→R1@36
+  knit005.1: F·@6 F·@7 F·@8 F·@9 F·@10 F·@11 F·@12 F·@13 FvR@14
+  row006 dir=L col[-3..15]: ^R · · · · · · · · · · · · · · · · · vL
+  knit006.0: F^R@14 F·@13 F·@12 F·@11 F·@10 F·@9 F·@8 F·@7 F·@6 F·@5 F·@4 F·@3 F·@2 F·@1 F·@0 F·@-1 F·@-2 F·@-3 FvL@-4
+  row007 dir=R col[-3..20]: ^L · · · · +R1 · · · · · · · · · · · · · · · · · vR
+  flip007: F↔B@16
+  +xfer007.0: F→R1@2 F→R1@3 F→R1@4 F→R1@5 F→R1@6 F→R1@7 F→R1@8 F→R1@9 F→R1@10 F→R1@11 F→R1@12 F→R1@13 F→R1@14 F→R1@15 B←L1@16 B←L1@17 B←L1@18 B←L1@19 B←L1@20 B←L1@21 B←L1@22 B←L1@23 B←L1@24 B←L1@25 B←L1@26 B←L1@27 B←L1@28 B←L1@29 B←L1@30 B←L1@31 B←L1@32 B←L1@33 B←L1@34 B←L1@35
+  knit007.0: F^L@-4 F·@-3 F·@-2 F·@-1 F·@0 F+R1@1 F·@2 F·@3 F·@4 F·@5 F·@6 F·@7 F·@8 F·@9 F·@10 F·@11 F·@12 F·@13 F·@14 F·@15 F·@16 B·@17 B·@18 BvR@19
+  row008 dir=L col[17..20]: ^R · · vL
+  knit008.0: B^R@19 B·@18 B·@17 FvL@16
+  row009 dir=R col[17..20]: ^L · · vR
+  knit009.0: F^L@16 B·@17 B·@18 BvR@19
+  row010 dir=L col[15..20]: ^R · · · · vL
+  knit010.0: B^R@19 B·@18 B·@17 F·@16 F·@15 FvL@14
+  row011 dir=R col[15..23]: ^L · · · · · -R1 · vR
+  knit011.0: F^L@14 F·@15 F·@16 B·@17 B·@18 B·@19 B-R1@20 B·@21
+  flip011: F↔B@16
+  xfer011.0: B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30 B→R1@31 B→R1@32 B→R1@33 B→R1@34 B→R1@35 B→R1@36
+  knit011.1: BvR@21
+  row012 dir=L col[22..23]: ^R vL
+  knit012.0: B^R@21 BvL@20
+  row013 dir=R col[22..23]: ^L vR
+  knit013.0: B^L@20 BvR@21
+  row014 dir=L col[20..23]: ^R · · vL
+  knit014.0: B^R@21 B·@20 B·@19 BvL@18
+  row015 dir=R col[20..27]: ^L · · · · · · vR
+  knit015.0: B^L@18 B·@19 B·@20 B·@21 B·@22 B·@23 B·@24 BvR@25
+  row016 dir=L col[24..27]: ^R · · vL
+  knit016.0: B^R@25 B·@24 B·@23 BvL@22
+  row017 dir=R col[24..32]: ^L · · · · · · · vR
+  knit017.0: B^L@22 B·@23 B·@24 B·@25 B·@26 B·@27 B·@28 B·@29 BvR@30
+  row018 dir=L col[24..32]: ^R · · · · · · · vL
+  knit018.0: B^R@30 B·@29 B·@28 B·@27 B·@26 B·@25 B·@24 B·@23 BvL@22
+  row019 dir=R col[24..34]: ^L · · · · · · · · · vR
+  knit019.0: B^L@22 B·@23 B·@24 B·@25 B·@26 B·@27 B·@28 B·@29 B·@30 B·@31 BvR@32
+  row020 dir=L col[33..34]: ^R vL
+  knit020.0: B^R@32 BvL@31
+  row021 dir=R col[33..38]: ^L · · · · ·
+  knit021.0: B^L@31 B·@32 B·@33 B·@34 B·@35 B·@36
+  row022 dir=R col[0..1]: F· FvR
+  knit022.0: F·@0 FvR@1
+  row023 dir=L col[0..1]: F^R FvL
+  knit023.0: F^R@1 FvL@0
+  row024 dir=R col[0..18]: F^L F· F· F· F· F· F· F· F· F· F· F· F· F· F· F· B· B· BvR
+  knit024.0: F^L@0 F·@1 F·@2 F·@3 F·@4 F·@5 F·@6 F·@7 F·@8 F·@9 F·@10 F·@11 F·@12 F·@13 F·@14 F·@15 B·@16 B·@17 BvR@18
+  row025 dir=L col[17..18]: B^R BvL
+  knit025.0: B^R@18 BvL@17
+  row026 dir=R col[17..31]: B^L B· B· B· B· B· B· B· B· B· B· B· B· B· BvR
+  knit026.0: B^L@17 B·@18 B·@19 B·@20 B·@21 B·@22 B·@23 B·@24 B·@25 B·@26 B·@27 B·@28 B·@29 B·@30 BvR@31
+  row027 dir=L col[20..31]: B^R B· B· B· B· B· B· B· B· B· B· BvL
+  knit027.0: B^R@31 B·@30 B·@29 B·@28 B·@27 B·@26 B·@25 B·@24 B·@23 B·@22 B·@21 BvL@20
+  row028 dir=R col[20..22]: B^L B· BvR
+  knit028.0: B^L@20 B·@21 BvR@22
+  row029 dir=L col[4..22]: B^R B· B· B· B· B· B· F· F· F· F· F· F· F· F· F· F+L1 F· FvL
+  +xfer029.0: F←L1@-4 F←L1@-3 F←L1@-2 F←L1@-1 F←L1@0 F←L1@1 F←L1@2 F←L1@3 F←L1@4 F←L1@5
+  knit029.0: B^R@22 B·@21 B·@20 B·@19 B·@18 B·@17 B·@16 F·@15 F·@14 F·@13 F·@12 F·@11 F·@10 F·@9 F·@8 F·@7 F+L1@6 F·@5 FvL@4
+  row030 dir=R col[4..6]: F^L F· FvR
+  knit030.0: F^L@4 F·@5 FvR@6
+  row031 dir=L col[5..6]: F^R FvL
+  knit031.0: F^R@6 FvL@5
+  row032 dir=R col[5..34]: F^L F· F· F· F· F· F-R1 F· · · · · · · · · · · · · -R1 · · · -R1 · · -R1 · vR
+  knit032.0: F^L@5 F·@6 F·@7 F·@8 F·@9 F·@10 F-R1@11 F·@12
+  xfer032.0: F←L1@12 F←L1@13 F←L1@14 F←L1@15 B→R1@16 B→R1@17 B→R1@18 B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30 B→R1@31 B→R1@32 B→R1@33 B→R1@34 B→R1@35 B→R1@36
+  knit032.1: F·@12 F·@13 F·@14 B·@15 B·@16 B·@17 B·@18 B·@19 B·@20 B·@21 B·@22 B·@23 B-R1@24 B·@25
+  xfer032.1: B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30 B→R1@31 B→R1@32 B→R1@33 B→R1@34 B→R1@35
+  knit032.2: B·@25 B·@26 B-R1@27 B·@28
+  xfer032.2: B→R1@28 B→R1@29 B→R1@30 B→R1@31 B→R1@32 B→R1@33 B→R1@34
+  knit032.3: B·@28 B-R1@29 B·@30
+  flip032: F↔B@14
+  xfer032.3: B→R1@30 B→R1@31 B→R1@32 B→R1@33
+  knit032.4: BvR@30
+  row033 dir=L col[33..34]: ^R vL
+  knit033.0: B^R@30 BvL@29
+  row034 dir=R col[33..36]: ^L · · ·
+  knit034.0: B^L@29 B·@30 B·@31 B·@32
+  row035 dir=R col[0..5]: F· F· F· F· F· FvR
+  knit035.0: F·@0 F·@1 F·@2 F·@3 F·@4 FvR@5
+  row036 dir=L col[-3..5]: F^R F· F· F· F· F· F· F· FvL
+  knit036.0: F^R@5 F·@4 F·@3 F·@2 F·@1 F·@0 F·@-1 F·@-2 FvL@-3
+  row037 dir=R col[-3..6]: F^L F· F· F· F· F-R1 F· · · vR
+  knit037.0: F^L@-3 F·@-2 F·@-1 F·@0 F·@1 F-R1@2 F·@3
+  xfer037.0: F←L1@3 F←L1@4 F←L1@5 F←L1@6 F←L1@7 F←L1@8 F←L1@9 F←L1@10 F←L1@11 F←L1@12 F←L1@13 B→R1@14 B→R1@15 B→R1@16 B→R1@17 B→R1@18 B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30 B→R1@31 B→R1@32
+  knit037.1: F·@3 F·@4 FvR@5
+  row038 dir=L col[4..6]: ^R · vL
+  knit038.0: F^R@5 F·@4 FvL@3
+  row039 dir=R col[4..14]: ^L · · · · · · · · · vR-1
+  knit039.0: F^L@3 F·@4 F·@5 F·@6 F·@7 F·@8 F·@9 F·@10 F·@11 F·@12 BvR-1@13
+  xfer039.0: B→R1@13 B→R1@14 B→R1@15 B→R1@16 B→R1@17 B→R1@18 B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30 B→R1@31
+  row040 dir=L col[13..14]: ^R vL
+  knit040.0: F^R@12 FvL@11
+  row041 dir=R col[13..23]: ^L · · · · · · · · · vR
+  knit041.0: F^L@11 F·@12 B·@13 B·@14 B·@15 B·@16 B·@17 B·@18 B·@19 B·@20 BvR@21
+  row042 dir=L col[22..23]: ^R vL
+  knit042.0: B^R@21 BvL@20
+  row043 dir=R col[22..28]: ^L · · · · · vR
+  knit043.0: B^L@20 B·@21 B·@22 B·@23 B·@24 B·@25 BvR@26
+  row044 dir=L col[16..28]: ^R -L1 · · -L1 · B· B· B· B· B· B· BvL
+  knit044.0: B^R@26 B-L1@25 B·@24
+  xfer044.0: F→R1@-5 F→R1@-4 F→R1@-3 F→R1@-2 F→R1@-1 F→R1@0 F→R1@1 F→R1@2 F→R1@3 F→R1@4 F→R1@5 F→R1@6 F→R1@7 F→R1@8 F→R1@9 F→R1@10 F→R1@11 F→R1@12 B←L1@13 B←L1@14 B←L1@15 B←L1@16 B←L1@17 B←L1@18 B←L1@19 B←L1@20 B←L1@21 B←L1@22 B←L1@23 B←L1@24
+  knit044.1: B·@24 B-L1@23 B·@22
+  flip044: F↔B@13
+  xfer044.1: F→R1@-4 F→R1@-3 F→R1@-2 F→R1@-1 F→R1@0 F→R1@1 F→R1@2 F→R1@3 F→R1@4 F→R1@5 F→R1@6 F→R1@7 F→R1@8 F→R1@9 F→R1@10 F→R1@11 F→R1@12 B←L1@13 B←L1@14 B←L1@15 B←L1@16 B←L1@17 B←L1@18 B←L1@19 B←L1@20 B←L1@21 B←L1@22
+  knit044.2: B·@22 B·@21 B·@20 B·@19 B·@18 B·@17 BvL@16
+  row045 dir=R col[16..17]: B^L BvR
+  knit045.0: B^L@16 BvR@17
+  row046 dir=L col[8..17]: B^R B· B· B· F· F-L1 F· · · vL
+  knit046.0: B^R@17 B·@16 B·@15 B·@14 F·@13 F-L1@12 F·@11
+  xfer046.0: F→R1@-3 F→R1@-2 F→R1@-1 F→R1@0 F→R1@1 F→R1@2 F→R1@3 F→R1@4 F→R1@5 F→R1@6 F→R1@7 F→R1@8 F→R1@9 F→R1@10 F→R1@11
+  knit046.1: F·@11 F·@10 FvL@9
+  row047 dir=R col[8..11]: ^L +R2 · vR
+  +xfer047.0: F→R1@11 F→R1@12 F→R1@13 B←L1@14 B←L1@15 B←L1@16 B←L1@17 B←L1@18 B←L1@19 B←L1@20 B←L1@21 B←L1@22 B←L1@23 B←L1@24 B←L1@25 B←L1@26 B←L1@27 B←L1@28 B←L1@29 B←L1@30
+  +xfer047.1: F→R1@11 F→R1@12 F→R1@13 F→R1@14 B←L1@15 B←L1@16 B←L1@17 B←L1@18 B←L1@19 B←L1@20 B←L1@21 B←L1@22 B←L1@23 B←L1@24 B←L1@25 B←L1@26 B←L1@27 B←L1@28 B←L1@29 B←L1@30 B←L1@31
+  knit047.0: F^L@9 F+R2@10 F·@11 FvR@12
+  row048 dir=L col[9..11]: ^R · vL
+  knit048.0: F^R@12 F·@11 FvL@10
+  row049 dir=R col[9..22]: ^L · · · · · · -R2 · · -R2 · · vR
+  knit049.0: F^L@10 F·@11 F·@12 F·@13 F·@14 F·@15 B·@16 B-R2@17 B·@18 B·@19
+  flip049: F↔B@15
+  xfer049.0: B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30 B→R1@31 B→R1@32
+  xfer049.1: B→R1@18 B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30 B→R1@31
+  knit049.1: B-R2@18 B·@19 B·@20
+  flip049: F↔B@14
+  xfer049.2: B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29 B→R1@30
+  xfer049.3: B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28 B→R1@29
+  knit049.2: BvR@19
+  row050 dir=L col[21..22]: ^R vL
+  knit050.0: B^R@19 BvL@18
+  row051 dir=R col[21..32]: ^L · -R1 · · -R1 · -R1 · -R1 · ·
+  knit051.0: B^L@18 B·@19 B-R1@20 B·@21
+  flip051: F↔B@13
+  xfer051.0: B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27 B→R1@28
+  knit051.1: B·@21 B-R1@22 B·@23
+  xfer051.1: B→R1@23 B→R1@24 B→R1@25 B→R1@26 B→R1@27
+  knit051.2: B-R1@23 B·@24
+  flip051: F↔B@12
+  xfer051.2: B→R1@24 B→R1@25 B→R1@26
+  knit051.3: B-R1@24 B·@25
+  xfer051.3: B→R1@25
+  knit051.4: B·@25
+  row052 dir=R col[0..3]: F· F· F· FvR
+  knit052.0: F·@0 F·@1 F·@2 FvR@3
+  row053 dir=L col[2..3]: F^R FvL
+  knit053.0: F^R@3 FvL@2
+  row054 dir=R col[2..7]: F^L F· F· F· F· FvR
+  knit054.0: F^L@2 F·@3 F·@4 F·@5 F·@6 FvR@7
+  row055 dir=L col[4..7]: F^R F· F· FvL
+  knit055.0: F^R@7 F·@6 F·@5 FvL@4
+  row056 dir=R col[4..12]: F^L F· F· F· F-R1 F· · · vR
+  knit056.0: F^L@4 F·@5 F·@6 F·@7 F-R1@8 F·@9
+  xfer056.0: F←L1@9 F←L1@10 F←L1@11 B→R1@12 B→R1@13 B→R1@14 B→R1@15 B→R1@16 B→R1@17 B→R1@18 B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24 B→R1@25
+  knit056.1: F·@9 F·@10 BvR@11
+  row057 dir=L col[-2..12]: ^R · · · · · · · · -L1 · F· F-L1 F· vL
+  knit057.0: B^R@11 F·@10 F·@9 F·@8 F·@7 F·@6 F·@5 F·@4 F·@3 F-L1@2 F·@1
+  flip057: F↔B@11
+  xfer057.0: F→R1@-2 F→R1@-1 F→R1@0 F→R1@1
+  knit057.1: F·@1 F-L1@0 F·@-1
+  xfer057.1: F→R1@-1
+  knit057.2: FvL@-1
+  row058 dir=R col[-2..6]: ^L · · · · · · · vR
+  knit058.0: F^L@-1 F·@0 F·@1 F·@2 F·@3 F·@4 F·@5 F·@6 FvR@7
+  row059 dir=L col[5..6]: ^R vL
+  knit059.0: F^R@7 FvL@6
+  row060 dir=R col[5..15]: ^L · · · · · · · -R1 · BvR
+  knit060.0: F^L@6 F·@7 F·@8 F·@9 F·@10 F·@11 B·@12 B·@13 B-R1@14 B·@15
+  xfer060.0: B→R1@15 B→R1@16 B→R1@17 B→R1@18 B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23 B→R1@24
+  knit060.1: BvR@15
+  row061 dir=L col[13..15]: B^R-1 B· vL
+  knit061.0: B^R-1@15 B·@14
+  flip061: F↔B@11
+  xfer061.0: F→R1@-1 F→R1@0 F→R1@1 F→R1@2 F→R1@3 F→R1@4 F→R1@5 F→R1@6 F→R1@7 F→R1@8 F→R1@9 F→R1@10 B←L1@11 B←L1@12 B←L1@13 B←L1@14
+  knit061.1: BvL@14
+  row062 dir=R col[13..15]: ^L · vR
+  knit062.0: B^L@14 B·@15 BvR@16
+  row063 dir=L col[8..15]: ^R-1 · · · · -L1 · vL
+  knit063.0: B^R-1@16 B·@15
+  xfer063.0: F→R1@0 F→R1@1 F→R1@2 F→R1@3 F→R1@4 F→R1@5 F→R1@6 F→R1@7 F→R1@8 F→R1@9 F→R1@10 F→R1@11 B←L1@12 B←L1@13 B←L1@14 B←L1@15
+  knit063.1: B·@15 B·@14 B·@13 F-L1@12 F·@11
+  xfer063.1: F→R1@1 F→R1@2 F→R1@3 F→R1@4 F→R1@5 F→R1@6 F→R1@7 F→R1@8 F→R1@9 F→R1@10 F→R1@11
+  knit063.2: FvL@11
+  row064 dir=R col[8..16]: ^L · · · · · -R1 · ·
+  knit064.0: F^L@11 F·@12 B·@13 B·@14 B·@15 B·@16 B-R1@17 B·@18
+  xfer064.0: B→R1@18 B→R1@19 B→R1@20 B→R1@21 B→R1@22 B→R1@23
+  knit064.1: B·@18
+  flip064: F↔B@12
+  xfer064.1: B←L1@18 B←L1@19 B←L1@20 B←L1@21
+notes:
+  - step4: opening F/B left-half/right-half (odd extra on front)
+  - same-bed X/X+ keep loop beds; Flip changes bed
+  - Flip BEFORE xfer when that xfer would make |F-B|>1; never xfer-then-flip
+  - 一整行 = one faces_ring / path (full F→B circuit), not one Excel knit segment
+  - end-of-ring Flip+xfer: ring end sits on rightmost B (opposite front col 0)
+  - next faces_ring still starts at needle 0 on front-left
+  - Flip is its own Excel kind (dir=Flip, label F↔B)
+  - absolute →R1/←L1; front advance=knit dir; back mirrored
+  - step3 kept relative →1/←1; no hang-jump
+  - last live N=20 front=10 back=10
+  - flip rows=12

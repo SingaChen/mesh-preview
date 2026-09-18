@@ -1,6 +1,7 @@
 /**
- * step3 Excel readable_map (Singa iteration_0_cut_readable_map_step3_xfer.xls).
- * Grid axes, tokens, X/X+ transfer rows, and legend / XF fills — not Term.Type.
+ * Excel readable_map (Singa step4 beds, fallback step3 xfer).
+ * Grid axes, tokens, X/X+ transfer rows, Flip rows, and legend / XF fills —
+ * not Term.Type.
  */
 
 import {
@@ -18,6 +19,7 @@ export const EXCEL_LEGEND_FILLS = {
   decrease: "rgb(255,153,204)",
   "wrap-dec": "rgb(255,102,0)",
   transfer: "rgb(204,204,255)",
+  flip: "rgb(204,153,255)",
   plain: "rgb(255,255,255)",
   empty: "rgb(192,192,192)",
 };
@@ -29,7 +31,7 @@ export function isExcelReadableMapName(name) {
     .pop();
   if (!/\.xlsx?$/i.test(base)) return false;
   if (/cols_resample|first_rows/i.test(base)) return false;
-  return /readable_map|step3/i.test(base);
+  return /readable_map|step[34]/i.test(base);
 }
 
 export function isKnitDir(dir) {
@@ -40,14 +42,27 @@ export function isTransferDir(dir) {
   return dir === "X" || dir === "X+";
 }
 
+export function isFlipDir(dir) {
+  return dir === "Flip";
+}
+
 function tokenString(value) {
   if (value == null || value === "") return "";
   return String(value);
 }
 
+/** Strip the step4 F/B bed prefix so glyphs classify like step3. */
+export function excelGlyphToken(token) {
+  return tokenString(token).replace(/^[FB](?=·|[.v^+\-←→↔])/, "");
+}
+
 export function excelLegendKind(token, dir) {
-  const t = tokenString(token);
-  if (isTransferDir(dir) || /^[←→]\d+$/.test(t)) return "transfer";
+  const raw = tokenString(token);
+  if (isFlipDir(dir) || raw === "F↔B" || raw.includes("↔")) return "flip";
+  if (isTransferDir(dir) || /^[←→][RL]?\d+$/.test(raw) || /^[FB][←→][RL]?\d+$/.test(raw)) {
+    return "transfer";
+  }
+  const t = excelGlyphToken(raw);
   if (/^[v^][LR]-/.test(t)) return "wrap-dec";
   if (/^[v^][LR]$/.test(t)) return "wrap";
   if (/^\+[RL]/.test(t)) return "increase";
@@ -103,18 +118,20 @@ function parseLegendSheet(sheet) {
 export function parseExcelReadableMap(data, { workbook } = {}) {
   const book = workbook || parseXlsWorkbook(data);
   const step =
+    findXlsSheet(book, "step4") ||
+    findXlsSheet(book, (s) => /step\s*4/i.test(s.name)) ||
     findXlsSheet(book, "step3") ||
     findXlsSheet(book, (s) => /step\s*3/i.test(s.name)) ||
     book.sheets.find((s) => tokenString(s.rows?.[0]?.[0]).includes("dir"));
   if (!step?.rows?.length) {
-    throw new Error("xls: missing step3 readable_map sheet");
+    throw new Error("xls: missing step4/step3 readable_map sheet");
   }
   const styles = book.styles || { xf: [], palette: BIFF8_DEFAULT_PALETTE };
   const headerRow = step.rows[0] || [];
   const headerLabel = tokenString(headerRow[0]) || "dir\\col";
   const needles = headerNeedles(headerRow);
   if (!needles.length) {
-    throw new Error("xls: step3 header has no needle columns");
+    throw new Error("xls: readable_map header has no needle columns");
   }
   const colMin = Math.min(...needles.map((n) => n.needle));
   const colMax = Math.max(...needles.map((n) => n.needle));
@@ -252,6 +269,8 @@ export function namedExcelColorRgb(name) {
     case "ice_blue":
     case "iceblue":
       return rgbForIcv(31);
+    case "lavender":
+      return rgbForIcv(46);
     default:
       return null;
   }

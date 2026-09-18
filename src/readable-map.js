@@ -1,10 +1,10 @@
 /**
- * 2D grid from readable_map.txt or Singa step3 Excel.
+ * 2D grid from readable_map.txt or Singa step4/step3 Excel.
  * Excel look wins for the xls view (legend / XF fills, not Term.Type).
  * Txt leftovers still use token ink; bound txt cells may use Type colors.
  */
 
-import { excelInk, excelLegendKind, isKnitDir, isTransferDir } from "./excel-map.js";
+import { excelInk, excelLegendKind, isFlipDir, isKnitDir, isTransferDir } from "./excel-map.js";
 import { bindFaceForMapCell, mapCellsForStitch } from "./stitches.js";
 
 export function tokenKind(token) {
@@ -95,6 +95,7 @@ export function buildExcelReadableMapGrid(map) {
         knitRow: cell.knitRow,
         isKnit: isKnitDir(cell.dir),
         isTransfer: isTransferDir(cell.dir),
+        isFlip: isFlipDir(cell.dir),
         xf: cell.xf,
         fill: cell.fill,
         kind: cell.kind,
@@ -201,7 +202,7 @@ function excelRowDir(grid, displayRow) {
 /**
  * Readable_map cells bound to one KnittingStitches face.
  * Excel: only desktop stitch_map_bind.json cells (display_row + needle).
- * Never highlight X / X+ transfer rows. No column-wide fallback.
+ * Never highlight X / X+ transfer rows or Flip rows. No column-wide fallback.
  * Txt: existing generation-order pairing (cell i ↔ face i) plus row/col.
  */
 export function highlightKeysForStitch(stitch, { map = null, grid = null, bind = null } = {}) {
@@ -215,7 +216,7 @@ export function highlightKeysForStitch(stitch, { map = null, grid = null, bind =
       if (row == null || col == null) continue;
       const mapped = grid?.grid?.[row - (grid.rowMin || 0)]?.[col - grid.colMin];
       const dir = mapped?.dir || excelRowDir(grid, row);
-      if (isTransferDir(dir) || mapped?.isTransfer) continue;
+      if (isTransferDir(dir) || isFlipDir(dir) || mapped?.isTransfer || mapped?.isFlip) continue;
       keys.add(cellKey(row, col));
     }
     return keys;

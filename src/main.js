@@ -30,7 +30,7 @@ import {
   parseReadableMap,
   parseStitchMapBind,
 } from "./stitches.js";
-import { isTransferDir, parseExcelReadableMap } from "./excel-map.js";
+import { isFlipDir, isTransferDir, parseExcelReadableMap } from "./excel-map.js";
 import { bindDualRange } from "./dual-range.js";
 import {
   activeRingIndex,
@@ -141,11 +141,13 @@ function onMapCellPick(hit) {
   if (!hit) return;
   const stitches = scene?.stitches?.bound?.stitches || [];
   const stitch = stitchForMapCell(hit.row, hit.col, stitchMapBind(), stitches);
+  if (hit.cell?.isTransfer || hit.cell?.isFlip || isTransferDir(hit.dir) || isFlipDir(hit.dir)) {
+    return;
+  }
   if (stitch) {
     paintStitchPick(stitch);
     return;
   }
-  if (hit.cell?.isTransfer || isTransferDir(hit.dir)) return;
   paintStitchPick(null);
 }
 
@@ -268,7 +270,7 @@ async function loadBuffer(entry) {
 function isMapXlsEntry(entry) {
   if (!entry) return false;
   const name = entry.name || entry.path || "";
-  return isExcelReadableMapName(name) || (isXlsName(name) && /readable_map|step3/i.test(name));
+  return isExcelReadableMapName(name) || (isXlsName(name) && /readable_map|step[34]/i.test(name));
 }
 
 async function loadExcelOrTxtMap(entry) {
@@ -642,7 +644,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("左 3D · 右 step3 Excel · 窄屏切 3D/图");
+      setStatus("左 3D · 右 step4 Excel · 窄屏切 3D/图");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -754,7 +756,7 @@ function paintReadableMap() {
   if (mapMeta) {
     mapMeta.textContent =
       map.source === "excel"
-        ? `step3 ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel`
+        ? `${map.sheet || "excel"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel`
         : h
           ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
           : `${map.rows.length} rows · ${map.cells.length} cells`;
