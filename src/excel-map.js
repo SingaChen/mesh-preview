@@ -123,6 +123,9 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
   const rows = [];
   const cells = [];
   let knitRow = 0;
+  // One sheet row → one display row. Consecutive R/L knit segments stay
+  // separate (mid-row decrease: R … X … R). Intercalated X/X+ are not
+  // folded into the knit on either side. Click bind uses these indices.
   for (let r = 1; r < step.rows.length; r++) {
     const raw = step.rows[r] || [];
     const xfRow = step.xfRows?.[r] || [];
