@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: decrease-span sample (507 knit cells, n_multi=29).
+// Bump note: knit-then-xfer sample (97 display rows, xfer=32).
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
