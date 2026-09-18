@@ -299,9 +299,18 @@ assert(excelGrid.grid[1][0 - excelGrid.colMin].token === "←1", "X+ row is a re
 assert(excelGrid.grid[0][20 - excelGrid.colMin].termColor == null, "Excel cells do not carry Term.Type colors");
 assert(excelGrid.xfers.length === 0, "do not invent extra xfer arrow rows on top of X/X+");
 assert(excelGrid.grid[1][0 - excelGrid.colMin].isTransfer, "X+ cells are marked transfer / not stitch");
+assert(excelGrid.grid[6][4 - excelGrid.colMin].token === "·", "pre-X knit segment still ends …4,5,6");
 assert(excelGrid.grid[6][5 - excelGrid.colMin].token === "-R1" && excelGrid.grid[6][5 - excelGrid.colMin].isKnit, "decrease span stays on the first R segment");
+assert(excelGrid.grid[6][6 - excelGrid.colMin].token === "·", "decrease hang+1 cell stays at col 6");
 assert(excelGrid.grid[7][6 - excelGrid.colMin].isTransfer, "intercalated X after the decrease span is transfer");
-assert(excelGrid.grid[8][7 - excelGrid.colMin].token === "·" && excelGrid.grid[8][7 - excelGrid.colMin].isKnit, "rest of the split knit is a later R segment");
+assert(
+  excelGrid.grid[8][6 - excelGrid.colMin].token === "·" && excelGrid.grid[8][6 - excelGrid.colMin].isKnit,
+  "post-X remaining knit starts at col 6 (hang=1 rightward ⇒ −1 from unshifted 7)",
+);
+assert(
+  excelGrid.grid[8][7 - excelGrid.colMin].token === "·" && excelGrid.grid[8][8 - excelGrid.colMin].token === "·",
+  "post-X remainder continues 7,8",
+);
 
 const stitchBind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
 assert(stitchBind?.faces.length === 475, `bind lists 475 faces, got ${stitchBind?.faces.length}`);
@@ -383,7 +392,9 @@ assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 spa
     const keys = highlightKeysForMapCell(6, col, { map: excelMap, grid: excelGrid, bind: stitchBind });
     assert(keys.has("6,5") && keys.has("6,6") && keys.size === 2, `clicking 6,${col} highlights the whole -R1 term`);
   }
-  assert(stitchForMapCell(8, 7, stitchBind, bound.stitches)?.index === 52, "rest-of-row R segment after X still binds face 52");
+  assert(stitchForMapCell(8, 6, stitchBind, bound.stitches)?.index === 52, "hang-shifted remainder starts at 8,6 (was unshifted 8,7)");
+  assert(stitchForMapCell(8, 7, stitchBind, bound.stitches)?.index === 53, "next remainder cell is 8,7 (was unshifted 8,8)");
+  assert(stitchForMapCell(8, 8, stitchBind, bound.stitches)?.index === 54, "post-X remainder continues 6,7,8");
   assert(stitchForMapCell(1, 0, stitchBind, bound.stitches) == null, "X+ transfer cell has no stitch");
   assert(stitchForMapCell(7, 6, stitchBind, bound.stitches) == null, "mid-row X transfer cell has no stitch");
   assert(stitchForMapCell(0, -4, stitchBind, bound.stitches) == null, "empty gray cell has no stitch");

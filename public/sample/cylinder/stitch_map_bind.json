@@ -1040,7 +1040,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 7,
+          "col": 6,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -1049,7 +1049,7 @@
           "bindable": true
         },
         {
-          "col": 8,
+          "col": 7,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -1058,7 +1058,7 @@
           "bindable": true
         },
         {
-          "col": 9,
+          "col": 8,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -1067,7 +1067,7 @@
           "bindable": true
         },
         {
-          "col": 10,
+          "col": 9,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -1076,7 +1076,7 @@
           "bindable": true
         },
         {
-          "col": 11,
+          "col": 10,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -1085,7 +1085,7 @@
           "bindable": true
         },
         {
-          "col": 12,
+          "col": 11,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -1094,7 +1094,7 @@
           "bindable": true
         },
         {
-          "col": 13,
+          "col": 12,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -1103,7 +1103,7 @@
           "bindable": true
         },
         {
-          "col": 14,
+          "col": 13,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -1112,7 +1112,7 @@
           "bindable": true
         },
         {
-          "col": 15,
+          "col": 14,
           "label": "vR",
           "kind": "wrap",
           "term_type": 2,
@@ -2219,7 +2219,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 23,
+          "col": 22,
           "label": "vR",
           "kind": "wrap",
           "term_type": 2,
@@ -4064,7 +4064,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 13,
+          "col": 12,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4073,7 +4073,7 @@
           "bindable": true
         },
         {
-          "col": 14,
+          "col": 13,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4082,7 +4082,7 @@
           "bindable": true
         },
         {
-          "col": 15,
+          "col": 14,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4091,7 +4091,7 @@
           "bindable": true
         },
         {
-          "col": 16,
+          "col": 15,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4100,7 +4100,7 @@
           "bindable": true
         },
         {
-          "col": 17,
+          "col": 16,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4109,7 +4109,7 @@
           "bindable": true
         },
         {
-          "col": 18,
+          "col": 17,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4118,7 +4118,7 @@
           "bindable": true
         },
         {
-          "col": 19,
+          "col": 18,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4127,7 +4127,7 @@
           "bindable": true
         },
         {
-          "col": 20,
+          "col": 19,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4136,7 +4136,7 @@
           "bindable": true
         },
         {
-          "col": 21,
+          "col": 20,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4145,7 +4145,7 @@
           "bindable": true
         },
         {
-          "col": 22,
+          "col": 21,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4154,7 +4154,7 @@
           "bindable": true
         },
         {
-          "col": 23,
+          "col": 22,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4163,7 +4163,7 @@
           "bindable": true
         },
         {
-          "col": 24,
+          "col": 23,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4172,7 +4172,7 @@
           "bindable": true
         },
         {
-          "col": 25,
+          "col": 24,
           "label": "-R1",
           "kind": "dec",
           "term_type": 3,
@@ -4181,7 +4181,7 @@
           "bindable": true
         },
         {
-          "col": 26,
+          "col": 25,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -4198,6 +4198,15 @@
       "is_knit": false,
       "is_transfer": true,
       "cells": [
+        {
+          "col": 25,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
         {
           "col": 26,
           "label": "←1",
@@ -4316,7 +4325,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 27,
+          "col": 25,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4325,7 +4334,7 @@
           "bindable": true
         },
         {
-          "col": 28,
+          "col": 26,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4334,7 +4343,7 @@
           "bindable": true
         },
         {
-          "col": 29,
+          "col": 27,
           "label": "-R1",
           "kind": "dec",
           "term_type": 3,
@@ -4343,7 +4352,7 @@
           "bindable": true
         },
         {
-          "col": 30,
+          "col": 28,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -4360,6 +4369,24 @@
       "is_knit": false,
       "is_transfer": true,
       "cells": [
+        {
+          "col": 28,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
+        {
+          "col": 29,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
         {
           "col": 30,
           "label": "←1",
@@ -4433,7 +4460,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 31,
+          "col": 28,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -4442,7 +4469,7 @@
           "bindable": true
         },
         {
-          "col": 32,
+          "col": 29,
           "label": "-R1",
           "kind": "dec",
           "term_type": 3,
@@ -4451,7 +4478,7 @@
           "bindable": true
         },
         {
-          "col": 33,
+          "col": 30,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -4468,6 +4495,33 @@
       "is_knit": false,
       "is_transfer": true,
       "cells": [
+        {
+          "col": 30,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
+        {
+          "col": 31,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
+        {
+          "col": 32,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
         {
           "col": 33,
           "label": "←1",
@@ -4505,7 +4559,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 34,
+          "col": 30,
           "label": "vR",
           "kind": "wrap",
           "term_type": 2,
@@ -5135,7 +5189,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 4,
+          "col": 3,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -5144,7 +5198,7 @@
           "bindable": true
         },
         {
-          "col": 5,
+          "col": 4,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -5153,7 +5207,7 @@
           "bindable": true
         },
         {
-          "col": 6,
+          "col": 5,
           "label": "vR",
           "kind": "wrap",
           "term_type": 2,
@@ -6080,7 +6134,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 25,
+          "col": 26,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6089,7 +6143,7 @@
           "bindable": true
         },
         {
-          "col": 24,
+          "col": 25,
           "label": "-L1",
           "kind": "dec",
           "term_type": 3,
@@ -6098,7 +6152,7 @@
           "bindable": true
         },
         {
-          "col": 23,
+          "col": 24,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -6357,6 +6411,15 @@
           "path_index": -1,
           "term_index": -1,
           "bindable": false
+        },
+        {
+          "col": 24,
+          "label": "→1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
         }
       ]
     },
@@ -6368,7 +6431,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 22,
+          "col": 24,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6377,7 +6440,7 @@
           "bindable": true
         },
         {
-          "col": 21,
+          "col": 23,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6386,7 +6449,7 @@
           "bindable": true
         },
         {
-          "col": 20,
+          "col": 22,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6395,7 +6458,7 @@
           "bindable": true
         },
         {
-          "col": 19,
+          "col": 21,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6404,7 +6467,7 @@
           "bindable": true
         },
         {
-          "col": 18,
+          "col": 20,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6413,7 +6476,7 @@
           "bindable": true
         },
         {
-          "col": 17,
+          "col": 19,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6422,7 +6485,7 @@
           "bindable": true
         },
         {
-          "col": 16,
+          "col": 18,
           "label": "vL",
           "kind": "wrap",
           "term_type": 1,
@@ -6674,7 +6737,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 10,
+          "col": 11,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6683,7 +6746,7 @@
           "bindable": true
         },
         {
-          "col": 9,
+          "col": 10,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -6692,7 +6755,7 @@
           "bindable": true
         },
         {
-          "col": 8,
+          "col": 9,
           "label": "vL",
           "kind": "wrap",
           "term_type": 1,
@@ -7727,7 +7790,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 19,
+          "col": 17,
           "label": "-R2",
           "kind": "dec",
           "term_type": 3,
@@ -7736,7 +7799,7 @@
           "bindable": true
         },
         {
-          "col": 20,
+          "col": 18,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -7745,7 +7808,7 @@
           "bindable": true
         },
         {
-          "col": 21,
+          "col": 19,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -7762,6 +7825,24 @@
       "is_knit": false,
       "is_transfer": true,
       "cells": [
+        {
+          "col": 19,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
+        {
+          "col": 20,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
         {
           "col": 21,
           "label": "←1",
@@ -7898,6 +7979,24 @@
       "is_transfer": true,
       "cells": [
         {
+          "col": 18,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
+        {
+          "col": 19,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
+        {
           "col": 20,
           "label": "←1",
           "kind": "xfer",
@@ -8033,7 +8132,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 22,
+          "col": 18,
           "label": "vR",
           "kind": "wrap",
           "term_type": 2,
@@ -8213,7 +8312,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 25,
+          "col": 24,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -8222,7 +8321,7 @@
           "bindable": true
         },
         {
-          "col": 26,
+          "col": 25,
           "label": "-R1",
           "kind": "dec",
           "term_type": 3,
@@ -8231,7 +8330,7 @@
           "bindable": true
         },
         {
-          "col": 27,
+          "col": 26,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -8248,6 +8347,15 @@
       "is_knit": false,
       "is_transfer": true,
       "cells": [
+        {
+          "col": 26,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
         {
           "col": 27,
           "label": "←1",
@@ -8303,7 +8411,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 28,
+          "col": 26,
           "label": "-R1",
           "kind": "dec",
           "term_type": 3,
@@ -8312,7 +8420,7 @@
           "bindable": true
         },
         {
-          "col": 29,
+          "col": 27,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -8329,6 +8437,24 @@
       "is_knit": false,
       "is_transfer": true,
       "cells": [
+        {
+          "col": 27,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
+        {
+          "col": 28,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
         {
           "col": 29,
           "label": "←1",
@@ -8357,7 +8483,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 30,
+          "col": 27,
           "label": "-R1",
           "kind": "dec",
           "term_type": 3,
@@ -8366,7 +8492,7 @@
           "bindable": true
         },
         {
-          "col": 31,
+          "col": 28,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -8384,7 +8510,16 @@
       "is_transfer": true,
       "cells": [
         {
-          "col": 31,
+          "col": 28,
+          "label": "←1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
+        },
+        {
+          "col": 29,
           "label": "←1",
           "kind": "xfer",
           "term_type": -1,
@@ -8402,7 +8537,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 32,
+          "col": 28,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -8841,33 +8976,6 @@
           "path_index": -1,
           "term_index": -1,
           "bindable": false
-        },
-        {
-          "col": 29,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
-        },
-        {
-          "col": 30,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
-        },
-        {
-          "col": 32,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
         }
       ]
     },
@@ -8879,7 +8987,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 10,
+          "col": 9,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -8888,7 +8996,7 @@
           "bindable": true
         },
         {
-          "col": 11,
+          "col": 10,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -8897,7 +9005,7 @@
           "bindable": true
         },
         {
-          "col": 12,
+          "col": 11,
           "label": "vR",
           "kind": "wrap",
           "term_type": 2,
@@ -9068,7 +9176,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 1,
+          "col": 2,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -9077,7 +9185,7 @@
           "bindable": true
         },
         {
-          "col": 0,
+          "col": 1,
           "label": "-L1",
           "kind": "dec",
           "term_type": 3,
@@ -9086,7 +9194,7 @@
           "bindable": true
         },
         {
-          "col": -1,
+          "col": 0,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -9104,7 +9212,7 @@
       "is_transfer": true,
       "cells": [
         {
-          "col": -1,
+          "col": 0,
           "label": "→1",
           "kind": "xfer",
           "term_type": -1,
@@ -9122,7 +9230,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": -2,
+          "col": 0,
           "label": "vL",
           "kind": "wrap",
           "term_type": 1,
@@ -9480,33 +9588,6 @@
           "path_index": -1,
           "term_index": -1,
           "bindable": false
-        },
-        {
-          "col": 28,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
-        },
-        {
-          "col": 29,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
-        },
-        {
-          "col": 31,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
         }
       ]
     },
@@ -9518,7 +9599,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 15,
+          "col": 14,
           "label": "vR",
           "kind": "wrap",
           "term_type": 2,
@@ -9725,7 +9806,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 13,
+          "col": 14,
           "label": "vL",
           "kind": "wrap",
           "term_type": 1,
@@ -9959,7 +10040,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 13,
+          "col": 14,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -9968,7 +10049,7 @@
           "bindable": true
         },
         {
-          "col": 12,
+          "col": 13,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -9977,7 +10058,7 @@
           "bindable": true
         },
         {
-          "col": 11,
+          "col": 12,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -9986,7 +10067,7 @@
           "bindable": true
         },
         {
-          "col": 10,
+          "col": 11,
           "label": "-L1",
           "kind": "dec",
           "term_type": 3,
@@ -9995,7 +10076,7 @@
           "bindable": true
         },
         {
-          "col": 9,
+          "col": 10,
           "label": "·",
           "kind": "dec",
           "term_type": 3,
@@ -10101,6 +10182,15 @@
           "path_index": -1,
           "term_index": -1,
           "bindable": false
+        },
+        {
+          "col": 10,
+          "label": "→1",
+          "kind": "xfer",
+          "term_type": -1,
+          "path_index": -1,
+          "term_index": -1,
+          "bindable": false
         }
       ]
     },
@@ -10112,7 +10202,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 8,
+          "col": 10,
           "label": "vL",
           "kind": "wrap",
           "term_type": 1,
@@ -10317,33 +10407,6 @@
           "path_index": -1,
           "term_index": -1,
           "bindable": false
-        },
-        {
-          "col": 27,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
-        },
-        {
-          "col": 28,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
-        },
-        {
-          "col": 30,
-          "label": "←1",
-          "kind": "xfer",
-          "term_type": -1,
-          "path_index": -1,
-          "term_index": -1,
-          "bindable": false
         }
       ]
     },
@@ -10355,7 +10418,7 @@
       "is_transfer": false,
       "cells": [
         {
-          "col": 16,
+          "col": 15,
           "label": "·",
           "kind": "plain",
           "term_type": 0,
@@ -11113,7 +11176,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 7,
+          "col": 6,
           "label": "·"
         }
       ],
@@ -11127,7 +11190,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 8,
+          "col": 7,
           "label": "·"
         }
       ],
@@ -11141,7 +11204,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 9,
+          "col": 8,
           "label": "·"
         }
       ],
@@ -11155,7 +11218,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 10,
+          "col": 9,
           "label": "·"
         }
       ],
@@ -11169,7 +11232,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 11,
+          "col": 10,
           "label": "·"
         }
       ],
@@ -11183,7 +11246,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 12,
+          "col": 11,
           "label": "·"
         }
       ],
@@ -11197,7 +11260,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 13,
+          "col": 12,
           "label": "·"
         }
       ],
@@ -11211,7 +11274,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 14,
+          "col": 13,
           "label": "·"
         }
       ],
@@ -11225,7 +11288,7 @@
       "cells": [
         {
           "display_row": 8,
-          "col": 15,
+          "col": 14,
           "label": "vR"
         }
       ],
@@ -12131,7 +12194,7 @@
       "cells": [
         {
           "display_row": 17,
-          "col": 23,
+          "col": 22,
           "label": "vR"
         }
       ],
@@ -14143,7 +14206,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 13,
+          "col": 12,
           "label": "·"
         }
       ],
@@ -14157,7 +14220,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 14,
+          "col": 13,
           "label": "·"
         }
       ],
@@ -14171,7 +14234,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 15,
+          "col": 14,
           "label": "·"
         }
       ],
@@ -14185,7 +14248,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 16,
+          "col": 15,
           "label": "·"
         }
       ],
@@ -14199,7 +14262,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 17,
+          "col": 16,
           "label": "·"
         }
       ],
@@ -14213,7 +14276,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 18,
+          "col": 17,
           "label": "·"
         }
       ],
@@ -14227,7 +14290,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 19,
+          "col": 18,
           "label": "·"
         }
       ],
@@ -14241,7 +14304,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 20,
+          "col": 19,
           "label": "·"
         }
       ],
@@ -14255,7 +14318,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 21,
+          "col": 20,
           "label": "·"
         }
       ],
@@ -14269,7 +14332,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 22,
+          "col": 21,
           "label": "·"
         }
       ],
@@ -14283,7 +14346,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 23,
+          "col": 22,
           "label": "·"
         }
       ],
@@ -14297,7 +14360,7 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 24,
+          "col": 23,
           "label": "·"
         }
       ],
@@ -14311,12 +14374,12 @@
       "cells": [
         {
           "display_row": 41,
-          "col": 25,
+          "col": 24,
           "label": "-R1"
         },
         {
           "display_row": 41,
-          "col": 26,
+          "col": 25,
           "label": "·"
         }
       ],
@@ -14330,7 +14393,7 @@
       "cells": [
         {
           "display_row": 43,
-          "col": 27,
+          "col": 25,
           "label": "·"
         }
       ],
@@ -14344,7 +14407,7 @@
       "cells": [
         {
           "display_row": 43,
-          "col": 28,
+          "col": 26,
           "label": "·"
         }
       ],
@@ -14358,12 +14421,12 @@
       "cells": [
         {
           "display_row": 43,
-          "col": 29,
+          "col": 27,
           "label": "-R1"
         },
         {
           "display_row": 43,
-          "col": 30,
+          "col": 28,
           "label": "·"
         }
       ],
@@ -14377,7 +14440,7 @@
       "cells": [
         {
           "display_row": 45,
-          "col": 31,
+          "col": 28,
           "label": "·"
         }
       ],
@@ -14391,12 +14454,12 @@
       "cells": [
         {
           "display_row": 45,
-          "col": 32,
+          "col": 29,
           "label": "-R1"
         },
         {
           "display_row": 45,
-          "col": 33,
+          "col": 30,
           "label": "·"
         }
       ],
@@ -14410,7 +14473,7 @@
       "cells": [
         {
           "display_row": 47,
-          "col": 34,
+          "col": 30,
           "label": "vR"
         }
       ],
@@ -14807,7 +14870,7 @@
       "cells": [
         {
           "display_row": 54,
-          "col": 4,
+          "col": 3,
           "label": "·"
         }
       ],
@@ -14821,7 +14884,7 @@
       "cells": [
         {
           "display_row": 54,
-          "col": 5,
+          "col": 4,
           "label": "·"
         }
       ],
@@ -14835,7 +14898,7 @@
       "cells": [
         {
           "display_row": 54,
-          "col": 6,
+          "col": 5,
           "label": "vR"
         }
       ],
@@ -15377,7 +15440,7 @@
       "cells": [
         {
           "display_row": 64,
-          "col": 25,
+          "col": 26,
           "label": "·"
         }
       ],
@@ -15391,12 +15454,12 @@
       "cells": [
         {
           "display_row": 64,
-          "col": 24,
+          "col": 25,
           "label": "-L1"
         },
         {
           "display_row": 64,
-          "col": 23,
+          "col": 24,
           "label": "·"
         }
       ],
@@ -15410,7 +15473,7 @@
       "cells": [
         {
           "display_row": 66,
-          "col": 22,
+          "col": 24,
           "label": "·"
         }
       ],
@@ -15424,7 +15487,7 @@
       "cells": [
         {
           "display_row": 66,
-          "col": 21,
+          "col": 23,
           "label": "·"
         }
       ],
@@ -15438,7 +15501,7 @@
       "cells": [
         {
           "display_row": 66,
-          "col": 20,
+          "col": 22,
           "label": "·"
         }
       ],
@@ -15452,7 +15515,7 @@
       "cells": [
         {
           "display_row": 66,
-          "col": 19,
+          "col": 21,
           "label": "·"
         }
       ],
@@ -15466,7 +15529,7 @@
       "cells": [
         {
           "display_row": 66,
-          "col": 18,
+          "col": 20,
           "label": "·"
         }
       ],
@@ -15480,7 +15543,7 @@
       "cells": [
         {
           "display_row": 66,
-          "col": 17,
+          "col": 19,
           "label": "·"
         }
       ],
@@ -15494,7 +15557,7 @@
       "cells": [
         {
           "display_row": 66,
-          "col": 16,
+          "col": 18,
           "label": "vL"
         }
       ],
@@ -15625,7 +15688,7 @@
       "cells": [
         {
           "display_row": 70,
-          "col": 10,
+          "col": 11,
           "label": "·"
         }
       ],
@@ -15639,7 +15702,7 @@
       "cells": [
         {
           "display_row": 70,
-          "col": 9,
+          "col": 10,
           "label": "·"
         }
       ],
@@ -15653,7 +15716,7 @@
       "cells": [
         {
           "display_row": 70,
-          "col": 8,
+          "col": 9,
           "label": "vL"
         }
       ],
@@ -15869,17 +15932,17 @@
       "cells": [
         {
           "display_row": 78,
-          "col": 19,
+          "col": 17,
           "label": "-R2"
         },
         {
           "display_row": 78,
-          "col": 20,
+          "col": 18,
           "label": "·"
         },
         {
           "display_row": 78,
-          "col": 21,
+          "col": 19,
           "label": "·"
         }
       ],
@@ -15893,7 +15956,7 @@
       "cells": [
         {
           "display_row": 81,
-          "col": 22,
+          "col": 18,
           "label": "vR"
         }
       ],
@@ -15982,7 +16045,7 @@
       "cells": [
         {
           "display_row": 85,
-          "col": 25,
+          "col": 24,
           "label": "·"
         }
       ],
@@ -15996,12 +16059,12 @@
       "cells": [
         {
           "display_row": 85,
-          "col": 26,
+          "col": 25,
           "label": "-R1"
         },
         {
           "display_row": 85,
-          "col": 27,
+          "col": 26,
           "label": "·"
         }
       ],
@@ -16015,12 +16078,12 @@
       "cells": [
         {
           "display_row": 87,
-          "col": 28,
+          "col": 26,
           "label": "-R1"
         },
         {
           "display_row": 87,
-          "col": 29,
+          "col": 27,
           "label": "·"
         }
       ],
@@ -16034,12 +16097,12 @@
       "cells": [
         {
           "display_row": 89,
-          "col": 30,
+          "col": 27,
           "label": "-R1"
         },
         {
           "display_row": 89,
-          "col": 31,
+          "col": 28,
           "label": "·"
         }
       ],
@@ -16053,7 +16116,7 @@
       "cells": [
         {
           "display_row": 91,
-          "col": 32,
+          "col": 28,
           "label": "·"
         }
       ],
@@ -16366,7 +16429,7 @@
       "cells": [
         {
           "display_row": 98,
-          "col": 10,
+          "col": 9,
           "label": "·"
         }
       ],
@@ -16380,7 +16443,7 @@
       "cells": [
         {
           "display_row": 98,
-          "col": 11,
+          "col": 10,
           "label": "·"
         }
       ],
@@ -16394,7 +16457,7 @@
       "cells": [
         {
           "display_row": 98,
-          "col": 12,
+          "col": 11,
           "label": "vR"
         }
       ],
@@ -16553,7 +16616,7 @@
       "cells": [
         {
           "display_row": 101,
-          "col": 1,
+          "col": 2,
           "label": "·"
         }
       ],
@@ -16567,12 +16630,12 @@
       "cells": [
         {
           "display_row": 101,
-          "col": 0,
+          "col": 1,
           "label": "-L1"
         },
         {
           "display_row": 101,
-          "col": -1,
+          "col": 0,
           "label": "·"
         }
       ],
@@ -16586,7 +16649,7 @@
       "cells": [
         {
           "display_row": 103,
-          "col": -2,
+          "col": 0,
           "label": "vL"
         }
       ],
@@ -16885,7 +16948,7 @@
       "cells": [
         {
           "display_row": 108,
-          "col": 15,
+          "col": 14,
           "label": "vR"
         }
       ],
@@ -16918,7 +16981,7 @@
       "cells": [
         {
           "display_row": 111,
-          "col": 13,
+          "col": 14,
           "label": "vL"
         }
       ],
@@ -16993,7 +17056,7 @@
       "cells": [
         {
           "display_row": 115,
-          "col": 13,
+          "col": 14,
           "label": "·"
         }
       ],
@@ -17007,7 +17070,7 @@
       "cells": [
         {
           "display_row": 115,
-          "col": 12,
+          "col": 13,
           "label": "·"
         }
       ],
@@ -17021,7 +17084,7 @@
       "cells": [
         {
           "display_row": 115,
-          "col": 11,
+          "col": 12,
           "label": "·"
         }
       ],
@@ -17035,12 +17098,12 @@
       "cells": [
         {
           "display_row": 115,
-          "col": 10,
+          "col": 11,
           "label": "-L1"
         },
         {
           "display_row": 115,
-          "col": 9,
+          "col": 10,
           "label": "·"
         }
       ],
@@ -17054,7 +17117,7 @@
       "cells": [
         {
           "display_row": 117,
-          "col": 8,
+          "col": 10,
           "label": "vL"
         }
       ],
@@ -17171,7 +17234,7 @@
       "cells": [
         {
           "display_row": 120,
-          "col": 16,
+          "col": 15,
           "label": "·"
         }
       ],
@@ -17556,63 +17619,63 @@
     "1,6": [
       {
         "display_row": 8,
-        "col": 7,
+        "col": 6,
         "label": "·"
       }
     ],
     "1,7": [
       {
         "display_row": 8,
-        "col": 8,
+        "col": 7,
         "label": "·"
       }
     ],
     "1,8": [
       {
         "display_row": 8,
-        "col": 9,
+        "col": 8,
         "label": "·"
       }
     ],
     "1,9": [
       {
         "display_row": 8,
-        "col": 10,
+        "col": 9,
         "label": "·"
       }
     ],
     "1,10": [
       {
         "display_row": 8,
-        "col": 11,
+        "col": 10,
         "label": "·"
       }
     ],
     "1,11": [
       {
         "display_row": 8,
-        "col": 12,
+        "col": 11,
         "label": "·"
       }
     ],
     "1,12": [
       {
         "display_row": 8,
-        "col": 13,
+        "col": 12,
         "label": "·"
       }
     ],
     "1,13": [
       {
         "display_row": 8,
-        "col": 14,
+        "col": 13,
         "label": "·"
       }
     ],
     "1,14": [
       {
         "display_row": 8,
-        "col": 15,
+        "col": 14,
         "label": "vR"
       }
     ],
@@ -18070,7 +18133,7 @@
     "1,78": [
       {
         "display_row": 17,
-        "col": 23,
+        "col": 22,
         "label": "vR"
       }
     ],
@@ -19081,148 +19144,148 @@
     "2,85": [
       {
         "display_row": 41,
-        "col": 13,
+        "col": 12,
         "label": "·"
       }
     ],
     "2,86": [
       {
         "display_row": 41,
-        "col": 14,
+        "col": 13,
         "label": "·"
       }
     ],
     "2,87": [
       {
         "display_row": 41,
-        "col": 15,
+        "col": 14,
         "label": "·"
       }
     ],
     "2,88": [
       {
         "display_row": 41,
-        "col": 16,
+        "col": 15,
         "label": "·"
       }
     ],
     "2,89": [
       {
         "display_row": 41,
-        "col": 17,
+        "col": 16,
         "label": "·"
       }
     ],
     "2,90": [
       {
         "display_row": 41,
-        "col": 18,
+        "col": 17,
         "label": "·"
       }
     ],
     "2,91": [
       {
         "display_row": 41,
-        "col": 19,
+        "col": 18,
         "label": "·"
       }
     ],
     "2,92": [
       {
         "display_row": 41,
-        "col": 20,
+        "col": 19,
         "label": "·"
       }
     ],
     "2,93": [
       {
         "display_row": 41,
-        "col": 21,
+        "col": 20,
         "label": "·"
       }
     ],
     "2,94": [
       {
         "display_row": 41,
-        "col": 22,
+        "col": 21,
         "label": "·"
       }
     ],
     "2,95": [
       {
         "display_row": 41,
-        "col": 23,
+        "col": 22,
         "label": "·"
       }
     ],
     "2,96": [
       {
         "display_row": 41,
-        "col": 24,
+        "col": 23,
         "label": "·"
       }
     ],
     "2,97": [
       {
         "display_row": 41,
-        "col": 25,
+        "col": 24,
         "label": "-R1"
       },
       {
         "display_row": 41,
-        "col": 26,
+        "col": 25,
         "label": "·"
       }
     ],
     "2,98": [
       {
         "display_row": 43,
-        "col": 27,
+        "col": 25,
         "label": "·"
       }
     ],
     "2,99": [
       {
         "display_row": 43,
-        "col": 28,
+        "col": 26,
         "label": "·"
       }
     ],
     "2,100": [
       {
         "display_row": 43,
-        "col": 29,
+        "col": 27,
         "label": "-R1"
       },
       {
         "display_row": 43,
-        "col": 30,
+        "col": 28,
         "label": "·"
       }
     ],
     "2,101": [
       {
         "display_row": 45,
-        "col": 31,
+        "col": 28,
         "label": "·"
       }
     ],
     "2,102": [
       {
         "display_row": 45,
-        "col": 32,
+        "col": 29,
         "label": "-R1"
       },
       {
         "display_row": 45,
-        "col": 33,
+        "col": 30,
         "label": "·"
       }
     ],
     "2,103": [
       {
         "display_row": 47,
-        "col": 34,
+        "col": 30,
         "label": "vR"
       }
     ],
@@ -19423,21 +19486,21 @@
     "3,21": [
       {
         "display_row": 54,
-        "col": 4,
+        "col": 3,
         "label": "·"
       }
     ],
     "3,22": [
       {
         "display_row": 54,
-        "col": 5,
+        "col": 4,
         "label": "·"
       }
     ],
     "3,23": [
       {
         "display_row": 54,
-        "col": 6,
+        "col": 5,
         "label": "vR"
       }
     ],
@@ -19713,68 +19776,68 @@
     "3,61": [
       {
         "display_row": 64,
-        "col": 25,
+        "col": 26,
         "label": "·"
       }
     ],
     "3,62": [
       {
         "display_row": 64,
-        "col": 24,
+        "col": 25,
         "label": "-L1"
       },
       {
         "display_row": 64,
-        "col": 23,
+        "col": 24,
         "label": "·"
       }
     ],
     "3,63": [
       {
         "display_row": 66,
-        "col": 22,
+        "col": 24,
         "label": "·"
       }
     ],
     "3,64": [
       {
         "display_row": 66,
-        "col": 21,
+        "col": 23,
         "label": "·"
       }
     ],
     "3,65": [
       {
         "display_row": 66,
-        "col": 20,
+        "col": 22,
         "label": "·"
       }
     ],
     "3,66": [
       {
         "display_row": 66,
-        "col": 19,
+        "col": 21,
         "label": "·"
       }
     ],
     "3,67": [
       {
         "display_row": 66,
-        "col": 18,
+        "col": 20,
         "label": "·"
       }
     ],
     "3,68": [
       {
         "display_row": 66,
-        "col": 17,
+        "col": 19,
         "label": "·"
       }
     ],
     "3,69": [
       {
         "display_row": 66,
-        "col": 16,
+        "col": 18,
         "label": "vL"
       }
     ],
@@ -19842,21 +19905,21 @@
     "3,78": [
       {
         "display_row": 70,
-        "col": 10,
+        "col": 11,
         "label": "·"
       }
     ],
     "3,79": [
       {
         "display_row": 70,
-        "col": 9,
+        "col": 10,
         "label": "·"
       }
     ],
     "3,80": [
       {
         "display_row": 70,
-        "col": 8,
+        "col": 9,
         "label": "vL"
       }
     ],
@@ -19974,24 +20037,24 @@
     "3,94": [
       {
         "display_row": 78,
-        "col": 19,
+        "col": 17,
         "label": "-R2"
       },
       {
         "display_row": 78,
-        "col": 20,
+        "col": 18,
         "label": "·"
       },
       {
         "display_row": 78,
-        "col": 21,
+        "col": 19,
         "label": "·"
       }
     ],
     "3,95": [
       {
         "display_row": 81,
-        "col": 22,
+        "col": 18,
         "label": "vR"
       }
     ],
@@ -20038,50 +20101,50 @@
     "3,101": [
       {
         "display_row": 85,
-        "col": 25,
+        "col": 24,
         "label": "·"
       }
     ],
     "3,102": [
       {
         "display_row": 85,
-        "col": 26,
+        "col": 25,
         "label": "-R1"
       },
       {
         "display_row": 85,
-        "col": 27,
+        "col": 26,
         "label": "·"
       }
     ],
     "3,103": [
       {
         "display_row": 87,
-        "col": 28,
+        "col": 26,
         "label": "-R1"
       },
       {
         "display_row": 87,
-        "col": 29,
+        "col": 27,
         "label": "·"
       }
     ],
     "3,104": [
       {
         "display_row": 89,
-        "col": 30,
+        "col": 27,
         "label": "-R1"
       },
       {
         "display_row": 89,
-        "col": 31,
+        "col": 28,
         "label": "·"
       }
     ],
     "3,105": [
       {
         "display_row": 91,
-        "col": 32,
+        "col": 28,
         "label": "·"
       }
     ],
@@ -20240,21 +20303,21 @@
     "4,21": [
       {
         "display_row": 98,
-        "col": 10,
+        "col": 9,
         "label": "·"
       }
     ],
     "4,22": [
       {
         "display_row": 98,
-        "col": 11,
+        "col": 10,
         "label": "·"
       }
     ],
     "4,23": [
       {
         "display_row": 98,
-        "col": 12,
+        "col": 11,
         "label": "vR"
       }
     ],
@@ -20336,26 +20399,26 @@
     "4,34": [
       {
         "display_row": 101,
-        "col": 1,
+        "col": 2,
         "label": "·"
       }
     ],
     "4,35": [
       {
         "display_row": 101,
-        "col": 0,
+        "col": 1,
         "label": "-L1"
       },
       {
         "display_row": 101,
-        "col": -1,
+        "col": 0,
         "label": "·"
       }
     ],
     "4,36": [
       {
         "display_row": 103,
-        "col": -2,
+        "col": 0,
         "label": "vL"
       }
     ],
@@ -20507,7 +20570,7 @@
     "4,57": [
       {
         "display_row": 108,
-        "col": 15,
+        "col": 14,
         "label": "vR"
       }
     ],
@@ -20526,7 +20589,7 @@
     "4,59": [
       {
         "display_row": 111,
-        "col": 13,
+        "col": 14,
         "label": "vL"
       }
     ],
@@ -20566,40 +20629,40 @@
     "4,64": [
       {
         "display_row": 115,
-        "col": 13,
+        "col": 14,
         "label": "·"
       }
     ],
     "4,65": [
       {
         "display_row": 115,
-        "col": 12,
+        "col": 13,
         "label": "·"
       }
     ],
     "4,66": [
       {
         "display_row": 115,
-        "col": 11,
+        "col": 12,
         "label": "·"
       }
     ],
     "4,67": [
       {
         "display_row": 115,
-        "col": 10,
+        "col": 11,
         "label": "-L1"
       },
       {
         "display_row": 115,
-        "col": 9,
+        "col": 10,
         "label": "·"
       }
     ],
     "4,68": [
       {
         "display_row": 117,
-        "col": 8,
+        "col": 10,
         "label": "vL"
       }
     ],
@@ -20660,7 +20723,7 @@
     "4,76": [
       {
         "display_row": 120,
-        "col": 16,
+        "col": 15,
         "label": "·"
       }
     ]
