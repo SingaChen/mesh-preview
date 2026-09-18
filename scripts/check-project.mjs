@@ -247,7 +247,7 @@ const excelBuf = readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_x
 const excelMap = parseExcelReadableMap(excelBuf);
 assert(excelMap.source === "excel" && excelMap.sheet === "step3", "parse the step3 sheet, not txt");
 assert(excelMap.rows.length === 121, `step3 has 121 data rows, got ${excelMap.rows.length}`);
-assert(excelMap.needleCols.length === 41 && excelMap.colMin === -4 && excelMap.colMax === 36, "needles are −4…36 after ring-scoped hang col_shift");
+assert(excelMap.needleCols.length === 42 && excelMap.colMin === -5 && excelMap.colMax === 36, "needles are −5…36 after live bed persists across rings");
 assert(excelMap.headerLabel === "dir\\col", "corner header is dir\\col");
 assert(excelMap.knitRows === 89, `mid-row decrease dump has 89 knit segments, got ${excelMap.knitRows}`);
 {
@@ -295,7 +295,7 @@ assert(excelLegendKind("←1", "X+") === "transfer" && excelLegendKind("vL", "L"
   const dec = excelMap.rows.find((r) => r.cells.some((c) => c.token === "-R1"))
     .cells.find((c) => c.token === "-R1");
   const lime = excelMap.rows[2].cells.find((c) => c.col === 19);
-  const empty = excelMap.rows[0].cells.find((c) => c.col === -4);
+  const empty = excelMap.rows[0].cells.find((c) => c.col === -5);
   assert(wrap.fill === "rgb(255,204,0)", `gold wrap from XF, got ${wrap.fill}`);
   assert(plain.fill === "rgb(255,255,255)", `plain · is white, got ${plain.fill}`);
   assert(xfer.fill === "rgb(204,204,255)", `ice_blue transfer from XF, got ${xfer.fill}`);
@@ -307,7 +307,7 @@ assert(excelLegendKind("←1", "X+") === "transfer" && excelLegendKind("vL", "L"
   assert(rgbForIcv(51).join(",") === "255,204,0" && rgbForIcv(31).join(",") === "204,204,255", "default palette matches gold / ice_blue");
 }
 const excelGrid = buildReadableMapGrid(excelMap, bound.stitches);
-assert(excelGrid.source === "excel" && excelGrid.nRows === 121 && excelGrid.nCols === 41, "2D Excel grid is 121×41");
+assert(excelGrid.source === "excel" && excelGrid.nRows === 121 && excelGrid.nCols === 42, "2D Excel grid is 121×42");
 assert(excelGrid.grid[0][20 - excelGrid.colMin].token === "vR", "row0 col20 is vR");
 assert(excelGrid.grid[1][0 - excelGrid.colMin].token === "←1", "X+ row is a real grid row, not a drawn arrow");
 assert(excelGrid.grid[0][20 - excelGrid.colMin].termColor == null, "Excel cells do not carry Term.Type colors");
@@ -317,6 +317,24 @@ assert(excelGrid.grid[6][4 - excelGrid.colMin].token === "·", "pre-X knit segme
 assert(excelGrid.grid[6][5 - excelGrid.colMin].token === "-R1" && excelGrid.grid[6][5 - excelGrid.colMin].isKnit, "decrease span stays on the first R segment");
 assert(excelGrid.grid[6][6 - excelGrid.colMin].token === "·", "decrease hang+1 cell stays at col 6");
 assert(excelGrid.grid[7][6 - excelGrid.colMin].isTransfer, "intercalated X after the decrease span is transfer");
+{
+  const firstDecXCols = knitOccupiedCols(excelMap.rows[7]);
+  assert(
+    excelMap.rows[7].dir === "X" &&
+      firstDecXCols.length === 31 &&
+      Math.min(...firstDecXCols) === 6 &&
+      Math.max(...firstDecXCols) === 36,
+    "first mid-row decrease X moves all hanging live needles 6…36, not one cell",
+  );
+  const laterDecXCols = knitOccupiedCols(excelMap.rows[97]);
+  assert(
+    excelMap.rows[97].dir === "X" &&
+      laterDecXCols.length === 17 &&
+      Math.min(...laterDecXCols) === 9 &&
+      Math.max(...laterDecXCols) === 25,
+    "later-ring decrease X also moves prior-path live needles, not one cell",
+  );
+}
 assert(
   excelGrid.grid[8][6 - excelGrid.colMin].token === "·" && excelGrid.grid[8][6 - excelGrid.colMin].isKnit,
   "post-X remaining knit starts at col 6 (hang=1 rightward ⇒ −1 from unshifted 7)",
@@ -437,7 +455,9 @@ assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 spa
   assert(stitchForMapCell(98, 9, stitchBind, bound.stitches)?.index === 419, "later-ring row after that X starts at 98,9");
   assert(stitchForMapCell(1, 0, stitchBind, bound.stitches) == null, "X+ transfer cell has no stitch");
   assert(stitchForMapCell(7, 6, stitchBind, bound.stitches) == null, "mid-row X transfer cell has no stitch");
+  assert(stitchForMapCell(7, 36, stitchBind, bound.stitches) == null, "wide decrease X far cell still has no stitch");
   assert(stitchForMapCell(0, -4, stitchBind, bound.stitches) == null, "empty gray cell has no stitch");
+  assert(stitchForMapCell(0, -5, stitchBind, bound.stitches) == null, "new leftmost empty gray cell has no stitch");
   assert(highlightKeysForMapCell(1, 0, { map: excelMap, grid: excelGrid, bind: stitchBind }).size === 0, "transfer reverse highlight is empty");
   const contentHit = hitTestContent(
     excelGrid,

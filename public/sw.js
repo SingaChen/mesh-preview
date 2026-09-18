@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring-scoped hang col_shift sample (121 display rows, 89 knit segments, needles −4…36; each faces_ring starts @0).
+// Bump note: live bed cumulative across rings; knit origin still @0 per ring (121 display rows, 89 knit segments, needles −5…36; first mid-row decrease X spans 6…36).
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
