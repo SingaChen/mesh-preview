@@ -2,15 +2,32 @@ import { isTransferDir } from "./excel-map.js";
 import { cellFill } from "./readable-map.js";
 
 const CELL = 22;
-const LABEL_W = 44;
+/** Wide enough for 3-digit display_row + dir, e.g. `120 X+`. */
+const LABEL_W = 56;
 const HEAD_H = 20;
 const XFER_H = 10;
 const PAD = 12;
+const LABEL_FONT = "Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
 /** Same slop as the 3D canvas: only treat pointerup as a click if movement is small. */
 export const MAP_CLICK_SLOP = 8;
 export const MAP_CELL = CELL;
 export const MAP_LABEL_W = LABEL_W;
 export const MAP_HEAD_H = HEAD_H;
+
+/** First-column label: 0-based display_row + dir, e.g. `0 R`, `7 X`, `12 X+`. */
+export function rowDirLabel(row, dir) {
+  const n = Number.isFinite(Number(row)) ? String(Math.trunc(Number(row))) : "";
+  const d = dir == null || dir === "" ? "" : String(dir);
+  if (n && d) return `${n} ${d}`;
+  return n || d;
+}
+
+function displayRowIndex(grid, r, meta) {
+  if (Number.isFinite(meta?.row)) return meta.row;
+  const cellRow = grid?.grid?.[r]?.find((cell) => cell && Number.isFinite(cell.row))?.row;
+  if (Number.isFinite(cellRow)) return cellRow;
+  return (grid?.rowMin || 0) + r;
+}
 
 function gridCellHit(grid, row, col) {
   const rr = row - (grid.rowMin || 0);
@@ -324,7 +341,7 @@ export class ReadableMapView {
     ctx.translate(this.tx, this.ty);
     ctx.scale(this.scale, this.scale);
 
-    ctx.font = "10px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+    ctx.font = `10px ${LABEL_FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -338,9 +355,9 @@ export class ReadableMapView {
     ctx.lineWidth = 1;
     ctx.strokeRect(0.5, 0.5, LABEL_W - 1, HEAD_H - 1);
     ctx.fillStyle = labelInk;
-    ctx.font = "9px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+    ctx.font = `9px ${LABEL_FONT}`;
     ctx.fillText(g.headerLabel || "dir\\col", LABEL_W / 2, HEAD_H / 2);
-    ctx.font = "10px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+    ctx.font = `10px ${LABEL_FONT}`;
 
     for (let c = 0; c < g.nCols; c++) {
       const col = g.colMin + c;
@@ -366,9 +383,12 @@ export class ReadableMapView {
         ctx.fillStyle = "#c8c8e0";
         ctx.fillRect(0, y, 3, CELL);
       }
+      const rowLabel = rowDirLabel(displayRowIndex(g, r, meta), meta?.dir);
       ctx.fillStyle = transfer ? "#6b7280" : labelInk;
       ctx.textAlign = "center";
-      ctx.fillText(String(meta?.dir || ""), LABEL_W / 2, y + CELL / 2);
+      ctx.font = rowLabel.length > 6 ? `8px ${LABEL_FONT}` : `9px ${LABEL_FONT}`;
+      ctx.fillText(rowLabel, LABEL_W / 2, y + CELL / 2);
+      ctx.font = `10px ${LABEL_FONT}`;
 
       for (let c = 0; c < g.nCols; c++) {
         const cell = g.grid[r][c];
@@ -439,7 +459,7 @@ export class ReadableMapView {
       const meta = g.rows.find((rowMeta) => rowMeta.row === row);
       ctx.fillStyle = "#9aa6b5";
       ctx.textAlign = "right";
-      ctx.fillText(String(row).padStart(3, "0") + (meta?.dir || ""), LABEL_W - 4, y + CELL / 2);
+      ctx.fillText(rowDirLabel(displayRowIndex(g, r, meta), meta?.dir), LABEL_W - 4, y + CELL / 2);
       ctx.textAlign = "center";
 
       for (let c = 0; c < g.nCols; c++) {
