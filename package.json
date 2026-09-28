@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "generate-sample": "node scripts/generate-sample.mjs",
-    "test": "node scripts/check-project.mjs && node scripts/check-sw.mjs",
+    "build-step4-ring0": "node scripts/build-step4-ring0.mjs",
+    "test": "node scripts/build-step4-ring0.mjs --check && node scripts/check-project.mjs && node scripts/check-sw.mjs",
     "test:sw-upgrade": "node scripts/check-sw-upgrade.mjs"
   },
   "dependencies": {

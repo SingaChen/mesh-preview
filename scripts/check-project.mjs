@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -7,6 +7,7 @@ import {
   isOverlayName,
   projectFromDiscovery,
   projectFromManifest,
+  readableMapRank,
 } from "../src/project.js";
 import {
   activeRingIndex,
@@ -56,6 +57,7 @@ import {
 import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
+import { assertAlignedRow } from "./build-step4-ring0.mjs";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 
@@ -96,8 +98,20 @@ assert(
   "manifest must list desktop stitch_map_bind.json",
 );
 assert(
-  refs.some((r) => /readable_map_step3_xfer\.xls$/.test(r)),
-  "manifest must list the step3 Excel readable_map",
+  refs.some((r) => /readable_map_step4_ring0\.xls$/.test(r)),
+  "manifest must list the step4-ring0 Excel readable_map",
+);
+assert(
+  existsSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")),
+  "step3 xls stays on disk as fallback",
+);
+assert(
+  existsSync(join(cylDir, "iteration_0_cut_readable_map_step4_beds.xls")),
+  "step4 beds xls stays on disk as the ring0 source",
+);
+assert(
+  JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts.test.includes("build-step4-ring0.mjs --check"),
+  "npm test must fail if the committed ring0 xls drifts",
 );
 assert(
   refs.some((r) => /readable_map\.txt$/.test(r)),
@@ -125,8 +139,8 @@ const fromManifest = projectFromManifest(manifest, index, "sample/manifest.json"
 if (fromManifest.outputs.length !== 1) throw new Error("expected 1 cylinder output");
 if (!fromManifest.outputs[0].stitchFile) throw new Error("expected stitch file");
 if (!fromManifest.outputs[0].readableMapFile) throw new Error("expected readable_map");
-if (!/step3_xfer\.xls$/i.test(fromManifest.outputs[0].readableMapFile.name)) {
-  throw new Error("2D map must prefer the step3 xls, not the txt");
+if (!/step4_ring0\.xls$/i.test(fromManifest.outputs[0].readableMapFile.name)) {
+  throw new Error("2D map must prefer the step4-ring0 xls, not the txt");
 }
 if (!fromManifest.outputs[0].readableMapTxtFile) throw new Error("expected readable_map txt companion");
 if (!fromManifest.outputs[0].colsResampleFile) throw new Error("expected cols_resample field");
@@ -147,8 +161,19 @@ if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery sh
 if (!fromDiscovery.outputs[0].firstRowsFile) throw new Error("discovery should attach first_rows xls");
 if (!fromDiscovery.outputs[0].facesRingLayoutFile) throw new Error("discovery should attach faces_ring_layout.json");
 if (!fromDiscovery.outputs[0].stitchMapBindFile) throw new Error("discovery should attach stitch_map_bind.json");
-if (!/step3_xfer\.xls$/i.test(fromDiscovery.outputs[0].readableMapFile?.name || "")) {
-  throw new Error("discovery should prefer the step3 xls over readable_map.txt");
+if (!/step4_ring0\.xls$/i.test(fromDiscovery.outputs[0].readableMapFile?.name || "")) {
+  throw new Error("discovery should prefer the step4-ring0 xls over readable_map.txt");
+}
+assert(readableMapRank("iteration_0_cut_readable_map_step4_ring0.xls") > readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls"), "ring0 outranks step3");
+assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readableMapRank("iteration_0_cut_readable_map_step4_beds.xls"), "step3 outranks the full step4 beds source");
+{
+  const diskEntries = readdirSync(cylDir)
+    .map((name) => ({ name, path: `cylinder/${name}` }))
+    .filter((e) => /\.(xls|xlsx|obj|json|txt)$/i.test(e.name));
+  const onDisk = projectFromDiscovery(indexFiles(diskEntries));
+  assert(/step4_ring0\.xls$/i.test(onDisk.outputs[0].readableMapFile?.name || ""), "folder discovery prefers step4-ring0 when beds and step3 are also present");
+  const noRing0 = projectFromDiscovery(indexFiles(diskEntries.filter((e) => !/ring0/i.test(e.name))));
+  assert(/step3_xfer\.xls$/i.test(noRing0.outputs[0].readableMapFile?.name || ""), "discovery falls back to step3 xls when ring0 is missing");
 }
 if (!fromDiscovery.outputs[0].readableMapTxtFile) throw new Error("discovery should keep the txt companion");
 if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
@@ -287,6 +312,9 @@ assert(excelMap.rows[0].cells.find((c) => c.col === 0)?.token === "·", "first R
 assert(excelMap.rows[0].cells.find((c) => c.col === 20)?.token === "vR", "tokens stay as written, including vR");
 assert(excelMap.rows[1].cells.find((c) => c.col === 0)?.token === "←1", "X+ after the opening R knit writes ←1");
 assert(excelLegendKind("←1", "X+") === "transfer" && excelLegendKind("vL", "L") === "wrap", "legend kinds follow Singa tokens");
+assert(excelLegendKind("F·", "R") === "plain" && excelLegendKind("B·", "R") === "plain", "F/B plain knits stay plain");
+assert(excelLegendKind("BvR", "R") === "wrap" && excelLegendKind("B+R1", "L") === "increase", "F/B prefix still classifies wrap and increase");
+assert(excelLegendKind("F←L1", "X+") === "transfer" && excelLegendKind("B→R1", "X+") === "transfer", "absolute L/R arrows stay transfer");
 {
   const wrap = excelMap.rows[0].cells.find((c) => c.col === 20);
   const plain = excelMap.rows[0].cells.find((c) => c.col === 0);
@@ -867,7 +895,7 @@ assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "m
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
 assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMapGrid"), "main mounts the 2D map");
-assert(mainSrc.includes("parseExcelReadableMap"), "main prefers the step3 xls for the 2D map");
+assert(mainSrc.includes("parseExcelReadableMap") && mainSrc.includes("step4-ring0"), "main labels the ring0 sheet in the map header");
 assert(mainSrc.includes("parseStitchMapBind") && mainSrc.includes("applyStitchMapBind"), "main loads desktop stitch_map_bind.json");
 assert(mainSrc.includes("highlightKeysForStitch") && mainSrc.includes("setPickHighlight") && mainSrc.includes("ensureVisible"), "click lights bound map cells and pans them into view");
 assert(mainSrc.includes("onCellPick") && mainSrc.includes("onMapCellPick") && mainSrc.includes("stitchForMapCell"), "map click reverse-selects the bound stitch");
@@ -915,5 +943,32 @@ assert(
   !needsViewportSync({ cssWidth: 800, cssHeight: 400, aspect: 2, bufferWidth: 800, bufferHeight: 400, pixelRatio: 1 }),
   "matching aspect and buffer is clean",
 );
+
+{
+  const ring0 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls")));
+  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 121, `ring0 sheet is 121 rows, got ${ring0.sheet} ${ring0.rows.length}`);
+  assert(ring0.colMin === -5 && ring0.colMax === 36 && ring0.needleCols.length === 42, "ring0 keeps needles −5…36");
+  assert(ring0.rows[0].cells.find((c) => c.col === 0)?.token === "F·", "ring 0 col 0 is front F·");
+  assert(ring0.rows[0].cells.find((c) => c.col === 11)?.token === "B·" && ring0.rows[0].cells.find((c) => c.col === 11)?.fill === "rgb(204,255,255)", "ring 0 back bed is B· on turquoise");
+  assert(ring0.rows[0].cells.find((c) => c.col === 20)?.token === "BvR", "ring 0 wrap keeps the bed prefix");
+  assert(ring0.rows[1].cells.find((c) => c.col === 0)?.token === "F←L1" && ring0.rows[1].cells.find((c) => c.col === 11)?.token === "B→R1", "ring 0 transfers are absolute L/R");
+  assert(ring0.rows[6].dir === "R" && ring0.rows[6].cells.find((c) => c.col === 0)?.token === "·", "path 1 stays step3 with no F/B prefix");
+  assert(!ring0.rows.some((r) => r.dir === "Flip"), "end-of-ring Flip is not in the ring0 sheet");
+  assert(ring0.legend.some((row) => /只有第一圈/.test(`${row.key} ${row.note}`)), "legend says only the first ring is split F/B");
+  assert(stitchBind.n_display_rows === 121 && stitchBind.byIndex.get(20)?.cells[0].label === "vR", "stitch_map_bind.json is still the step3 dump");
+  const ringKeys = highlightKeysForStitch(bound.stitches[20], { map: ring0, grid: buildReadableMapGrid(ring0, bound.stitches), bind: stitchBind });
+  assert(ringKeys.size === 1 && ringKeys.has("0,20"), "face 20 still lights display 0 col 20 on the ring0 sheet");
+  let failed = false;
+  try {
+    assertAlignedRow(
+      { dir: "R", cells: [{ col: 0, token: "F·" }] },
+      { dir: "L", cells: [{ col: 0, token: "·" }] },
+      0,
+    );
+  } catch (err) {
+    failed = /mismatch/i.test(err.message);
+  }
+  assert(failed, "ring0 align must fail loudly when dir/kind/columns do not match");
+}
 
 console.log("project checks ok");
