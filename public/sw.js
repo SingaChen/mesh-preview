@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: cylinder step4 beds map (F/B + absolute L/R + Flip; 134 display rows, 12 Flip, needles −5…36).
+// Bump note: Step4 remapped bind (134 display rows; Flip/home non-bindable; 3D click uses step3_to_step4).
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
