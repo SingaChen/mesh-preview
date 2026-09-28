@@ -69,7 +69,7 @@ npm run preview
 - **针迹 Stitch**：显隐 KnittingStitches。
 - **收起 Hide**：收起顶栏和底部控件；左右分栏仍在，3D 与生长图都保留。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
 - **生长图 Map**：宽屏左侧 3D、右侧优先 `iteration_0_cut_readable_map_step4_beds.xls` 的 `step4` 表（135×43：`dir\\col` 表头，针位 **−5…36**，**89** 个织行段共 **507** 格，**134** 条显示行 / **12** 条 Flip / **33** 条移针，行序 `R` → `X+` → `L`…，中间插入 `Flip` / `F↔B`，减针会在跨度处拆成 `R` → `X` → `R`，**织图每环仍从针 0 起算**（hang `col_shift` 只在同一 faces_ring 内累计），但 **live 针床跨环保留**，符号带床位前缀并写绝对移针 `F·` / `B·` / `F←L1` / `B→R1` / `F↔B` / `FvR` / `F-R1` / …）。缺 step4 时回退 `*_readable_map_step3_xfer.xls`。第一列标 **显示行号 + dir**（例如 `0 R` / `6 Flip` / `8 X`）。颜色跟 Excel `legend` / XF 填充（gold wrap、green increase、lime wrap+inc、rose decrease、orange wrap+dec、ice_blue transfer、**lavender Flip**），**不用** Term.Type 上色。没有 xls 时才回退 `*_readable_map.txt`。滚轮 / 捏合 / 按钮缩放，拖动平移，加载时适应。窄屏用 **3D / 图 Map** 切换，不硬挤并排。
-- 点按一根针迹：保留命中，HUD 芯片显示 **列 col**（针位）、**ring / term / face**、**Term.Type**（Type0=平针 PLAIN；其余用调色板短名）。右侧 Excel 图的针迹绑定来自桌面 `stitch_map_bind.json`（仍是 step3 `display_row`）：只点亮该 face 列出的 **R/L 织行格子**。**X / X+ / Flip 不对应 stitchmesh 面**，点针迹不会高亮它们。step4 在织行之间插入了 Flip（以及多 1 条 X），所以 **第一条 Flip 之后的 `display_row` 与现有 bind 不再对齐**；不要在没有桌面 step4 dump 时手造 bind。加针 / 减针跨度会一次点亮全部格子。没有 bind 文件时 Excel 侧不高亮。必要时轻轻平移到可见。不隔离、不改滑块。空白处再点清空芯片和地图高亮。选中面有一圈浅色描边，其它面仍在。窄屏在 3D 页点选也会记下高亮，切到 **图 Map** 能看到。
+- 点按一根针迹：保留命中，HUD 芯片显示 **列 col**（针位）、**ring / term / face**、**Term.Type**（Type0=平针 PLAIN；其余用调色板短名）。右侧 Excel 图的针迹绑定来自 `stitch_map_bind.json`（Step3 桌面 dump 经 `scripts/remap-bind-step4.mjs` 按 step4 表行序跳过 Flip / 末行 home X 重映射）：只点亮该 face 列出的 **R/L 织行格子**。**X / X+ / Flip / home 不对应 stitchmesh 面**，点针迹不会高亮它们。加针 / 减针跨度会一次点亮全部格子。没有 bind 文件时 Excel 侧不高亮。必要时轻轻平移到可见。不隔离、不改滑块。空白处再点清空芯片和地图高亮。选中面有一圈浅色描边，其它面仍在。窄屏在 3D 页点选也会记下高亮，切到 **图 Map** 能看到。
 - 点右侧 Excel 织行格（**R / L**）会反向选中左侧对应 KnittingStitches 面，芯片 / 描边 / 地图高亮与点 3D 针迹相同。加针 / 减针跨度（如 `+R2` / `-R1`）点任一格都会选整个 term。点 **X / X+ / Flip** 不选针；点空灰格清空选中。平移 / 捏合仍可用：指针移动超过约 8px 不当作点击。
 
 ## 三个滑块怎么对应 SingaLab
@@ -138,7 +138,7 @@ npm run preview
 | `outputs[].colsResampleXls` | 否 | `*_cols_resample.xls`。`scale_matrix` 一行一列；`points_detail` 按 col `0..N-1` 分组 |
 | `outputs[].firstRows` | 否 | `*_first_rows.xls`。种子矩阵；滑条 N = `row_*` 列数 − 1。缺省时用同目录 `*first_rows*.xls` |
 | `outputs[].facesRingLayout` | 否 | `faces_ring_layout.json`。`rings[].n_terms` + `types[]` + `term_face_colors` + `edge_color`。缺省时用同目录 `*faces_ring_layout*.json` |
-| `outputs[].stitchMapBind` | 否 | 桌面 `stitch_map_bind.json`。`faces[]` 的 `path_index` / `term_index` + `display_row,col`。只绑 R/L；X/X+ 是移针。缺省时用同目录 `*stitch_map_bind*.json` |
+| `outputs[].stitchMapBind` | 否 | 桌面 `stitch_map_bind.json`。Cylinder 示例是 Step3 dump 经 `scripts/remap-bind-step4.mjs` 按 `step4_beds.xls` 行序重映射（跳过 Flip 与末行 home X）。`faces[]` 的 `path_index` / `term_index` + `display_row,col`。只绑 R/L；X/X+/Flip/home 不绑。缺省时优先同目录 `stitch_map_bind.json`，不用 `*_step3*` |
 
 也支持无清单直接打开 cut OBJ + KnittingStitches + readable_map。
 
