@@ -140,7 +140,7 @@ function mapKeysForStitch(stitch) {
 function onMapCellPick(hit) {
   if (!hit) return;
   const stitches = scene?.stitches?.bound?.stitches || [];
-  const stitch = stitchForMapCell(hit.row, hit.col, stitchMapBind(), stitches);
+  const stitch = stitchForMapCell(hit.row, hit.col, stitchMapBind(), stitches, scene?.readableMap);
   if (stitch) {
     paintStitchPick(stitch);
     return;
@@ -642,7 +642,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("左 3D · 右 step4-ring0（第一圈按整圈挂针数 N 分床）· 窄屏切 3D/图");
+      setStatus("左 3D · 右 step4-ring0（第一圈按线圈物理针回正）· 窄屏切 3D/图");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -754,7 +754,7 @@ function paintReadableMap() {
   if (mapMeta) {
     mapMeta.textContent =
       map.source === "excel"
-        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第一圈按整圈挂针数 N 分床" : ""}`
+        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第一圈按线圈物理针回正" : ""}`
         : h
           ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
           : `${map.rows.length} rows · ${map.cells.length} cells`;

@@ -189,6 +189,51 @@ export function cellKey(row, col) {
   return `${row},${col}`;
 }
 
+/**
+ * The ring-0 sheet inserts one transfer row. Bind display_row stays the
+ * step3 index. Returns that sheet index, or null when the map is 1:1 with
+ * the bind (step3) or the dirs do not line up as a single insert.
+ */
+export function recenterInsertIndex(map, bind) {
+  if (!map?.rows?.length || !bind?.display_rows?.length) return null;
+  if (map.source && map.source !== "excel") return null;
+  const sheet = map.rows.map((row) => row.dir);
+  const bound = bind.display_rows.map((row) => row?.dir);
+  if (sheet.length === bound.length) return null;
+  if (sheet.length !== bound.length + 1) return null;
+  const hits = [];
+  for (let i = 0; i < sheet.length; i++) {
+    if (!isTransferDir(sheet[i])) continue;
+    let aligned = true;
+    for (let k = 0; k < i; k++) {
+      if (sheet[k] !== bound[k]) {
+        aligned = false;
+        break;
+      }
+    }
+    if (!aligned) continue;
+    for (let k = 0; k < bound.length - i; k++) {
+      if (sheet[i + 1 + k] !== bound[i + k]) {
+        aligned = false;
+        break;
+      }
+    }
+    if (aligned) hits.push(i);
+  }
+  return hits.length === 1 ? hits[0] : null;
+}
+
+export function sheetRowForBindRow(bindRow, insertAt) {
+  if (insertAt == null || !Number.isInteger(bindRow)) return bindRow;
+  return bindRow < insertAt ? bindRow : bindRow + 1;
+}
+
+export function bindRowForSheetRow(sheetRow, insertAt) {
+  if (insertAt == null || !Number.isInteger(sheetRow)) return sheetRow;
+  if (sheetRow === insertAt) return null;
+  return sheetRow > insertAt ? sheetRow - 1 : sheetRow;
+}
+
 function isExcelView(map, grid) {
   return map?.source === "excel" || grid?.source === "excel" || grid?.theme === "excel";
 }
@@ -209,8 +254,9 @@ export function highlightKeysForStitch(stitch, { map = null, grid = null, bind =
   if (!stitch) return keys;
   if (isExcelView(map, grid)) {
     const cells = mapCellsForStitch(stitch, bind);
+    const insertAt = recenterInsertIndex(map, bind);
     for (const cell of cells) {
-      const row = cell.display_row;
+      const row = sheetRowForBindRow(cell.display_row, insertAt);
       const col = cell.col;
       if (row == null || col == null) continue;
       const mapped = grid?.grid?.[row - (grid.rowMin || 0)]?.[col - grid.colMin];
@@ -274,8 +320,11 @@ function findBoundStitch(rec, stitches) {
  * Any cell of a multi-cell increase span resolves to the same face.
  * Transfer / empty cells have no face.
  */
-export function stitchForMapCell(row, col, bind, stitches = null) {
-  const rec = bindFaceForMapCell(row, col, bind);
+export function stitchForMapCell(row, col, bind, stitches = null, map = null) {
+  const insertAt = recenterInsertIndex(map, bind);
+  const bindRow = bindRowForSheetRow(Number(row), insertAt);
+  if (bindRow == null) return null;
+  const rec = bindFaceForMapCell(bindRow, col, bind);
   if (!rec) return null;
   if (Array.isArray(stitches)) return findBoundStitch(rec, stitches);
   return {
@@ -289,7 +338,10 @@ export function stitchForMapCell(row, col, bind, stitches = null) {
 
 /** Same keys as clicking the bound stitch face (whole term span). */
 export function highlightKeysForMapCell(row, col, { map = null, grid = null, bind = null } = {}) {
-  const rec = bindFaceForMapCell(row, col, bind);
+  const insertAt = recenterInsertIndex(map, bind);
+  const bindRow = bindRowForSheetRow(Number(row), insertAt);
+  if (bindRow == null) return new Set();
+  const rec = bindFaceForMapCell(bindRow, col, bind);
   if (!rec) return new Set();
   return highlightKeysForStitch(
     {

@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 0 beds follow the whole-ring live needle count (not the opening row); later rows stay step3; 121 display rows; bind unchanged.
+// Bump note: ring 0 recenters after the increase (back phys 37−col, then 36−col); one inserted X row; later rows stay step3; bind stays 121.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
