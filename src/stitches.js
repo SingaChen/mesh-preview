@@ -10,9 +10,9 @@
  *   (including the leftover "-" after a -R2 decrease) is one stitch
  *   cell with an explicit row id and needle column.
  * - The 2D map prefers iteration_*_readable_map_step4_ring0.xls
- *   (sheet step4-ring0: ring 0 cells are Step4 F/B + absolute L/R;
- *   every later display row is copied from step3). Falls back to
- *   step3 xfer. 121 display rows, so stitch_map_bind.json stays put.
+ *   (sheet step4-ring0: ring 0 is split F/B by the whole ring's live
+ *   needle count; later display rows are copied from step3). Falls back
+ *   to step3 xfer. 121 display rows, so stitch_map_bind.json stays put.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
  *   needle + knit-row, not generation-order onto X rows.
