@@ -53,15 +53,6 @@ export function isStitchMapBindName(name) {
   return /\.json$/i.test(base) && /stitch_map_bind/i.test(base);
 }
 
-/** Prefer the remapped Step4 bind over a kept Step3 dump. */
-export function stitchMapBindRank(name) {
-  const n = String(name || "");
-  if (/stitch_map_bind\.json$/i.test(n) && !/step[34]/i.test(n)) return 3;
-  if (/step4/i.test(n)) return 2;
-  if (/step3/i.test(n)) return 0;
-  return 1;
-}
-
 export function isExcelReadableMapName(name) {
   const base = basename(name);
   return isXlsName(base) && /readable_map|step[34]/i.test(base) && !/cols_resample|first_rows/i.test(base);
@@ -298,10 +289,7 @@ function findFacesRingLayout(index, meshFile) {
 function findStitchMapBind(index, meshFile) {
   const files = (index.jsons || []).filter((f) => isStitchMapBindName(f.name));
   if (!files.length) return null;
-  const ranked = [...files].sort(
-    (a, b) => stitchMapBindRank(b.name) - stitchMapBindRank(a.name) || naturalCompare(a.path, b.path),
-  );
-  return matchOverlay(meshFile, ranked) || ranked[0];
+  return matchOverlay(meshFile, files) || files[0];
 }
 
 function findStitchFile(index, meshFile) {

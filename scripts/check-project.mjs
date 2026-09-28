@@ -7,7 +7,6 @@ import {
   isOverlayName,
   projectFromDiscovery,
   projectFromManifest,
-  stitchMapBindRank,
 } from "../src/project.js";
 import {
   activeRingIndex,
@@ -57,7 +56,6 @@ import {
 import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import { excelLegendKind, isFlipDir, namedExcelColorRgb, parseExcelReadableMap } from "../src/excel-map.js";
-import { remapBind, remapFromFiles } from "./remap-bind-step4.mjs";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 
@@ -96,12 +94,6 @@ assert(
 assert(
   refs.some((r) => /stitch_map_bind\.json$/.test(r)),
   "manifest must list desktop stitch_map_bind.json",
-);
-assert(existsSync(join(cylDir, "stitch_map_bind_step3.json")), "Step3 bind is archived as remap input");
-assert(existsSync(join(root, "scripts", "remap-bind-step4.mjs")), "Step4 bind is produced by the deterministic remap script");
-assert(
-  JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts.test.includes("remap-bind-step4.mjs --check"),
-  "npm test must fail if the committed Step4 bind drifts from the script",
 );
 assert(
   refs.some((r) => /readable_map_step4_beds\.xls$/.test(r)),
@@ -147,9 +139,6 @@ if (fromManifest.outputs[0].colsResampleJsonFile) throw new Error("sample should
 if (!fromManifest.outputs[0].firstRowsFile) throw new Error("expected first_rows xls");
 if (!fromManifest.outputs[0].facesRingLayoutFile) throw new Error("expected faces_ring_layout.json");
 if (!fromManifest.outputs[0].stitchMapBindFile) throw new Error("expected stitch_map_bind.json");
-if (!/stitch_map_bind\.json$/i.test(fromManifest.outputs[0].stitchMapBindFile.name || "")) {
-  throw new Error("manifest must load the remapped stitch_map_bind.json, not the Step3 archive");
-}
 
 const fromDiscovery = projectFromDiscovery(index);
 if (fromDiscovery.outputs.length !== 1) {
@@ -189,12 +178,6 @@ if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
       !/step[34]/i.test(both.outputs[0].readableMapTxtFile?.name || ""),
     "txt companion stays the classic readable_map.txt, not the step4 dump",
   );
-  assert(
-    /stitch_map_bind\.json$/i.test(both.outputs[0].stitchMapBindFile?.name || "") &&
-      !/step3/i.test(both.outputs[0].stitchMapBindFile?.name || ""),
-    "folder discovery prefers the remapped stitch_map_bind.json over the Step3 dump",
-  );
-  assert(stitchMapBindRank("stitch_map_bind.json") > stitchMapBindRank("stitch_map_bind_step3.json"), "exact bind name outranks the archived Step3 dump");
   const noStep4 = projectFromDiscovery(indexFiles(diskEntries.filter((e) => !/step4/i.test(e.name))));
   assert(
     /step3_xfer\.xls$/i.test(noStep4.outputs[0].readableMapFile?.name || ""),
@@ -394,11 +377,11 @@ assert(knitEndCol(excelMap.rows[6]) === 6 && knitStartCol(excelMap.rows[8]) === 
 assert(knitEndCol(excelMap.rows[9]) === -4 && knitStartCol(excelMap.rows[11]) === -4, "same-ring later knit N+1 starts at the previous shifted end@-4");
 assert(knitEndCol(excelMap.rows[96]) === 9 && knitStartCol(excelMap.rows[98]) === 9, "later ring decrease hang stays in-ring: end@9 then next start@9");
 
-const stitchBind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind_step3.json"), "utf8"));
+const stitchBind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
 assert(stitchBind?.faces.length === 475, `bind lists 475 faces, got ${stitchBind?.faces.length}`);
 assert(stitchBind.n_unbound_faces === 0, "desktop dump binds every face");
 assert(stitchBind.n_knit_rows === 89 && stitchBind.n_xfer_rows === 32, "89 knit segments + 32 transfer display rows");
-assert(stitchBind.n_display_rows === 121, "Step3 bind display rows match the step3 sheet");
+assert(stitchBind.n_display_rows === 121, "display rows match the step3 sheet");
 assert(stitchBind.n_multi_cell_terms === 29, "increase + decrease terms span multiple knit cells");
 {
   const ringOrigins = [
@@ -562,47 +545,13 @@ assert(step4Grid.grid[6][10 - step4Grid.colMin].token === "F↔B" && step4Grid.g
 assert(step4Grid.grid[1][0 - step4Grid.colMin].token === "F←L1" && step4Grid.grid[1][0 - step4Grid.colMin].isTransfer, "absolute xfer cells stay transfer");
 assert(step4Grid.grid[0][20 - step4Grid.colMin].token === "BvR" && step4Grid.grid[0][20 - step4Grid.colMin].isKnit, "opening wrap is still a knit cell");
 {
-  const remapped = remapFromFiles().bind;
-  const stitchBindStep4 = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
-  assert(stitchBindStep4.n_display_rows === 134, `sample bind is the remapped Step4 dump, got ${stitchBindStep4.n_display_rows}`);
-  assert(stitchBindStep4.n_flip_rows === 12 && stitchBindStep4.n_xfer_home_rows === 1, "12 Flip rows + trailing home X");
-  assert(Array.isArray(stitchBindStep4.step3_to_step4) && stitchBindStep4.step3_to_step4.length === 121, "bind stores the derived Step3→Step4 row map");
-  assert(stitchBindStep4.step3_to_step4[0] === 0 && stitchBindStep4.step3_to_step4[6] === 7, "first Flip inserts one row before Step3 display 6");
-  assert(stitchBindStep4.step3_to_step4[120] === 131, "last Step3 knit lands on Step4 131");
-  assert(
-    stitchBindStep4.display_rows.filter((r) => r.line_kind === "flip").map((r) => r.display_row + 1).join(",") ===
-      "7,12,19,50,70,82,86,92,97,110,121,133",
-    "Flip sheet rows (header=0) come from xls order, not a hand list",
-  );
-  assert(stitchBindStep4.display_rows[6].line_kind === "flip" && stitchBindStep4.display_rows[6].dir === "Flip", "row 6 is Flip / non-bindable");
-  assert(stitchBindStep4.display_rows[133].line_kind === "xfer_home" && stitchBindStep4.display_rows[133].dir === "X", "last row is home X");
-  assert(stitchBindStep4.display_rows[6].cells.every((c) => c.path_index === -1 && c.term_index === -1 && c.bindable === false), "Flip cells are non-bindable");
-  assert(stitchBindStep4.display_rows[133].cells.every((c) => c.path_index === -1 && c.term_index === -1 && c.bindable === false), "home X cells are non-bindable");
-  assert(JSON.stringify(remapped) === JSON.stringify(JSON.parse(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"))), "committed Step4 bind is script output");
-  applyStitchMapBind(bound.stitches, stitchBindStep4);
-  const early = highlightKeysForStitch(bound.stitches[20], { map: step4Map, grid: step4Grid, bind: stitchBindStep4 });
-  assert(early.size === 1 && early.has("0,20"), "ring-0 wrap before the first Flip still lights 0,20");
-  const afterFlip = highlightKeysForStitch(bound.stitches[51], { map: step4Map, grid: step4Grid, bind: stitchBindStep4 });
-  assert(afterFlip.has("7,5") && afterFlip.has("7,6") && afterFlip.size === 2, "post-Flip -R1 lights remapped 7,5 / 7,6");
-  assert(!afterFlip.has("6,5") && !afterFlip.has("6,6"), "post-Flip highlight does not stay on the Flip row");
-  const lastRing = highlightKeysForStitch(bound.stitches[474], { map: step4Map, grid: step4Grid, bind: stitchBindStep4 });
-  assert(lastRing.size === 1 && lastRing.has("131,18"), "last-ring face 474 lights remapped 131,18");
-  assert(stitchForMapCell(7, 5, stitchBindStep4, bound.stitches)?.index === 51, "Step4 cell 7,5 reverse-selects face 51");
-  assert(stitchForMapCell(6, 5, stitchBindStep4, bound.stitches) == null, "Flip cell has no stitch");
-  assert(stitchForMapCell(133, 18, stitchBindStep4, bound.stitches) == null, "home X cell has no stitch");
-  assert(highlightKeysForMapCell(6, 10, { map: step4Map, grid: step4Grid, bind: stitchBindStep4 }).size === 0, "Flip reverse highlight is empty");
-  assert(step4Grid.grid[7][5 - step4Grid.colMin].token === "F-R1", "remapped decrease sits on the Step4 F-R1 cell");
-  {
-    const bad = structuredClone(stitchBind);
-    bad.display_rows[0].dir = "L";
-    let failed = false;
-    try {
-      remapBind(bad, step4Map.rows);
-    } catch (err) {
-      failed = /mismatch/i.test(err.message);
-    }
-    assert(failed, "remap must fail loudly when a non-flip xls row no longer matches the bind");
-  }
+  assert(step4Map.rows.length !== stitchBind.n_display_rows, "step4 Flip rows shift display_row vs the step3 bind dump");
+  assert(stitchBind.display_rows[6].dir === "R" && step4Map.rows[6].dir === "Flip", "bind row 6 is still a knit; step4 row 6 is Flip");
+  const early = highlightKeysForStitch(bound.stitches[20], { map: step4Map, grid: step4Grid, bind: stitchBind });
+  assert(early.size === 1 && early.has("0,20"), "knit cells before the first Flip still bind");
+  const staleDec = highlightKeysForStitch(bound.stitches[51], { map: step4Map, grid: step4Grid, bind: stitchBind });
+  assert(staleDec.size === 0, "do not highlight Flip cells when step3 bind coords land on them");
+  assert(stitchForMapCell(6, 5, stitchBind, bound.stitches)?.index === 51, "raw bind is unchanged; UI skips Flip clicks instead of inventing coords");
 }
 
 const chunks = faceChunksFromFaces(parsed.faces);
