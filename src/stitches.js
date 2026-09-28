@@ -12,7 +12,6 @@
  * - The 2D map prefers iteration_*_readable_map_step4_beds.xls (step4
  *   sheet: dir\\col × needles, R/L/X/X+/Flip rows, F/B prefixes,
  *   absolute ←L1/→R1, Excel legend fills). Falls back to step3 xfer.
- *   stitch_map_bind.json is the Step3 dump remapped onto that sheet.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
  *   needle + knit-row, not generation-order onto X rows.
@@ -285,10 +284,9 @@ function uniqueBindCells(list) {
 }
 
 /**
- * Desktop generate_step3_xfer bind, remapped onto the Step4 beds sheet
- * (Flip / home X inserted; those rows are non-bindable).
+ * Desktop generate_step3_xfer + _display_lines dump.
  * face_index is row-major over path_list rings (same as KnittingStitches.obj).
- * Transfer X / X+ / Flip / home cells are not listed on faces (path_index=term_index=-1).
+ * Transfer X / X+ cells are not listed on faces (path_index=term_index=-1).
  */
 export function parseStitchMapBind(data) {
   if (data == null || data === "") return null;
@@ -338,9 +336,8 @@ export function parseStitchMapBind(data) {
     for (const cell of cells) rememberCell(cell.display_row, cell.col, rec);
   }
   for (const row of display_rows) {
-    if (row?.is_transfer || row?.is_knit === false || row?.is_flip) continue;
-    if (row?.dir === "X" || row?.dir === "X+" || row?.dir === "Flip") continue;
-    if (row?.line_kind === "flip" || row?.line_kind === "xfer_home") continue;
+    if (row?.is_transfer || row?.is_knit === false) continue;
+    if (row?.dir === "X" || row?.dir === "X+") continue;
     const display_row = asIntOrNull(row.display_row);
     if (display_row == null) continue;
     for (const cell of row.cells || []) {
@@ -359,11 +356,8 @@ export function parseStitchMapBind(data) {
     n_display_rows: asIntOrNull(parsed.n_display_rows),
     n_knit_rows: asIntOrNull(parsed.n_knit_rows),
     n_xfer_rows: asIntOrNull(parsed.n_xfer_rows),
-    n_flip_rows: asIntOrNull(parsed.n_flip_rows),
-    n_xfer_home_rows: asIntOrNull(parsed.n_xfer_home_rows),
     n_unbound_faces: asIntOrNull(parsed.n_unbound_faces) ?? 0,
     n_multi_cell_terms: asIntOrNull(parsed.n_multi_cell_terms),
-    step3_to_step4: Array.isArray(parsed.step3_to_step4) ? parsed.step3_to_step4 : null,
     display_rows,
     faces,
     byIndex,
