@@ -40,14 +40,27 @@ export function isTransferDir(dir) {
   return dir === "X" || dir === "X+";
 }
 
+export function isFlipDir(dir) {
+  return dir === "Flip";
+}
+
 function tokenString(value) {
   if (value == null || value === "") return "";
   return String(value);
 }
 
+/** Strip a step4 F/B bed prefix so the glyph classifies like step3. */
+export function excelGlyphToken(token) {
+  return tokenString(token).replace(/^[FB](?=·|[.v^+\-←→↔])/, "");
+}
+
 export function excelLegendKind(token, dir) {
-  const t = tokenString(token);
-  if (isTransferDir(dir) || /^[←→]\d+$/.test(t)) return "transfer";
+  const raw = tokenString(token);
+  if (isFlipDir(dir) || raw === "F↔B" || raw.includes("↔")) return "flip";
+  if (isTransferDir(dir) || /^[←→][RL]?\d+$/.test(raw) || /^[FB][←→][RL]?\d+$/.test(raw)) {
+    return "transfer";
+  }
+  const t = excelGlyphToken(raw);
   if (/^[v^][LR]-/.test(t)) return "wrap-dec";
   if (/^[v^][LR]$/.test(t)) return "wrap";
   if (/^\+[RL]/.test(t)) return "increase";
@@ -103,11 +116,12 @@ function parseLegendSheet(sheet) {
 export function parseExcelReadableMap(data, { workbook } = {}) {
   const book = workbook || parseXlsWorkbook(data);
   const step =
+    findXlsSheet(book, "step4-ring0") ||
     findXlsSheet(book, "step3") ||
-    findXlsSheet(book, (s) => /step\s*3/i.test(s.name)) ||
+    findXlsSheet(book, (s) => /step\s*4\s*-\s*ring\s*0|step\s*3/i.test(s.name)) ||
     book.sheets.find((s) => tokenString(s.rows?.[0]?.[0]).includes("dir"));
   if (!step?.rows?.length) {
-    throw new Error("xls: missing step3 readable_map sheet");
+    throw new Error("xls: missing readable_map sheet");
   }
   const styles = book.styles || { xf: [], palette: BIFF8_DEFAULT_PALETTE };
   const headerRow = step.rows[0] || [];

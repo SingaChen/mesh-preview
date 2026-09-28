@@ -310,11 +310,22 @@ function pickIterFile(files, meshFile) {
   return files[0];
 }
 
+/** Prefer the ring-0 Step4 sheet, then Step3. Full step4_beds is source-only. */
+export function readableMapRank(name) {
+  const n = String(name || "");
+  if (/step4/i.test(n) && /ring0/i.test(n)) return 4;
+  if (/step3/i.test(n) && /xfer/i.test(n)) return 3;
+  if (/step3/i.test(n)) return 2;
+  if (/step4/i.test(n) && /beds/i.test(n)) return 0;
+  return 1;
+}
+
 function findReadableMap(index, meshFile) {
   const xlsMaps = (index.xls || []).filter((f) => isExcelReadableMapName(f.name));
-  const preferred = xlsMaps.find((f) => /step3/i.test(f.name) && /xfer/i.test(f.name))
-    || xlsMaps.find((f) => /step3/i.test(f.name))
-    || pickIterFile(xlsMaps, meshFile);
+  const ranked = [...xlsMaps].sort(
+    (a, b) => readableMapRank(b.name) - readableMapRank(a.name) || naturalCompare(a.path, b.path),
+  );
+  const preferred = ranked.find((f) => readableMapRank(f.name) > 0) || ranked[0] || null;
   if (preferred) return preferred;
   return findReadableMapTxt(index, meshFile);
 }

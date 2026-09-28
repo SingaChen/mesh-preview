@@ -68,7 +68,7 @@ npm run preview
 - **列 Warp**：显隐 `cols_resample` 列折线。
 - **针迹 Stitch**：显隐 KnittingStitches。
 - **收起 Hide**：收起顶栏和底部控件；左右分栏仍在，3D 与生长图都保留。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
-- **生长图 Map**：宽屏左侧 3D、右侧优先 `iteration_0_cut_readable_map_step3_xfer.xls` 的 `step3` 表（122×43：`dir\\col` 表头，针位 **−5…36**，**89** 个织行段共 **507** 格，**121** 条显示行 / **32** 条移针，行序 `R` → `X+` → `L`…，减针会在跨度处拆成 `R` → `X` → `R`，**织图每环仍从针 0 起算**（hang `col_shift` 只在同一 faces_ring 内累计），但 **live 针床跨环保留**（减针 `X` 会把轴点之后所有挂着的 live 针一起移走，不再只占一格），符号照写 `·` / `←1` / `vL` / `-R1` / …）。第一列标 **显示行号 + dir**（与 `stitch_map_bind` 的 0-based `display_row` 相同，例如 `0 R` / `7 X` / `12 X+`）。颜色跟 Excel `legend` / XF 填充（gold wrap、green increase、lime wrap+inc、rose decrease、orange wrap+dec、ice_blue transfer），**不用** Term.Type 上色。没有 xls 时才回退 `*_readable_map.txt`。滚轮 / 捏合 / 按钮缩放，拖动平移，加载时适应。窄屏用 **3D / 图 Map** 切换，不硬挤并排。
+- **生长图 Map**：宽屏左侧 3D、右侧优先 `iteration_0_cut_readable_map_step4_ring0.xls`（表 `step4-ring0`）。**只有第一圈（ring 0 / path 0）**用 Step4 的前后床符号和绝对移针（`F·` / `B·` / `F←L1` / `B→R1`，后床 plain 为青绿底）；该环末尾回后床的 Flip 不写入。其余显示行原样来自 step3（`·` / `←1` / `vL` / `-R1`）。总行数仍是 **121**，针位仍是 **−5…36**，`stitch_map_bind.json` 不改，点选行号不变。缺 ring0 文件时回退 `*_readable_map_step3_xfer.xls`，再没有 xls 才回退 txt。Map 头标注 `step4-ring0`，并写明仅第一圈分 F/B。颜色跟 Excel XF / legend，**不用** Term.Type 上色。第一列标 **显示行号 + dir**。滚轮 / 捏合 / 按钮缩放，拖动平移，加载时适应。窄屏用 **3D / 图 Map** 切换，不硬挤并排。
 - 点按一根针迹：保留命中，HUD 芯片显示 **列 col**（针位）、**ring / term / face**、**Term.Type**（Type0=平针 PLAIN；其余用调色板短名）。右侧 Excel 图的针迹绑定来自桌面 `stitch_map_bind.json`（`generate_step3_xfer` + `_display_lines`）：只点亮该 face 列出的 **R/L 织行格子**（`display_row,needle`）。**X / X+ 是移针 / transfer，不对应任何 stitchmesh 面**，点针迹不会高亮它们。加针 / 减针跨度（一个 term 多格；减针 `n→1` 占 n 格，玫瑰色 `-Rn` + `·`）会一次点亮全部格子。没有 bind 文件时 Excel 侧不高亮（不再按整列回退）。必要时轻轻平移到可见。不隔离、不改滑块。空白处再点清空芯片和地图高亮。选中面有一圈浅色描边，其它面仍在。窄屏在 3D 页点选也会记下高亮，切到 **图 Map** 能看到。
 - 点右侧 Excel 织行格（**R / L**）会反向选中左侧对应 KnittingStitches 面，芯片 / 描边 / 地图高亮与点 3D 针迹相同。加针 / 减针跨度（如 `+R2` / `-R1`）点任一格都会选整个 term。点 **X / X+** 移针行不选针；点空灰格清空选中。平移 / 捏合仍可用：指针移动超过约 8px 不当作点击。
 
@@ -112,7 +112,7 @@ npm run preview
       "mesh": "cylinder/cut_iteration_0.obj",
       "overlay": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
-      "readableMap": "cylinder/iteration_0_cut_readable_map_step3_xfer.xls",
+      "readableMap": "cylinder/iteration_0_cut_readable_map_step4_ring0.xls",
       "readableMapTxt": "cylinder/iteration_0_cut_readable_map.txt",
       "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
       "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
@@ -132,7 +132,7 @@ npm run preview
 | `outputs[].mesh` | 是 | 相对清单目录的 Wavefront OBJ（也接受 `obj` / `path`） |
 | `outputs[].overlay` | 否 | 叠加 OBJ（针迹 / field 等，也接受 `field`） |
 | `outputs[].stitches` | 否 | 针迹 OBJ（带 `v x y z r g b` 的 n 边形）。缺省时用 `*KnittingStitches*.obj` |
-| `outputs[].readableMap` | 否 | 优先 `*_readable_map_step3_xfer.xls`（`step3` + `legend`）。缺省时先找 step3 xls，再回退 `*readable_map*.txt` |
+| `outputs[].readableMap` | 否 | 优先 `*_readable_map_step4_ring0.xls`（仅第一圈 F/B）。缺省时先找 ring0，再 step3 xls，再回退 `*readable_map*.txt`。完整 `*_step4_beds.xls` 只作生成来源 |
 | `outputs[].readableMapTxt` | 否 | 旧 `readable_map.txt`，只用于针迹列/织行绑定。缺省时用同目录 `*readable_map*.txt` |
 | `outputs[].colsResample` | 否 | `*_cols_resample_field.obj`（也接受 `field`）。顺序 `(i,i+1)` 链即桌面列 |
 | `outputs[].colsResampleXls` | 否 | `*_cols_resample.xls`。`scale_matrix` 一行一列；`points_detail` 按 col `0..N-1` 分组 |
