@@ -57,7 +57,7 @@ import {
 import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
-import { assertAlignedRow } from "./build-step4-ring0.mjs";
+import { assertAlignedRow, buildFromFiles } from "./build-step4-ring0.mjs";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 
@@ -107,7 +107,11 @@ assert(
 );
 assert(
   existsSync(join(cylDir, "iteration_0_cut_readable_map_step4_beds.xls")),
-  "step4 beds xls stays on disk as the ring0 source",
+  "historical step4 beds xls stays on disk",
+);
+assert(
+  !readFileSync(join(root, "scripts", "build-step4-ring0.mjs"), "utf8").includes("step4_beds"),
+  "ring0 beds come from the whole-ring live set, not step4_beds.xls",
 );
 assert(
   JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts.test.includes("build-step4-ring0.mjs --check"),
@@ -946,15 +950,28 @@ assert(
 
 {
   const ring0 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls")));
+  const built = buildFromFiles();
   assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 121, `ring0 sheet is 121 rows, got ${ring0.sheet} ${ring0.rows.length}`);
   assert(ring0.colMin === -5 && ring0.colMax === 36 && ring0.needleCols.length === 42, "ring0 keeps needles −5…36");
-  assert(ring0.rows[0].cells.find((c) => c.col === 0)?.token === "F·", "ring 0 col 0 is front F·");
-  assert(ring0.rows[0].cells.find((c) => c.col === 11)?.token === "B·" && ring0.rows[0].cells.find((c) => c.col === 11)?.fill === "rgb(204,255,255)", "ring 0 back bed is B· on turquoise");
-  assert(ring0.rows[0].cells.find((c) => c.col === 20)?.token === "BvR", "ring 0 wrap keeps the bed prefix");
-  assert(ring0.rows[1].cells.find((c) => c.col === 0)?.token === "F←L1" && ring0.rows[1].cells.find((c) => c.col === 11)?.token === "B→R1", "ring 0 transfers are absolute L/R");
-  assert(ring0.rows[6].dir === "R" && ring0.rows[6].cells.find((c) => c.col === 0)?.token === "·", "path 1 stays step3 with no F/B prefix");
+  assert(built.ring.front + built.ring.back === built.ring.N, "F+B equals whole-ring N");
+  assert(Math.abs(built.ring.front - built.ring.back) <= 1, "|F−B| stays within one stitch");
+  assert(built.rows.length === ring0.rows.length, "builder row count matches the sheet");
+  for (let i = 0; i < ring0.rows.length; i++) {
+    const sheetTokens = ring0.rows[i].cells.map((c) => `${c.col}:${c.token}`).join("|");
+    const builtTokens = built.rows[i].cells.map((c) => `${c.col}:${c.token}`).join("|");
+    assert(ring0.rows[i].dir === built.rows[i].dir && sheetTokens === builtTokens, `sheet row ${i} matches the whole-ring builder`);
+  }
+  const bPlain = ring0.rows.flatMap((r) => r.cells).find((c) => c.token === "B·");
+  assert(bPlain && bPlain.fill === "rgb(204,255,255)", "back plain is turquoise from the XF, not a legend fallback");
+  const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
+  for (let i = 0; i < built.span.rowEnd; i++) assertAlignedRow(ring0.rows[i], step3.rows[i], i);
+  assert(ring0.rows[built.span.rowEnd].dir === step3.rows[built.span.rowEnd].dir, "path 1 starts on the same step3 row");
+  assert(
+    ring0.rows[built.span.rowEnd].cells.every((c, k) => c.token === step3.rows[built.span.rowEnd].cells[k].token),
+    "path 1 stays step3 with no F/B prefix",
+  );
   assert(!ring0.rows.some((r) => r.dir === "Flip"), "end-of-ring Flip is not in the ring0 sheet");
-  assert(ring0.legend.some((row) => /只有第一圈/.test(`${row.key} ${row.note}`)), "legend says only the first ring is split F/B");
+  assert(ring0.legend.some((row) => /第一圈按整圈挂针数 N 分床/.test(`${row.key} ${row.note}`)), "legend says ring 0 is split by whole-ring N");
   assert(stitchBind.n_display_rows === 121 && stitchBind.byIndex.get(20)?.cells[0].label === "vR", "stitch_map_bind.json is still the step3 dump");
   const ringKeys = highlightKeysForStitch(bound.stitches[20], { map: ring0, grid: buildReadableMapGrid(ring0, bound.stitches), bind: stitchBind });
   assert(ringKeys.size === 1 && ringKeys.has("0,20"), "face 20 still lights display 0 col 20 on the ring0 sheet");

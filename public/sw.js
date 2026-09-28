@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: cylinder map is step4-ring0 (ring 0 F/B + absolute xfer; later rows stay step3; 121 display rows; bind unchanged).
+// Bump note: ring 0 beds follow the whole-ring live needle count (not the opening row); later rows stay step3; 121 display rows; bind unchanged.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {

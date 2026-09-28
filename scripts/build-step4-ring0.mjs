@@ -1,12 +1,15 @@
 /**
  * Build iteration_0_cut_readable_map_step4_ring0.xls
  *
- * Ring 0 (path 0) display rows — up to, but not including, the first knit
- * cell of path 1 — are copied from the Step4 beds workbook (F/B text + XF
- * color). Every later row is copied from the Step3 workbook. Flip rows are
- * never copied. A Flip that sits strictly between two ring-0 content rows
- * is a bed-balance Flip: the script stops. The Flip/home that only sits
- * after the last ring-0 row (preparing the next ring) is left out.
+ * Ring 0 (path 0) is one closed loop: its knit rows plus the X / X+ that
+ * belong to those rows. After those ops, N is the number of distinct needle
+ * columns that still hold a stitch. Walk that loop from the ring's cast-on
+ * stitch (transfers slide a stitch, they do not reorder it; a new increase
+ * is inserted between the stitches the carriage is between). The first
+ * ceil(N/2) stitches are F, the rest B. Each stitch keeps that bed on every
+ * earlier cell, including the column it occupied before an X+.
+ *
+ * Inputs are step3_xfer.xls and stitch_map_bind.json only. No Flip rows.
  *
  *   node scripts/build-step4-ring0.mjs
  *   node scripts/build-step4-ring0.mjs --check
@@ -23,20 +26,14 @@ const cylDir = join(root, "public", "sample", "cylinder");
 
 export const DEFAULT_PATHS = {
   step3Xls: join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls"),
-  step4Xls: join(cylDir, "iteration_0_cut_readable_map_step4_beds.xls"),
   bind: join(cylDir, "stitch_map_bind.json"),
   outXls: join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls"),
 };
 
+const B_PLAIN = "rgb(204,255,255)";
+
 function fail(msg) {
   throw new Error(`build-step4-ring0: ${msg}`);
-}
-
-export class BalancedFlipError extends Error {
-  constructor(detail) {
-    super(`build-step4-ring0: ring 0 contains a balanced Flip (stopping, no output).\n${detail}`);
-    this.name = "BalancedFlipError";
-  }
 }
 
 function loadSheet(path, sheetName) {
@@ -113,9 +110,8 @@ export function ring0DisplayEnd(bind) {
 }
 
 /**
- * Step4 absolute arrow → step3 relative arrow.
- * Front keeps the arrow and drops L/R. Back bed is mirrored
- * (step4 legend: back advance/retreat is opposite the front).
+ * Absolute F/B arrow → step3 relative arrow.
+ * Front keeps the machine direction and drops L/R. Back is mirrored.
  */
 export function toRelativeToken(token) {
   const raw = String(token ?? "");
@@ -126,6 +122,21 @@ export function toRelativeToken(token) {
   let dir = arrow[1];
   if (bed === "B") dir = dir === "←" ? "→" : "←";
   return `${dir}${arrow[2]}`;
+}
+
+/**
+ * Step3 relative arrow → absolute bed arrow.
+ * F advance follows the knit direction, and step3 already wrote that
+ * machine arrow (right-knit advance is →, so F→R). B is the mirror.
+ */
+export function toAbsoluteToken(token, bed) {
+  const raw = String(token ?? "");
+  if (!raw || (bed !== "F" && bed !== "B")) return raw;
+  const arrow = raw.match(/^(←|→)(\d+)$/);
+  if (!arrow) return bed + raw;
+  const n = arrow[2];
+  if (bed === "F") return arrow[1] === "←" ? `F←L${n}` : `F→R${n}`;
+  return arrow[1] === "←" ? `B→R${n}` : `B←L${n}`;
 }
 
 function occupied(row) {
@@ -159,35 +170,6 @@ export function assertAlignedRow(step4Row, step3Row, step3Index) {
   }
 }
 
-/**
- * Pair each step3 row with the step4 row left after dropping Flip rows.
- * Returns internal (balanced) flips that fall inside ring 0, and the
- * boundary flips that sit after ring 0 and before the next ring.
- */
-export function alignStep4(step3Rows, step4Rows, rowEnd) {
-  const aligned = [];
-  const flips = [];
-  let j = 0;
-  for (let i = 0; i < step3Rows.length; i++) {
-    while (j < step4Rows.length && step4Rows[j].dir === "Flip") {
-      flips.push({ step4: j, beforeStep3: i, row: step4Rows[j] });
-      j += 1;
-    }
-    if (j >= step4Rows.length) fail(`step4 ended at step3 row ${i}`);
-    if (i < rowEnd) assertAlignedRow(step4Rows[j], step3Rows[i], i);
-    aligned.push({ step3: i, step4: j });
-    j += 1;
-  }
-  const ring = aligned.filter((a) => a.step3 < rowEnd);
-  if (!ring.length) fail("ring 0 aligned no step4 rows");
-  const first = ring[0].step4;
-  const last = ring[ring.length - 1].step4;
-  const next = aligned.find((a) => a.step3 >= rowEnd);
-  const internal = flips.filter((f) => f.step4 > first && f.step4 < last);
-  const boundary = flips.filter((f) => f.step4 > last && (!next || f.step4 < next.step4));
-  return { aligned, flips, internal, boundary, trailing: step4Rows.slice(j) };
-}
-
 function bedOf(token) {
   if (String(token).startsWith("F")) return "F";
   if (String(token).startsWith("B")) return "B";
@@ -198,7 +180,14 @@ export function summarizeRing0(rows) {
   return rows.map((row, i) => {
     const occ = occupied(row);
     const counts = { F: 0, B: 0, other: 0 };
-    for (const cell of occ) counts[bedOf(cell.token)] += 1;
+    const fCols = [];
+    const bCols = [];
+    for (const cell of occ) {
+      const bed = bedOf(cell.token);
+      counts[bed] += 1;
+      if (bed === "F") fCols.push(cell.col);
+      if (bed === "B") bCols.push(cell.col);
+    }
     return {
       display_row: i,
       dir: row.dir,
@@ -207,8 +196,225 @@ export function summarizeRing0(rows) {
       B: counts.B,
       other: counts.other,
       cols: occ.length ? [occ[0].col, occ[occ.length - 1].col] : [],
+      fCols,
+      bCols,
     };
   });
+}
+
+function parseIncN(label) {
+  const m = String(label).match(/\+[RL](\d+)/);
+  return m ? Number(m[1]) : 0;
+}
+
+function parseDecN(label) {
+  const tagged = String(label).match(/-[RL](\d+)/);
+  if (tagged) return Number(tagged[1]);
+  const tail = String(label).match(/-(\d+)$/);
+  return tail ? Number(tail[1]) : 0;
+}
+
+function knitOrderCells(row) {
+  const sign = row.dir === "R" ? 1 : -1;
+  return occupied(row).slice().sort((a, b) => (a.col - b.col) * sign);
+}
+
+function xferArrow(step, outward) {
+  if (outward) return step === 1 ? "→" : "←";
+  return step === 1 ? "←" : "→";
+}
+
+function passCols(live, pivot, step) {
+  return [...live.keys()].filter((c) => (step === 1 ? c >= pivot : c <= pivot)).sort((a, b) => a - b);
+}
+
+/** Same column update as readable_map_steps._advance_live / _retreat_live. */
+function moveLive(live, pivot, step, delta) {
+  const next = new Map();
+  for (const [col, id] of live) {
+    let dest = col;
+    if (step === 1 && col >= pivot) dest = col + delta;
+    if (step === -1 && col <= pivot) dest = col + delta;
+    if (next.has(dest)) fail(`transfer collision at col ${dest}`);
+    next.set(dest, id);
+  }
+  return next;
+}
+
+function insertOnLoop(seq, prevId, nextId, id) {
+  if (prevId == null) {
+    seq.push(id);
+    return;
+  }
+  const ia = seq.indexOf(prevId);
+  if (ia < 0) fail(`loop is missing stitch ${prevId}`);
+  if (nextId == null) {
+    seq.splice(ia + 1, 0, id);
+    return;
+  }
+  const ib = seq.indexOf(nextId);
+  if (ib < 0) fail(`loop is missing stitch ${nextId}`);
+  if (ib === ia + 1) seq.splice(ib, 0, id);
+  else if (ia === ib + 1) seq.splice(ia, 0, id);
+  else fail(`new stitch ${id} is not between adjacent loop stitches ${prevId} and ${nextId}`);
+}
+
+/**
+ * Replay ring-0 knit rows and the X / X+ that precede them.
+ * Live columns follow readable_map_steps.generate_step3_xfer (§8).
+ * Stitch identity follows the column through each pass.
+ */
+export function simulateRing0(step3Rows, rowEnd) {
+  const ops = [];
+  let pending = [];
+  for (let i = 0; i < rowEnd; i++) {
+    const dir = step3Rows[i].dir;
+    if (dir === "X" || dir === "X+") pending.push(i);
+    else if (dir === "R" || dir === "L") {
+      ops.push({ knit: i, xfers: pending });
+      pending = [];
+    } else {
+      fail(`unexpected step3 dir ${dir} inside ring 0 row ${i}`);
+    }
+  }
+  if (pending.length) {
+    fail(`ring 0 ends on a transfer row (${pending.join(",")}); that pass belongs to the next ring`);
+  }
+
+  let live = new Map();
+  const seq = [];
+  const born = [];
+  const cellIds = new Map();
+  let nextId = 0;
+
+  for (const op of ops) {
+    const krow = step3Rows[op.knit];
+    const step = krow.dir === "R" ? 1 : -1;
+    const kcells = knitOrderCells(krow);
+    const incs = kcells.filter((c) => parseIncN(c.token));
+    const decs = kcells.filter((c) => {
+      const kind = excelLegendKind(c.token, krow.dir);
+      return (kind === "decrease" || kind === "wrap-dec") && parseDecN(c.token);
+    });
+    const predicted = [];
+
+    for (const cell of decs.slice().reverse()) {
+      const n = Math.max(1, parseDecN(cell.token));
+      const last = cell.col + step;
+      for (let k = 0; k < n; k++) {
+        const pivot = last - k * step;
+        const cols = passCols(live, pivot, step);
+        const arrow = xferArrow(step, false);
+        const ids = new Map(cols.map((col) => [col, live.get(col)]));
+        predicted.push({ dir: "X", arrow, cols, ids });
+        live = moveLive(live, pivot, step, step === 1 ? -1 : 1);
+      }
+    }
+    for (const cell of incs.slice().reverse()) {
+      const added = parseIncN(cell.token);
+      const pivot0 = cell.col + step;
+      const fresh = [];
+      for (let g = 1; g <= added; g++) fresh.push(cell.col + step * g);
+      const arrow = xferArrow(step, true);
+      for (let k = 0; k < added; k++) {
+        const cols = passCols(live, pivot0, step);
+        for (const ncol of fresh) if (!cols.includes(ncol)) cols.push(ncol);
+        cols.sort((a, b) => a - b);
+        const ids = new Map();
+        for (const col of cols) {
+          if (!live.has(col)) fail(`X+ col ${col} on knit row ${op.knit} is not a live stitch`);
+          ids.set(col, live.get(col));
+        }
+        predicted.push({ dir: "X+", arrow, cols, ids });
+        live = moveLive(live, pivot0, step, step === 1 ? 1 : -1);
+      }
+    }
+
+    if (predicted.length !== op.xfers.length) {
+      fail(`knit row ${op.knit}: simulated ${predicted.length} transfer passes, sheet has ${op.xfers.length}`);
+    }
+    op.xfers.forEach((ri, pi) => {
+      const sheet = step3Rows[ri];
+      const got = occupied(sheet);
+      const want = predicted[pi];
+      const problems = [];
+      if (sheet.dir !== want.dir) problems.push(`dir sheet=${sheet.dir} sim=${want.dir}`);
+      if (got.map((c) => c.col).join(",") !== want.cols.join(",")) {
+        problems.push(`cols sheet=${got.map((c) => c.col)} sim=${want.cols}`);
+      }
+      for (const cell of got) {
+        if (cell.token !== `${want.arrow}1`) problems.push(`token col ${cell.col} sheet=${cell.token} sim=${want.arrow}1`);
+      }
+      if (problems.length) fail(`transfer row ${ri} (knit ${op.knit} pass ${pi}): ${problems.join("; ")}`);
+      cellIds.set(ri, want.ids);
+    });
+
+    const ids = new Map();
+    const visited = [];
+    for (let i = 0; i < kcells.length; i++) {
+      const cell = kcells[i];
+      let id = live.get(cell.col);
+      if (id == null) {
+        id = nextId;
+        nextId += 1;
+        born.push(id);
+        let nextExisting = null;
+        for (let j = i + 1; j < kcells.length; j++) {
+          const later = live.get(kcells[j].col);
+          if (later != null) {
+            nextExisting = later;
+            break;
+          }
+        }
+        const prev = i > 0 ? visited[i - 1] : null;
+        insertOnLoop(seq, prev, nextExisting, id);
+        live.set(cell.col, id);
+      }
+      visited.push(id);
+      ids.set(cell.col, id);
+    }
+    cellIds.set(op.knit, ids);
+  }
+
+  if (seq.length !== live.size) fail(`loop has ${seq.length} stitches but live has ${live.size}`);
+  const colOf = new Map([...live.entries()].map(([col, id]) => [id, col]));
+  for (const id of seq) {
+    if (!colOf.has(id)) fail(`loop stitch ${id} is not on the bed`);
+  }
+  const knitOrderCols = seq.map((id) => colOf.get(id));
+  const columnOrderCols = [...colOf.values()].sort((a, b) => a - b);
+  const chronoCols = born.map((id) => colOf.get(id));
+  const n = knitOrderCols.length;
+  const front = Math.ceil(n / 2);
+  const back = n - front;
+  if (front + back !== n) fail(`F+B ${front}+${back} !== N ${n}`);
+  if (Math.abs(front - back) > 1) fail(`|F−B|=${Math.abs(front - back)} > 1 (N=${n})`);
+  const bedOfId = new Map();
+  seq.forEach((id, i) => bedOfId.set(id, i < front ? "F" : "B"));
+  const fCols = knitOrderCols.filter((_, i) => i < front);
+  const bCols = knitOrderCols.filter((_, i) => i >= front);
+  return {
+    N: n,
+    front,
+    back,
+    knitOrderCols,
+    columnOrderCols,
+    chronoCols,
+    ordersAgree: knitOrderCols.join(",") === columnOrderCols.join(","),
+    fCols,
+    bCols,
+    bedOfId,
+    cellIds,
+    liveCols: columnOrderCols,
+  };
+}
+
+function paintToken(cell, token) {
+  if (!token) return { token: "", fill: cell.fill || "rgb(192,192,192)" };
+  const glyph = token.replace(/^[FB](?=·|[.v^+\-←→↔])/, "");
+  let fill = cell.fill;
+  if ((glyph === "·" || glyph === ".") && token.startsWith("B")) fill = B_PLAIN;
+  return { token, fill };
 }
 
 function icvForFill(fill) {
@@ -298,19 +504,18 @@ function sheetFromGrid(name, headerLabel, needles, rows, xfIndexForFill) {
   return { name, bytes: Buffer.concat(parts) };
 }
 
-const LEGEND = [
-  ["step4-ring0", "只有第一圈（ring 0 / path 0）分了前后床 F/B"],
-  ["later rows", "display rows from path 1 onward are step3, unchanged"],
-  ["F… / B…", "bed prefix on ring 0 only; opening is left-half F / right-half B"],
-  ["→R1 / ←L1", "ring 0 absolute transfer; later rows keep step3 →1 / ←1"],
-  ["excluded", "end-of-ring Flip / home X is not copied; it prepares the next ring"],
-  ["rows", "121 display rows, needles −5…36, stitch_map_bind.json unchanged"],
-];
-
-function legendSheet(xfIndexForFill) {
+function legendSheet(xfIndexForFill, ring) {
   const parts = [bof(0x0010)];
   const xf = xfIndexForFill("rgb(255,255,255)");
-  LEGEND.forEach((pair, i) => {
+  const legend = [
+    ["第一圈按整圈挂针数 N 分床", `N=${ring.N}，沿环路前 ${ring.front} 枚 F，后 ${ring.back} 枚 B`],
+    ["later rows", "path 1 onward stays step3, unchanged"],
+    ["F… / B…", "bed follows the stitch through X+ column changes"],
+    ["→R1 / ←L1", "F advance = knit direction (right-knit →R); B mirrored"],
+    ["excluded", "no balance Flip and no end-of-ring home Flip"],
+    ["rows", "121 display rows, needles −5…36, stitch_map_bind.json unchanged"],
+  ];
+  legend.forEach((pair, i) => {
     parts.push(labelRecord(i, 0, xf, pair[0]));
     parts.push(labelRecord(i, 1, xf, pair[1]));
   });
@@ -361,60 +566,71 @@ function writeCfb(workbook) {
   return Buffer.concat([header, fat, dir, data]);
 }
 
-export function buildRing0Workbook(step3, step4, bind) {
-  if (step3.needles.join(",") !== step4.needles.join(",")) {
-    fail(`needle columns differ step3=${step3.needles[0]}…${step3.needles.at(-1)} step4=${step4.needles[0]}…${step4.needles.at(-1)}`);
-  }
+export function buildRing0Workbook(step3, bind) {
   if (step3.needles[0] !== -5 || step3.needles.at(-1) !== 36 || step3.needles.length !== 42) {
     fail(`expected needles −5…36 (42), got ${step3.needles[0]}…${step3.needles.at(-1)} (${step3.needles.length})`);
   }
   const span = ring0DisplayEnd(bind);
   if (span.rowEnd > step3.rows.length) fail(`ring 0 end ${span.rowEnd} past step3`);
+  if (step3.rows.length !== 121) fail(`step3 has ${step3.rows.length} rows, expected 121`);
   for (let i = 0; i < span.rowEnd; i++) {
     const dir = step3.rows[i].dir;
-    if (dir !== "R" && dir !== "L" && dir !== "X" && dir !== "X+") {
-      fail(`unexpected step3 dir ${dir} inside ring 0 row ${i}`);
-    }
-    if (dir === "R" || dir === "L") {
-      const owners = new Set();
-      for (const face of bind.faces || []) {
-        for (const cell of face.cells || []) {
-          if (cell.display_row === i) owners.add(face.path_index);
-        }
-      }
-      if (!owners.size || [...owners].some((p) => p !== 0)) {
-        fail(`knit display_row ${i} is not exclusively path 0 (owners ${[...owners]})`);
+    if (dir !== "R" && dir !== "L") continue;
+    const owners = new Set();
+    for (const face of bind.faces || []) {
+      for (const cell of face.cells || []) {
+        if (cell.display_row === i) owners.add(face.path_index);
       }
     }
+    if (!owners.size || [...owners].some((p) => p !== 0)) {
+      fail(`knit display_row ${i} is not exclusively path 0 (owners ${[...owners]})`);
+    }
   }
-  const aligned = alignStep4(step3.rows, step4.rows, span.rowEnd);
-  if (aligned.internal.length) {
-    const lines = aligned.internal.map((f) => {
-      const cols = occupied(f.row).map((c) => c.col);
-      return `  step4 display ${f.step4} (before step3 ${f.beforeStep3}) dir=Flip cols ${cols[0]}…${cols.at(-1)} (${cols.length} cells) tokens ${occupied(f.row).map((c) => c.token).join(" ")}`;
-    });
-    throw new BalancedFlipError(
-      `Ring 0 is step3 display rows [0, ${span.rowEnd}) (path 0 faces ${span.path0First}…${span.path0Last}; path 1 face ${span.ring1Face} starts at display_row ${span.rowEnd}).\n` +
-        `These Flip rows sit between ring 0 content rows, so they rebalance F/B inside the ring rather than parking the end of the ring:\n${lines.join("\n")}`,
-    );
-  }
+
+  const ring = simulateRing0(step3.rows, span.rowEnd);
   const rows = step3.rows.map((row, i) => {
-    if (i < span.rowEnd) {
-      const src = step4.rows[aligned.aligned[i].step4];
+    if (i >= span.rowEnd) {
       return {
-        dir: src.dir,
-        cells: src.cells.map((c) => ({ col: c.col, token: c.token, fill: c.fill })),
+        dir: row.dir,
+        cells: row.cells.map((c) => ({ col: c.col, token: c.token, fill: c.fill })),
       };
     }
+    const ids = ring.cellIds.get(i);
+    if (!ids) fail(`ring 0 row ${i} has no stitch identities`);
     return {
       dir: row.dir,
-      cells: row.cells.map((c) => ({ col: c.col, token: c.token, fill: c.fill })),
+      cells: row.cells.map((c) => {
+        if (!c.token) return { col: c.col, token: "", fill: c.fill || "rgb(192,192,192)" };
+        const id = ids.get(c.col);
+        if (id == null) fail(`row ${i} col ${c.col} has no stitch identity`);
+        const bed = ring.bedOfId.get(id);
+        if (bed !== "F" && bed !== "B") fail(`row ${i} col ${c.col} stitch ${id} has no bed`);
+        const painted = paintToken(c, toAbsoluteToken(c.token, bed));
+        return { col: c.col, token: painted.token, fill: painted.fill };
+      }),
     };
   });
-  if (rows.length !== step3.rows.length) fail(`output rows ${rows.length} != step3 ${step3.rows.length}`);
-  if (rows.some((r) => r.dir === "Flip")) fail("output still contains a Flip row");
+  if (rows.length !== 121) fail(`output rows ${rows.length} != 121`);
+  if (rows.some((r) => r.dir === "Flip")) fail("output contains a Flip row");
+  for (let i = 0; i < span.rowEnd; i++) {
+    assertAlignedRow(rows[i], step3.rows[i], i);
+    for (const cell of occupied(rows[i])) {
+      if (bedOf(cell.token) === "other") fail(`row ${i} col ${cell.col} token ${cell.token} has no F/B`);
+    }
+  }
+  for (let i = span.rowEnd; i < rows.length; i++) {
+    if (rows[i].dir !== step3.rows[i].dir) fail(`row ${i} dir drifted from step3`);
+    const a = occupied(rows[i]);
+    const b = occupied(step3.rows[i]);
+    if (a.map((c) => `${c.col}:${c.token}`).join("|") !== b.map((c) => `${c.col}:${c.token}`).join("|")) {
+      fail(`row ${i} is not an unchanged step3 row`);
+    }
+  }
+  const fSet = new Set(ring.fCols);
+  const bSet = new Set(ring.bCols);
+  if (fSet.size + bSet.size !== ring.N) fail(`F/B columns are not a partition of N (${fSet.size}+${bSet.size}!=${ring.N})`);
 
-  const fills = new Set(["rgb(255,255,255)", "rgb(192,192,192)"]);
+  const fills = new Set(["rgb(255,255,255)", "rgb(192,192,192)", B_PLAIN]);
   for (const row of rows) {
     for (const cell of row.cells) if (cell.fill) fills.add(cell.fill);
   }
@@ -425,7 +641,7 @@ export function buildRing0Workbook(step3, step4, bind) {
     return i;
   };
   const dataSheet = sheetFromGrid("step4-ring0", step3.headerLabel || "dir\\col", step3.needles, rows, xfIndexForFill);
-  const legend = legendSheet(xfIndexForFill);
+  const legend = legendSheet(xfIndexForFill, ring);
   const xfBytes = Buffer.concat(palette.map((fill) => xfRecord(icvForFill(fill))));
   const bofBytes = bof(0x0005);
   const eofBytes = eof();
@@ -446,26 +662,21 @@ export function buildRing0Workbook(step3, step4, bind) {
     span,
     rows,
     needles: step3.needles,
+    ring,
     summary: summarizeRing0(rows.slice(0, span.rowEnd)),
-    boundary: aligned.boundary.map((f) => ({
-      step4: f.step4,
-      cols: occupied(f.row).map((c) => c.col),
-    })),
-    trailing: aligned.trailing.map((r) => r.dir),
   };
 }
 
 export function loadInputs(paths = DEFAULT_PATHS) {
   return {
     step3: loadSheet(paths.step3Xls, "step3"),
-    step4: loadSheet(paths.step4Xls, "step4"),
     bind: JSON.parse(readFileSync(paths.bind, "utf8")),
   };
 }
 
 export function buildFromFiles(paths = DEFAULT_PATHS) {
-  const { step3, step4, bind } = loadInputs(paths);
-  return buildRing0Workbook(step3, step4, bind);
+  const { step3, bind } = loadInputs(paths);
+  return buildRing0Workbook(step3, bind);
 }
 
 function main(argv = process.argv.slice(2)) {
@@ -479,12 +690,18 @@ function main(argv = process.argv.slice(2)) {
   } else {
     writeFileSync(DEFAULT_PATHS.outXls, built.bytes);
   }
-  const open = built.summary.find((r) => r.dir === "R" || r.dir === "L");
+  const { ring, span } = built;
   console.log(
-    `build-step4-ring0 ${check ? "check " : ""}ok: ring0 [0, ${built.span.rowEnd}) face ${built.span.ring1Face} starts path 1; opening N=${open?.n} F=${open?.F} B=${open?.B}; rows ${built.rows.length}; boundary flips ${built.boundary.map((b) => b.step4).join(",") || "none"}`,
+    `build-step4-ring0 ${check ? "check " : ""}ok: ring0 [0, ${span.rowEnd}) face ${span.ring1Face} starts path 1; N=${ring.N} F=${ring.front} B=${ring.back}; ordersAgree=${ring.ordersAgree}; rows ${built.rows.length}`,
   );
+  console.log(`  knit-order cols: ${ring.knitOrderCols.join(",")}`);
+  console.log(`  column-order cols: ${ring.columnOrderCols.join(",")}`);
+  console.log(`  F cols: ${ring.fCols.join(",")}`);
+  console.log(`  B cols: ${ring.bCols.join(",")}`);
   for (const row of built.summary) {
-    console.log(`  row ${row.display_row} ${row.dir} n=${row.n} F=${row.F} B=${row.B} other=${row.other} cols ${row.cols.join("…")}`);
+    console.log(
+      `  row ${row.display_row} ${row.dir} n=${row.n} F=${row.F} [${row.fCols.join(",")}] B=${row.B} [${row.bCols.join(",")}]`,
+    );
   }
   return built;
 }
@@ -495,6 +712,6 @@ if (isCli) {
     main();
   } catch (err) {
     console.error(err.message || err);
-    process.exit(err instanceof BalancedFlipError ? 2 : 1);
+    process.exit(1);
   }
 }
