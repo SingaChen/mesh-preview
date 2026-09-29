@@ -1061,16 +1061,26 @@ assert(
   assert(stitchForMapCell(7, row6Map.sheetCol, stitchBind, bound.stitches, ring0) === row6Stitch, "clicking sheet row 7 maps back to bind row 6");
   assert(stitchForMapCell(9, 17, stitchBind, bound.stitches, ring0) == null, "the first ring-1 flip row selects no face");
   assert(stitchForMapCell(14, 18, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
-  assert(tokenAt(8, 17) === "F←" && tokenAt(8, 18) === "F←" && tokenAt(8, 19) === "B→", "sheet row 8 keeps the front bed through column 18");
-  assert(tokenAt(12, 18) === "F→" && tokenAt(12, 19) === "B←", "the other fold-crossing transfer uses the same physical boundary");
+  const row8Moves = ring0.rows[8].cells.filter((c) => c.token);
+  assert(
+    row8Moves.every((c) => c.token === "F←") && row8Moves.map((c) => c.col).join(",") === [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(","),
+    "sheet row 8 shifts only the front segment, columns 7..18",
+  );
+  assert(tokenAt(8, 19) === "" && tokenAt(8, 6) === "", "sheet row 8 does not draw the back bed or the unmoved front");
+  const row12Moves = ring0.rows[12].cells.filter((c) => c.token);
+  assert(
+    row12Moves.every((c) => c.token === "F→") && row12Moves.length === 16 && row12Moves[0].col === 3 && row12Moves.at(-1).col === 18,
+    "sheet row 12 shifts only the front segment of the increase",
+  );
+  assert(tokenAt(12, 19) === "", "the increase transfer does not draw a back-bed move");
   assert(tokenAt(19, 21) === "" && tokenAt(19, 22) === "B→", "the back-only transfer also uses the physical column");
-  assert(tokenAt(9, 17) === "B↔F" && tokenAt(14, 18) === "F↔B", "flip rows record the bed change one column left of the physical needle");
+  assert(tokenAt(9, 18) === "B↔F" && tokenAt(9, 17) === "" && tokenAt(14, 18) === "F↔B", "the decrease flip takes the unmoved back stitch at phys 18");
   const wrap = ring0.bindToSheet.get("9,-1");
-  assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 35, "step3 row 9 col −1 wraps to back phys 1 at column 35");
-  const wrapStitch = stitchForMapCell(11, 35, stitchBind, bound.stitches, ring0);
+  assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 36, "step3 row 9 col −1 wraps to the unmoved back phys 0 at column 36");
+  const wrapStitch = stitchForMapCell(11, 36, stitchBind, bound.stitches, ring0);
   assert(wrapStitch?.index === 76, "clicking the wrapped back stitch selects face 76");
   const wrapKeys = highlightKeysForStitch(wrapStitch, { map: ring0, grid: ringGrid, bind: stitchBind });
-  assert(wrapKeys.has("11,35") && wrapKeys.has("11,0"), "clicking the left-fold wrap lights both ends of the path");
+  assert(wrapKeys.has("11,36") && wrapKeys.has("11,0"), "clicking the left-fold wrap lights both ends of the path");
   const ring2 = ring0.bindToSheet.get("28,0");
   assert(ring2 && ring2.sheetRow === 31 && ring2.sheetCol === 0, "ring 2 stays on the step3 column, shifted only by the inserted rows");
   assert(
