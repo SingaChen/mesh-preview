@@ -6,7 +6,7 @@
  * column <= 18 is front, phys = column; otherwise back, phys = 37 − column.
  * An X / X+ moves front phys with the chart and back phys against it, so
  * back phys stays 37 − column. After the increase knit, one X row recenters:
- * every front stitch F→R1 (phys + 1) and every back stitch B←L1 (phys − 1).
+ * every front stitch F→ (phys + 1) and every back stitch B← (phys − 1).
  * Charts do not move. After that, back phys = 36 − column, and a new back
  * stitch uses that formula. No Flip.
  *
@@ -125,26 +125,38 @@ export function toRelativeToken(token) {
   const raw = String(token ?? "");
   const bed = raw.startsWith("F") ? "F" : raw.startsWith("B") ? "B" : "";
   const body = raw.replace(/^[FB](?=·|[.v^+\-←→↔])/, "");
-  const arrow = body.match(/^(←|→)[RL](\d+)$/);
+  if (!bed) return body;
+  const arrow = body.match(/^(←|→)[RL]?(\d+)?$/);
   if (!arrow) return body;
-  let dir = arrow[1];
-  if (bed === "B") dir = dir === "←" ? "→" : "←";
-  return `${dir}${arrow[2]}`;
+  const n = arrow[2] || "1";
+  const dir = bed === "B" ? (arrow[1] === "←" ? "→" : "←") : arrow[1];
+  return `${dir}${n}`;
+}
+
+/**
+ * Sheet move token. One stitch keeps the arrow and drops the number:
+ * F→R1 is F→, B←L1 is B←. Two or more stitches keep the count: F→2.
+ */
+export function absoluteMoveToken(bed, arrow, steps) {
+  const n = Number(steps);
+  if ((bed !== "F" && bed !== "B") || (arrow !== "←" && arrow !== "→") || !Number.isInteger(n) || n < 1) {
+    fail(`bad move token ${bed} ${arrow} ${steps}`);
+  }
+  return n === 1 ? `${bed}${arrow}` : `${bed}${arrow}${n}`;
 }
 
 /**
  * Step3 relative arrow → absolute bed arrow.
- * F advance follows the knit direction, and step3 already wrote that
- * machine arrow (right-knit advance is →, so F→R). B is the mirror.
+ * F keeps the machine arrow (right-knit advance is →). B is the mirror.
+ * A 1-stitch move omits the number.
  */
 export function toAbsoluteToken(token, bed) {
   const raw = String(token ?? "");
   if (!raw || (bed !== "F" && bed !== "B")) return raw;
   const arrow = raw.match(/^(←|→)(\d+)$/);
   if (!arrow) return bed + raw;
-  const n = arrow[2];
-  if (bed === "F") return arrow[1] === "←" ? `F←L${n}` : `F→R${n}`;
-  return arrow[1] === "←" ? `B→R${n}` : `B←L${n}`;
+  const dir = bed === "F" ? arrow[1] : arrow[1] === "←" ? "→" : "←";
+  return absoluteMoveToken(bed, dir, Number(arrow[2]));
 }
 
 function occupied(row) {
@@ -434,7 +446,7 @@ function applyRecenter(stitches) {
       col: st.chart,
       fromPhys,
       toPhys: st.phys,
-      token: st.bed === "F" ? "F→R1" : "B←L1",
+      token: absoluteMoveToken(st.bed, st.bed === "F" ? "→" : "←", 1),
     });
   }
   return moves;
@@ -626,7 +638,7 @@ export function simulateRing0(step3Rows, rowEnd) {
     [v, 17, 16],
   ]) {
     const m = moved.get(st.id);
-    if (!m || m.fromPhys !== from || m.toPhys !== to || m.bed !== "B" || m.token !== "B←L1") {
+    if (!m || m.fromPhys !== from || m.toPhys !== to || m.bed !== "B" || m.token !== "B←") {
       fail(`回正移圈线圈 ${st.id} 期望 ${from}→${to}，得到 ${m ? `${m.fromPhys}→${m.toPhys} ${m.token}` : "缺失"}`);
     }
   }
@@ -652,13 +664,13 @@ export function simulateRing0(step3Rows, rowEnd) {
     fail(`回正后床列应为 18,19,20，得到 ${bMoves.map((m) => m.col)}`);
   }
   for (const m of fMoves) {
-    if (m.token !== "F→R1" || m.toPhys !== m.fromPhys + 1 || m.fromPhys !== m.col) {
-      fail(`回正前床列 ${m.col} 应从物理针 ${m.col} 以 F→R1 移到 ${m.col + 1}，得到 ${m.fromPhys}→${m.toPhys} ${m.token}`);
+    if (m.token !== "F→" || m.toPhys !== m.fromPhys + 1 || m.fromPhys !== m.col) {
+      fail(`回正前床列 ${m.col} 应从物理针 ${m.col} 以 F→ 移到 ${m.col + 1}，得到 ${m.fromPhys}→${m.toPhys} ${m.token}`);
     }
   }
   for (const m of bMoves) {
-    if (m.token !== "B←L1" || m.toPhys !== m.fromPhys - 1) {
-      fail(`回正后床列 ${m.col} 应 B←L1，得到 ${m.token} ${m.fromPhys}→${m.toPhys}`);
+    if (m.token !== "B←" || m.toPhys !== m.fromPhys - 1) {
+      fail(`回正后床列 ${m.col} 应 B←，得到 ${m.token} ${m.fromPhys}→${m.toPhys}`);
     }
   }
 
@@ -802,10 +814,10 @@ function legendSheet(xfIndexForFill, ring) {
   const parts = [bof(0x0010)];
   const xf = xfIndexForFill("rgb(255,255,255)");
   const legend = [
-    ["第一圈按线圈物理针回正", `回正前 B=37−列；回正行 F→R1、B←L1；之后 B=36−列。结束 F${ring.front}/B${ring.back}`],
+    ["第一圈按线圈物理针回正", `回正前 B=37−列；回正行 F→、B←；之后 B=36−列。结束 F${ring.front}/B${ring.back}`],
     ["later rows", "path 1 onward stays step3, unchanged"],
     ["F… / B…", "bed follows the stitch; ^L stays on the back"],
-    ["→R1 / ←L1", "F advance = knit direction (right-knit →R); B mirrored. Recenter is its own X row"],
+    ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L. Recenter is its own X row"],
     ["columns", "front column = phys; back column = 37−phys, before and after the recenter. Later ring-0 rows move both beds +1. Path 1 onward is not shifted"],
     ["excluded", "no Flip; the finished circle stays inside F−B ∈ {0,1}"],
     ["rows", "122 sheet rows (one inserted X). Header stays the shared needle index. stitch_map_bind.json still 121"],
@@ -997,13 +1009,22 @@ export function buildRing0Workbook(step3, bind) {
     }
   }
   for (const cell of occupied(rows[recenterSheet])) {
-    if (cell.token !== "F→R1" && cell.token !== "B←L1") {
-      fail(`recenter col ${cell.col} token ${cell.token} is not F→R1 or B←L1`);
+    if (cell.token !== "F→" && cell.token !== "B←") {
+      fail(`recenter col ${cell.col} token ${cell.token} is not F→ or B←`);
     }
     if (cell.fill !== "rgb(204,204,255)") fail(`recenter col ${cell.col} fill ${cell.fill}`);
   }
   const headerSet = new Set(needles);
   const lastRing0Sheet = sheetRowForStep3(span.rowEnd - 1, ring.recenterAfter);
+  for (let i = 0; i <= lastRing0Sheet; i++) {
+    const row = rows[i];
+    if (row.dir !== "X" && row.dir !== "X+") continue;
+    for (const cell of occupied(row)) {
+      const move = String(cell.token).match(/^[FB][←→](\d+)?$/);
+      if (!move) fail(`表行 ${i} 移圈符号 ${cell.token} 应是 F→ / B←，两针及以上才写数字`);
+      if (move[1] && Number(move[1]) < 2) fail(`表行 ${i} 移 1 针不写数字，得到 ${cell.token}`);
+    }
+  }
   for (let i = 0; i <= lastRing0Sheet; i++) {
     const seen = new Set();
     for (const cell of occupied(rows[i])) {

@@ -60,7 +60,14 @@ import {
 import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
-import { assertAlignedRow, assertColumnShiftedRow, buildFromFiles, sheetRowForStep3 } from "./build-step4-ring0.mjs";
+import {
+  assertAlignedRow,
+  assertColumnShiftedRow,
+  buildFromFiles,
+  sheetRowForStep3,
+  toAbsoluteToken,
+  toRelativeToken,
+} from "./build-step4-ring0.mjs";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 
@@ -321,7 +328,12 @@ assert(excelMap.rows[1].cells.find((c) => c.col === 0)?.token === "←1", "X+ af
 assert(excelLegendKind("←1", "X+") === "transfer" && excelLegendKind("vL", "L") === "wrap", "legend kinds follow Singa tokens");
 assert(excelLegendKind("F·", "R") === "plain" && excelLegendKind("B·", "R") === "plain", "F/B plain knits stay plain");
 assert(excelLegendKind("BvR", "R") === "wrap" && excelLegendKind("B+R1", "L") === "increase", "F/B prefix still classifies wrap and increase");
-assert(excelLegendKind("F←L1", "X+") === "transfer" && excelLegendKind("B→R1", "X+") === "transfer", "absolute L/R arrows stay transfer");
+assert(excelLegendKind("F←", "X+") === "transfer" && excelLegendKind("B→", "X") === "transfer" && excelLegendKind("F→2", "X") === "transfer", "1-stitch arrows and numbered multi-moves stay transfer");
+assert(toAbsoluteToken("→1", "F") === "F→" && toAbsoluteToken("←1", "F") === "F←", "front 1-stitch move drops the number");
+assert(toAbsoluteToken("←1", "B") === "B→" && toAbsoluteToken("→1", "B") === "B←", "back 1-stitch move is the mirror and drops the number");
+assert(toAbsoluteToken("→2", "F") === "F→2" && toAbsoluteToken("←3", "B") === "B→3", "moves of 2 or more keep the count and drop R/L");
+assert(toRelativeToken("F→") === "→1" && toRelativeToken("F←") === "←1" && toRelativeToken("B→") === "←1" && toRelativeToken("B←") === "→1", "short arrows map back to step3 ±1");
+assert(toRelativeToken("F→2") === "→2" && toRelativeToken("B←2") === "→2", "numbered arrows map back to step3 with the same count");
 {
   const wrap = excelMap.rows[0].cells.find((c) => c.col === 20);
   const plain = excelMap.rows[0].cells.find((c) => c.col === 0);
@@ -993,10 +1005,19 @@ assert(
   const recenter = ring0.rows[3];
   assert(recenter.dir === "X", "sheet row 3 is the recenter transfer");
   const recenterOcc = recenter.cells.filter((c) => c.token);
-  const recenterF = recenterOcc.filter((c) => c.token === "F→R1").map((c) => c.col);
-  const recenterB = recenterOcc.filter((c) => c.token === "B←L1").map((c) => c.col);
-  assert(recenterF.join(",") === [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].join(","), "recenter fronts are F→R1 on −1…17");
-  assert(recenterB.join(",") === "18,19,20", "recenter backs are B←L1 on 18,19,20");
+  const recenterF = recenterOcc.filter((c) => c.token === "F→").map((c) => c.col);
+  const recenterB = recenterOcc.filter((c) => c.token === "B←").map((c) => c.col);
+  assert(recenterF.join(",") === [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].join(","), "recenter fronts are F→ on −1…17");
+  assert(recenterB.join(",") === "18,19,20", "recenter backs are B← on 18,19,20");
+  const bedMoves = ring0.rows.flatMap((r) => r.cells.map((c) => c.token)).filter((token) => /^[FB][←→]/.test(token));
+  assert(bedMoves.includes("F→") && bedMoves.includes("B←") && bedMoves.includes("F←") && bedMoves.includes("B→"), "ring0 sheet uses all four 1-stitch arrows");
+  assert(
+    bedMoves.every((token) => {
+      const m = token.match(/^[FB][←→](\d+)?$/);
+      return m && (!m[1] || Number(m[1]) >= 2);
+    }),
+    "ring0 moves of 1 stitch omit R/L and the number",
+  );
   assert(recenterOcc.every((c) => c.fill === "rgb(204,204,255)"), "recenter transfer fill is ice blue");
   const tokenAt = (row, col) => ring0.rows[row].cells.find((c) => c.col === col)?.token;
   assert(tokenAt(2, 18) === "BvL" && tokenAt(2, 19) === "B^R" && tokenAt(2, 20) === "B+R1", "row 2 stays on the pre-recenter columns");
