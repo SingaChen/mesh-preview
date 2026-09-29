@@ -16,7 +16,14 @@
  * column right: front phys increases by 1, and a back phys decrease of 1 is
  * a column increase of 1 because the back is mirrored.
  *
- * Ring 1 keeps those physical needles (both beds still end 0…18). Knit rows
+ * Ring 1 starts from those physical needles (both beds 0…18) and ends
+ * there again. Counts change with each increase or decrease: N is the
+ * stitches still on the needles, F = ceil(N/2), B = floor(N/2). Only the
+ * shaping bed moves on that transfer row. The other bed keeps its needles.
+ * The next row may flip one stitch at the fold so the counts match the new
+ * F and B. The needle span is whatever that step leaves: the first decrease
+ * can sit at front 0…18 / back 0…17, and a later decrease can sit elsewhere.
+ * Nothing racks the back onto a fixed window. Knit rows
  * sit one left of the physical-needle column, so they line up with the step3
  * chart and the first front stitch is column 0. Transfer rows (X / X+) stay
  * on the physical-needle column: front = phys, back = 37 − phys. Only the
@@ -27,10 +34,11 @@
  * A negative step3 column is not a new front stitch: it is the back bed's
  * existing tail. Step4 draws that stitch once, at (37 − phys) − 1, the same
  * one-column shift as the knit row. Only a real increase, decrease,
- * or newly hung loop changes N. After each of those, one adjacent fold flip
- * may run. It has to land on the target counts with the front bed still
- * starting at needle 0; the other bed is not racked. Rings 2–4 stay on the
- * step3 columns.
+ * or newly hung loop changes N. After each of those the counts are checked
+ * again. One adjacent fold flip may run, and it has to be the only way to
+ * land on F = ceil(N/2) and B = floor(N/2) with the front bed still starting
+ * at needle 0. There is no slide onto a fixed back window. Rings 2–4 stay
+ * on the step3 columns.
  *
  * Same-bed double occupancy throws and does not write a sheet.
  *
@@ -780,10 +788,11 @@ function isContig(arr) {
 }
 
 /**
- * One adjacent fold flip must already land on the target counts, with the
- * front bed still starting at needle 0. The bed that did not shape is not
- * racked onto the right edge, and this repair does not slide either.
- * More than one such flip is an uncovered choice.
+ * Recompute the target from the stitches still on the beds: F = ceil(N/2),
+ * B = floor(N/2). One adjacent fold flip, or none, must already land there,
+ * with the front bed still starting at needle 0. The back span is not a
+ * fixed window (neither 0…B−1 nor (F−B)…F−1). More than one such result is
+ * an uncovered choice.
  */
 function rebalanceRing(stitches, anchorChart, where) {
   const saved = [...stitches.values()].map((st) => [st.id, st.bed, st.phys]);
@@ -1269,7 +1278,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
   const end = ring1?.end;
   const legend = [
     ["第一圈按线圈物理针回正", `回正前 B=37−列；回正行 F→、B←；之后 B=36−列。结束 F${ring.front}/B${ring.back}`],
-    ["第二圈", `负数列是后床末尾绕回，不是新圈。移圈只移动成形那一床；另一床针位不动，少的一针由下一行折返翻针补上。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
+    ["第二圈", `负数列是后床末尾绕回，不是新圈。每步按当时的 N 重算 F=ceil(N/2)、B=floor(N/2)。移圈只移动成形那一床；另一床针位不动。针数差由下一行折返翻针补上，针位范围不固定。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
     ["绕回", "Step3 负数列仍是后床末尾原有的圈，表列 = (37−物理针)−1，与整行对齐到 step3 chart。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is B↔F or F↔B on the inserted row, before the recenter transfer"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
@@ -1552,6 +1561,36 @@ export function buildRing0Workbook(step3, bind) {
   const gotEvents = ring1.events.map(flipOf).join(" | ");
   const wantEvents = ["right B18→F18 k=0", "right F19→B18 k=0", "k=0", "k=0"].join(" | ");
   if (gotEvents !== wantEvents) fail(`第二圈对齐结果变了：${gotEvents}`);
+  const spanOf = (label) => {
+    const row = ring1.trace.find((item) => item.label === label);
+    if (!row) fail(`第二圈缺少 ${label}`);
+    const contig = (arr) => arr.every((phys, index) => index === 0 || phys === arr[index - 1] + 1);
+    const legal =
+      row.F === Math.ceil(row.N / 2) &&
+      row.B === Math.floor(row.N / 2) &&
+      row.fPhys.length === row.F &&
+      row.bPhys.length === row.B &&
+      row.fPhys[0] === 0 &&
+      row.fPhys.at(-1) === row.F - 1 &&
+      contig(row.fPhys) &&
+      contig(row.bPhys);
+    if (!legal) fail(`${label} 没有按当时的 N 合法化：N${row.N} F${row.F}[${row.fPhys}] B${row.B}[${row.bPhys}]`);
+    return `N${row.N} F${row.F}[${row.fPhys[0]}…${row.fPhys.at(-1)}] B${row.B}[${row.bPhys[0]}…${row.bPhys.at(-1)}]`;
+  };
+  for (const row of ring1.trace) {
+    if (/ X\+?$/.test(row.label)) continue;
+    spanOf(row.label);
+  }
+  const wantSpans = [
+    ["step3 行 7 减针对齐后", "N37 F19[0…18] B18[0…17]"],
+    ["step3 行 11 R", "N38 F19[0…18] B19[0…18]"],
+    ["step3 行 16 减针对齐后", "N37 F19[0…18] B18[1…18]"],
+    ["step3 行 27 R", "N38 F19[0…18] B19[0…18]"],
+  ];
+  for (const [label, want] of wantSpans) {
+    const got = spanOf(label);
+    if (got !== want) fail(`${label} 范围是 ${got}，这一步重算后应是 ${want}`);
+  }
   const wrapsOf = (step3Row) =>
     [...(ring1.byRow.get(step3Row)?.cells.values() || [])]
       .filter((cell) => cell.wrap)
