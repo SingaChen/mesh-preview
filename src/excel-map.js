@@ -102,6 +102,27 @@ function sheetXfFill(sheet, styles, r, c) {
   return { xf: xfIndex, fill: fillCssFromXf(xf, styles?.palette) };
 }
 
+function parseCellMapSheet(sheet) {
+  const bySheet = new Map();
+  const byBind = new Map();
+  const foldLink = new Map();
+  for (let r = 1; r < (sheet?.rows?.length || 0); r++) {
+    const row = sheet.rows[r] || [];
+    const sheetRow = Number(row[0]);
+    const sheetCol = Number(row[1]);
+    const bindRow = Number(row[2]);
+    const bindCol = Number(row[3]);
+    if (![sheetRow, sheetCol, bindRow, bindCol].every(Number.isInteger)) continue;
+    const rec = { sheetRow, sheetCol, bindRow, bindCol };
+    bySheet.set(`${sheetRow},${sheetCol}`, rec);
+    byBind.set(`${bindRow},${bindCol}`, rec);
+    if (row[4] != null && row[4] !== "" && Number.isInteger(Number(row[4]))) {
+      foldLink.set(`${sheetRow},${sheetCol}`, Number(row[4]));
+    }
+  }
+  return { bySheet, byBind, foldLink };
+}
+
 function parseLegendSheet(sheet) {
   const rows = [];
   for (const row of sheet?.rows || []) {
@@ -133,6 +154,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
   const colMin = Math.min(...needles.map((n) => n.needle));
   const colMax = Math.max(...needles.map((n) => n.needle));
   const legend = parseLegendSheet(findXlsSheet(book, "legend"));
+  const cellMap = parseCellMapSheet(findXlsSheet(book, "cellmap"));
 
   const rows = [];
   const cells = [];
@@ -193,6 +215,9 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
       colMax,
     },
     legend,
+    cellMap: cellMap.bySheet,
+    bindToSheet: cellMap.byBind,
+    foldLink: cellMap.foldLink,
     styles,
     xfers: [],
     rowMin: 0,

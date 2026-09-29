@@ -14,8 +14,15 @@
  * (column = phys) and the mirrored needle for the back (column = 37 − phys).
  * That identity holds before the recenter. After it, both beds move one
  * column right: front phys increases by 1, and a back phys decrease of 1 is
- * a column increase of 1 because the back is mirrored. Rings 1–4 stay on
- * the step3 columns.
+ * a column increase of 1 because the back is mirrored.
+ *
+ * Ring 1 uses the same columns. A negative step3 column is not a new front
+ * stitch: it is the back bed's existing tail, drawn on the left so the yarn
+ * path looks continuous across the left fold. Step4 draws that stitch once,
+ * at column 37 − phys. Only a real increase, decrease, or newly hung loop
+ * changes N. After each of those, one adjacent fold flip (either side) may
+ * run, then a counterclockwise recenter, on the inserted row with Flip
+ * before the transfer. Rings 2–4 stay on the step3 columns.
  *
  * Same-bed double occupancy throws and does not write a sheet.
  *
@@ -115,6 +122,23 @@ export function ring0DisplayEnd(bind) {
     path0First: Math.min(...path0.map((f) => f.face_index)),
     path0Last: Math.max(...path0.map((f) => f.face_index)),
   };
+}
+
+/** Inclusive display_row span of one bind path. `end` is exclusive. */
+export function pathRowRange(bind, pathIndex) {
+  const faces = (bind?.faces || []).filter((f) => f.path_index === pathIndex);
+  if (!faces.length) fail(`bind has no path_index ${pathIndex} face`);
+  let start = Infinity;
+  let last = -Infinity;
+  for (const face of faces) {
+    for (const cell of face.cells || []) {
+      if (!Number.isInteger(cell.display_row)) continue;
+      start = Math.min(start, cell.display_row);
+      last = Math.max(last, cell.display_row);
+    }
+  }
+  if (!Number.isFinite(start)) fail(`path ${pathIndex} has no display_row`);
+  return { pathIndex, start, end: last + 1, faces: faces.length };
 }
 
 /**
@@ -715,6 +739,394 @@ export function simulateRing0(step3Rows, rowEnd) {
   };
 }
 
+const FLIP_FILL = "rgb(153,153,255)";
+
+function listsOf(stitches) {
+  const f = [];
+  const b = [];
+  for (const st of stitches.values()) (st.bed === "F" ? f : b).push(st);
+  f.sort((a, c) => a.phys - c.phys || a.id - c.id);
+  b.sort((a, c) => a.phys - c.phys || a.id - c.id);
+  return { f, b, N: f.length + b.length };
+}
+
+function isContig(arr) {
+  return arr.every((st, i) => i === 0 || st.phys === arr[i - 1].phys + 1);
+}
+
+/**
+ * One adjacent fold flip, then a counterclockwise slide, must land on
+ * front phys 0..F−1 and back phys (F−B)..F−1. More than one such repair
+ * is an uncovered choice.
+ */
+function rebalanceRing(stitches, anchorChart, where) {
+  const saved = [...stitches.values()].map((st) => [st.id, st.bed, st.phys]);
+  const restore = () => {
+    for (const [id, bed, phys] of saved) {
+      const st = stitches.get(id);
+      st.bed = bed;
+      st.phys = phys;
+    }
+  };
+  const measure = () => {
+    const { f, b, N } = listsOf(stitches);
+    const tF = Math.ceil(N / 2);
+    const tB = Math.floor(N / 2);
+    if (f.length !== tF || b.length !== tB || !isContig(f) || !isContig(b)) return null;
+    const backLo = tF - tB;
+    const k = -f[0].phys;
+    if (k < 0) return null;
+    if (f.at(-1).phys + k !== tF - 1) return null;
+    if (b[0].phys - k !== backLo || b.at(-1).phys - k !== tF - 1) return null;
+    for (let i = 0; i < f.length; i++) if (f[i].phys + k !== i) return null;
+    for (let i = 0; i < b.length; i++) if (b[i].phys - k !== backLo + i) return null;
+    return k;
+  };
+  const base = listsOf(stitches);
+  const flips = [{ kind: "none" }];
+  if (base.f.length && base.b.length) {
+    const add = (side, src, toBed, destPhys) => {
+      if (Math.abs(src.phys - destPhys) > 1) return;
+      const occ = toBed === "F" ? base.f : base.b;
+      if (occ.some((st) => st.phys === destPhys)) return;
+      flips.push({
+        kind: "flip",
+        side,
+        id: src.id,
+        fromBed: src.bed,
+        fromPhys: src.phys,
+        toBed,
+        toPhys: destPhys,
+        chart: src.chart,
+      });
+    };
+    add("right", base.b.at(-1), "F", base.f.at(-1).phys + 1);
+    add("left", base.b[0], "F", base.f[0].phys - 1);
+    add("right", base.f.at(-1), "B", base.b.at(-1).phys + 1);
+    add("left", base.f[0], "B", base.b[0].phys - 1);
+  }
+  const hits = [];
+  for (const flip of flips) {
+    restore();
+    if (flip.kind === "flip") {
+      const st = stitches.get(flip.id);
+      st.bed = flip.toBed;
+      st.phys = flip.toPhys;
+    }
+    const k = measure();
+    if (k != null) hits.push({ flip: flip.kind === "flip" ? flip : null, k });
+  }
+  restore();
+  if (hits.length !== 1) {
+    const { f, b, N } = listsOf(stitches);
+    const described = hits.map((h) => (h.flip ? `${h.flip.side} ${h.flip.fromBed}${h.flip.fromPhys}→${h.flip.toBed}${h.flip.toPhys} 回正${h.k}` : `不翻针 回正${h.k}`));
+    fail(
+      `${where}: 折返对齐有 ${hits.length} 种结果（目标 F${Math.ceil(N / 2)} B${Math.floor(N / 2)}，现 F${f.length}[${base.f.map((s) => s.phys)}] B${b.length}[${base.b.map((s) => s.phys)}]，锚点列 ${anchorChart}）${described.length ? `：${described.join("；")}` : ""}`,
+    );
+  }
+  const best = hits[0];
+  if (best.flip) {
+    const st = stitches.get(best.flip.id);
+    st.bed = best.flip.toBed;
+    st.phys = best.flip.toPhys;
+  }
+  if (best.k > 0) {
+    for (const st of stitches.values()) st.phys += st.bed === "F" ? best.k : -best.k;
+  }
+  assertNoSharedNeedle(stitches, where);
+  return best;
+}
+
+function sparseCells(list) {
+  const placed = new Map();
+  for (const cell of list) {
+    if (placed.has(cell.col)) {
+      const prev = placed.get(cell.col);
+      fail(`表列 ${cell.col} 冲突（step3 列 ${prev.chart} 与 ${cell.chart}）`);
+    }
+    placed.set(cell.col, cell);
+  }
+  return placed;
+}
+
+/**
+ * Ring 1 only. Starts from the ring-0 end (F19/B19, charts −1…36).
+ * Negative step3 columns wrap onto the back-bed tail (low phys → high
+ * sheet column). Stops on an uncovered shaping instead of guessing.
+ */
+export function simulateRing1(step3Rows, rowStart, rowEnd) {
+  const stitches = new Map();
+  const live = new Map();
+  let nextId = 0;
+  for (let chart = -1; chart <= 17; chart++) {
+    const id = nextId++;
+    stitches.set(id, { id, bed: "F", phys: chart + 1, chart });
+    live.set(chart, id);
+  }
+  for (let chart = 18; chart <= 36; chart++) {
+    const id = nextId++;
+    stitches.set(id, { id, bed: "B", phys: 36 - chart, chart });
+    live.set(chart, id);
+  }
+  const byRow = new Map();
+  const inserts = [];
+  const events = [];
+  const trace = [];
+  let decAnchor = null;
+
+  const snapshotCounts = (label) => {
+    const { f, b, N } = listsOf(stitches);
+    trace.push({
+      label,
+      N,
+      F: f.length,
+      B: b.length,
+      fPhys: f.map((st) => st.phys),
+      bPhys: b.map((st) => st.phys),
+    });
+  };
+
+  const drawKnit = (row, ri) => {
+    const cells = occupied(row);
+    const negs = cells.filter((c) => c.col < 0).sort((a, b) => b.col - a.col);
+    const tail = [...stitches.values()].filter((st) => st.bed === "B").sort((a, b) => a.phys - b.phys || a.id - b.id);
+    const used = new Set();
+    const placed = [];
+    negs.forEach((cell, i) => {
+      const st = tail[i];
+      if (!st) fail(`step3 行 ${ri} 负列 ${cell.col} 超出后床末尾（后床只有 ${tail.length} 针）`);
+      if (used.has(st.id)) fail(`step3 行 ${ri} 负列 ${cell.col} 与本行已有圈冲突`);
+      used.add(st.id);
+      const painted = paintToken(cell, toAbsoluteToken(cell.token, st.bed));
+      placed.push({
+        col: columnForPhys(st.bed, st.phys),
+        token: painted.token,
+        fill: painted.fill,
+        phys: st.phys,
+        bed: st.bed,
+        id: st.id,
+        chart: cell.col,
+        wrap: true,
+      });
+    });
+    const births = [];
+    for (const cell of cells) {
+      if (cell.col < 0) continue;
+      const id = live.get(cell.col);
+      if (id != null) {
+        if (used.has(id)) fail(`step3 行 ${ri} 列 ${cell.col} 与绕回的是同一个圈 ${id}`);
+        used.add(id);
+        const st = stitches.get(id);
+        const painted = paintToken(cell, toAbsoluteToken(cell.token, st.bed));
+        placed.push({
+          col: columnForPhys(st.bed, st.phys),
+          token: painted.token,
+          fill: painted.fill,
+          phys: st.phys,
+          bed: st.bed,
+          id: st.id,
+          chart: cell.col,
+        });
+      } else births.push(cell);
+    }
+    if (births.length > 1) fail(`step3 行 ${ri} 一行多针新生，列 ${births.map((c) => c.col).join(",")}`);
+    for (const cell of births) {
+      let left = null;
+      let right = null;
+      for (const st of stitches.values()) {
+        if (st.chart < cell.col && (!left || st.chart > left.chart)) left = st;
+        if (st.chart > cell.col && (!right || st.chart < right.chart)) right = st;
+      }
+      let bed;
+      let phys;
+      if (left && right) {
+        if (left.bed !== right.bed) {
+          fail(`step3 行 ${ri} 新圈列 ${cell.col} 夹在 ${left.bed}${left.phys} 与 ${right.bed}${right.phys} 之间`);
+        }
+        bed = left.bed;
+        if (bed === "F") {
+          if (right.phys !== left.phys + 2) fail(`step3 行 ${ri} 新圈列 ${cell.col} 前床空档 ${left.phys}…${right.phys}`);
+          phys = left.phys + 1;
+        } else if (left.phys === right.phys + 2) phys = right.phys + 1;
+        else fail(`step3 行 ${ri} 新圈列 ${cell.col} 后床空档 ${left.phys}…${right.phys}`);
+      } else if (left) {
+        bed = left.bed;
+        const sign = Math.sign(cell.col - left.chart);
+        phys = left.phys + (bed === "F" ? sign : -sign);
+        if ([...stitches.values()].some((st) => st.bed === bed && st.phys === phys)) {
+          fail(`step3 行 ${ri} 新圈延伸到已被占用的 ${bed}${phys}`);
+        }
+      } else fail(`step3 行 ${ri} 新圈列 ${cell.col} 找不到相邻线圈`);
+      const id = nextId++;
+      const st = { id, bed, phys, chart: cell.col };
+      stitches.set(id, st);
+      live.set(cell.col, id);
+      const painted = paintToken(cell, toAbsoluteToken(cell.token, bed));
+      placed.push({
+        col: columnForPhys(bed, phys),
+        token: painted.token,
+        fill: painted.fill,
+        phys,
+        bed,
+        id,
+        chart: cell.col,
+        birth: true,
+      });
+    }
+    const wraps = placed.filter((cell) => cell.wrap);
+    if (wraps.length) {
+      const ontoBack = wraps.reduce((best, cell) => (cell.chart > best.chart ? cell : best));
+      const beforeFold = placed
+        .filter((cell) => !cell.wrap)
+        .reduce((best, cell) => (best == null || cell.chart < best.chart ? cell : best), null);
+      if (beforeFold && ontoBack.col !== beforeFold.col) {
+        ontoBack.foldLink = beforeFold.col;
+        beforeFold.foldLink = ontoBack.col;
+      }
+    }
+    return { placed: sparseCells(placed), births };
+  };
+
+  const drawMove = (row, ri) => {
+    const cells = occupied(row);
+    if (!cells.length) fail(`step3 行 ${ri} 移圈是空的`);
+    const token = cells[0].token;
+    if (!cells.every((cell) => cell.token === token)) fail(`step3 行 ${ri} 移圈符号不一致`);
+    const arrow = token.match(/^(←|→)(\d+)$/);
+    if (!arrow) fail(`step3 行 ${ri} 移圈符号 ${token} 无法换算`);
+    if (Number(arrow[2]) !== 1) fail(`step3 行 ${ri} 是多针移圈 ${token}`);
+    const delta = arrow[1] === "→" ? 1 : -1;
+    const cols = cells.map((cell) => cell.col).sort((a, b) => (delta < 0 ? a - b : b - a));
+    const placed = [];
+    const consumed = [];
+    for (const col of cols) {
+      const id = live.get(col);
+      if (id == null) fail(`step3 行 ${ri} 移圈列 ${col} 没有线圈`);
+      const st = stitches.get(id);
+      placed.push({
+        col: columnForPhys(st.bed, st.phys),
+        token: toAbsoluteToken(token, st.bed),
+        fill: cells.find((cell) => cell.col === col)?.fill || "rgb(204,204,255)",
+        phys: st.phys,
+        bed: st.bed,
+        id: st.id,
+        chart: col,
+      });
+    }
+    const drawn = sparseCells(placed);
+    for (const col of cols) {
+      const id = live.get(col);
+      const st = stitches.get(id);
+      const dest = col + delta;
+      live.delete(col);
+      if (live.has(dest)) {
+        if (row.dir === "X+") fail(`step3 行 ${ri} 加针移圈在列 ${dest} 撞针`);
+        const onto = stitches.get(live.get(dest));
+        if (st.bed !== onto.bed) fail(`step3 行 ${ri} 跨床减针 ${st.bed}${st.phys} → ${onto.bed}${onto.phys}`);
+        consumed.push({ bed: st.bed, phys: st.phys, ontoBed: onto.bed, ontoPhys: onto.phys });
+        stitches.delete(id);
+      } else {
+        st.phys += st.bed === "F" ? delta : -delta;
+        st.chart = dest;
+        live.set(dest, id);
+      }
+    }
+    assertNoSharedNeedle(stitches, `step3 行 ${ri} 移圈后`);
+    return { drawn, consumed };
+  };
+
+  const insertRepair = (anchor, where, step3After) => {
+    const before = [...stitches.values()].map((st) => ({
+      id: st.id,
+      bed: st.bed,
+      phys: st.phys,
+    }));
+    const best = rebalanceRing(stitches, anchor, where);
+    const cells = [];
+    if (best.flip) {
+      const src = before.find((st) => st.id === best.flip.id);
+      cells.push({
+        col: columnForPhys(src.bed, src.phys),
+        token: `${src.bed}↔${best.flip.toBed}`,
+        fill: FLIP_FILL,
+        phys: src.phys,
+        bed: src.bed,
+        id: src.id,
+        chart: null,
+      });
+    }
+    if (best.k > 0) {
+      const afterFlip = new Map(before.map((st) => [st.id, { ...st }]));
+      if (best.flip) {
+        const flipped = afterFlip.get(best.flip.id);
+        flipped.bed = best.flip.toBed;
+        flipped.phys = best.flip.toPhys;
+      }
+      for (const src of afterFlip.values()) {
+        const moveCol = columnForPhys(src.bed, src.phys);
+        if (cells.some((cell) => cell.col === moveCol)) {
+          fail(`${where}: 翻针和回正落在同一表列 ${moveCol}`);
+        }
+        cells.push({
+          col: moveCol,
+          token: absoluteMoveToken(src.bed, src.bed === "F" ? "→" : "←", best.k),
+          fill: "rgb(204,204,255)",
+          phys: src.phys,
+          bed: src.bed,
+          id: src.id,
+          chart: null,
+        });
+      }
+    }
+    events.push({ after: step3After, flip: best.flip, k: best.k, where });
+    if (cells.length) {
+      inserts.push({
+        after: step3After,
+        dir: best.k > 0 ? "X" : "Flip",
+        cells: sparseCells(cells),
+      });
+    }
+    return best;
+  };
+
+  snapshotCounts("第二圈开始");
+  for (let i = rowStart; i < rowEnd; i++) {
+    const row = step3Rows[i];
+    if (row.dir === "X" || row.dir === "X+") {
+      const moved = drawMove(row, i);
+      byRow.set(i, { dir: row.dir, step3: i, cells: moved.drawn });
+      snapshotCounts(`step3 行 ${i} ${row.dir}`);
+      if (row.dir === "X") {
+        insertRepair(decAnchor ?? 0, `step3 行 ${i} 减针后`, i);
+        decAnchor = null;
+        snapshotCounts(`step3 行 ${i} 减针对齐后`);
+      }
+      continue;
+    }
+    if (row.dir !== "R" && row.dir !== "L") fail(`step3 行 ${i} 方向 ${row.dir} 不在第二圈规则里`);
+    const dec = occupied(row).find((cell) => parseDecN(cell.token));
+    const inc = occupied(row).find((cell) => parseIncN(cell.token));
+    if (dec && parseDecN(dec.token) !== 1) fail(`step3 行 ${i} 多针减针 ${dec.token}`);
+    if (inc && parseIncN(inc.token) !== 1) fail(`step3 行 ${i} 多针加针 ${inc.token}`);
+    if (dec) decAnchor = dec.col;
+    const knit = drawKnit(row, i);
+    byRow.set(i, { dir: row.dir, step3: i, cells: knit.placed });
+    assertNoSharedNeedle(stitches, `step3 行 ${i} 织完`);
+    if (inc || knit.births.length) {
+      const anchor = inc ? inc.col : knit.births[0].col;
+      insertRepair(anchor, `step3 行 ${i} 加针后`, i);
+    } else {
+      const { f, b, N } = listsOf(stitches);
+      if (f.length !== Math.ceil(N / 2) || b.length !== Math.floor(N / 2) || !isContig(f) || !isContig(b) || f[0].phys !== 0) {
+        fail(`step3 行 ${i} 平针之后 F${f.length} B${b.length} 不在 F=ceil(N/2)、左折返前床 0`);
+      }
+    }
+    snapshotCounts(`step3 行 ${i} ${row.dir}`);
+  }
+  const end = listsOf(stitches);
+  return { byRow, inserts, events, trace, end };
+}
+
 function paintToken(cell, token) {
   if (!token) return { token: "", fill: cell.fill || "rgb(192,192,192)" };
   const glyph = token.replace(/^[FB](?=·|[.v^+\-←→↔])/, "");
@@ -810,17 +1222,18 @@ function sheetFromGrid(name, headerLabel, needles, rows, xfIndexForFill) {
   return { name, bytes: Buffer.concat(parts) };
 }
 
-function legendSheet(xfIndexForFill, ring) {
+function legendSheet(xfIndexForFill, ring, ring1) {
   const parts = [bof(0x0010)];
   const xf = xfIndexForFill("rgb(255,255,255)");
+  const end = ring1?.end;
   const legend = [
     ["第一圈按线圈物理针回正", `回正前 B=37−列；回正行 F→、B←；之后 B=36−列。结束 F${ring.front}/B${ring.back}`],
-    ["later rows", "path 1 onward stays step3, unchanged"],
-    ["F… / B…", "bed follows the stitch; ^L stays on the back"],
-    ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L. Recenter is its own X row"],
-    ["columns", "front column = phys; back column = 37−phys, before and after the recenter. Later ring-0 rows move both beds +1. Path 1 onward is not shifted"],
-    ["excluded", "no Flip; the finished circle stays inside F−B ∈ {0,1}"],
-    ["rows", "122 sheet rows (one inserted X). Header stays the shared needle index. stitch_map_bind.json still 121"],
+    ["第二圈", `负数列是后床末尾绕回，不是新圈。加减针后在折返处翻一针，再逆时针回正。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
+    ["绕回", "Step3 负数列画在后床终点，列 = 37−物理针。同一个圈只有一列。点左折返时两端一起高亮"],
+    ["F… / B…", "bed follows the stitch. Flip is B↔F or F↔B on the inserted row, before the recenter transfer"],
+    ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
+    ["columns", "front column = phys; back column = 37−phys, shared by ring 0 and ring 1. Rings 2–4 stay on step3 columns"],
+    ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column"],
   ];
   legend.forEach((pair, i) => {
     parts.push(labelRecord(i, 0, xf, pair[0]));
@@ -828,6 +1241,23 @@ function legendSheet(xfIndexForFill, ring) {
   });
   parts.push(eof());
   return { name: "legend", bytes: Buffer.concat(parts) };
+}
+
+function cellMapSheet(entries, xf) {
+  const parts = [bof(0x0010)];
+  ["sheetRow", "sheetCol", "bindRow", "bindCol", "linkCol"].forEach((label, col) => {
+    parts.push(labelRecord(0, col, xf, label));
+  });
+  entries.forEach((entry, i) => {
+    const row = i + 1;
+    parts.push(numberRecord(row, 0, xf, entry.sheetRow));
+    parts.push(numberRecord(row, 1, xf, entry.sheetCol));
+    parts.push(numberRecord(row, 2, xf, entry.bindRow));
+    parts.push(numberRecord(row, 3, xf, entry.bindCol));
+    if (entry.linkCol != null) parts.push(numberRecord(row, 4, xf, entry.linkCol));
+  });
+  parts.push(eof());
+  return { name: "cellmap", bytes: Buffer.concat(parts) };
 }
 
 function writeCfb(workbook) {
@@ -898,44 +1328,59 @@ export function buildRing0Workbook(step3, bind) {
   if (ring.recenterAfter < 0 || ring.recenterAfter >= span.rowEnd) {
     fail(`recenter sits at step3 ${ring.recenterAfter}, outside ring 0 [0, ${span.rowEnd})`);
   }
-  const rows = [];
-  for (let i = 0; i < step3.rows.length; i++) {
-    const row = step3.rows[i];
-    if (i >= span.rowEnd) {
-      rows.push({
-        dir: row.dir,
-        cells: row.cells.map((c) => ({ col: c.col, token: c.token, fill: c.fill })),
-      });
-    } else {
-      const snap = ring.atRow.get(i);
-      if (!snap) fail(`ring 0 row ${i} has no stitch identities`);
-      rows.push({
-        dir: row.dir,
-        cells: row.cells.map((c) => {
-          if (!c.token) return { col: c.col, token: "", fill: c.fill || "rgb(192,192,192)" };
-          const st = snap.get(c.col);
-          if (!st) fail(`row ${i} col ${c.col} has no stitch identity`);
-          if (st.bed !== "F" && st.bed !== "B") fail(`row ${i} col ${c.col} stitch ${st.id} has no bed`);
-          const painted = paintToken(c, toAbsoluteToken(c.token, st.bed));
-          return { col: c.col, token: painted.token, fill: painted.fill, phys: st.phys, bed: st.bed, id: st.id };
-        }),
-      });
+  const ring1Span = pathRowRange(bind, 1);
+  const ring2Span = pathRowRange(bind, 2);
+  if (ring1Span.start !== span.rowEnd) fail(`ring 1 starts at step3 ${ring1Span.start}, ring 0 ends at ${span.rowEnd}`);
+  if (ring2Span.start !== ring1Span.end) fail(`ring 2 starts at ${ring2Span.start}, ring 1 ends at ${ring1Span.end}`);
+  for (let i = ring1Span.start; i < ring1Span.end; i++) {
+    const dir = step3.rows[i].dir;
+    if (dir !== "R" && dir !== "L") continue;
+    const owners = new Set();
+    for (const face of bind.faces || []) {
+      for (const cell of face.cells || []) {
+        if (cell.display_row === i) owners.add(face.path_index);
+      }
     }
+    if (!owners.size || [...owners].some((p) => p !== 1)) {
+      fail(`knit display_row ${i} is not exclusively path 1 (owners ${[...owners]})`);
+    }
+  }
+  const ring1 = simulateRing1(step3.rows, ring1Span.start, ring1Span.end);
+
+  const rows = [];
+  const step3ToSheet = [];
+  for (let i = 0; i < span.rowEnd; i++) {
+    const row = step3.rows[i];
+    const snap = ring.atRow.get(i);
+    if (!snap) fail(`ring 0 row ${i} has no stitch identities`);
+    step3ToSheet[i] = rows.length;
+    rows.push({
+      dir: row.dir,
+      step3: i,
+      cells: row.cells.map((c) => {
+        if (!c.token) return { col: c.col, token: "", fill: c.fill || "rgb(192,192,192)" };
+        const st = snap.get(c.col);
+        if (!st) fail(`row ${i} col ${c.col} has no stitch identity`);
+        if (st.bed !== "F" && st.bed !== "B") fail(`row ${i} col ${c.col} stitch ${st.id} has no bed`);
+        const painted = paintToken(c, toAbsoluteToken(c.token, st.bed));
+        return { col: c.col, token: painted.token, fill: painted.fill, phys: st.phys, bed: st.bed, id: st.id, chart: c.col };
+      }),
+    });
     if (i === ring.recenterAfter) {
       const byCol = new Map(ring.recenterMoves.map((m) => [m.col, m]));
       rows.push({
         dir: "X",
         recenter: true,
+        step3: null,
         cells: step3.needles.map((col) => {
           const m = byCol.get(col);
           if (!m) return { col, token: "", fill: "rgb(192,192,192)" };
-          return { col, token: m.token, fill: "rgb(204,204,255)", phys: m.fromPhys, bed: m.bed, id: m.id };
+          return { col, token: m.token, fill: "rgb(204,204,255)", phys: m.fromPhys, bed: m.bed, id: m.id, chart: null };
         }),
       });
     }
   }
-  if (rows.length !== step3.rows.length + 1) fail(`output rows ${rows.length} != ${step3.rows.length + 1}`);
-  if (rows.some((r) => r.dir === "Flip")) fail("output contains a Flip row");
+  if (rows.some((r) => r.dir === "Flip")) fail("ring 0 output contains a Flip row");
 
   const extraCols = [];
   for (let i = ring.recenterAfter + 1; i < span.rowEnd; i++) {
@@ -966,6 +1411,35 @@ export function buildRing0Workbook(step3, bind) {
     row.cells = placed;
     row.shifted = true;
   }
+  const pushSparse = (row) => {
+    for (const col of row.cells.keys()) if (!step3.needles.includes(col)) extraCols.push(col);
+    rows.push(row);
+  };
+  for (let i = ring1Span.start; i < step3.rows.length; i++) {
+    if (i < ring1Span.end) {
+      const built = ring1.byRow.get(i);
+      if (!built) fail(`ring 1 step3 row ${i} was not simulated`);
+      step3ToSheet[i] = rows.length;
+      pushSparse({ dir: built.dir, step3: i, cells: built.cells, shifted: true });
+      for (const extra of ring1.inserts) {
+        if (extra.after !== i) continue;
+        pushSparse({ dir: extra.dir, step3: null, recenter: extra.dir === "X", flip: extra.dir === "Flip", cells: extra.cells, shifted: true });
+      }
+    } else {
+      const row = step3.rows[i];
+      step3ToSheet[i] = rows.length;
+      rows.push({
+        dir: row.dir,
+        step3: i,
+        cells: row.cells.map((c) => ({
+          col: c.col,
+          token: c.token,
+          fill: c.fill,
+          chart: c.token ? c.col : null,
+        })),
+      });
+    }
+  }
   let needles = step3.needles;
   if (extraCols.length) {
     const all = new Set([...needles, ...extraCols]);
@@ -991,7 +1465,8 @@ export function buildRing0Workbook(step3, bind) {
     fail(`recenter is not sheet row ${recenterSheet}`);
   }
   for (let i = 0; i < step3.rows.length; i++) {
-    const sheetRow = rows[sheetRowForStep3(i, ring.recenterAfter)];
+    const sheetRow = rows[step3ToSheet[i]];
+    if (sheetRow?.step3 !== i) fail(`step3 row ${i} landed on sheet row ${step3ToSheet[i]}`);
     if (i <= ring.recenterAfter) {
       assertAlignedRow(sheetRow, step3.rows[i], i);
       for (const cell of occupied(sheetRow)) {
@@ -999,6 +1474,15 @@ export function buildRing0Workbook(step3, bind) {
       }
     } else if (i < span.rowEnd) {
       assertColumnShiftedRow(sheetRow, step3.rows[i], i);
+    } else if (i < ring1Span.end) {
+      if (sheetRow.dir !== step3.rows[i].dir) fail(`step3 row ${i} dir drifted`);
+      for (const cell of occupied(sheetRow)) {
+        const bed = bedOf(cell.token);
+        if (bed !== "F" && bed !== "B") fail(`第二圈表行 ${step3ToSheet[i]} 符号 ${cell.token} 没有床`);
+        if (cell.phys == null || cell.col !== columnForPhys(bed, cell.phys)) {
+          fail(`第二圈表行 ${step3ToSheet[i]} 列 ${cell.col} 不是 ${bed} 物理针 ${cell.phys}`);
+        }
+      }
     } else {
       if (sheetRow.dir !== step3.rows[i].dir) fail(`step3 row ${i} dir drifted`);
       const a = occupied(sheetRow);
@@ -1015,8 +1499,33 @@ export function buildRing0Workbook(step3, bind) {
     if (cell.fill !== "rgb(204,204,255)") fail(`recenter col ${cell.col} fill ${cell.fill}`);
   }
   const headerSet = new Set(needles);
-  const lastRing0Sheet = sheetRowForStep3(span.rowEnd - 1, ring.recenterAfter);
-  for (let i = 0; i <= lastRing0Sheet; i++) {
+  const ring2Sheet = step3ToSheet[ring2Span.start];
+  if (ring1.inserts.length !== 2 || ring1.inserts.some((row) => row.dir !== "Flip")) {
+    fail(`第二圈应只插入两行翻针，得到 ${ring1.inserts.map((row) => row.dir).join(",")}`);
+  }
+  if (rows.length !== step3.rows.length + 1 + ring1.inserts.length) {
+    fail(`output rows ${rows.length}, expected ${step3.rows.length + 1 + ring1.inserts.length}`);
+  }
+  const flipOf = (event) => (event.flip ? `${event.flip.side} ${event.flip.fromBed}${event.flip.fromPhys}→${event.flip.toBed}${event.flip.toPhys} k=${event.k}` : `k=${event.k}`);
+  const gotEvents = ring1.events.map(flipOf).join(" | ");
+  const wantEvents = ["right B19→F18 k=0", "right F19→B18 k=0", "k=0", "k=0"].join(" | ");
+  if (gotEvents !== wantEvents) fail(`第二圈对齐结果变了：${gotEvents}`);
+  const wrapsOf = (step3Row) =>
+    [...(ring1.byRow.get(step3Row)?.cells.values() || [])]
+      .filter((cell) => cell.wrap)
+      .sort((a, b) => b.chart - a.chart)
+      .map((cell) => `${cell.chart}:${cell.bed}${cell.phys}@${cell.col}`)
+      .join(",");
+  if (wrapsOf(9) !== "-1:B1@36,-2:B2@35,-3:B3@34,-4:B4@33") {
+    fail(`step3 行 9 绕回 ${wrapsOf(9)}`);
+  }
+  if (wrapsOf(11) !== "-1:B0@37,-2:B1@36,-3:B2@35,-4:B3@34") {
+    fail(`step3 行 11 绕回 ${wrapsOf(11)}`);
+  }
+  if (ring1.end.N !== 38 || ring1.end.f.length !== 19 || ring1.end.b.length !== 19) {
+    fail(`第二圈结束 N=${ring1.end.N} F${ring1.end.f.length} B${ring1.end.b.length}`);
+  }
+  for (let i = 0; i < ring2Sheet; i++) {
     const row = rows[i];
     if (row.dir !== "X" && row.dir !== "X+") continue;
     for (const cell of occupied(row)) {
@@ -1025,7 +1534,7 @@ export function buildRing0Workbook(step3, bind) {
       if (move[1] && Number(move[1]) < 2) fail(`表行 ${i} 移 1 针不写数字，得到 ${cell.token}`);
     }
   }
-  for (let i = 0; i <= lastRing0Sheet; i++) {
+  for (let i = 0; i < ring2Sheet; i++) {
     const seen = new Set();
     for (const cell of occupied(rows[i])) {
       if (seen.has(cell.col)) fail(`表行 ${i} 列 ${cell.col} 有两枚线圈`);
@@ -1053,29 +1562,56 @@ export function buildRing0Workbook(step3, bind) {
     if (i < 0) fail(`missing xf for ${fill}`);
     return i;
   };
+  const cellMap = [];
+  const seenBind = new Set();
+  const seenSheet = new Set();
+  for (let sheetRow = 0; sheetRow < rows.length; sheetRow++) {
+    const row = rows[sheetRow];
+    if (row.step3 == null || (row.dir !== "R" && row.dir !== "L")) continue;
+    for (const cell of occupied(row)) {
+      if (cell.chart == null) fail(`表行 ${sheetRow} 列 ${cell.col} 没有 step3 列`);
+      const bindKey = `${row.step3},${cell.chart}`;
+      const sheetKey = `${sheetRow},${cell.col}`;
+      if (seenBind.has(bindKey)) fail(`bind ${bindKey} 映射了两次`);
+      if (seenSheet.has(sheetKey)) fail(`表 ${sheetKey} 映射了两次`);
+      seenBind.add(bindKey);
+      seenSheet.add(sheetKey);
+      cellMap.push({
+        sheetRow,
+        sheetCol: cell.col,
+        bindRow: row.step3,
+        bindCol: cell.chart,
+        linkCol: cell.foldLink ?? null,
+      });
+    }
+  }
   const dataSheet = sheetFromGrid("step4-ring0", step3.headerLabel || "dir\\col", needles, rows, xfIndexForFill);
-  const legend = legendSheet(xfIndexForFill, ring);
+  const legend = legendSheet(xfIndexForFill, ring, ring1);
+  const mapSheet = cellMapSheet(cellMap, xfIndexForFill("rgb(255,255,255)"));
   const xfBytes = Buffer.concat(palette.map((fill) => xfRecord(icvForFill(fill))));
   const bofBytes = bof(0x0005);
   const eofBytes = eof();
-  const boundsheetLen = boundsheet(0, dataSheet.name).length + boundsheet(0, legend.name).length;
+  const sheets = [dataSheet, legend, mapSheet];
+  const boundsheetLen = sheets.reduce((sum, sheet) => sum + boundsheet(0, sheet.name).length, 0);
   const globalLen = bofBytes.length + xfBytes.length + boundsheetLen + eofBytes.length;
-  const sheet1At = globalLen;
-  const sheet2At = globalLen + dataSheet.bytes.length;
-  const global = Buffer.concat([
-    bofBytes,
-    xfBytes,
-    boundsheet(sheet1At, dataSheet.name),
-    boundsheet(sheet2At, legend.name),
-    eofBytes,
-  ]);
-  const workbook = Buffer.concat([global, dataSheet.bytes, legend.bytes]);
+  let cursor = globalLen;
+  const bounds = sheets.map((sheet) => {
+    const at = cursor;
+    cursor += sheet.bytes.length;
+    return boundsheet(at, sheet.name);
+  });
+  const global = Buffer.concat([bofBytes, xfBytes, ...bounds, eofBytes]);
+  const workbook = Buffer.concat([global, ...sheets.map((sheet) => sheet.bytes)]);
   return {
     bytes: writeCfb(workbook),
     span,
+    ring1Span,
     rows,
     needles,
     ring,
+    ring1,
+    step3ToSheet,
+    cellMap,
     summary: summarizeRing0(rows.slice(0, span.rowEnd + 1)),
   };
 }
@@ -1147,6 +1683,14 @@ function main(argv = process.argv.slice(2)) {
   console.log(`  ring0 末行（表行 ${last0 ? sheetRowForStep3(span.rowEnd - 1, ring.recenterAfter) : "?"}）表列 ${colsOf(last0)}`);
   console.log(`  ring1 首行（表行 ${sheetRowForStep3(span.rowEnd, ring.recenterAfter)}）表列 ${colsOf(first1)}`);
   console.log(`  总行数 ${built.rows.length}`);
+  console.log("  第二圈：");
+  for (const row of built.ring1.trace) {
+    console.log(`    ${row.label} N=${row.N} F${row.F}[${row.fPhys[0]}…${row.fPhys.at(-1)}] B${row.B}[${row.bPhys[0]}…${row.bPhys.at(-1)}]`);
+  }
+  for (const event of built.ring1.events) {
+    const flip = event.flip ? `${event.flip.side} ${event.flip.fromBed}${event.flip.fromPhys}→${event.flip.toBed}${event.flip.toPhys}` : "不翻针";
+    console.log(`    对齐 step3 ${event.after}: ${flip}，回正 ${event.k} 针`);
+  }
   return built;
 }
 
