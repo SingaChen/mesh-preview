@@ -281,9 +281,17 @@ export function assertColumnShiftedRow(step4Row, step3Row, step3Index) {
   }
 }
 
+/** ⬆ is front→back, ⬇ is back→front. The bed is the stitch's bed before the flip. */
+export function flipToken(fromBed, toBed) {
+  if (fromBed === "F" && toBed === "B") return "⬆";
+  if (fromBed === "B" && toBed === "F") return "⬇";
+  fail(`翻针 ${fromBed}→${toBed} 没有符号`);
+}
+
 function bedOf(token) {
-  if (String(token).startsWith("F")) return "F";
-  if (String(token).startsWith("B")) return "B";
+  const s = String(token);
+  if (s.startsWith("F") || s === "⬆") return "F";
+  if (s.startsWith("B") || s === "⬇") return "B";
   return "other";
 }
 
@@ -1110,7 +1118,7 @@ export function simulateRing1(step3Rows, rowStart, rowEnd) {
       const src = before.find((st) => st.id === best.flip.id);
       cells.push({
         col: columnForRing1(src.bed, src.phys),
-        token: `${src.bed}↔${best.flip.toBed}`,
+        token: flipToken(src.bed, best.flip.toBed),
         fill: FLIP_FILL,
         phys: src.phys,
         bed: src.bed,
@@ -1293,7 +1301,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["第一圈按线圈物理针回正", `回正前 B=37−列；回正行 F→、B←；之后 B=36−列。结束 F${ring.front}/B${ring.back}`],
     ["第二圈", `负数列是后床末尾绕回，不是新圈。每步按当时的 N 重算 F=ceil(N/2)、B=floor(N/2)。移圈只移动成形那一床；另一床针位不动。针数差由下一行折返翻针补上，针位范围不固定。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
     ["绕回", "Step3 负数列仍是后床末尾原有的圈，表列 = (37−物理针)−1，与整行对齐到 step3 chart。同一个圈只有一列。点左折返时两端一起高亮"],
-    ["F… / B…", "bed follows the stitch. Flip is B↔F or F↔B on the inserted row, before the recenter transfer"],
+    ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
     ["columns", "ring 0: front = phys, back = 37−phys. Ring 1 knits are that column minus 1 (chart, column 0). Ring 1 transfers keep the physical column. A decrease draws the shaping bed from the anchor needle, so sheet row 8 is F← on columns 6…18 and the right fold stays front at column 18. Rings 2–4 stay on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column"],
@@ -1625,6 +1633,13 @@ export function buildRing0Workbook(step3, bind) {
     backDecCols.at(-1) !== 37
   ) {
     fail(`后床减针应从锚点画 B→ 列 21…37，得到 ${backDecCols.join(",")}`);
+  }
+  const flipGlyph = (sheetRow) =>
+    occupied(rows[sheetRow])
+      .map((cell) => `${cell.col}:${cell.token}`)
+      .join(",");
+  if (flipGlyph(9) !== "18:⬇" || flipGlyph(14) !== "18:⬆") {
+    fail(`翻针应为表行 9 列 18 的 ⬇、表行 14 列 18 的 ⬆，得到 ${flipGlyph(9)} / ${flipGlyph(14)}`);
   }
   const wrapsOf = (step3Row) =>
     [...(ring1.byRow.get(step3Row)?.cells.values() || [])]
