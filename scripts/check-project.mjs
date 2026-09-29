@@ -997,10 +997,10 @@ assert(
   {
     const tokenAtPath1 = (col) => ring0.rows[path1].cells.find((c) => c.col === col)?.token || "";
     assert(
-      [1, 2, 3, 4, 5, 6, 7].map(tokenAtPath1).join(",") === "F·,F·,F·,F·,F·,F-R1,F·",
-      "ring 1 starts on front phys 1..7 (step3 cols 0..6 shifted onto the shared physical columns)",
+      [0, 1, 2, 3, 4, 5, 6].map(tokenAtPath1).join(",") === "F·,F·,F·,F·,F·,F-R1,F·",
+      "ring 1 starts on step3 chart columns 0..6, not one column to the right",
     );
-    assert(tokenAtPath1(0) === "", "ring 1's first row does not draw the left-fold front stitch");
+    assert(tokenAtPath1(7) === "", "ring 1's first row no longer keeps the +1 column");
   }
   assert(!ring0.rows.slice(0, 7).some((r) => r.dir === "Flip"), "Flip is not inside ring 0");
   const flipRows = ring0.rows.map((row, index) => (row.dir === "Flip" ? index : -1)).filter((index) => index >= 0);
@@ -1056,18 +1056,18 @@ assert(
   const row6Col = row6Stitch.mapCells.find((c) => c.display_row === 6).col;
   const row6Map = ring0.bindToSheet.get(`${6},${row6Col}`);
   const row6Keys = highlightKeysForStitch(row6Stitch, { map: ring0, grid: ringGrid, bind: stitchBind });
-  assert(row6Map.sheetRow === 7 && row6Map.sheetCol === row6Col + 1, "path 1's first stitch is drawn one column to the right, on its physical needle");
-  assert(row6Keys.has(`7,${row6Map.sheetCol}`) && !row6Keys.has(`6,${row6Col}`) && !row6Keys.has(`7,${row6Col}`), "path 1 bind row 6 highlights the physical column");
+  assert(row6Map.sheetRow === 7 && row6Map.sheetCol === row6Col, "path 1's first stitch is sheet column 0, aligned with the step3 chart");
+  assert(row6Keys.has(`7,${row6Map.sheetCol}`) && !row6Keys.has(`6,${row6Col}`) && !row6Keys.has(`7,${row6Col + 1}`), "path 1 bind row 6 highlights column 0, not the old +1 column");
   assert(stitchForMapCell(7, row6Map.sheetCol, stitchBind, bound.stitches, ring0) === row6Stitch, "clicking sheet row 7 maps back to bind row 6");
-  assert(stitchForMapCell(9, 18, stitchBind, bound.stitches, ring0) == null, "the first ring-1 flip row selects no face");
-  assert(stitchForMapCell(14, 19, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
-  assert(tokenAt(9, 18) === "B↔F" && tokenAt(14, 19) === "F↔B", "flip rows record the bed change at the source column");
+  assert(stitchForMapCell(9, 17, stitchBind, bound.stitches, ring0) == null, "the first ring-1 flip row selects no face");
+  assert(stitchForMapCell(14, 18, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
+  assert(tokenAt(9, 17) === "B↔F" && tokenAt(14, 18) === "F↔B", "flip rows record the bed change one column left of the physical needle");
   const wrap = ring0.bindToSheet.get("9,-1");
-  assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 36, "step3 row 9 col −1 wraps to back phys 1 at column 36");
-  const wrapStitch = stitchForMapCell(11, 36, stitchBind, bound.stitches, ring0);
+  assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 35, "step3 row 9 col −1 wraps to back phys 1 at column 35");
+  const wrapStitch = stitchForMapCell(11, 35, stitchBind, bound.stitches, ring0);
   assert(wrapStitch?.index === 76, "clicking the wrapped back stitch selects face 76");
   const wrapKeys = highlightKeysForStitch(wrapStitch, { map: ring0, grid: ringGrid, bind: stitchBind });
-  assert(wrapKeys.has("11,36") && wrapKeys.has("11,1"), "clicking the left-fold wrap lights both ends of the path");
+  assert(wrapKeys.has("11,35") && wrapKeys.has("11,0"), "clicking the left-fold wrap lights both ends of the path");
   const ring2 = ring0.bindToSheet.get("28,0");
   assert(ring2 && ring2.sheetRow === 31 && ring2.sheetCol === 0, "ring 2 stays on the step3 column, shifted only by the inserted rows");
   assert(
