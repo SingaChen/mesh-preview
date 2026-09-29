@@ -57,7 +57,7 @@ export function excelGlyphToken(token) {
 export function excelLegendKind(token, dir) {
   const raw = tokenString(token);
   if (isFlipDir(dir) || raw === "F↔B" || raw.includes("↔")) return "flip";
-  if (isTransferDir(dir) || /^[←→][RL]?\d+$/.test(raw) || /^[FB][←→][RL]?\d+$/.test(raw)) {
+  if (isTransferDir(dir) || /^[←→][RL]?\d+$/.test(raw) || /^[FB][←→](?:[RL]\d+|\d+)?$/.test(raw)) {
     return "transfer";
   }
   const t = excelGlyphToken(raw);
