@@ -10,10 +10,12 @@
  * Charts do not move. After that, back phys = 36 − column, and a new back
  * stitch uses that formula. No Flip.
  *
- * The sheet columns stay the step3 needle index through the recenter row.
- * On later ring-0 rows the front cells move one column right and the back
- * cells move one column left, so the stitch is drawn where the recenter
- * put it. Rings 1–4 stay on the step3 columns (same header, no shift).
+ * On every ring-0 row the sheet column is the physical needle for the front
+ * (column = phys) and the mirrored needle for the back (column = 37 − phys).
+ * That identity holds before the recenter. After it, both beds move one
+ * column right: front phys increases by 1, and a back phys decrease of 1 is
+ * a column increase of 1 because the back is mirrored. Rings 1–4 stay on
+ * the step3 columns.
  *
  * Same-bed double occupancy throws and does not write a sheet.
  *
@@ -177,8 +179,9 @@ export function assertAlignedRow(step4Row, step3Row, step3Index) {
 }
 
 /**
- * Post-recenter ring-0 row: tokens still match step3, but the column is
- * chart+1 on the front and chart−1 on the back.
+ * Post-recenter ring-0 row: tokens still match step3, and both beds sit one
+ * chart column to the right so column = phys on the front and 37 − phys on
+ * the back.
  */
 export function assertColumnShiftedRow(step4Row, step3Row, step3Index) {
   const problems = [];
@@ -270,21 +273,29 @@ export function sheetRowForStep3(step3Row, recenterAfter) {
 }
 
 /**
- * After the recenter row, ring 0 draws the stitch on the column it moved to.
- * Front physical needles increase, so those cells move right.
- * Back physical needles decrease, so those cells move left.
- * Rings 1–4 are not passed through here.
+ * Sheet column for a ring-0 stitch. Front column is the physical needle.
+ * Back column is the mirror, 37 − phys, before and after the recenter.
+ * After the recenter that is chart+1 on both beds.
+ */
+export function columnForPhys(bed, phys) {
+  if (bed === "F") return phys;
+  if (bed === "B") return 37 - phys;
+  fail(`column needs a bed, got ${bed}`);
+}
+
+/**
+ * After the recenter row, ring 0 draws both beds one column to the right.
+ * Front phys + 1. Back phys − 1, and because the back is mirrored that is
+ * also column + 1. Rings 1–4 are not passed through here.
  */
 export function displayColAfterRecenter(chartCol, bed) {
-  if (bed === "F") return chartCol + 1;
-  if (bed === "B") return chartCol - 1;
+  if (bed === "F" || bed === "B") return chartCol + 1;
   fail(`display column needs a bed, got ${bed} at chart ${chartCol}`);
 }
 
 /** Sheet column → step3 chart column, for a post-recenter ring-0 cell. */
 export function chartColAfterRecenter(displayCol, bed) {
-  if (bed === "F") return displayCol - 1;
-  if (bed === "B") return displayCol + 1;
+  if (bed === "F" || bed === "B") return displayCol - 1;
   fail(`chart column needs a bed, got ${bed} at display ${displayCol}`);
 }
 
@@ -795,7 +806,7 @@ function legendSheet(xfIndexForFill, ring) {
     ["later rows", "path 1 onward stays step3, unchanged"],
     ["F… / B…", "bed follows the stitch; ^L stays on the back"],
     ["→R1 / ←L1", "F advance = knit direction (right-knit →R); B mirrored. Recenter is its own X row"],
-    ["columns", "through the recenter row, columns stay step3. Later ring-0 rows: front +1, back −1. Path 1 onward is not shifted"],
+    ["columns", "front column = phys; back column = 37−phys, before and after the recenter. Later ring-0 rows move both beds +1. Path 1 onward is not shifted"],
     ["excluded", "no Flip; the finished circle stays inside F−B ∈ {0,1}"],
     ["rows", "122 sheet rows (one inserted X). Header stays the shared needle index. stitch_map_bind.json still 121"],
   ];
@@ -991,6 +1002,25 @@ export function buildRing0Workbook(step3, bind) {
     }
     if (cell.fill !== "rgb(204,204,255)") fail(`recenter col ${cell.col} fill ${cell.fill}`);
   }
+  const headerSet = new Set(needles);
+  const lastRing0Sheet = sheetRowForStep3(span.rowEnd - 1, ring.recenterAfter);
+  for (let i = 0; i <= lastRing0Sheet; i++) {
+    const seen = new Set();
+    for (const cell of occupied(rows[i])) {
+      if (seen.has(cell.col)) fail(`表行 ${i} 列 ${cell.col} 有两枚线圈`);
+      seen.add(cell.col);
+      if (!headerSet.has(cell.col)) fail(`表头缺少列 ${cell.col}`);
+      const bed = bedOf(cell.token);
+      if (cell.phys == null) fail(`表行 ${i} 列 ${cell.col} 没有物理针`);
+      const want = columnForPhys(bed, cell.phys);
+      if (cell.col !== want) {
+        fail(`表行 ${i} ${bed} 表列 ${cell.col} !== ${bed === "F" ? "物理针" : "37−物理针"} ${cell.phys}（应为 ${want}）`);
+      }
+    }
+  }
+  if (needles[0] !== -5 || needles.at(-1) !== 37) {
+    fail(`ring0 header should be −5…37, got ${needles[0]}…${needles.at(-1)}`);
+  }
 
   const fills = new Set(["rgb(255,255,255)", "rgb(192,192,192)", B_PLAIN]);
   for (const row of rows) {
@@ -1057,7 +1087,7 @@ function main(argv = process.argv.slice(2)) {
   console.log(
     `build-step4-ring0 ${check ? "check " : ""}ok: ring0 step3 [0, ${span.rowEnd}) face ${span.ring1Face} starts path 1; N=${ring.N} F=${ring.front} B=${ring.back}; rows ${built.rows.length}; 回正插在 step3 行 ${ring.recenterAfter} 之后（表行 ${ring.recenterAfter + 1}）`,
   );
-  console.log(`  换算：回正前 后床=${ring.backBaseBefore}−列；回正后 后床=${ring.backBaseAfter}−列。前床回正后物理针=列+1=出生列。`);
+  console.log(`  表列公式：前床 列=物理针；后床 列=37−物理针。回正后两床都是 step3 列+1。`);
   for (const row of built.summary) {
     console.log(
       `  表行 ${row.display_row} ${row.dir} F=${row.F} 表列[${row.fCols.join(",")}] 物理针[${row.fPhys.join(",")}] B=${row.B} 表列[${row.bCols.join(",")}] 物理针[${row.bPhys.join(",")}]`,
@@ -1090,6 +1120,11 @@ function main(argv = process.argv.slice(2)) {
   console.log(
     `  ring 0 结束：前床物理针 ${ring.frontPhys.join(",")} 终点 ${ring.frontEnd}；后床物理针 ${ring.backPhys.join(",")} 起点 ${ring.backStart}；都在 18：${ring.foldBoth18 ? "是" : "否"}`,
   );
+  const last0 = built.rows[sheetRowForStep3(span.rowEnd - 1, ring.recenterAfter)];
+  const first1 = built.rows[sheetRowForStep3(span.rowEnd, ring.recenterAfter)];
+  const colsOf = (row) => occupied(row).map((c) => c.col).join(",");
+  console.log(`  ring0 末行（表行 ${last0 ? sheetRowForStep3(span.rowEnd - 1, ring.recenterAfter) : "?"}）表列 ${colsOf(last0)}`);
+  console.log(`  ring1 首行（表行 ${sheetRowForStep3(span.rowEnd, ring.recenterAfter)}）表列 ${colsOf(first1)}`);
   console.log(`  总行数 ${built.rows.length}`);
   return built;
 }

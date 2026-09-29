@@ -10,10 +10,10 @@
  *   (including the leftover "-" after a -R2 decrease) is one stitch
  *   cell with an explicit row id and needle column.
  * - The 2D map prefers iteration_*_readable_map_step4_ring0.xls
- *   (sheet step4-ring0: ring 0 tracks physical needles, 37−col before
- *   the inserted recenter X and 36−col after. Rows after that X draw
- *   front one column right and back one column left. Later rows stay
- *   on step3 columns). Falls back to step3 xfer. The sheet has 122
+ *   (sheet step4-ring0: ring 0 tracks physical needles. Front column =
+ *   phys and back column = 37 − phys on every ring-0 row. Rows after
+ *   the inserted recenter X move both beds one column right. Later
+ *   rows stay on step3 columns). Falls back to step3 xfer. The sheet has 122
  *   rows; stitch_map_bind.json stays at 121 and the viewer shifts
  *   highlights onto the moved cells.
  *   Do not color that view from Term.Type. Stitch chip col/row still

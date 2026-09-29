@@ -961,7 +961,7 @@ assert(
   const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
   assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 122, `ring0 sheet is 122 rows, got ${ring0.sheet} ${ring0.rows.length}`);
   assert(ring0.rows.length === step3.rows.length + 1, "ring0 adds exactly the recenter row");
-  assert(ring0.colMin === -5 && ring0.colMax === 36 && ring0.needleCols.length === 42, "ring0 keeps needles −5…36");
+  assert(ring0.colMin === -5 && ring0.colMax === 37 && ring0.needleCols.length === 43, "ring0 needles are −5…37");
   assert(built.ring.N === 38 && built.ring.front === 19 && built.ring.back === 19, "ring 0 ends F19 B19");
   assert(built.ring.front - built.ring.back === 0, "finished circle stays inside F−B ∈ {0,1}");
   assert(built.ring.frontEnd === 18 && built.ring.backStart === 18 && built.ring.foldBoth18, "front end and back start both sit on needle 18");
@@ -982,10 +982,13 @@ assert(
   }
   const path1 = sheetRowForStep3(built.span.rowEnd, built.ring.recenterAfter);
   assert(path1 === 7 && ring0.rows[path1].dir === step3.rows[built.span.rowEnd].dir, "path 1 starts on sheet row 7, the step3 row after the insert");
-  assert(
-    ring0.rows[path1].cells.every((c, k) => c.token === step3.rows[built.span.rowEnd].cells[k].token),
-    "path 1 stays step3 with no F/B prefix",
-  );
+  {
+    const step3Path1 = new Map(step3.rows[built.span.rowEnd].cells.map((c) => [c.col, c.token]));
+    assert(
+      ring0.rows[path1].cells.every((c) => (step3Path1.has(c.col) ? c.token === step3Path1.get(c.col) : !c.token)),
+      "path 1 stays step3 with no F/B prefix; the extra header column is empty",
+    );
+  }
   assert(!ring0.rows.some((r) => r.dir === "Flip"), "Flip is not in the ring0 sheet");
   const recenter = ring0.rows[3];
   assert(recenter.dir === "X", "sheet row 3 is the recenter transfer");
@@ -997,8 +1000,9 @@ assert(
   assert(recenterOcc.every((c) => c.fill === "rgb(204,204,255)"), "recenter transfer fill is ice blue");
   const tokenAt = (row, col) => ring0.rows[row].cells.find((c) => c.col === col)?.token;
   assert(tokenAt(2, 18) === "BvL" && tokenAt(2, 19) === "B^R" && tokenAt(2, 20) === "B+R1", "row 2 stays on the pre-recenter columns");
-  assert(tokenAt(4, 17) === "B^L" && tokenAt(4, 18) === "B·" && tokenAt(4, 19) === "B·" && tokenAt(4, 20) === "B·" && tokenAt(4, 21) === "BvR", "row 4 back cells sit one column left of the step3 chart");
+  assert(tokenAt(4, 19) === "B^L" && tokenAt(4, 20) === "B·" && tokenAt(4, 21) === "B·" && tokenAt(4, 22) === "B·" && tokenAt(4, 23) === "BvR", "row 4 back cells sit one column right of the step3 chart");
   assert(tokenAt(4, 18) !== "B^L", "row 4 start S is no longer drawn on chart column 18");
+  assert(tokenAt(4, 17) == null || tokenAt(4, 17) === "", "row 4 does not keep a cell on the old left-shifted column 17");
   assert(built.ring.anchors.s.phys === 19 && built.ring.anchors.caret.phys === 18, "vL is back 19 before recenter; ^L is back 18 after");
   assert(built.ring.anchors.v.phys === 17 && built.ring.anchors.v3.phys === 16 && built.ring.anchors.fresh.phys === 15, "V goes 17→16 and the new needle is back 15");
   assert(ring0.legend.some((row) => /第一圈按线圈物理针回正/.test(`${row.key} ${row.note}`)), "legend says ring 0 recenters on physical needles");
@@ -1012,14 +1016,14 @@ assert(
   const row3Stitch = bound.stitches.find((s) => s.mapCells?.some((c) => c.display_row === 3 && c.col === 18));
   assert(row3Stitch, "bind still has a face on display_row 3 col 18");
   const row3Keys = highlightKeysForStitch(row3Stitch, { map: ring0, grid: ringGrid, bind: stitchBind });
-  assert(row3Keys.has("4,17") && !row3Keys.has("4,18") && !row3Keys.has("3,18"), "original row 3 ^L lights sheet row 4 column 17");
+  assert(row3Keys.has("4,19") && !row3Keys.has("4,18") && !row3Keys.has("3,18"), "original row 3 ^L lights sheet row 4 column 19");
   const step3Row3 = highlightKeysForStitch(row3Stitch, { map: excelMap, grid: excelGrid, bind: stitchBind });
-  assert(step3Row3.has("3,18") && !step3Row3.has("4,17"), "step3 highlight of that face stays on bind row 3");
+  assert(step3Row3.has("3,18") && !step3Row3.has("4,19"), "step3 highlight of that face stays on bind row 3");
   assert(stitchForMapCell(3, 18, stitchBind, bound.stitches, ring0) == null, "clicking the recenter row selects no face");
-  assert(stitchForMapCell(4, 17, stitchBind, bound.stitches, ring0) === row3Stitch, "sheet row 4 col 17 selects the bind row 3 face");
-  assert(stitchForMapCell(4, 18, stitchBind, bound.stitches, ring0) !== row3Stitch, "sheet row 4 col 18 is the next back stitch, not S");
+  assert(stitchForMapCell(4, 19, stitchBind, bound.stitches, ring0) === row3Stitch, "sheet row 4 col 19 selects the bind row 3 face");
+  assert(stitchForMapCell(4, 20, stitchBind, bound.stitches, ring0) !== row3Stitch, "sheet row 4 col 20 is the next back stitch, not S");
   assert(
-    highlightKeysForMapCell(4, 17, { map: ring0, grid: ringGrid, bind: stitchBind }).has("4,17"),
+    highlightKeysForMapCell(4, 19, { map: ring0, grid: ringGrid, bind: stitchBind }).has("4,19"),
     "clicking the shifted ^L cell highlights that sheet cell",
   );
   const row6Stitch = bound.stitches.find((s) => s.mapCells?.some((c) => c.display_row === 6));
