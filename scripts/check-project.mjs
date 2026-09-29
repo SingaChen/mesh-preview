@@ -1063,17 +1063,17 @@ assert(
   assert(stitchForMapCell(14, 18, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
   const row8Moves = ring0.rows[8].cells.filter((c) => c.token);
   assert(
-    row8Moves.every((c) => c.token === "F←") && row8Moves.map((c) => c.col).join(",") === [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(","),
-    "sheet row 8 shifts only the front segment, columns 7..18",
+    row8Moves.every((c) => c.token === "F←") && row8Moves.map((c) => c.col).join(",") === [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(","),
+    "sheet row 8 shifts the front bed from the decrease anchor, columns 6..18",
   );
-  assert(tokenAt(8, 19) === "" && tokenAt(8, 6) === "", "sheet row 8 does not draw the back bed or the unmoved front");
+  assert(tokenAt(8, 6) === "F←" && tokenAt(8, 5) === "" && tokenAt(8, 19) === "", "sheet row 8 draws chart 6's neighbor at the anchor and not the back bed");
   const row12Moves = ring0.rows[12].cells.filter((c) => c.token);
   assert(
     row12Moves.every((c) => c.token === "F→") && row12Moves.length === 16 && row12Moves[0].col === 3 && row12Moves.at(-1).col === 18,
     "sheet row 12 shifts only the front segment of the increase",
   );
   assert(tokenAt(12, 19) === "", "the increase transfer does not draw a back-bed move");
-  assert(tokenAt(19, 21) === "" && tokenAt(19, 22) === "B→", "the back-only transfer also uses the physical column");
+  assert(tokenAt(19, 20) === "" && tokenAt(19, 21) === "B→" && tokenAt(19, 37) === "B→", "the back decrease also starts at the anchor's physical column");
   assert(tokenAt(9, 18) === "B↔F" && tokenAt(9, 17) === "" && tokenAt(14, 18) === "F↔B", "the decrease flip takes the unmoved back stitch at phys 18");
   const wrap = ring0.bindToSheet.get("9,-1");
   assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 36, "step3 row 9 col −1 wraps to the unmoved back phys 0 at column 36");

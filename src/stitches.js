@@ -15,8 +15,9 @@
  *   the inserted recenter X move both beds one column right. Ring 1
  *   keeps those physical needles. Knit rows draw one column left, on the
  *   step3 chart, so the first stitch is column 0. Transfer rows keep the
- *   physical column and move only the bed that gains or loses the stitch,
- *   so sheet row 8 is F← on columns 7..18 and does not draw the back bed.
+ *   physical column and move only the bed that gains or loses the stitch.
+ *   A decrease includes the anchor stitch, so sheet row 8 is F← on
+ *   columns 6..18 and does not draw the back bed.
  *   Negative step3 columns wrap
  *   to the back-bed tail with that same shift. Two Flip rows are inserted.
  *   Rings 2–4 stay on step3 columns). Falls back to step3 xfer. The sheet has 124

@@ -340,7 +340,9 @@ export function columnForPhys(bed, phys) {
  * (front phys = chart + 1 after the ring-0 recenter). The sheet sits one
  * column left of that, on the step3 chart, so chart 0 is column 0.
  * Transfer rows do not use this: they keep columnForPhys, so the right
- * fold stays front at column 18.
+ * fold stays front at column 18. A decrease also draws the shaping-bed
+ * stitch on the anchor itself, so the left shift starts at that needle
+ * (sheet row 8 is F← on columns 6…18, chart 6 at column 7).
  */
 export function columnForRing1(bed, phys) {
   return columnForPhys(bed, phys) - 1;
@@ -1041,11 +1043,22 @@ export function simulateRing1(step3Rows, rowStart, rowEnd) {
     if (!arrow) fail(`step3 行 ${ri} 移圈符号 ${token} 无法换算`);
     if (Number(arrow[2]) !== 1) fail(`step3 行 ${ri} 是多针移圈 ${token}`);
     const delta = arrow[1] === "→" ? 1 : -1;
-    const cols = cells.map((cell) => cell.col).sort((a, b) => (delta < 0 ? a - b : b - a));
+    let cols = cells.map((cell) => cell.col).sort((a, b) => (delta < 0 ? a - b : b - a));
     for (const col of cols) {
       if (!live.has(col)) fail(`step3 行 ${ri} 移圈列 ${col} 没有线圈`);
     }
     const shapeBed = shapingBedForMove(cols, delta);
+    if (delta < 0) {
+      const start = Math.min(...cols);
+      if (decAnchor == null) fail(`step3 行 ${ri} 减针移圈没有锚点`);
+      if (decAnchor !== start - 1) fail(`step3 行 ${ri} 减针锚点 ${decAnchor} 不挨着移圈起点 ${start}`);
+      if (!live.has(decAnchor)) fail(`step3 行 ${ri} 减针锚点 ${decAnchor} 没有线圈`);
+      const anchor = stitches.get(live.get(decAnchor));
+      if (anchor.bed !== shapeBed) {
+        fail(`step3 行 ${ri} 减针锚点在 ${anchor.bed}${anchor.phys}，成形床是 ${shapeBed}`);
+      }
+      cols = [decAnchor, ...cols];
+    }
     const placed = [];
     const consumed = [];
     for (const col of cols) {
@@ -1054,7 +1067,7 @@ export function simulateRing1(step3Rows, rowStart, rowEnd) {
       placed.push({
         col: columnForPhys(st.bed, st.phys),
         token: toAbsoluteToken(token, st.bed),
-        fill: cells.find((cell) => cell.col === col)?.fill || "rgb(204,204,255)",
+        fill: cells.find((cell) => cell.col === col)?.fill || cells[0].fill || "rgb(204,204,255)",
         phys: st.phys,
         bed: st.bed,
         id: st.id,
@@ -1282,7 +1295,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["绕回", "Step3 负数列仍是后床末尾原有的圈，表列 = (37−物理针)−1，与整行对齐到 step3 chart。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is B↔F or F↔B on the inserted row, before the recenter transfer"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0: front = phys, back = 37−phys. Ring 1 knits are that column minus 1 (chart, column 0). Ring 1 transfers keep the physical column, so the right fold is front through column 18. Rings 2–4 stay on step3 columns"],
+    ["columns", "ring 0: front = phys, back = 37−phys. Ring 1 knits are that column minus 1 (chart, column 0). Ring 1 transfers keep the physical column. A decrease draws the shaping bed from the anchor needle, so sheet row 8 is F← on columns 6…18 and the right fold stays front at column 18. Rings 2–4 stay on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column"],
   ];
   legend.forEach((pair, i) => {
@@ -1590,6 +1603,28 @@ export function buildRing0Workbook(step3, bind) {
   for (const [label, want] of wantSpans) {
     const got = spanOf(label);
     if (got !== want) fail(`${label} 范围是 ${got}，这一步重算后应是 ${want}`);
+  }
+  const frontDec = rows[step3ToSheet[7]];
+  const frontDecCols = occupied(frontDec)
+    .map((cell) => cell.col)
+    .sort((a, b) => a - b);
+  if (
+    frontDec.dir !== "X" ||
+    occupied(frontDec).some((cell) => cell.token !== "F←" || cell.bed !== "F") ||
+    frontDecCols.join(",") !== [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(",")
+  ) {
+    fail(`表行 8 应从减针锚点画前床 F← 列 6…18，得到 ${frontDecCols.join(",")}`);
+  }
+  const backDec = rows[step3ToSheet[16]];
+  const backDecCols = occupied(backDec)
+    .map((cell) => cell.col)
+    .sort((a, b) => a - b);
+  if (
+    occupied(backDec).some((cell) => cell.token !== "B→" || cell.bed !== "B") ||
+    backDecCols[0] !== 21 ||
+    backDecCols.at(-1) !== 37
+  ) {
+    fail(`后床减针应从锚点画 B→ 列 21…37，得到 ${backDecCols.join(",")}`);
   }
   const wrapsOf = (step3Row) =>
     [...(ring1.byRow.get(step3Row)?.cells.values() || [])]
