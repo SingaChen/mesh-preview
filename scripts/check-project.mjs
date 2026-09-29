@@ -60,7 +60,7 @@ import {
 import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
-import { assertAlignedRow, buildFromFiles, sheetRowForStep3 } from "./build-step4-ring0.mjs";
+import { assertAlignedRow, assertColumnShiftedRow, buildFromFiles, sheetRowForStep3 } from "./build-step4-ring0.mjs";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 
@@ -976,7 +976,9 @@ assert(
   const bPlain = ring0.rows.flatMap((r) => r.cells).find((c) => c.token === "B·");
   assert(bPlain && bPlain.fill === "rgb(204,255,255)", "back plain is turquoise from the XF, not a legend fallback");
   for (let i = 0; i < built.span.rowEnd; i++) {
-    assertAlignedRow(ring0.rows[sheetRowForStep3(i, built.ring.recenterAfter)], step3.rows[i], i);
+    const sheet = ring0.rows[sheetRowForStep3(i, built.ring.recenterAfter)];
+    if (i <= built.ring.recenterAfter) assertAlignedRow(sheet, step3.rows[i], i);
+    else assertColumnShiftedRow(sheet, step3.rows[i], i);
   }
   const path1 = sheetRowForStep3(built.span.rowEnd, built.ring.recenterAfter);
   assert(path1 === 7 && ring0.rows[path1].dir === step3.rows[built.span.rowEnd].dir, "path 1 starts on sheet row 7, the step3 row after the insert");
@@ -994,8 +996,9 @@ assert(
   assert(recenterB.join(",") === "18,19,20", "recenter backs are B←L1 on 18,19,20");
   assert(recenterOcc.every((c) => c.fill === "rgb(204,204,255)"), "recenter transfer fill is ice blue");
   const tokenAt = (row, col) => ring0.rows[row].cells.find((c) => c.col === col)?.token;
-  assert(tokenAt(2, 18) === "BvL" && tokenAt(2, 19) === "B^R" && tokenAt(2, 20) === "B+R1", "row 2 keeps vL / ^R / +R1 on the back");
-  assert(tokenAt(4, 18) === "B^L" && tokenAt(4, 20) === "B·" && tokenAt(4, 21) === "B·", "original row 3 is sheet row 4 and stays on the back");
+  assert(tokenAt(2, 18) === "BvL" && tokenAt(2, 19) === "B^R" && tokenAt(2, 20) === "B+R1", "row 2 stays on the pre-recenter columns");
+  assert(tokenAt(4, 17) === "B^L" && tokenAt(4, 18) === "B·" && tokenAt(4, 19) === "B·" && tokenAt(4, 20) === "B·" && tokenAt(4, 21) === "BvR", "row 4 back cells sit one column left of the step3 chart");
+  assert(tokenAt(4, 18) !== "B^L", "row 4 start S is no longer drawn on chart column 18");
   assert(built.ring.anchors.s.phys === 19 && built.ring.anchors.caret.phys === 18, "vL is back 19 before recenter; ^L is back 18 after");
   assert(built.ring.anchors.v.phys === 17 && built.ring.anchors.v3.phys === 16 && built.ring.anchors.fresh.phys === 15, "V goes 17→16 and the new needle is back 15");
   assert(ring0.legend.some((row) => /第一圈按线圈物理针回正/.test(`${row.key} ${row.note}`)), "legend says ring 0 recenters on physical needles");
@@ -1009,13 +1012,14 @@ assert(
   const row3Stitch = bound.stitches.find((s) => s.mapCells?.some((c) => c.display_row === 3 && c.col === 18));
   assert(row3Stitch, "bind still has a face on display_row 3 col 18");
   const row3Keys = highlightKeysForStitch(row3Stitch, { map: ring0, grid: ringGrid, bind: stitchBind });
-  assert(row3Keys.has("4,18") && !row3Keys.has("3,18"), "original row 3 highlights sheet row 4, not the recenter row");
+  assert(row3Keys.has("4,17") && !row3Keys.has("4,18") && !row3Keys.has("3,18"), "original row 3 ^L lights sheet row 4 column 17");
   const step3Row3 = highlightKeysForStitch(row3Stitch, { map: excelMap, grid: excelGrid, bind: stitchBind });
-  assert(step3Row3.has("3,18") && !step3Row3.has("4,18"), "step3 highlight of that face stays on bind row 3");
+  assert(step3Row3.has("3,18") && !step3Row3.has("4,17"), "step3 highlight of that face stays on bind row 3");
   assert(stitchForMapCell(3, 18, stitchBind, bound.stitches, ring0) == null, "clicking the recenter row selects no face");
-  assert(stitchForMapCell(4, 18, stitchBind, bound.stitches, ring0) === row3Stitch, "sheet row 4 col 18 selects the bind row 3 face");
+  assert(stitchForMapCell(4, 17, stitchBind, bound.stitches, ring0) === row3Stitch, "sheet row 4 col 17 selects the bind row 3 face");
+  assert(stitchForMapCell(4, 18, stitchBind, bound.stitches, ring0) !== row3Stitch, "sheet row 4 col 18 is the next back stitch, not S");
   assert(
-    highlightKeysForMapCell(4, 18, { map: ring0, grid: ringGrid, bind: stitchBind }).has("4,18"),
+    highlightKeysForMapCell(4, 17, { map: ring0, grid: ringGrid, bind: stitchBind }).has("4,17"),
     "clicking the shifted ^L cell highlights that sheet cell",
   );
   const row6Stitch = bound.stitches.find((s) => s.mapCells?.some((c) => c.display_row === 6));
