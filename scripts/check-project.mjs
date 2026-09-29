@@ -327,6 +327,7 @@ assert(excelMap.rows[0].cells.find((c) => c.col === 20)?.token === "vR", "tokens
 assert(excelMap.rows[1].cells.find((c) => c.col === 0)?.token === "←1", "X+ after the opening R knit writes ←1");
 assert(excelLegendKind("←1", "X+") === "transfer" && excelLegendKind("vL", "L") === "wrap", "legend kinds follow Singa tokens");
 assert(excelLegendKind("F·", "R") === "plain" && excelLegendKind("B·", "R") === "plain", "F/B plain knits stay plain");
+assert(excelLegendKind("⬇", "Flip") === "flip" && excelLegendKind("⬆", "Flip") === "flip", "bed flips use ⬇ and ⬆");
 assert(excelLegendKind("BvR", "R") === "wrap" && excelLegendKind("B+R1", "L") === "increase", "F/B prefix still classifies wrap and increase");
 assert(excelLegendKind("F←", "X+") === "transfer" && excelLegendKind("B→", "X") === "transfer" && excelLegendKind("F→2", "X") === "transfer", "1-stitch arrows and numbered multi-moves stay transfer");
 assert(toAbsoluteToken("→1", "F") === "F→" && toAbsoluteToken("←1", "F") === "F←", "front 1-stitch move drops the number");
@@ -1074,7 +1075,7 @@ assert(
   );
   assert(tokenAt(12, 19) === "", "the increase transfer does not draw a back-bed move");
   assert(tokenAt(19, 20) === "" && tokenAt(19, 21) === "B→" && tokenAt(19, 37) === "B→", "the back decrease also starts at the anchor's physical column");
-  assert(tokenAt(9, 18) === "B↔F" && tokenAt(9, 17) === "" && tokenAt(14, 18) === "F↔B", "the decrease flip takes the unmoved back stitch at phys 18");
+  assert(tokenAt(9, 18) === "⬇" && tokenAt(9, 17) === "" && tokenAt(14, 18) === "⬆", "back→front is ⬇ and front→back is ⬆");
   const wrap = ring0.bindToSheet.get("9,-1");
   assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 36, "step3 row 9 col −1 wraps to the unmoved back phys 0 at column 36");
   const wrapStitch = stitchForMapCell(11, 36, stitchBind, bound.stitches, ring0);
