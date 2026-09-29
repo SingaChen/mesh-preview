@@ -10,21 +10,19 @@
  *   (including the leftover "-" after a -R2 decrease) is one stitch
  *   cell with an explicit row id and needle column.
  * - The 2D map prefers iteration_*_readable_map_step4_ring0.xls
- *   (sheet step4-ring0: ring 0 tracks physical needles. Front column =
- *   phys and back column = 37 − phys on every ring-0 row. Rows after
- *   the inserted recenter X move both beds one column right. Ring 1
- *   keeps those physical needles. Knit rows draw one column left, on the
- *   step3 chart, so the first stitch is column 0. Transfer rows keep the
- *   physical column and move only the bed that gains or loses the stitch.
- *   A decrease includes the anchor stitch, so sheet row 8 is F← on
- *   columns 6..18 and does not draw the back bed.
- *   Negative step3 columns wrap
+ *   (sheet step4-ring0: ring 0 assigns beds from the circumference left
+ *   after stripping inc/dec. Front column = phys, back column = 37 − phys,
+ *   on knit rows and transfer rows. Cast-on leaves the right-fold gap at
+ *   column 19. The increase moves only that back stitch. Ring 1 does not
+ *   inherit those beds yet: its knits still sit one column left, and its
+ *   transfers keep the physical column. A decrease includes the anchor,
+ *   so sheet row 7 is F← on columns 6..18. Negative step3 columns wrap
  *   to the back-bed tail with that same shift. Two Flip rows are inserted
  *   on the stitch's physical column before the flip: ⬇ at column 19
- *   (back 18→front 18) and ⬆ at column 19 (front 19→back 18).
- *   Rings 2–4 stay on step3 columns). Falls back to step3 xfer. The sheet has 124
- *   rows; stitch_map_bind.json stays at 121. A cellmap sheet maps bind
- *   cells onto the moved columns.
+ *   (sheet row 8, back 18→front 18) and ⬆ at column 19 (sheet row 13,
+ *   front 19→back 18). Rings 2–4 stay on step3 columns). Falls back to
+ *   step3 xfer. The sheet has 123 rows; stitch_map_bind.json stays at 121.
+ *   A cellmap sheet maps bind cells onto the physical columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
  *   needle + knit-row, not generation-order onto X rows.
