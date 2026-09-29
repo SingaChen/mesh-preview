@@ -1061,6 +1061,9 @@ assert(
   assert(stitchForMapCell(7, row6Map.sheetCol, stitchBind, bound.stitches, ring0) === row6Stitch, "clicking sheet row 7 maps back to bind row 6");
   assert(stitchForMapCell(9, 17, stitchBind, bound.stitches, ring0) == null, "the first ring-1 flip row selects no face");
   assert(stitchForMapCell(14, 18, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
+  assert(tokenAt(8, 17) === "F←" && tokenAt(8, 18) === "F←" && tokenAt(8, 19) === "B→", "sheet row 8 keeps the front bed through column 18");
+  assert(tokenAt(12, 18) === "F→" && tokenAt(12, 19) === "B←", "the other fold-crossing transfer uses the same physical boundary");
+  assert(tokenAt(19, 21) === "" && tokenAt(19, 22) === "B→", "the back-only transfer also uses the physical column");
   assert(tokenAt(9, 17) === "B↔F" && tokenAt(14, 18) === "F↔B", "flip rows record the bed change one column left of the physical needle");
   const wrap = ring0.bindToSheet.get("9,-1");
   assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 35, "step3 row 9 col −1 wraps to back phys 1 at column 35");
