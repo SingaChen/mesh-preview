@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: 1-stitch bed moves omit the number (F→, B←, B→, F←); 2 or more keep it (F→2). Header −5…37; rings 1–4 stay on step3 columns; bind stays 121.
+// Bump note: ring 1 uses physical columns. Negative step3 columns wrap to the back-bed tail (one column each). Two Flip rows. Rings 2–4 stay on step3 columns. Header −5…37. Bind stays 121.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {

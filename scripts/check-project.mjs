@@ -922,7 +922,7 @@ assert(
   mainSrc.includes("stitchForMapCell(hit.row, hit.col, stitchMapBind(), stitches, scene?.readableMap)"),
   "map click passes the sheet so an inserted recenter row is not a bind row",
 );
-assert(mainSrc.includes("paintStitchPick(stitch)") && mainSrc.includes("isTransferDir"), "map knit pick reuses paintStitchPick; X/X+ does not");
+assert(mainSrc.includes("paintStitchPick(stitch)") && mainSrc.includes("isTransferDir") && mainSrc.includes("isFlipDir"), "map knit pick reuses paintStitchPick; X/X+ and Flip do not");
 assert(!mainSrc.includes("excelMapAsBindMap"), "do not pair Excel cells in generation order");
 assert(mainSrc.includes("dataset.mapCells"), "chip records the bound map cell keys for the pick");
 assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("pickedStitch"), "map pick highlight follows the stitch chip");
@@ -971,8 +971,8 @@ assert(
   const ring0 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls")));
   const built = buildFromFiles();
   const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
-  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 122, `ring0 sheet is 122 rows, got ${ring0.sheet} ${ring0.rows.length}`);
-  assert(ring0.rows.length === step3.rows.length + 1, "ring0 adds exactly the recenter row");
+  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 124, `step4 sheet is 124 rows, got ${ring0.sheet} ${ring0.rows.length}`);
+  assert(ring0.rows.length === step3.rows.length + 3, "sheet adds the ring-0 recenter and two ring-1 flip rows");
   assert(ring0.colMin === -5 && ring0.colMax === 37 && ring0.needleCols.length === 43, "ring0 needles are −5…37");
   assert(built.ring.N === 38 && built.ring.front === 19 && built.ring.back === 19, "ring 0 ends F19 B19");
   assert(built.ring.front - built.ring.back === 0, "finished circle stays inside F−B ∈ {0,1}");
@@ -992,16 +992,19 @@ assert(
     if (i <= built.ring.recenterAfter) assertAlignedRow(sheet, step3.rows[i], i);
     else assertColumnShiftedRow(sheet, step3.rows[i], i);
   }
-  const path1 = sheetRowForStep3(built.span.rowEnd, built.ring.recenterAfter);
+  const path1 = built.step3ToSheet[built.span.rowEnd];
   assert(path1 === 7 && ring0.rows[path1].dir === step3.rows[built.span.rowEnd].dir, "path 1 starts on sheet row 7, the step3 row after the insert");
   {
-    const step3Path1 = new Map(step3.rows[built.span.rowEnd].cells.map((c) => [c.col, c.token]));
+    const tokenAtPath1 = (col) => ring0.rows[path1].cells.find((c) => c.col === col)?.token || "";
     assert(
-      ring0.rows[path1].cells.every((c) => (step3Path1.has(c.col) ? c.token === step3Path1.get(c.col) : !c.token)),
-      "path 1 stays step3 with no F/B prefix; the extra header column is empty",
+      [1, 2, 3, 4, 5, 6, 7].map(tokenAtPath1).join(",") === "F·,F·,F·,F·,F·,F-R1,F·",
+      "ring 1 starts on front phys 1..7 (step3 cols 0..6 shifted onto the shared physical columns)",
     );
+    assert(tokenAtPath1(0) === "", "ring 1's first row does not draw the left-fold front stitch");
   }
-  assert(!ring0.rows.some((r) => r.dir === "Flip"), "Flip is not in the ring0 sheet");
+  assert(!ring0.rows.slice(0, 7).some((r) => r.dir === "Flip"), "Flip is not inside ring 0");
+  const flipRows = ring0.rows.map((row, index) => (row.dir === "Flip" ? index : -1)).filter((index) => index >= 0);
+  assert(flipRows.join(",") === "9,14", `ring 1 flip rows are sheet 9 and 14, got ${flipRows}`);
   const recenter = ring0.rows[3];
   assert(recenter.dir === "X", "sheet row 3 is the recenter transfer");
   const recenterOcc = recenter.cells.filter((c) => c.token);
@@ -1027,9 +1030,11 @@ assert(
   assert(built.ring.anchors.s.phys === 19 && built.ring.anchors.caret.phys === 18, "vL is back 19 before recenter; ^L is back 18 after");
   assert(built.ring.anchors.v.phys === 17 && built.ring.anchors.v3.phys === 16 && built.ring.anchors.fresh.phys === 15, "V goes 17→16 and the new needle is back 15");
   assert(ring0.legend.some((row) => /第一圈按线圈物理针回正/.test(`${row.key} ${row.note}`)), "legend says ring 0 recenters on physical needles");
+  assert(ring0.legend.some((row) => /负数列是后床末尾绕回/.test(`${row.key} ${row.note}`)), "legend says ring 1 negative columns wrap onto the back tail");
   assert(stitchBind.n_display_rows === 121 && stitchBind.byIndex.get(20)?.cells[0].label === "vR", "stitch_map_bind.json is still the step3 dump");
   assert(recenterInsertIndex(excelMap, stitchBind) == null, "step3 sheet stays identity-mapped to bind rows");
-  assert(recenterInsertIndex(ring0, stitchBind) === 3, "ring0 highlight insert is the recenter row");
+  assert(recenterInsertIndex(ring0, stitchBind) == null, "several inserted rows are mapped by the cellmap sheet");
+  assert(ring0.bindToSheet?.size > 0 && ring0.cellMap?.size === ring0.bindToSheet.size, "cellmap round-trips bind and sheet cells");
   assert(sheetRowForBindRow(3, 3) === 4 && bindRowForSheetRow(3, 3) == null && bindRowForSheetRow(4, 3) === 3, "bind row 3 is sheet row 4; the insert itself is not a bind row");
   const ringGrid = buildReadableMapGrid(ring0, bound.stitches);
   const ringKeys = highlightKeysForStitch(bound.stitches[20], { map: ring0, grid: ringGrid, bind: stitchBind });
@@ -1049,9 +1054,26 @@ assert(
   );
   const row6Stitch = bound.stitches.find((s) => s.mapCells?.some((c) => c.display_row === 6));
   const row6Col = row6Stitch.mapCells.find((c) => c.display_row === 6).col;
+  const row6Map = ring0.bindToSheet.get(`${6},${row6Col}`);
   const row6Keys = highlightKeysForStitch(row6Stitch, { map: ring0, grid: ringGrid, bind: stitchBind });
-  assert(row6Keys.has(`7,${row6Col}`) && !row6Keys.has(`6,${row6Col}`), "path 1 bind row 6 highlights sheet row 7");
-  assert(stitchForMapCell(7, row6Col, stitchBind, bound.stitches, ring0) === row6Stitch, "clicking sheet row 7 maps back to bind row 6");
+  assert(row6Map.sheetRow === 7 && row6Map.sheetCol === row6Col + 1, "path 1's first stitch is drawn one column to the right, on its physical needle");
+  assert(row6Keys.has(`7,${row6Map.sheetCol}`) && !row6Keys.has(`6,${row6Col}`) && !row6Keys.has(`7,${row6Col}`), "path 1 bind row 6 highlights the physical column");
+  assert(stitchForMapCell(7, row6Map.sheetCol, stitchBind, bound.stitches, ring0) === row6Stitch, "clicking sheet row 7 maps back to bind row 6");
+  assert(stitchForMapCell(9, 18, stitchBind, bound.stitches, ring0) == null, "the first ring-1 flip row selects no face");
+  assert(stitchForMapCell(14, 19, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
+  assert(tokenAt(9, 18) === "B↔F" && tokenAt(14, 19) === "F↔B", "flip rows record the bed change at the source column");
+  const wrap = ring0.bindToSheet.get("9,-1");
+  assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 36, "step3 row 9 col −1 wraps to back phys 1 at column 36");
+  const wrapStitch = stitchForMapCell(11, 36, stitchBind, bound.stitches, ring0);
+  assert(wrapStitch?.index === 76, "clicking the wrapped back stitch selects face 76");
+  const wrapKeys = highlightKeysForStitch(wrapStitch, { map: ring0, grid: ringGrid, bind: stitchBind });
+  assert(wrapKeys.has("11,36") && wrapKeys.has("11,1"), "clicking the left-fold wrap lights both ends of the path");
+  const ring2 = ring0.bindToSheet.get("28,0");
+  assert(ring2 && ring2.sheetRow === 31 && ring2.sheetCol === 0, "ring 2 stays on the step3 column, shifted only by the inserted rows");
+  assert(
+    built.ring1.end.N === 38 && built.ring1.end.f.length === 19 && built.ring1.end.b.length === 19,
+    "ring 1 ends F19 B19",
+  );
   let failed = false;
   try {
     assertAlignedRow(

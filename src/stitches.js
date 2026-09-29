@@ -12,10 +12,12 @@
  * - The 2D map prefers iteration_*_readable_map_step4_ring0.xls
  *   (sheet step4-ring0: ring 0 tracks physical needles. Front column =
  *   phys and back column = 37 − phys on every ring-0 row. Rows after
- *   the inserted recenter X move both beds one column right. Later
- *   rows stay on step3 columns). Falls back to step3 xfer. The sheet has 122
- *   rows; stitch_map_bind.json stays at 121 and the viewer shifts
- *   highlights onto the moved cells.
+ *   the inserted recenter X move both beds one column right. Ring 1
+ *   uses the same physical columns; negative step3 columns wrap to the
+ *   back-bed tail. Two Flip rows are inserted. Rings 2–4 stay on step3
+ *   columns). Falls back to step3 xfer. The sheet has 124
+ *   rows; stitch_map_bind.json stays at 121. A cellmap sheet maps bind
+ *   cells onto the moved columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
  *   needle + knit-row, not generation-order onto X rows.
