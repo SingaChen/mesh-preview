@@ -19,8 +19,9 @@
  *   A decrease includes the anchor stitch, so sheet row 8 is F← on
  *   columns 6..18 and does not draw the back bed.
  *   Negative step3 columns wrap
- *   to the back-bed tail with that same shift. Two Flip rows are inserted:
- *   ⬇ is back→front and ⬆ is front→back.
+ *   to the back-bed tail with that same shift. Two Flip rows are inserted
+ *   on the stitch's physical column before the flip: ⬇ at column 19
+ *   (back 18→front 18) and ⬆ at column 19 (front 19→back 18).
  *   Rings 2–4 stay on step3 columns). Falls back to step3 xfer. The sheet has 124
  *   rows; stitch_map_bind.json stays at 121. A cellmap sheet maps bind
  *   cells onto the moved columns.

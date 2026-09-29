@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 1 decrease transfers start at the anchor stitch. Sheet row 8 is F← on columns 6..18. Flip symbols are ⬇ back→front and ⬆ front→back. Negative columns still wrap to the back tail. Two Flip rows. Rings 2–4 stay on step3 columns. Header −5…37. Bind stays 121.
+// Bump note: ring 1 flips are drawn on the stitch's physical column before the flip. Sheet row 9 is ⬇ at column 19; sheet row 14 is ⬆ at column 19. Sheet row 8 stays F← on columns 6..18. Negative columns still wrap to the back tail. Two Flip rows. Rings 2–4 stay on step3 columns. Header −5…37. Bind stays 121.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {

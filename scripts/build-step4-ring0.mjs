@@ -351,14 +351,16 @@ export function columnForPhys(bed, phys) {
  * fold stays front at column 18. A decrease also draws the shaping-bed
  * stitch on the anchor itself, so the left shift starts at that needle
  * (sheet row 8 is F← on columns 6…18, chart 6 at column 7).
+ * Flip rows also keep columnForPhys: the symbol sits on the stitch's
+ * column before the flip, not one column to the left.
  */
 export function columnForRing1(bed, phys) {
   return columnForPhys(bed, phys) - 1;
 }
 
-/** Knit rows use the chart column. X / X+ keep the physical-needle column. */
+/** Knit rows use the chart column. Transfers and flips keep the physical column. */
 export function columnForRing1Row(dir, bed, phys) {
-  if (dir === "X" || dir === "X+") return columnForPhys(bed, phys);
+  if (dir === "X" || dir === "X+" || dir === "Flip") return columnForPhys(bed, phys);
   return columnForRing1(bed, phys);
 }
 
@@ -1117,7 +1119,7 @@ export function simulateRing1(step3Rows, rowStart, rowEnd) {
     if (best.flip) {
       const src = before.find((st) => st.id === best.flip.id);
       cells.push({
-        col: columnForRing1(src.bed, src.phys),
+        col: columnForPhys(src.bed, src.phys),
         token: flipToken(src.bed, best.flip.toBed),
         fill: FLIP_FILL,
         phys: src.phys,
@@ -1303,7 +1305,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["绕回", "Step3 负数列仍是后床末尾原有的圈，表列 = (37−物理针)−1，与整行对齐到 step3 chart。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0: front = phys, back = 37−phys. Ring 1 knits are that column minus 1 (chart, column 0). Ring 1 transfers keep the physical column. A decrease draws the shaping bed from the anchor needle, so sheet row 8 is F← on columns 6…18 and the right fold stays front at column 18. Rings 2–4 stay on step3 columns"],
+    ["columns", "ring 0: front = phys, back = 37−phys. Ring 1 knits are that column minus 1 (chart, column 0). Ring 1 transfers and flips keep the physical column, so a flip is drawn where the stitch sits before it changes beds. Sheet row 8 is F← on columns 6…18. Rings 2–4 stay on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column"],
   ];
   legend.forEach((pair, i) => {
@@ -1638,8 +1640,8 @@ export function buildRing0Workbook(step3, bind) {
     occupied(rows[sheetRow])
       .map((cell) => `${cell.col}:${cell.token}`)
       .join(",");
-  if (flipGlyph(9) !== "18:⬇" || flipGlyph(14) !== "18:⬆") {
-    fail(`翻针应为表行 9 列 18 的 ⬇、表行 14 列 18 的 ⬆，得到 ${flipGlyph(9)} / ${flipGlyph(14)}`);
+  if (flipGlyph(9) !== "19:⬇" || flipGlyph(14) !== "19:⬆") {
+    fail(`翻针应画在翻之前的物理表列：表行 9 列 19 的 ⬇、表行 14 列 19 的 ⬆，得到 ${flipGlyph(9)} / ${flipGlyph(14)}`);
   }
   const wrapsOf = (step3Row) =>
     [...(ring1.byRow.get(step3Row)?.cells.values() || [])]
