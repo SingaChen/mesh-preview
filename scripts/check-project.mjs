@@ -1061,7 +1061,7 @@ assert(
   assert(row6Keys.has(`7,${row6Map.sheetCol}`) && !row6Keys.has(`6,${row6Col}`) && !row6Keys.has(`7,${row6Col + 1}`), "path 1 bind row 6 highlights column 0, not the old +1 column");
   assert(stitchForMapCell(7, row6Map.sheetCol, stitchBind, bound.stitches, ring0) === row6Stitch, "clicking sheet row 7 maps back to bind row 6");
   assert(stitchForMapCell(9, 17, stitchBind, bound.stitches, ring0) == null, "the first ring-1 flip row selects no face");
-  assert(stitchForMapCell(14, 18, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
+  assert(stitchForMapCell(14, 19, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
   const row8Moves = ring0.rows[8].cells.filter((c) => c.token);
   assert(
     row8Moves.every((c) => c.token === "F←") && row8Moves.map((c) => c.col).join(",") === [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(","),
@@ -1075,7 +1075,7 @@ assert(
   );
   assert(tokenAt(12, 19) === "", "the increase transfer does not draw a back-bed move");
   assert(tokenAt(19, 20) === "" && tokenAt(19, 21) === "B→" && tokenAt(19, 37) === "B→", "the back decrease also starts at the anchor's physical column");
-  assert(tokenAt(9, 18) === "⬇" && tokenAt(9, 17) === "" && tokenAt(14, 18) === "⬆", "back→front is ⬇ and front→back is ⬆");
+  assert(tokenAt(9, 19) === "⬇" && tokenAt(9, 18) === "" && tokenAt(14, 19) === "⬆" && tokenAt(14, 18) === "", "flips are drawn on the pre-flip physical column");
   const wrap = ring0.bindToSheet.get("9,-1");
   assert(wrap && wrap.sheetRow === 11 && wrap.sheetCol === 36, "step3 row 9 col −1 wraps to the unmoved back phys 0 at column 36");
   const wrapStitch = stitchForMapCell(11, 36, stitchBind, bound.stitches, ring0);
