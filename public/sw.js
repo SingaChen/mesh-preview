@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 1 sheet columns align with the step3 chart (first stitch at column 0). Negative columns still wrap to the back tail, shifted one column left with the row. Two Flip rows. Rings 2–4 stay on step3 columns. Header −5…37. Bind stays 121.
+// Bump note: ring 1 knits align with the step3 chart (column 0). Transfer rows keep physical columns, so row 8 column 18 is a front move. Negative columns still wrap to the back tail. Two Flip rows. Rings 2–4 stay on step3 columns. Header −5…37. Bind stays 121.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {

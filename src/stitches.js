@@ -13,8 +13,9 @@
  *   (sheet step4-ring0: ring 0 tracks physical needles. Front column =
  *   phys and back column = 37 − phys on every ring-0 row. Rows after
  *   the inserted recenter X move both beds one column right. Ring 1
- *   keeps those physical needles but draws one column left, on the step3
- *   chart, so its first stitch is column 0. Negative step3 columns wrap
+ *   keeps those physical needles. Knit rows draw one column left, on the
+ *   step3 chart, so the first stitch is column 0. Transfer rows keep the
+ *   physical column, so the right fold is front through column 18. Negative step3 columns wrap
  *   to the back-bed tail with that same shift. Two Flip rows are inserted.
  *   Rings 2–4 stay on step3 columns). Falls back to step3 xfer. The sheet has 124
  *   rows; stitch_map_bind.json stays at 121. A cellmap sheet maps bind

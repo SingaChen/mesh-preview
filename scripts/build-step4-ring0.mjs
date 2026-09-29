@@ -16,12 +16,16 @@
  * column right: front phys increases by 1, and a back phys decrease of 1 is
  * a column increase of 1 because the back is mirrored.
  *
- * Ring 1 keeps those physical needles (both beds still end 0…18). Its sheet
- * column is one left of the physical-needle column, so the row lines up with
- * the step3 chart and the first front stitch is column 0, not column 1.
+ * Ring 1 keeps those physical needles (both beds still end 0…18). Knit rows
+ * sit one left of the physical-needle column, so they line up with the step3
+ * chart and the first front stitch is column 0. Transfer rows (X / X+) stay
+ * on the physical-needle column: front = phys, back = 37 − phys. The right
+ * fold is then front through column 18 and back from column 19. Using the
+ * chart split (back starts at chart 18) on those rows would draw the back
+ * bed one column too far left.
  * A negative step3 column is not a new front stitch: it is the back bed's
  * existing tail. Step4 draws that stitch once, at (37 − phys) − 1, the same
- * one-column shift as the rest of the row. Only a real increase, decrease,
+ * one-column shift as the knit row. Only a real increase, decrease,
  * or newly hung loop changes N. After each of those, one adjacent fold flip
  * (either side) may run, then a counterclockwise recenter, on the inserted
  * row with Flip before the transfer. Rings 2–4 stay on the step3 columns.
@@ -322,12 +326,20 @@ export function columnForPhys(bed, phys) {
 }
 
 /**
- * Ring 1 sheet column. Physical needles are unchanged (front phys = chart + 1
- * after the ring-0 recenter). The sheet sits one column left of that, on the
- * step3 chart, so chart 0 is column 0. Wraps use the same shift.
+ * Ring 1 knit / wrap / flip column. Physical needles are unchanged
+ * (front phys = chart + 1 after the ring-0 recenter). The sheet sits one
+ * column left of that, on the step3 chart, so chart 0 is column 0.
+ * Transfer rows do not use this: they keep columnForPhys, so the right
+ * fold stays front at column 18.
  */
 export function columnForRing1(bed, phys) {
   return columnForPhys(bed, phys) - 1;
+}
+
+/** Knit rows use the chart column. X / X+ keep the physical-needle column. */
+export function columnForRing1Row(dir, bed, phys) {
+  if (dir === "X" || dir === "X+") return columnForPhys(bed, phys);
+  return columnForRing1(bed, phys);
 }
 
 /**
@@ -1015,7 +1027,7 @@ export function simulateRing1(step3Rows, rowStart, rowEnd) {
       if (id == null) fail(`step3 行 ${ri} 移圈列 ${col} 没有线圈`);
       const st = stitches.get(id);
       placed.push({
-        col: columnForRing1(st.bed, st.phys),
+        col: columnForPhys(st.bed, st.phys),
         token: toAbsoluteToken(token, st.bed),
         fill: cells.find((cell) => cell.col === col)?.fill || "rgb(204,204,255)",
         phys: st.phys,
@@ -1243,7 +1255,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["绕回", "Step3 负数列仍是后床末尾原有的圈，表列 = (37−物理针)−1，与整行对齐到 step3 chart。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is B↔F or F↔B on the inserted row, before the recenter transfer"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0: front = phys, back = 37−phys. Ring 1 is that column minus 1, aligned with the step3 chart (column 0). Rings 2–4 stay on step3 columns"],
+    ["columns", "ring 0: front = phys, back = 37−phys. Ring 1 knits are that column minus 1 (chart, column 0). Ring 1 transfers keep the physical column, so the right fold is front through column 18. Rings 2–4 stay on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column"],
   ];
   legend.forEach((pair, i) => {
@@ -1490,8 +1502,9 @@ export function buildRing0Workbook(step3, bind) {
       for (const cell of occupied(sheetRow)) {
         const bed = bedOf(cell.token);
         if (bed !== "F" && bed !== "B") fail(`第二圈表行 ${step3ToSheet[i]} 符号 ${cell.token} 没有床`);
-        if (cell.phys == null || cell.col !== columnForRing1(bed, cell.phys)) {
-          fail(`第二圈表行 ${step3ToSheet[i]} 列 ${cell.col} 不是 ${bed} 物理针列 ${columnForPhys(bed, cell.phys)} 减 1`);
+        const wantCol = columnForRing1Row(sheetRow.dir, bed, cell.phys);
+        if (cell.phys == null || cell.col !== wantCol) {
+          fail(`第二圈表行 ${step3ToSheet[i]} 列 ${cell.col} 不是 ${sheetRow.dir} 的 ${bed} 列 ${wantCol}`);
         }
       }
     } else {
@@ -1547,16 +1560,17 @@ export function buildRing0Workbook(step3, bind) {
   }
   const ring1Sheet = step3ToSheet[ring1Span.start];
   for (let i = 0; i < ring2Sheet; i++) {
+    const row = rows[i];
     const seen = new Set();
-    for (const cell of occupied(rows[i])) {
+    for (const cell of occupied(row)) {
       if (seen.has(cell.col)) fail(`表行 ${i} 列 ${cell.col} 有两枚线圈`);
       seen.add(cell.col);
       if (!headerSet.has(cell.col)) fail(`表头缺少列 ${cell.col}`);
       const bed = bedOf(cell.token);
       if (cell.phys == null) fail(`表行 ${i} 列 ${cell.col} 没有物理针`);
-      const want = i >= ring1Sheet ? columnForRing1(bed, cell.phys) : columnForPhys(bed, cell.phys);
+      const want = i >= ring1Sheet ? columnForRing1Row(row.dir, bed, cell.phys) : columnForPhys(bed, cell.phys);
       if (cell.col !== want) {
-        const where = i >= ring1Sheet ? "物理针列减 1（对齐 step3 chart）" : bed === "F" ? "物理针" : "37−物理针";
+        const where = i < ring1Sheet ? (bed === "F" ? "物理针" : "37−物理针") : row.dir === "X" || row.dir === "X+" ? "移圈行物理针列" : "物理针列减 1（对齐 step3 chart）";
         fail(`表行 ${i} ${bed} 表列 ${cell.col} !== ${where} ${cell.phys}（应为 ${want}）`);
       }
     }
