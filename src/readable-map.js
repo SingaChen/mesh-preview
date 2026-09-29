@@ -241,7 +241,7 @@ function bedPrefix(token) {
   return "";
 }
 
-/** Ring 0 rows after the inserted recenter draw front at chart+1 and back at chart−1. */
+/** Ring 0 rows after the inserted recenter draw both beds at chart+1. */
 function rowShiftsColumns(map, sheetRow, insertAt) {
   if (insertAt == null || !Number.isInteger(sheetRow) || sheetRow <= insertAt) return false;
   const row = map?.rows?.[sheetRow];
@@ -256,7 +256,7 @@ export function sheetColForBindCol(map, bindRow, bindCol, insertAt) {
   for (const cell of map.rows[sheetRow].cells || []) {
     if (!cell?.token) continue;
     const bed = bedPrefix(cell.token);
-    const chart = bed === "F" ? cell.col - 1 : bed === "B" ? cell.col + 1 : null;
+    const chart = bed === "F" || bed === "B" ? cell.col - 1 : null;
     if (chart === bindCol) return cell.col;
   }
   return null;
@@ -268,8 +268,7 @@ export function bindColForSheetCol(map, sheetRow, sheetCol, insertAt) {
   const cell = (map.rows[sheetRow].cells || []).find((c) => c.col === sheetCol);
   if (!cell?.token) return null;
   const bed = bedPrefix(cell.token);
-  if (bed === "F") return sheetCol - 1;
-  if (bed === "B") return sheetCol + 1;
+  if (bed === "F" || bed === "B") return sheetCol - 1;
   return sheetCol;
 }
 
