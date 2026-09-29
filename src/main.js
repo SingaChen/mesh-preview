@@ -642,7 +642,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("左 3D · 右 step4-ring0（第一圈回正，第二圈物理针，负列绕回后床）· 窄屏切 3D/图");
+      setStatus("左 3D · 右 step4-ring0（第一圈物理针，右折返空针；第二圈仍用上一版）· 窄屏切 3D/图");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -754,7 +754,7 @@ function paintReadableMap() {
   if (mapMeta) {
     mapMeta.textContent =
       map.source === "excel"
-        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第一圈回正，第二圈负列绕回后床" : ""}`
+        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第一圈物理针，第二圈负列绕回后床" : ""}`
         : h
           ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
           : `${map.rows.length} rows · ${map.cells.length} cells`;

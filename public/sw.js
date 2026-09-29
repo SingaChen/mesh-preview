@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 1 flips are drawn on the stitch's physical column before the flip. Sheet row 9 is ⬇ at column 19; sheet row 14 is ⬆ at column 19. Sheet row 8 stays F← on columns 6..18. Negative columns still wrap to the back tail. Two Flip rows. Rings 2–4 stay on step3 columns. Header −5…37. Bind stays 121.
+// Bump note: ring 0 uses one physical-column map. Cast-on leaves column 19 empty; the increase is only B→ at column 20. No ring-0 recenter. Ring 1 flips stay on the pre-flip physical column: sheet row 8 is ⬇ at column 19; sheet row 13 is ⬆ at column 19. Sheet row 7 is F← on columns 6..18. Header −5…37. Bind stays 121. 123 rows.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
