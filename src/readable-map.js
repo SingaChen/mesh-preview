@@ -234,6 +234,45 @@ export function bindRowForSheetRow(sheetRow, insertAt) {
   return sheetRow > insertAt ? sheetRow - 1 : sheetRow;
 }
 
+function bedPrefix(token) {
+  const raw = String(token ?? "");
+  if (raw.startsWith("F")) return "F";
+  if (raw.startsWith("B")) return "B";
+  return "";
+}
+
+/** Ring 0 rows after the inserted recenter draw front at chart+1 and back at chart−1. */
+function rowShiftsColumns(map, sheetRow, insertAt) {
+  if (insertAt == null || !Number.isInteger(sheetRow) || sheetRow <= insertAt) return false;
+  const row = map?.rows?.[sheetRow];
+  if (!row) return false;
+  return (row.cells || []).some((cell) => bedPrefix(cell.token));
+}
+
+/** Bind chart column → sheet column. Null when that stitch is not on the sheet row. */
+export function sheetColForBindCol(map, bindRow, bindCol, insertAt) {
+  const sheetRow = sheetRowForBindRow(bindRow, insertAt);
+  if (!rowShiftsColumns(map, sheetRow, insertAt)) return bindCol;
+  for (const cell of map.rows[sheetRow].cells || []) {
+    if (!cell?.token) continue;
+    const bed = bedPrefix(cell.token);
+    const chart = bed === "F" ? cell.col - 1 : bed === "B" ? cell.col + 1 : null;
+    if (chart === bindCol) return cell.col;
+  }
+  return null;
+}
+
+/** Sheet column → bind chart column. Null on an empty shifted cell. */
+export function bindColForSheetCol(map, sheetRow, sheetCol, insertAt) {
+  if (!rowShiftsColumns(map, sheetRow, insertAt)) return sheetCol;
+  const cell = (map.rows[sheetRow].cells || []).find((c) => c.col === sheetCol);
+  if (!cell?.token) return null;
+  const bed = bedPrefix(cell.token);
+  if (bed === "F") return sheetCol - 1;
+  if (bed === "B") return sheetCol + 1;
+  return sheetCol;
+}
+
 function isExcelView(map, grid) {
   return map?.source === "excel" || grid?.source === "excel" || grid?.theme === "excel";
 }
@@ -257,7 +296,7 @@ export function highlightKeysForStitch(stitch, { map = null, grid = null, bind =
     const insertAt = recenterInsertIndex(map, bind);
     for (const cell of cells) {
       const row = sheetRowForBindRow(cell.display_row, insertAt);
-      const col = cell.col;
+      const col = sheetColForBindCol(map, cell.display_row, cell.col, insertAt);
       if (row == null || col == null) continue;
       const mapped = grid?.grid?.[row - (grid.rowMin || 0)]?.[col - grid.colMin];
       const dir = mapped?.dir || excelRowDir(grid, row);
@@ -324,7 +363,9 @@ export function stitchForMapCell(row, col, bind, stitches = null, map = null) {
   const insertAt = recenterInsertIndex(map, bind);
   const bindRow = bindRowForSheetRow(Number(row), insertAt);
   if (bindRow == null) return null;
-  const rec = bindFaceForMapCell(bindRow, col, bind);
+  const bindCol = bindColForSheetCol(map, Number(row), Number(col), insertAt);
+  if (bindCol == null) return null;
+  const rec = bindFaceForMapCell(bindRow, bindCol, bind);
   if (!rec) return null;
   if (Array.isArray(stitches)) return findBoundStitch(rec, stitches);
   return {
@@ -341,7 +382,9 @@ export function highlightKeysForMapCell(row, col, { map = null, grid = null, bin
   const insertAt = recenterInsertIndex(map, bind);
   const bindRow = bindRowForSheetRow(Number(row), insertAt);
   if (bindRow == null) return new Set();
-  const rec = bindFaceForMapCell(bindRow, col, bind);
+  const bindCol = bindColForSheetCol(map, Number(row), Number(col), insertAt);
+  if (bindCol == null) return new Set();
+  const rec = bindFaceForMapCell(bindRow, bindCol, bind);
   if (!rec) return new Set();
   return highlightKeysForStitch(
     {

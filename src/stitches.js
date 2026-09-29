@@ -11,9 +11,11 @@
  *   cell with an explicit row id and needle column.
  * - The 2D map prefers iteration_*_readable_map_step4_ring0.xls
  *   (sheet step4-ring0: ring 0 tracks physical needles, 37−col before
- *   the inserted recenter X and 36−col after; later rows are copied
- *   from step3). Falls back to step3 xfer. The sheet has 122 rows;
- *   stitch_map_bind.json stays at 121 and the viewer shifts highlights.
+ *   the inserted recenter X and 36−col after. Rows after that X draw
+ *   front one column right and back one column left. Later rows stay
+ *   on step3 columns). Falls back to step3 xfer. The sheet has 122
+ *   rows; stitch_map_bind.json stays at 121 and the viewer shifts
+ *   highlights onto the moved cells.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
  *   needle + knit-row, not generation-order onto X rows.

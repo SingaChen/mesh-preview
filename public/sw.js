@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 0 recenters after the increase (back phys 37−col, then 36−col); one inserted X row; later rows stay step3; bind stays 121.
+// Bump note: after the ring-0 recenter row, front cells move one column right and back cells one column left; rings 1–4 stay on step3 columns; bind stays 121.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {

@@ -8,7 +8,12 @@
  * back phys stays 37 − column. After the increase knit, one X row recenters:
  * every front stitch F→R1 (phys + 1) and every back stitch B←L1 (phys − 1).
  * Charts do not move. After that, back phys = 36 − column, and a new back
- * stitch uses that formula. No Flip. Rings 1–4 are copied from step3.
+ * stitch uses that formula. No Flip.
+ *
+ * The sheet columns stay the step3 needle index through the recenter row.
+ * On later ring-0 rows the front cells move one column right and the back
+ * cells move one column left, so the stitch is drawn where the recenter
+ * put it. Rings 1–4 stay on the step3 columns (same header, no shift).
  *
  * Same-bed double occupancy throws and does not write a sheet.
  *
@@ -171,6 +176,56 @@ export function assertAlignedRow(step4Row, step3Row, step3Index) {
   }
 }
 
+/**
+ * Post-recenter ring-0 row: tokens still match step3, but the column is
+ * chart+1 on the front and chart−1 on the back.
+ */
+export function assertColumnShiftedRow(step4Row, step3Row, step3Index) {
+  const problems = [];
+  if (step4Row.dir !== step3Row.dir) problems.push(`dir step4=${step4Row.dir} step3=${step3Row.dir}`);
+  const sheetOcc = occupied(step4Row);
+  const stepOcc = occupied(step3Row);
+  if (sheetOcc.length !== stepOcc.length) {
+    problems.push(`count step4=${sheetOcc.length} step3=${stepOcc.length}`);
+  }
+  const cols = sheetOcc.map((c) => c.col);
+  if (new Set(cols).size !== cols.length) problems.push(`duplicate display column [${cols}]`);
+  const byChart = new Map();
+  for (const cell of sheetOcc) {
+    const bed = bedOf(cell.token);
+    if (bed !== "F" && bed !== "B") {
+      problems.push(`col ${cell.col} token ${cell.token} has no F/B`);
+      continue;
+    }
+    const chart = chartColAfterRecenter(cell.col, bed);
+    if (byChart.has(chart)) problems.push(`two cells claim chart ${chart}`);
+    byChart.set(chart, cell);
+    if (cell.phys != null) {
+      const wantPhys = bed === "B" ? 36 - chart : chart + 1;
+      if (cell.phys !== wantPhys) {
+        problems.push(`phys chart ${chart}: ${cell.phys} !== ${wantPhys}`);
+      }
+    }
+  }
+  for (const cell of stepOcc) {
+    const got = byChart.get(cell.col);
+    if (!got) {
+      problems.push(`missing chart col ${cell.col}`);
+      continue;
+    }
+    const rel = toRelativeToken(got.token);
+    if (rel !== String(cell.token ?? "")) {
+      problems.push(`label chart ${cell.col}: sheet=${got.token} step3=${cell.token}`);
+    }
+    const bed = bedOf(got.token);
+    const wantCol = displayColAfterRecenter(cell.col, bed);
+    if (got.col !== wantCol) problems.push(`display chart ${cell.col}: sheet=${got.col} want=${wantCol}`);
+  }
+  if (problems.length) {
+    fail(`row step3 ${step3Index} shifted mismatch: ${problems.join("; ")}`);
+  }
+}
+
 function bedOf(token) {
   if (String(token).startsWith("F")) return "F";
   if (String(token).startsWith("B")) return "B";
@@ -212,6 +267,25 @@ export function summarizeRing0(rows) {
 export function sheetRowForStep3(step3Row, recenterAfter) {
   if (!Number.isInteger(step3Row) || !Number.isInteger(recenterAfter)) return step3Row;
   return step3Row > recenterAfter ? step3Row + 1 : step3Row;
+}
+
+/**
+ * After the recenter row, ring 0 draws the stitch on the column it moved to.
+ * Front physical needles increase, so those cells move right.
+ * Back physical needles decrease, so those cells move left.
+ * Rings 1–4 are not passed through here.
+ */
+export function displayColAfterRecenter(chartCol, bed) {
+  if (bed === "F") return chartCol + 1;
+  if (bed === "B") return chartCol - 1;
+  fail(`display column needs a bed, got ${bed} at chart ${chartCol}`);
+}
+
+/** Sheet column → step3 chart column, for a post-recenter ring-0 cell. */
+export function chartColAfterRecenter(displayCol, bed) {
+  if (bed === "F") return displayCol - 1;
+  if (bed === "B") return displayCol + 1;
+  fail(`chart column needs a bed, got ${bed} at display ${displayCol}`);
 }
 
 function parseIncN(label) {
@@ -721,8 +795,9 @@ function legendSheet(xfIndexForFill, ring) {
     ["later rows", "path 1 onward stays step3, unchanged"],
     ["F… / B…", "bed follows the stitch; ^L stays on the back"],
     ["→R1 / ←L1", "F advance = knit direction (right-knit →R); B mirrored. Recenter is its own X row"],
+    ["columns", "through the recenter row, columns stay step3. Later ring-0 rows: front +1, back −1. Path 1 onward is not shifted"],
     ["excluded", "no Flip; the finished circle stays inside F−B ∈ {0,1}"],
-    ["rows", "122 sheet rows (one inserted X), needles −5…36, stitch_map_bind.json still 121"],
+    ["rows", "122 sheet rows (one inserted X). Header stays the shared needle index. stitch_map_bind.json still 121"],
   ];
   legend.forEach((pair, i) => {
     parts.push(labelRecord(i, 0, xf, pair[0]));
@@ -838,17 +913,69 @@ export function buildRing0Workbook(step3, bind) {
   }
   if (rows.length !== step3.rows.length + 1) fail(`output rows ${rows.length} != ${step3.rows.length + 1}`);
   if (rows.some((r) => r.dir === "Flip")) fail("output contains a Flip row");
+
+  const extraCols = [];
+  for (let i = ring.recenterAfter + 1; i < span.rowEnd; i++) {
+    const sheetIndex = sheetRowForStep3(i, ring.recenterAfter);
+    const row = rows[sheetIndex];
+    const placed = new Map();
+    for (const cell of occupied(row)) {
+      const bed = cell.bed || bedOf(cell.token);
+      const dest = displayColAfterRecenter(cell.col, bed);
+      if (placed.has(dest)) {
+        const prev = placed.get(dest);
+        fail(
+          `表行 ${sheetIndex}（step3 行 ${i}）: 列 ${dest} 同时有 ${prev.token}（来自列 ${prev.chartCol}，${prev.bed} 物理针 ${prev.phys}）和 ${cell.token}（来自列 ${cell.col}，${bed} 物理针 ${cell.phys}）`,
+        );
+      }
+      placed.set(dest, { ...cell, col: dest, chartCol: cell.col, bed });
+    }
+    const seenPhys = new Map();
+    for (const cell of placed.values()) {
+      if (cell.phys == null) continue;
+      const key = `${cell.bed}:${cell.phys}`;
+      if (seenPhys.has(key)) {
+        fail(`表行 ${sheetIndex}（step3 行 ${i}）: 同一物理针两枚线圈 ${cell.bed} 针 ${cell.phys}（线圈 ${seenPhys.get(key)} 与 ${cell.id}）`);
+      }
+      seenPhys.set(key, cell.id);
+    }
+    for (const col of placed.keys()) if (!step3.needles.includes(col)) extraCols.push(col);
+    row.cells = placed;
+    row.shifted = true;
+  }
+  let needles = step3.needles;
+  if (extraCols.length) {
+    const all = new Set([...needles, ...extraCols]);
+    needles = [...all].sort((a, b) => a - b);
+    for (let i = 1; i < needles.length; i++) {
+      if (needles[i] !== needles[i - 1] + 1) {
+        fail(`needle columns are not contiguous at ${needles[i - 1]} and ${needles[i]}`);
+      }
+    }
+  }
+  for (const row of rows) {
+    if (row.shifted) {
+      const placed = row.cells;
+      row.cells = needles.map((col) => placed.get(col) || { col, token: "", fill: "rgb(192,192,192)" });
+    } else if (needles !== step3.needles) {
+      const byCol = new Map(row.cells.map((c) => [c.col, c]));
+      row.cells = needles.map((col) => byCol.get(col) || { col, token: "", fill: "rgb(192,192,192)" });
+    }
+  }
+
   const recenterSheet = sheetRowForStep3(ring.recenterAfter, ring.recenterAfter) + 1;
   if (rows[recenterSheet]?.dir !== "X" || !rows[recenterSheet].recenter) {
     fail(`recenter is not sheet row ${recenterSheet}`);
   }
   for (let i = 0; i < step3.rows.length; i++) {
     const sheetRow = rows[sheetRowForStep3(i, ring.recenterAfter)];
-    if (i < span.rowEnd) {
+    if (i <= ring.recenterAfter) {
       assertAlignedRow(sheetRow, step3.rows[i], i);
       for (const cell of occupied(sheetRow)) {
         if (bedOf(cell.token) === "other") fail(`row ${i} col ${cell.col} token ${cell.token} has no F/B`);
       }
+    } else if (i < span.rowEnd) {
+      assertColumnShiftedRow(sheetRow, step3.rows[i], i);
     } else {
       if (sheetRow.dir !== step3.rows[i].dir) fail(`step3 row ${i} dir drifted`);
       const a = occupied(sheetRow);
@@ -875,7 +1002,7 @@ export function buildRing0Workbook(step3, bind) {
     if (i < 0) fail(`missing xf for ${fill}`);
     return i;
   };
-  const dataSheet = sheetFromGrid("step4-ring0", step3.headerLabel || "dir\\col", step3.needles, rows, xfIndexForFill);
+  const dataSheet = sheetFromGrid("step4-ring0", step3.headerLabel || "dir\\col", needles, rows, xfIndexForFill);
   const legend = legendSheet(xfIndexForFill, ring);
   const xfBytes = Buffer.concat(palette.map((fill) => xfRecord(icvForFill(fill))));
   const bofBytes = bof(0x0005);
@@ -896,7 +1023,7 @@ export function buildRing0Workbook(step3, bind) {
     bytes: writeCfb(workbook),
     span,
     rows,
-    needles: step3.needles,
+    needles,
     ring,
     summary: summarizeRing0(rows.slice(0, span.rowEnd + 1)),
   };
@@ -933,19 +1060,29 @@ function main(argv = process.argv.slice(2)) {
   console.log(`  换算：回正前 后床=${ring.backBaseBefore}−列；回正后 后床=${ring.backBaseAfter}−列。前床回正后物理针=列+1=出生列。`);
   for (const row of built.summary) {
     console.log(
-      `  表行 ${row.display_row} ${row.dir} F=${row.F} 物理针[${row.fPhys.join(",")}] B=${row.B} 物理针[${row.bPhys.join(",")}]`,
+      `  表行 ${row.display_row} ${row.dir} F=${row.F} 表列[${row.fCols.join(",")}] 物理针[${row.fPhys.join(",")}] B=${row.B} 表列[${row.bCols.join(",")}] 物理针[${row.bPhys.join(",")}]`,
     );
   }
   console.log("  回正行移圈：");
   for (const m of ring.recenterMoves) {
     console.log(`    列 ${m.col} ${m.bed} 物理针 ${m.fromPhys}→${m.toPhys} ${m.token}`);
   }
+  const at = (sheetRow, id) => built.rows[sheetRow].cells.find((c) => c.id === id && c.token);
+  const sRow = at(2, s.id);
+  const brRow = at(2, br.id);
+  const vRow = at(2, v.id);
+  const after = sheetRowForStep3(3, ring.recenterAfter);
+  const caretRow = at(after, caret.id);
+  const brAfter = at(after, br.id);
+  const v3Row = at(after, v3.id);
+  const freshRow = at(after, fresh.id);
   console.log(
-    `  第2行 vL 列 ${s.chart}：${s.bed} 物理针 ${s.phys}（线圈 ${s.id}）；B^R 列 ${br.chart}：${br.bed} ${br.phys}；V 列 ${v.chart}：${v.bed} ${v.phys}`,
+    `  回正前 第2行：S 表列 ${sRow.col} / 物理针 ${sRow.phys}；B^R 表列 ${brRow.col} / 物理针 ${brRow.phys}；V 表列 ${vRow.col} / 物理针 ${vRow.phys}`,
   );
   console.log(
-    `  第3行 ^L 列 ${caret.chart}：${caret.bed} 物理针 ${caret.phys}（仍是线圈 ${caret.id}，表行 ${sheetRowForStep3(3, ring.recenterAfter)}）；列 20 V：${v3.bed} ${v3.phys}；列 21 新针：${fresh.bed} ${fresh.phys}`,
+    `  回正后 第4行：S 表列 ${caretRow.col} / 物理针 ${caretRow.phys}（线圈 ${caret.id}）；B^R 表列 ${brAfter.col} / 物理针 ${brAfter.phys}；V 表列 ${v3Row.col} / 物理针 ${v3Row.phys}；列21新针 表列 ${freshRow.col} / 物理针 ${freshRow.phys}`,
   );
+  console.log(`  表头针位 ${built.needles[0]}…${built.needles.at(-1)}，共 ${built.needles.length} 列`);
   console.log("  每步之后床上仍挂着的线圈：");
   for (const live of ring.liveAt) {
     console.log(`    ${live.label} F=${live.F} [${live.fPhys.join(",")}] B=${live.B} [${live.bPhys.join(",")}]`);
