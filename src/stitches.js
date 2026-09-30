@@ -40,9 +40,10 @@
  *   not share a column. The short course after the increase ends at
  *   F19 on sheet row 14 column 19; the facing B18 is not on that row.
  *   F19 is also the flip on sheet row 15. The rack then leaves that
- *   stitch at B18. A later knit that only crosses the fold starts on
- *   B18 and continues through F18 in the next column (sheet row 17),
- *   with no empty cell between them. Rings 2–4
+ *   stitch at B18. Ring 1 knits are drawn on the course column, so a
+ *   column on the front is that front needle and the next column is
+ *   the back fold. Sheet row 17 is B18 then F18, F17, F16. Sheet row
+ *   20 continues F18, B18, B17 with no empty column. Rings 2–4
  *   stay on step3 columns). Falls back to
  *   step3 xfer. The sheet has 126 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
