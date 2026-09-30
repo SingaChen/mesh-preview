@@ -150,6 +150,14 @@ export function recordedPhysicalNeedle(cell) {
   return { bed, phys };
 }
 
+/** Cell text while the physical-needle toggle is on. F17 / B17, or — if the cell has a symbol but no recorded needle. */
+export function physicalNeedleGlyph(cell) {
+  const rec = recordedPhysicalNeedle(cell);
+  if (rec) return `${rec.bed}${rec.phys}`;
+  if (tokenString(cell?.token)) return "—";
+  return "";
+}
+
 export function formatPhysicalNeedle(cell) {
   const rec = recordedPhysicalNeedle(cell);
   if (!rec) return { ...NO_PHYSICAL_NEEDLE };

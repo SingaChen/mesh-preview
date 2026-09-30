@@ -911,6 +911,7 @@ mapFitBtn?.addEventListener("click", () => {
 mapPhysBtn?.addEventListener("click", () => {
   showPhysNeedle = mapPhysBtn.getAttribute("aria-pressed") !== "true";
   pressed(mapPhysBtn, showPhysNeedle);
+  mapView?.setShowPhysicalNeedles(showPhysNeedle);
   if (showPhysNeedle) {
     if (pickedStitch) paintPhysicalStitch(pickedStitch);
   } else {
