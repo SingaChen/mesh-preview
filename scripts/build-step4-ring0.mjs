@@ -54,9 +54,11 @@
  * Knits and transfers use that same lookup, then draw with the same
  * columns: front = phys, back = 37 − phys. There is no knit-row phys−1
  * and no extra stitch inserted when a course skips a chart. When a knit
- * would draw a front needle and a back needle in the same column, the
- * front stays there and the back is drawn in the next free column beside
- * it; the physical needles do not change. A decrease
+ * drawn before the flip would put a front needle and a back needle in
+ * the same column, the back needle stays on that column. The front
+ * needle is not drawn on that knit and is not seated beside the back;
+ * the flip row shows it. This sample's increase knit is B18 at column
+ * 19, and the next flip is F19 at column 19. A decrease
  * anchor is the stitch on the -R1 chart, not that column read as a
  * physical needle: the front's chart sits one needle left of its
  * needle, so the column would slide the anchor. Arrows start on that
@@ -1340,6 +1342,8 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
   };
   // Back keeps the chart column. Front is the physical needle. A front
   // stitch whose chart is C, but whose needle is not C, is the old index.
+  // If that column is also a front needle, the back stitch is the one
+  // drawn. The front needle is left for the flip row.
   const stitchAt = (col) => {
     const charted = stitchOnChart(col);
     if (charted?.bed === "B") return charted;
@@ -1364,71 +1368,6 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
       fPhys: f.map((st) => st.phys),
       bPhys: b.map((st) => st.phys),
     });
-  };
-
-  /**
-   * A knit drawn before the flip can put a front needle and a back needle
-   * on one column (front phys 19 and back phys 18 are both column 19).
-   * Keep the front needle there, and draw the back needle in the free
-   * column beside the front run. Physical needles stay put. If the next
-   * column is taken, stop.
-   */
-  const seatBackBesideFront = (placed, frontAt, where) => {
-    const included = new Set(placed.map((cell) => cell.id));
-    for (const cell of placed.filter((item) => item.bed === "B")) {
-      const front = frontAt(cell.col);
-      if (!front || included.has(front.id)) continue;
-      const sample = placed.find((item) => item.token === "F·" || item.token === "F.");
-      placed.push({
-        col: front.phys,
-        token: "F·",
-        fill: sample?.fill || "rgb(255,255,255)",
-        phys: front.phys,
-        bed: "F",
-        id: front.id,
-        chart: null,
-        noBind: true,
-      });
-      included.add(front.id);
-    }
-    const buckets = new Map();
-    for (const cell of placed) {
-      const list = buckets.get(cell.col);
-      if (list) list.push(cell);
-      else buckets.set(cell.col, [cell]);
-    }
-    for (const [col, group] of buckets) {
-      if (group.length === 1) continue;
-      if (group.length !== 2) {
-        fail(`NOTE: ${where} 表列 ${col} 有 ${group.length} 枚线圈要叠在一起，先停`);
-      }
-      const front = group.find((cell) => cell.bed === "F");
-      const back = group.find((cell) => cell.bed === "B");
-      if (!front || !back) {
-        fail(
-          `NOTE: ${where} 表列 ${col} 叠了 ${group.map((cell) => `${cell.bed}${cell.phys}`).join(" 与 ")}，不是一前一后，先停`,
-        );
-      }
-      const taken = new Set(placed.map((cell) => cell.col));
-      taken.delete(back.col);
-      const frontCols = placed.filter((cell) => cell.bed === "F").map((cell) => cell.col);
-      const lo = Math.min(...frontCols);
-      const hi = Math.max(...frontCols);
-      const candidates = [col - 1, col + 1];
-      candidates.sort((a, b) => {
-        const aOut = a < lo || a > hi ? 0 : 1;
-        const bOut = b < lo || b > hi ? 0 : 1;
-        return aOut - bOut || b - a;
-      });
-      const dest = candidates.find((next) => next >= -5 && next <= 37 && !taken.has(next));
-      if (dest == null) {
-        fail(
-          `NOTE: ${where} 前床 ${front.bed}${front.phys} 与后床 ${back.bed}${back.phys} 都在表列 ${col}，旁边没有空列放后床，先停`,
-        );
-      }
-      back.col = dest;
-      back.beside = front.col;
-    }
   };
 
   const drawKnit = (row, ri) => {
@@ -1527,12 +1466,11 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
         birth: true,
       });
     }
-    seatBackBesideFront(placed, frontAtPhys, `step3 行 ${ri}`);
     const wraps = placed.filter((cell) => cell.wrap);
     if (wraps.length) {
       const ontoBack = wraps.reduce((best, cell) => (cell.chart > best.chart ? cell : best));
       const beforeFold = placed
-        .filter((cell) => !cell.wrap && cell.chart != null)
+        .filter((cell) => !cell.wrap)
         .reduce((best, cell) => (best == null || cell.chart < best.chart ? cell : best), null);
       if (beforeFold && ontoBack.col !== beforeFold.col) {
         ontoBack.foldLink = beforeFold.col;
@@ -1834,7 +1772,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["绕回", "Step3 负列如果已经对上某枚针，就画在它自己的物理列上。对不上的负列才是后床末尾绕回，表列 = 37−物理针。前床物理针 0 由列 0 织到，不占负列。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0 and ring 1 knits, transfers, flips, and racks: front = phys, back = 37−phys. No knit phys−1. When a knit would stack a front needle and a back needle on one column, the front stays and the back is drawn in the next free column; needles do not change. This sample's increase knit shows F19 at column 19 and B18 at column 20. The front decrease is F← on columns 6…18, from the inherited anchor. Rings 2–4 stay on step3 columns"],
+    ["columns", "ring 0 and ring 1 knits, transfers, flips, and racks: front = phys, back = 37−phys. No knit phys−1. When a knit before the flip would put a front needle and a back needle on one column, the back needle stays. The front needle is not drawn on that knit. This sample's increase knit shows B18 at column 19, and the flip row shows F19 at column 19. The front decrease is F← on columns 6…18, from the inherited anchor. Rings 2–4 stay on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 inserts one whole-bed align row after shaping. Ring 1 inserts two Flip rows, and after each flip a whole-bed move: the first puts the empty needle on the left fold, the second realigns equal counts"],
     ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第 3–5 圈没有这份数据。"],
   ];
@@ -2042,9 +1980,7 @@ export function buildRing0Workbook(step3, bind) {
         const bed = bedOf(cell.token);
         if (bed !== "F" && bed !== "B") fail(`第二圈表行 ${step3ToSheet[i]} 符号 ${cell.token} 没有床`);
         const wantCol = columnForPhys(bed, cell.phys);
-        const besideFront =
-          cell.bed === "B" && Number.isInteger(cell.beside) && Math.abs(cell.col - cell.beside) === 1;
-        if (cell.phys == null || (cell.col !== wantCol && !besideFront)) {
+        if (cell.phys == null || cell.col !== wantCol) {
           fail(`第二圈表行 ${step3ToSheet[i]} 列 ${cell.col} 不是 ${sheetRow.dir} 的 ${bed} 列 ${wantCol}`);
         }
       }
@@ -2190,13 +2126,17 @@ export function buildRing0Workbook(step3, bind) {
   }
   const incKnit = rows[step3ToSheet[11]];
   const atInc = (col) => occupied(incKnit).find((cell) => cell.col === col);
-  const incFront = atInc(19);
-  const incBack = atInc(20);
-  if (!incFront || incFront.token !== "F·" || incFront.phys !== 19 || incFront.bed !== "F") {
-    fail(`加针后的织行列 19 应是 F19，得到 ${incFront ? `${incFront.col}:${incFront.token}/${incFront.bed}${incFront.phys}` : "空"}`);
+  const incBack = atInc(19);
+  if (!incBack || incBack.token !== "BvR" || incBack.phys !== 18 || incBack.bed !== "B") {
+    fail(`加针后的织行列 19 应是 B18，得到 ${incBack ? `${incBack.col}:${incBack.token}/${incBack.bed}${incBack.phys}` : "空"}`);
   }
-  if (!incBack || incBack.token !== "BvR" || incBack.phys !== 18 || incBack.bed !== "B" || incBack.beside !== 19) {
-    fail(`B18 应画在 F19 旁边的列 20，得到 ${incBack ? `${incBack.col}:${incBack.token}/${incBack.bed}${incBack.phys}` : "空"}`);
+  if (occupied(incKnit).some((cell) => cell.bed === "F" && cell.phys === 19) || atInc(20)) {
+    fail(`加针后的织行不画 F19，也不把 B18 挪到旁边的列`);
+  }
+  const incFlip = rows[step3ToSheet[11] + 1];
+  const flipCell = occupied(incFlip).find((cell) => cell.col === 19);
+  if (!incFlip?.flip || !flipCell || flipCell.token !== "⬆" || flipCell.bed !== "F" || flipCell.phys !== 19) {
+    fail(`F19 应出现在翻针行列 19，得到 ${flipCell ? `${flipCell.token}/${flipCell.bed}${flipCell.phys}` : "空"}`);
   }
   if (ring1.end.N !== 38 || ring1.end.f.length !== 19 || ring1.end.b.length !== 19) {
     fail(`第二圈结束 N=${ring1.end.N} F${ring1.end.f.length} B${ring1.end.b.length}`);
@@ -2221,8 +2161,7 @@ export function buildRing0Workbook(step3, bind) {
       const bed = bedOf(cell.token);
       if (cell.phys == null) fail(`表行 ${i} 列 ${cell.col} 没有物理针`);
       const want = columnForPhys(bed, cell.phys);
-      const besideFront = cell.bed === "B" && Number.isInteger(cell.beside) && Math.abs(cell.col - cell.beside) === 1;
-      if (cell.col !== want && !besideFront) {
+      if (cell.col !== want) {
         const where = bed === "F" ? "物理针" : "37−物理针";
         fail(`表行 ${i} ${bed} 表列 ${cell.col} !== ${where} ${cell.phys}（应为 ${want}）`);
       }
@@ -2249,7 +2188,6 @@ export function buildRing0Workbook(step3, bind) {
     const row = rows[sheetRow];
     if (row.step3 == null || (row.dir !== "R" && row.dir !== "L")) continue;
     for (const cell of occupied(row)) {
-      if (cell.noBind) continue;
       if (cell.chart == null) fail(`表行 ${sheetRow} 列 ${cell.col} 没有 step3 列`);
       const bindKey = `${row.step3},${cell.chart}`;
       const sheetKey = `${sheetRow},${cell.col}`;
