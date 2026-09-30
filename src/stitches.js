@@ -26,7 +26,9 @@
  *   transfers use that lookup, then draw front = phys, back = 37 − phys.
  *   There is no knit phys−1 and no extra opening stitch. Sheet row 7 is
  *   F0…F6 at columns 0…6. A front pass that also names the back includes
- *   the front needle at the fold, so sheet row 8 is F← on columns 5..18.
+ *   the front needle at the fold. The decrease anchor is the stitch on
+ *   the -R1 chart, so sheet row 8 is F← on columns 6..18 and does not
+ *   slide to F5.
  *   A negative column that does not resolve wraps onto the back tail at
  *   37 − phys. Two Flip rows stay on the
  *   stitch's physical column before the flip: ⬇ at column 19 (sheet row
