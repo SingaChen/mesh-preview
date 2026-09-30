@@ -1293,6 +1293,24 @@ assert(
       physicalNeedleGlyph(physAt(15, 19)) === "F19",
     "the short course after the increase ends at F19 and does not draw the facing B18",
   );
+  assert(
+    tokenAt(17, 16) === "FvL" &&
+      tokenAt(17, 17) === "F·" &&
+      tokenAt(17, 18) === "F·" &&
+      tokenAt(17, 19) === "B^R" &&
+      tokenAt(17, 20) === "" &&
+      physicalNeedleGlyph(physAt(17, 19)) === "B18" &&
+      physAt(17, 19).bed === "B" &&
+      physAt(17, 19).phys === 18 &&
+      physicalNeedleGlyph(physAt(17, 18)) === "F18" &&
+      tokenAt(18, 18) === "F·" &&
+      tokenAt(18, 19) === "BvR" &&
+      physicalNeedleGlyph(physAt(18, 19)) === "B18" &&
+      tokenAt(19, 18) === "F·" &&
+      tokenAt(19, 19) === "B^R" &&
+      physicalNeedleGlyph(physAt(19, 19)) === "B18",
+    "after the flip and rack, a course that only crosses the fold starts on B18 and continues through F18 with no empty column",
+  );
   assert(physicalNeedleGlyph(physAt(12, 0)) === "F0" && physAt(12, 0).bed === "F" && physAt(12, 0).phys === 0, "the front bed's first needle is F0 at column 0");
   assert(physicalNeedleGlyph(physAt(7, 0)) === "F0" && physicalNeedleGlyph(physAt(7, 1)) === "F1", "the opening row starts at F0 and the next stitch stays F1");
   const frontZero = ring0.bindToSheet.get("9,0");

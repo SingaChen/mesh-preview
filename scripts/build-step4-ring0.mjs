@@ -62,7 +62,13 @@
  * needle and leaves out the back needle it did not reach. A course that
  * continues onto the back draws the front needle, then the back needles,
  * in the next columns. This sample's increase knit ends at F19 on
- * column 19. The flip row still shows that stitch. A decrease
+ * column 19. The flip row still shows that stitch. After that flip
+ * the stitch is B19, and the following whole-bed rack leaves it at
+ * B18. A knit that only steps across the fold starts on that needle,
+ * then continues on the front through the facing needle (F18, …).
+ * Those cells sit in consecutive columns; the inward back neighbor
+ * is not the first stitch, and the front needle is not left blank.
+ * A course that keeps going down the back is unchanged. A decrease
  * anchor is the stitch on the -R1 chart, not that column read as a
  * physical needle: the front's chart sits one needle left of its
  * needle, so the column would slide the anchor. Arrows start on that
@@ -1478,6 +1484,58 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
     }
   };
 
+  /**
+   * After F19 flips to B19 and the rack leaves it at B18, that needle is
+   * the right fold. A knit that reaches the front and only that fold —
+   * not further down the back — starts there (L) or ends there (R), then
+   * the facing front needle. The chart still has the flipped stitch on
+   * the front needle's index and the next column on the inward neighbor,
+   * which would draw B17 first and leave F18's column empty.
+   */
+  const seatFoldCrossing = (placed, courseCells, where) => {
+    const fronts = [...stitches.values()].filter((st) => st.bed === "F");
+    const backs = [...stitches.values()].filter((st) => st.bed === "B");
+    if (!fronts.length || !backs.length) return;
+    const frontHi = Math.max(...fronts.map((st) => st.phys));
+    const backHi = Math.max(...backs.map((st) => st.phys));
+    const front = fronts.find((st) => st.phys === frontHi);
+    const foldBack = backs.find((st) => st.phys === backHi);
+    const inward = backs.find((st) => st.phys === backHi - 1);
+    const liveBack = placed.filter((cell) => cell.bed === "B" && !cell.wrap && !cell.birth);
+    const liveFront = placed.filter((cell) => cell.bed === "F" && !cell.wrap && !cell.birth);
+    if (liveBack.length !== 2 || !liveFront.some((cell) => cell.phys < frontHi)) return;
+    const hiding = liveBack.find((cell) => cell.chart === frontHi && cell.id === foldBack?.id);
+    const past = liveBack.find((cell) => cell.chart === frontHi + 1);
+    if (!hiding || !past || !front || !inward) return;
+    if (liveFront.some((cell) => cell.id === front.id)) return;
+    if (past.id !== inward.id) {
+      fail(
+        `NOTE: ${where} 右折返 ${foldBack.bed}${foldBack.phys} 旁边的行程针是 ${past.bed}${past.phys}，不是内侧 ${inward.bed}${inward.phys}，先停`,
+      );
+    }
+    const frontCol = columnForPhys(front.bed, front.phys);
+    const backCol = columnForPhys(foldBack.bed, foldBack.phys);
+    const taken = new Set(placed.filter((cell) => cell !== hiding && cell !== past).map((cell) => cell.col));
+    if (frontCol === backCol || taken.has(frontCol) || taken.has(backCol)) {
+      fail(
+        `NOTE: ${where} 行程从 ${foldBack.bed}${foldBack.phys} 接到 ${front.bed}${front.phys} 时表列 ${frontCol}/${backCol} 放不下，先停`,
+      );
+    }
+    const paint = (slot, st) => {
+      const src = courseCells.find((cell) => cell.col === slot.chart);
+      if (!src) fail(`NOTE: ${where} 找不到 step3 列 ${slot.chart} 的符号，先停`);
+      const painted = paintToken(src, toAbsoluteToken(src.token, st.bed));
+      slot.col = columnForPhys(st.bed, st.phys);
+      slot.token = painted.token;
+      slot.fill = painted.fill;
+      slot.phys = st.phys;
+      slot.bed = st.bed;
+      slot.id = st.id;
+    };
+    paint(past, foldBack);
+    paint(hiding, front);
+  };
+
   const drawKnit = (row, ri) => {
     const cells = occupied(row);
     const negs = cells.filter((c) => c.col < 0).sort((a, b) => b.col - a.col);
@@ -1574,12 +1632,9 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
         birth: true,
       });
     }
-    seatCourseContinuity(
-      placed,
-      cells.filter((cell) => !wrapCells.includes(cell)),
-      row.dir,
-      `step3 行 ${ri}`,
-    );
+    const courseCells = cells.filter((cell) => !wrapCells.includes(cell));
+    seatFoldCrossing(placed, courseCells, `step3 行 ${ri}`);
+    seatCourseContinuity(placed, courseCells, row.dir, `step3 行 ${ri}`);
     const wraps = placed.filter((cell) => cell.wrap);
     if (wraps.length) {
       const ontoBack = wraps.reduce((best, cell) => (cell.chart > best.chart ? cell : best));
@@ -1886,7 +1941,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["绕回", "Step3 负列如果已经对上某枚针，就画在它自己的物理列上。对不上的负列才是后床末尾绕回，表列 = 37−物理针。前床物理针 0 由列 0 织到，不占负列。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0 and ring 1 transfers, flips, and racks: front = phys, back = 37−phys. Knit columns follow the course. A short course that ends on the front draws that needle and not the facing back needle. A course that continues onto the back draws those needles in the next columns, not stacked. This sample's increase knit ends at F19 on column 19. No knit phys−1. The front decrease is F← on columns 6…18, from the inherited anchor. Rings 2–4 stay on step3 columns"],
+    ["columns", "ring 0 and ring 1 transfers, flips, and racks: front = phys, back = 37−phys. Knit columns follow the course. A short course that ends on the front draws that needle and not the facing back needle. A course that continues onto the back draws those needles in the next columns, not stacked. This sample's increase knit ends at F19 on column 19. After the flip and rack that stitch is B18, and a knit that only crosses the fold starts there and continues on F18 in the next column. No knit phys−1. The front decrease is F← on columns 6…18, from the inherited anchor. Rings 2–4 stay on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 inserts one whole-bed align row after shaping. Ring 1 inserts two Flip rows, and after each flip a whole-bed move: the first puts the empty needle on the left fold, the second realigns equal counts"],
     ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第 3–5 圈没有这份数据。"],
   ];
@@ -2252,6 +2307,34 @@ export function buildRing0Workbook(step3, bind) {
   const flipCell = occupied(incFlip).find((cell) => cell.col === 19);
   if (!incFlip?.flip || !flipCell || flipCell.token !== "⬆" || flipCell.bed !== "F" || flipCell.phys !== 19) {
     fail(`F19 应出现在翻针行列 19，得到 ${flipCell ? `${flipCell.token}/${flipCell.bed}${flipCell.phys}` : "空"}`);
+  }
+  const foldCourse = rows[step3ToSheet[12]];
+  const atFold = (col) => occupied(foldCourse).find((cell) => cell.col === col);
+  const foldBack = atFold(19);
+  const foldFront = atFold(18);
+  if (
+    foldCourse.dir !== "L" ||
+    !foldBack ||
+    foldBack.token !== "B^R" ||
+    foldBack.bed !== "B" ||
+    foldBack.phys !== 18 ||
+    foldBack.id !== 19 ||
+    !foldFront ||
+    foldFront.token !== "F·" ||
+    foldFront.bed !== "F" ||
+    foldFront.phys !== 18 ||
+    atFold(17)?.phys !== 17 ||
+    atFold(17)?.bed !== "F" ||
+    atFold(16)?.phys !== 16 ||
+    atFold(16)?.bed !== "F" ||
+    atFold(20)
+  ) {
+    const got = occupied(foldCourse)
+      .slice()
+      .sort((a, b) => a.col - b.col)
+      .map((cell) => `${cell.col}:${cell.token}/${cell.bed}${cell.phys}#${cell.id}`)
+      .join(" ");
+    fail(`翻针整床移之后的短行程应从 B18 接到 F18，中间不空列，得到 ${got}`);
   }
   if (ring1.end.N !== 38 || ring1.end.f.length !== 19 || ring1.end.b.length !== 19) {
     fail(`第二圈结束 N=${ring1.end.N} F${ring1.end.f.length} B${ring1.end.b.length}`);
