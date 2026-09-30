@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 0 racks the back bed one needle after the increase when the counts match but the windows are 0…18 and 1…19. B← is drawn on the source needles; the next knit uses the aligned needles, and the back tail is physical 0 at column 37. Ring 1 is unchanged apart from that extra row: sheet row 9 is ⬇ at column 19; sheet row 14 is ⬆ at column 19. Sheet row 8 is F← on columns 6..18. Header −5…37. Bind stays 121. 124 rows. The phys sheet and the 物理针 toggle still read the tracked bed and needle. Rings 2–4 are not given a physical needle.
+// Bump note: ring 1 inherits ring 0's ending beds. Knits and transfers share front = phys, back = 37 − phys. The opening short row is F1…F7 on columns 1…7. The front's first needle is F0 at column 0 when the course reaches chart −1. Sheet row 8 is still F← on columns 6..18. Flips stay at column 19. Header −5…37. Bind stays 121. 124 rows. The phys sheet and the 物理针 toggle still read the tracked bed and needle. Rings 2–4 are not given a physical needle.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
