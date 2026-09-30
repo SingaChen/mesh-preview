@@ -740,8 +740,11 @@ function windowsMatch(a, b) {
 /**
  * Move every live stitch on `bed`, and any unused plan slot on that bed,
  * by `delta` physical needles. Arrows are drawn on the source needles.
+ * `labelLanded` draws the needle after the move. The post-increase back
+ * rack uses that: the empty stays at the left, so the row is B1…B19 and
+ * does not mark B0.
  */
-function rackWholeBed(stitches, plan, usedPlan, bed, delta, where) {
+function rackWholeBed(stitches, plan, usedPlan, bed, delta, where, labelLanded = false) {
   const movers = [...stitches.values()].filter((st) => st.bed === bed).sort((a, b) => a.phys - b.phys);
   if (!movers.length) fail(`NOTE: ${where} ${bed} 没有已织线圈可整段移，先停`);
   for (const st of movers) {
@@ -752,15 +755,18 @@ function rackWholeBed(stitches, plan, usedPlan, bed, delta, where) {
     if (slot.phys + delta < 0) fail(`NOTE: ${where} 计划针整段移会落到负的物理针，先停`);
   }
   const token = absoluteMoveToken(bed, delta < 0 ? "←" : "→", Math.abs(delta));
-  const cells = movers.map((st) => ({
-    col: columnForPhys(bed, st.phys),
-    token,
-    fill: RACK_FILL,
-    phys: st.phys,
-    bed: st.bed,
-    id: st.id,
-    chart: st.chart,
-  }));
+  const cells = movers.map((st) => {
+    const shown = labelLanded ? st.phys + delta : st.phys;
+    return {
+      col: columnForPhys(bed, shown),
+      token,
+      fill: RACK_FILL,
+      phys: shown,
+      bed: st.bed,
+      id: st.id,
+      chart: st.chart,
+    };
+  });
   cells.sort((a, b) => a.col - b.col);
   if (new Set(cells.map((cell) => cell.col)).size !== cells.length) {
     fail(`NOTE: ${where} 整段移针表列重叠，先停`);
@@ -928,7 +934,7 @@ export function settleAssignedWindows(stitches, plan, usedPlan, where, options =
     }
     const beforeFront = spanText(front);
     const beforeBack = spanText(back);
-    const cells = rackWholeBed(stitches, plan, usedPlan, "B", 1, where);
+    const cells = rackWholeBed(stitches, plan, usedPlan, "B", 1, where, Boolean(options.seatFront));
     const landed = measure();
     const emptyAtLeft =
       landed.tF === landed.tB + 1 &&
