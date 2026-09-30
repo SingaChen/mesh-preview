@@ -1308,8 +1308,16 @@ assert(
       physicalNeedleGlyph(physAt(18, 19)) === "B18" &&
       tokenAt(19, 18) === "F·" &&
       tokenAt(19, 19) === "B^R" &&
-      physicalNeedleGlyph(physAt(19, 19)) === "B18",
-    "after the flip and rack, a course that only crosses the fold starts on B18 and continues through F18 with no empty column",
+      physicalNeedleGlyph(physAt(19, 19)) === "B18" &&
+      tokenAt(20, 17) === "F·" &&
+      tokenAt(20, 18) === "F·" &&
+      tokenAt(20, 19) === "B·" &&
+      tokenAt(20, 20) === "B-R1" &&
+      tokenAt(20, 21) === "B·" &&
+      physicalNeedleGlyph(physAt(20, 18)) === "F18" &&
+      physicalNeedleGlyph(physAt(20, 19)) === "B18" &&
+      physicalNeedleGlyph(physAt(20, 20)) === "B17",
+    "after the flip and rack, knit courses stay on course columns: 17L is B18 then F18, and the longer course continues F18, B18, B17 with no empty column",
   );
   assert(physicalNeedleGlyph(physAt(12, 0)) === "F0" && physAt(12, 0).bed === "F" && physAt(12, 0).phys === 0, "the front bed's first needle is F0 at column 0");
   assert(physicalNeedleGlyph(physAt(7, 0)) === "F0" && physicalNeedleGlyph(physAt(7, 1)) === "F1", "the opening row starts at F0 and the next stitch stays F1");
