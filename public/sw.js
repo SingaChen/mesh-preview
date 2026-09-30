@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 1 still starts at F0…F6. The decrease anchor is the stitch on the -R1 chart, so sheet row 8 is F← on F6…F18. The ⬇ stays at column 19; sheet row 10 then racks the back bed B→ so the empty needle sits at the left fold. Header −5…37. Bind stays 121. 126 rows. The phys sheet and the 物理针 toggle still read the tracked bed and needle. Rings 2–4 are not given a physical needle.
+// Bump note: ring 1 still starts at F0…F6. The decrease anchor is the stitch on the -R1 chart, so sheet row 8 is F← on F6…F18. The ⬇ stays at column 19; sheet row 10 then racks the back bed B→ so the empty needle sits at the left fold. After the increase, sheet row 14 keeps F19 at column 19 and draws B18 beside it at column 20. Header −5…37. Bind stays 121. 126 rows. The phys sheet and the 物理针 toggle still read the tracked bed and needle. Rings 2–4 are not given a physical needle.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
