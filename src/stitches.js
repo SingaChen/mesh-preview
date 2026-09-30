@@ -22,9 +22,10 @@
  *   0…18 and later ring-0 rows use the new needles. Ring 1 inherits
  *   those beds. Knits and transfers use the same columns (front = phys,
  *   back = 37 − phys); the old knit phys−1 offset is gone. The opening
- *   short row is physical 1…7 at columns 1…7. The front's first needle
- *   stays physical 0 and is drawn as F0 at column 0 when the course
- *   reaches chart −1. A decrease includes the anchor, so sheet row 8 is
+ *   short row starts at physical needle 0. A chart slide left that
+ *   needle on the chart before 0; a course that knits the next chart
+ *   still starts on it, so sheet row 7 is F0…F7 at columns 0…7. A
+ *   decrease includes the anchor, so sheet row 8 is
  *   F← on columns 6..18. Negative columns that are not already a stitch
  *   wrap onto the back tail at 37 − phys. Two Flip rows stay on the
  *   stitch's physical column before the flip: ⬇ at column 19 (sheet row

@@ -41,9 +41,13 @@
  * needle onto 0…18. The ring ends with both beds on 0…18 and no Flip. A
  * decrease on this sample still stops.
  *
- * Ring 1 inherits those end beds. Its knits, transfers, flips, and whole-bed
- * racks all use the same columns: front = phys, back = 37 − phys. There is
- * no knit-row phys−1. After each inc/dec it uses the same window rule as
+ * Ring 1 inherits those end beds. Physical needles stay 0…18. Ring 0 may
+ * have slid the front's chart index without moving the bed, so physical
+ * needle 0 sits on the chart just before 0. A knit course that includes
+ * the next chart and skips that needle still starts on it: the needle is
+ * F0 at sheet column 0. Knits, transfers, flips, and whole-bed racks all
+ * use the same columns: front = phys, back = 37 − phys. There is no
+ * knit-row phys−1. After each inc/dec it uses the same window rule as
  * ring 0. Rings 2–4 stay on the step3 columns.
  *
  * The phys sheet copies the bed and physical needle already stored on each
@@ -412,8 +416,9 @@ export function columnForPhys(bed, phys) {
 
 /**
  * Ring 1 uses columnForPhys for knits, wraps, transfers, flips, and racks.
- * The old knit column was phys−1, which parked the physical-1 stitch on
- * sheet column 0 and made the opening cell read F1.
+ * The front's physical needle 0 is drawn at column 0 even when a chart
+ * slide left it on the column before the course's first step3 cell.
+ * The old knit column was phys−1, which drew the next needle as F1.
  */
 
 /**
@@ -1220,13 +1225,37 @@ function sparseCells(list) {
 }
 
 /**
+ * Front physical needle 0 after a chart slide that did not move the bed.
+ * Every front stitch must share that same chart-to-phys offset. The
+ * returned stitch is the needle a course starts on when step3 begins on
+ * the next chart and skips this one.
+ */
+function frontOriginStitch(stitches) {
+  const front = [...stitches.values()].filter((st) => st.bed === "F").sort((a, b) => a.phys - b.phys);
+  const origin = front[0];
+  if (!origin || origin.phys !== 0) {
+    fail(`第二圈继承的前床第一针不是 F0，得到 ${origin ? `${origin.bed}${origin.phys}` : "没有"}`);
+  }
+  const chartShift = origin.phys - origin.chart;
+  for (const st of front) {
+    if (st.phys - st.chart !== chartShift) {
+      fail(
+        `NOTE: 第二圈继承时前床 chart ${st.chart} 物理针 ${st.phys} 与第一针 chart ${origin.chart} 不是同一个偏差，先停`,
+      );
+    }
+  }
+  return origin;
+}
+
+/**
  * Ring 1 only. Copies ring 0's ending stitches (bed, phys, chart).
  * Knit and transfer columns are both columnForPhys.
- * A negative step3 column that is already a live chart is that stitch
- * (the front needle at chart −1 is physical 0). Any other negative column
- * wraps onto the back-bed tail, low phys toward the high sheet column.
- * After inc/dec, settleAssignedWindows applies the same flip / rack rule
- * as ring 0. Anything it does not cover stops with NOTE.
+ * If a chart slide left physical needle 0 on the chart before 0, a knit
+ * course that includes the next chart and not this needle still knits it.
+ * A negative step3 column that is already a live chart is that stitch.
+ * Any other negative column wraps onto the back-bed tail, low phys toward
+ * the high sheet column. After inc/dec, settleAssignedWindows applies the
+ * same flip / rack rule as ring 0. Anything it does not cover stops with NOTE.
  */
 export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
   if (!seed?.stitches?.length) fail("第二圈没有继承到第一圈末床位");
@@ -1241,10 +1270,8 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
     live.set(src.chart, src.id);
     if (src.id >= nextId) nextId = src.id + 1;
   }
-  const front0 = [...stitches.values()].filter((st) => st.bed === "F").sort((a, b) => a.phys - b.phys)[0];
-  if (!front0 || front0.phys !== 0) {
-    fail(`第二圈继承的前床第一针不是 F0，得到 ${front0 ? `${front0.bed}${front0.phys}` : "没有"}`);
-  }
+  const origin = frontOriginStitch(stitches);
+  const chartShift = origin.phys - origin.chart;
   const byRow = new Map();
   const inserts = [];
   const events = [];
@@ -1265,6 +1292,18 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
 
   const drawKnit = (row, ri) => {
     const cells = occupied(row);
+    const charts = new Set(cells.map((cell) => cell.col));
+    const nextChart = origin.chart + chartShift;
+    if (origin.bed === "F" && charts.has(nextChart) && !charts.has(origin.chart)) {
+      if (live.get(origin.chart) !== origin.id || origin.phys !== 0) {
+        fail(`NOTE: step3 行 ${ri} 织到了前床第一针的下一列，但 F0 已经不在 chart ${origin.chart}，先停`);
+      }
+      const neighbor = cells.find((cell) => cell.col === nextChart);
+      if (neighbor.token !== "·" && neighbor.token !== ".") {
+        fail(`NOTE: step3 行 ${ri} 前床第一针的下一列是 ${neighbor.token}，不是平针，先停`);
+      }
+      cells.push({ col: origin.chart, token: "·", fill: neighbor.fill });
+    }
     const negs = cells.filter((c) => c.col < 0).sort((a, b) => b.col - a.col);
     const wrapCells = negs.filter((cell) => !live.has(cell.col));
     const tail = [...stitches.values()].filter((st) => st.bed === "B").sort((a, b) => a.phys - b.phys || a.id - b.id);
@@ -1490,7 +1529,7 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
     snapshotCounts(`step3 行 ${i} ${row.dir}`);
   }
   const end = listsOf(stitches);
-  return { byRow, inserts, events, trace, end };
+  return { byRow, inserts, events, trace, end, chartShift };
 }
 
 function paintToken(cell, token) {
@@ -1597,7 +1636,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["NOTE", ring.notes[0] || "第一圈整圈织完时已经 F≥B 且 |F−B|≤1，没有额外翻针。"],
     ["对齐", ring.notes.find((note) => note.includes("错开一针")) || ""],
     ["NOTE2", ring.notes.find((note) => note.includes("物理 17")) || "移圈改物理针，下一织行再映回表。"],
-    ["第二圈", `继承第一圈末床位。前床仍是物理 0…18，第一针是 F0（chart −1）。织行和移圈同一套物理列，不再把织行往左偏一格。短行起点没织到 chart −1，所以第一织行从物理针 1（表列 1，F1）起；织到左端时表列 0 是 F0。已经有线圈的负列就是那枚针，其余负列才绕回后床末尾。加减针后用和第一圈相同的规则：数目差一针在右折返翻，数目齐但错开一针就整床移，其它情况停。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
+    ["第二圈", `继承第一圈末床位。前床仍是物理 0…18，第一针是 F0。第一圈把 chart 滑开后，这一针落在 chart 0 的前一格。织行只要织到下一格而跳过它，仍从这一针起，所以表列 0 是 F0，旁边的短行针仍是 F1…F7。织行和移圈同一套物理列，不再把织行往左偏一格。已经有线圈的负列就是那枚针，其余负列才绕回后床末尾。加减针后用和第一圈相同的规则：数目差一针在右折返翻，数目齐但错开一针就整床移，其它情况停。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
     ["绕回", "Step3 负列如果已经是继承下来的线圈，就画在它自己的物理列上（前床物理针 0 在表列 0，文字 F0）。没有线圈的负列才是后床末尾绕回，表列 = 37−物理针。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
@@ -1913,10 +1952,10 @@ export function buildRing0Workbook(step3, bind) {
   const openingCells = occupied(opening).slice().sort((a, b) => a.col - b.col);
   if (
     openingCells.map((cell) => `${cell.col}:${cell.bed}${cell.phys}`).join(",") !==
-    "1:F1,2:F2,3:F3,4:F4,5:F5,6:F6,7:F7"
+    "0:F0,1:F1,2:F2,3:F3,4:F4,5:F5,6:F6,7:F7"
   ) {
     fail(
-      `第二圈首行应按继承的物理针画在表列 1…7（F1…F7），不再把 F1 偏到表列 0，得到 ${openingCells.map((cell) => `${cell.col}:${cell.bed}${cell.phys}`).join(",")}`,
+      `第二圈首行应从继承的 F0 起，画在表列 0…7（F0…F7），得到 ${openingCells.map((cell) => `${cell.col}:${cell.bed}${cell.phys}`).join(",")}`,
     );
   }
   const frontZero = [...(ring1.byRow.get(9)?.cells.values() || [])].find((cell) => cell.chart === -1);
