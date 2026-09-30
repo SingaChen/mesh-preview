@@ -12,8 +12,9 @@
  * - The 2D map prefers iteration_*_readable_map_step4_ring0.xls
  *   (sheet step4-ring0: ring 0 assigns beds from the circumference left
  *   after stripping inc/dec. Front column = phys, back column = 37 − phys,
- *   on knit rows and transfer rows. Cast-on leaves the right-fold gap at
- *   column 19. The increase moves only that back stitch. Ring 1 does not
+ *   on knit rows and transfer rows. Cast-on packs the back bed against the
+ *   front (column 19). The spare needle is column 37, after the back bed.
+ *   The increase is still one B→ and that stitch enters column 37. Ring 1 does not
  *   inherit those beds yet: its knits still sit one column left, and its
  *   transfers keep the physical column. A decrease includes the anchor,
  *   so sheet row 7 is F← on columns 6..18. Negative step3 columns wrap

@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 0 uses one physical-column map. Cast-on leaves column 19 empty; the increase is only B→ at column 20. No ring-0 recenter. Ring 1 flips stay on the pre-flip physical column: sheet row 8 is ⬇ at column 19; sheet row 13 is ⬆ at column 19. Sheet row 7 is F← on columns 6..18. Header −5…37. Bind stays 121. 123 rows.
+// Bump note: ring 0 uses one physical-column map. Cast-on packs the back bed against the front (column 19 is B·). The spare needle is column 37, after the back bed. The increase is still one B→ at column 19, and that stitch enters column 37. No ring-0 recenter. Ring 1 flips stay on the pre-flip physical column: sheet row 8 is ⬇ at column 19; sheet row 13 is ⬆ at column 19. Sheet row 7 is F← on columns 6..18. Header −5…37. Bind stays 121. 123 rows.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
