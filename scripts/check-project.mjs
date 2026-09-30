@@ -1332,6 +1332,22 @@ assert(
   const turn27 = built.step3ToSheet[22];
   assert(turn24 === 24 && turn25 === 25 && turn26 === 26 && turn27 === 27, "short-row turns stay on sheet rows 24…27");
   assert(
+    physicalNeedleGlyph(physAt(11, 6)) === "F6" && physicalNeedleGlyph(physAt(11, 14)) === "F14",
+    "the front decrease remainder stays on F6 and runs through F14",
+  );
+  assert(
+    built.step3ToSheet[17] === 22 &&
+      tokenAt(22, 21) === "BvR" &&
+      physicalNeedleGlyph(physAt(22, 21)) === "B16",
+    "the back decrease remainder stays on B16, the needle the split course ended on",
+  );
+  const laterRemain = built.step3ToSheet[43];
+  assert(
+    laterRemain === 51 &&
+      [25, 26, 27, 28].map((col) => physicalNeedleGlyph(physAt(laterRemain, col))).join(",") === "B12,B11,B10,B9",
+    "the later back decrease remainder stays on B12 and steps B11, B10, B9",
+  );
+  assert(
     tokenAt(turn24, 20) === "B^L" &&
       tokenAt(turn24, 21) === "BvR" &&
       physicalNeedleGlyph(physAt(turn24, 20)) === "B16" &&
