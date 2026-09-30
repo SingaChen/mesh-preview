@@ -1,4 +1,4 @@
-import { isTransferDir } from "./excel-map.js";
+import { isTransferDir, physicalNeedleGlyph } from "./excel-map.js";
 import { cellFill } from "./readable-map.js";
 
 const CELL = 22;
@@ -120,6 +120,7 @@ export class ReadableMapView {
     this._pick = null;
     this._pinched = false;
     this.onCellPick = null;
+    this.showPhysicalNeedles = false;
     this._dirty = true;
     this._raf = 0;
 
@@ -160,6 +161,17 @@ export class ReadableMapView {
   setPickHighlight(keys) {
     this.pickHighlight = keys instanceof Set ? keys : new Set(keys || []);
     this._dirty = true;
+  }
+
+  setShowPhysicalNeedles(on) {
+    this.showPhysicalNeedles = Boolean(on);
+    this._dirty = true;
+  }
+
+  _cellLabel(cell) {
+    if (!cell) return "";
+    if (this.showPhysicalNeedles) return physicalNeedleGlyph(cell);
+    return cell.token ? String(cell.token) : "";
   }
 
   ensureVisible(keys) {
@@ -402,12 +414,12 @@ export class ReadableMapView {
         const key = cell ? `${cell.row},${cell.col}` : `${row},${g.colMin + c}`;
         const picked = this.pickHighlight.has(key);
         this._paintPick(ctx, x, y, picked, this.highlight.has(key));
-        if (cell?.token) {
+        const label = this._cellLabel(cell);
+        if (label) {
           ctx.fillStyle = ink.text;
-          const label = String(cell.token);
           ctx.font =
-            label.length > 3
-              ? "8px Calibri, 'Segoe UI', ui-sans-serif, sans-serif"
+            label.length > 2
+              ? "9px Calibri, 'Segoe UI', ui-sans-serif, sans-serif"
               : "11px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
           ctx.fillText(label, x + CELL / 2, y + CELL / 2);
           ctx.font = "10px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
@@ -493,15 +505,17 @@ export class ReadableMapView {
           ctx.lineWidth = 1;
           ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
         }
-        ctx.fillStyle = ink.text;
-        const label = String(cell.token);
-        ctx.font = label.length > 3 ? "8px ui-monospace, SF Mono, Menlo, Consolas, monospace" : "10px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-        ctx.fillText(label, x + CELL / 2, y + CELL / 2);
-        ctx.font = "10px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+        const label = this._cellLabel(cell);
+        if (label) {
+          ctx.fillStyle = ink.text;
+          ctx.font = label.length > 2 ? "8px ui-monospace, SF Mono, Menlo, Consolas, monospace" : "10px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+          ctx.fillText(label, x + CELL / 2, y + CELL / 2);
+          ctx.font = "10px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+        }
       }
 
       const xfers = xferByRow.get(row);
-      if (xfers) {
+      if (xfers && !this.showPhysicalNeedles) {
         const yy = y + CELL + 2;
         ctx.strokeStyle = "#5eead4";
         ctx.fillStyle = "#5eead4";

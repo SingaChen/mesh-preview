@@ -64,6 +64,7 @@ import {
   formatPhysicalNeedle,
   formatPhysicalNeedles,
   parseExcelReadableMap,
+  physicalNeedleGlyph,
 } from "../src/excel-map.js";
 import {
   assertAlignedRow,
@@ -941,6 +942,8 @@ const mapViewSrc = readFileSync(join(root, "src", "map-view.js"), "utf8");
 assert(mapViewSrc.includes("pickHighlight") && mapViewSrc.includes("ensureVisible") && mapViewSrc.includes("panToKeepRectVisible"), "map view can outline a pick and ensureVisible");
 assert(mapViewSrc.includes("hitTest") && mapViewSrc.includes("onCellPick") && mapViewSrc.includes("MAP_CLICK_SLOP"), "map view hit-tests cells and ignores pan/pinch");
 assert(mapViewSrc.includes("isTransferDir"), "Excel view marks X/X+ rows as transfer / not stitch");
+assert(mapViewSrc.includes("setShowPhysicalNeedles") && mapViewSrc.includes("physicalNeedleGlyph"), "physical mode replaces the cell symbol");
+assert(mainSrc.includes("setShowPhysicalNeedles(showPhysNeedle)"), "the toolbar toggle redraws cells as bed plus physical needle");
 const readableSrc = readFileSync(join(root, "src", "readable-map.js"), "utf8");
 assert(readableSrc.includes("mapCellsForStitch"), "Excel pick uses stitch_map_bind cells");
 assert(readableSrc.includes("stitchForMapCell") && readableSrc.includes("highlightKeysForMapCell"), "reverse lookup expands multi-cell terms");
@@ -1048,8 +1051,14 @@ assert(
   assert(formatPhysicalNeedle(physAt(2, 18)).title === "后床 B" && formatPhysicalNeedle(physAt(2, 18)).detail === "物理针 19", "readout says back bed and physical 19");
   assert(formatPhysicalNeedle(physAt(0, 18)).title === "前床 F" && formatPhysicalNeedle(physAt(0, 18)).detail === "物理针 18", "readout says front bed and physical 18");
   assert(formatPhysicalNeedle(physAt(2, 20)).detail === "物理针 17", "readout does not substitute the sheet column");
+  assert(physicalNeedleGlyph(physAt(2, 20)) === "B17" && physicalNeedleGlyph(physAt(2, 18)) === "B19", "cell text is bed plus physical needle, not the sheet column");
+  assert(physicalNeedleGlyph(physAt(1, 19)) === "B18" && physicalNeedleGlyph(physAt(0, 18)) === "F18", "transfer and front knit cells use the recorded needle");
+  assert(!/[←→+v^·]/.test([physAt(2, 18), physAt(2, 19), physAt(2, 20), physAt(1, 19)].map(physicalNeedleGlyph).join("")), "physical mode does not keep shaping symbols");
+  assert(physicalNeedleGlyph(physAt(0, 37)) === "", "an empty cell stays blank");
+  assert(physicalNeedleGlyph({ col: 17, token: "B·" }) === "—", "a bed glyph without recorded phys is not turned into a needle");
   const ring2Cell = ring0.rows[ring2Sheet].cells.find((cell) => cell.token);
   assert(ring2Cell && formatPhysicalNeedle(ring2Cell).title === "无物理针" && formatPhysicalNeedle(ring2Cell).detail === "无物理针", "ring 2 says there is no physical needle");
+  assert(physicalNeedleGlyph(ring2Cell) === "—", "a ring 2 symbol without a physical needle is a dash");
   assert(formatPhysicalNeedle(physAt(0, 37)).title === "无物理针", "an empty cell does not invent a needle");
   assert(formatPhysicalNeedle({ col: 20, token: "B+R1", bed: "B" }).title === "无物理针", "a bed glyph without a recorded phys is not a needle");
   assert(formatPhysicalNeedle({ col: 17, token: "·" }).title === "无物理针", "the sheet column is not reported as a physical needle");
