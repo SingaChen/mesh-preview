@@ -1407,6 +1407,17 @@ assert(
     physicalNeedleGlyph(physAt(42, -1)) === "F-1" && tokenAt(42, -1) === "F→" && physicalNeedleGlyph(physAt(42, 18)) === "F18",
     "after the increase the front bed racks from F−1 back toward 0",
   );
+  const backRealign = ring0.rows[43].cells.filter((cell) => cell.token);
+  assert(
+    ring0.rows[43].dir === "X" &&
+      tokenAt(43, 37) === "" &&
+      backRealign.length === 19 &&
+      backRealign.every((cell) => cell.token === "B→" && cell.bed === "B" && cell.phys >= 1 && cell.phys <= 19) &&
+      backRealign.some((cell) => cell.phys === 1) &&
+      backRealign.some((cell) => cell.phys === 19) &&
+      !backRealign.some((cell) => cell.phys === 0),
+    "after the increase realign the back rack is B1…B19 and does not mark B0",
+  );
   let failed = false;
   try {
     assertAlignedRow(
