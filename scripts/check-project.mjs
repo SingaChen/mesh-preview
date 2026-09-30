@@ -1283,15 +1283,15 @@ assert(
   assert(tokenAt(12, 37) === "" && physAt(12, 36).bed === "B" && physAt(12, 36).phys === 1, "the next full knit leaves back physical 0 empty at the left fold");
   assert(
     tokenAt(14, 18) === "F·" &&
-      tokenAt(14, 19) === "BvR" &&
+      tokenAt(14, 19) === "FvR" &&
       tokenAt(14, 20) === "" &&
-      physicalNeedleGlyph(physAt(14, 19)) === "B18" &&
-      physAt(14, 19).phys === 18 &&
-      physAt(14, 19).bed === "B" &&
-      !ring0.rows[14].cells.some((cell) => cell.bed === "F" && cell.phys === 19) &&
+      physicalNeedleGlyph(physAt(14, 19)) === "F19" &&
+      physAt(14, 19).phys === 19 &&
+      physAt(14, 19).bed === "F" &&
+      !ring0.rows[14].cells.some((cell) => cell.bed === "B" && cell.phys === 18) &&
       tokenAt(15, 19) === "⬆" &&
       physicalNeedleGlyph(physAt(15, 19)) === "F19",
-    "after the increase, column 19 keeps B18 and F19 appears on the flip row",
+    "the short course after the increase ends at F19 and does not draw the facing B18",
   );
   assert(physicalNeedleGlyph(physAt(12, 0)) === "F0" && physAt(12, 0).bed === "F" && physAt(12, 0).phys === 0, "the front bed's first needle is F0 at column 0");
   assert(physicalNeedleGlyph(physAt(7, 0)) === "F0" && physicalNeedleGlyph(physAt(7, 1)) === "F1", "the opening row starts at F0 and the next stitch stays F1");

@@ -36,9 +36,10 @@
  *   needle is still on the right fold, the next row racks that whole bed
  *   so the empty sits at the left junction: after the ⬇, sheet row 10 is
  *   B→ on the source needles and the following knit leaves column 37
- *   empty. When a knit before the flip would stack a front needle and
- *   a back needle, the back needle stays on that column. Sheet row 14
- *   is B18 at column 19; F19 is the flip on sheet row 15. Rings 2–4
+ *   empty. A knit course is drawn in visit order. Facing needles do
+ *   not share a column. The short course after the increase ends at
+ *   F19 on sheet row 14 column 19; the facing B18 is not on that row.
+ *   F19 is also the flip on sheet row 15. Rings 2–4
  *   stay on step3 columns). Falls back to
  *   step3 xfer. The sheet has 126 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
