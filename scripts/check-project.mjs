@@ -1326,6 +1326,39 @@ assert(
       physicalNeedleGlyph(physAt(20, 20)) === "B17",
     "after the flip and rack, knit courses stay on course columns: 17L is B18 then F18, and the longer course continues F18, B18, B17 with no empty column",
   );
+  const turn24 = built.step3ToSheet[19];
+  const turn25 = built.step3ToSheet[20];
+  const turn26 = built.step3ToSheet[21];
+  const turn27 = built.step3ToSheet[22];
+  assert(turn24 === 24 && turn25 === 25 && turn26 === 26 && turn27 === 27, "short-row turns stay on sheet rows 24…27");
+  assert(
+    tokenAt(turn24, 20) === "B^L" &&
+      tokenAt(turn24, 21) === "BvR" &&
+      physicalNeedleGlyph(physAt(turn24, 20)) === "B16" &&
+      physicalNeedleGlyph(physAt(turn24, 21)) === "B15" &&
+      tokenAt(turn25, 21) === "B^R" &&
+      tokenAt(turn25, 20) === "B·" &&
+      tokenAt(turn25, 19) === "B·" &&
+      tokenAt(turn25, 18) === "BvL" &&
+      [21, 20, 19, 18].map((col) => physicalNeedleGlyph(physAt(turn25, col))).join(",") === "B15,B16,B17,B18",
+    "24R ends on B15 and 25L rises on that needle, then steps B16, B17, B18",
+  );
+  assert(
+    tokenAt(turn26, 18) === "B^L" &&
+      tokenAt(turn26, 25) === "BvR" &&
+      [18, 19, 20, 21, 22, 23, 24, 25].map((col) => physicalNeedleGlyph(physAt(turn26, col))).join(",") ===
+        "B18,B17,B16,B15,B14,B13,B12,B11" &&
+      tokenAt(turn27, 25) === "B^R" &&
+      tokenAt(turn27, 22) === "BvL" &&
+      [25, 24, 23, 22].map((col) => physicalNeedleGlyph(physAt(turn27, col))).join(",") === "B11,B12,B13,B14",
+    "26R starts on the B18 turn and ends on B11, so 27L stays on B11",
+  );
+  const laterR = built.step3ToSheet[32];
+  const laterL = built.step3ToSheet[33];
+  assert(
+    physicalNeedleGlyph(physAt(laterR, 31)) === "B6" && physicalNeedleGlyph(physAt(laterL, 31)) === "B5",
+    "the third circle still starts its return one needle off; that turn is not part of this fix",
+  );
   assert(physicalNeedleGlyph(physAt(12, 0)) === "F0" && physAt(12, 0).bed === "F" && physAt(12, 0).phys === 0, "the front bed's first needle is F0 at column 0");
   assert(physicalNeedleGlyph(physAt(7, 0)) === "F0" && physicalNeedleGlyph(physAt(7, 1)) === "F1", "the opening row starts at F0 and the next stitch stays F1");
   const frontZero = ring0.bindToSheet.get("9,0");
