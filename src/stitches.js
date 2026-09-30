@@ -20,14 +20,15 @@
  *   left). After that knit the assigned windows are F19/B19 but one
  *   needle apart (front 0…18, back 1…19), so the back bed racks onto
  *   0…18 and later ring-0 rows use the new needles. Ring 1 inherits
- *   those beds. Knits and transfers use the same columns (front = phys,
- *   back = 37 − phys); the old knit phys−1 offset is gone. The opening
- *   short row starts at physical needle 0. A chart slide left that
- *   needle on the chart before 0; a course that knits the next chart
- *   still starts on it, so sheet row 7 is F0…F7 at columns 0…7. A
- *   decrease includes the anchor, so sheet row 8 is
- *   F← on columns 6..18. Negative columns that are not already a stitch
- *   wrap onto the back tail at 37 − phys. Two Flip rows stay on the
+ *   those beds and keeps knitting on the physical needles, from F0.
+ *   Step3 columns are the old transfer index: front column C is physical
+ *   needle C, back column C is the stitch still on chart C. Knits and
+ *   transfers use that lookup, then draw front = phys, back = 37 − phys.
+ *   There is no knit phys−1 and no extra opening stitch. Sheet row 7 is
+ *   F0…F6 at columns 0…6. A front pass that also names the back includes
+ *   the front needle at the fold, so sheet row 8 is F← on columns 5..18.
+ *   A negative column that does not resolve wraps onto the back tail at
+ *   37 − phys. Two Flip rows stay on the
  *   stitch's physical column before the flip: ⬇ at column 19 (sheet row
  *   9) and ⬆ at column 19 (sheet row 14). Rings 2–4 stay on step3
  *   columns). Falls back to
