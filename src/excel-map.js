@@ -123,6 +123,64 @@ function parseCellMapSheet(sheet) {
   return { bySheet, byBind, foldLink };
 }
 
+function parsePhysSheet(sheet) {
+  const byCell = new Map();
+  for (let r = 1; r < (sheet?.rows?.length || 0); r++) {
+    const row = sheet.rows[r] || [];
+    const sheetRow = Number(row[0]);
+    const sheetCol = Number(row[1]);
+    const bed = tokenString(row[2]);
+    const phys = Number(row[3]);
+    if (!Number.isInteger(sheetRow) || !Number.isInteger(sheetCol)) continue;
+    if ((bed !== "F" && bed !== "B") || !Number.isInteger(phys)) continue;
+    const key = `${sheetRow},${sheetCol}`;
+    if (!byCell.has(key)) byCell.set(key, { bed, phys });
+  }
+  return byCell;
+}
+
+const NO_PHYSICAL_NEEDLE = { title: "无物理针", detail: "无物理针" };
+
+/** Bed and physical needle already recorded on a cell. Column is not a needle. */
+export function recordedPhysicalNeedle(cell) {
+  const bed = cell?.bed;
+  const phys = cell?.phys;
+  if (bed !== "F" && bed !== "B") return null;
+  if (!Number.isInteger(phys)) return null;
+  return { bed, phys };
+}
+
+export function formatPhysicalNeedle(cell) {
+  const rec = recordedPhysicalNeedle(cell);
+  if (!rec) return { ...NO_PHYSICAL_NEEDLE };
+  return {
+    title: rec.bed === "F" ? "前床 F" : "后床 B",
+    detail: `物理针 ${rec.phys}`,
+  };
+}
+
+export function formatPhysicalNeedles(records) {
+  const known = [];
+  for (const cell of records || []) {
+    const rec = recordedPhysicalNeedle(cell);
+    if (!rec) continue;
+    known.push({ row: cell?.row, col: cell?.col, ...rec });
+  }
+  if (!known.length) return { ...NO_PHYSICAL_NEEDLE };
+  const same = known.every((item) => item.bed === known[0].bed && item.phys === known[0].phys);
+  if (same) return formatPhysicalNeedle(known[0]);
+  return {
+    title: "物理针",
+    detail: known
+      .map((item) => {
+        const bed = item.bed === "F" ? "前床 F" : "后床 B";
+        const where = Number.isInteger(item.row) && Number.isInteger(item.col) ? `行 ${item.row} 列 ${item.col} ` : "";
+        return `${where}${bed} 物理针 ${item.phys}`;
+      })
+      .join(" · "),
+  };
+}
+
 function parseLegendSheet(sheet) {
   const rows = [];
   for (const row of sheet?.rows || []) {
@@ -155,6 +213,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
   const colMax = Math.max(...needles.map((n) => n.needle));
   const legend = parseLegendSheet(findXlsSheet(book, "legend"));
   const cellMap = parseCellMapSheet(findXlsSheet(book, "cellmap"));
+  const physByCell = parsePhysSheet(findXlsSheet(book, "phys"));
 
   const rows = [];
   const cells = [];
@@ -175,6 +234,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
       const { xf, fill } = sheetXfFill(step, styles, r, sheetCol);
       const kind = excelLegendKind(token, dir);
       const resolvedFill = fill || EXCEL_LEGEND_FILLS[kind] || null;
+      const recorded = physByCell.get(`${rows.length},${needle}`);
       const cell = {
         row: rows.length,
         sheetRow: r,
@@ -186,6 +246,8 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
         fill: resolvedFill,
         kind,
         source: "excel",
+        bed: recorded?.bed,
+        phys: recorded?.phys,
       };
       rowCells.push(cell);
       if (token || xfRow[sheetCol] != null) cells.push(cell);
@@ -218,6 +280,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
     cellMap: cellMap.bySheet,
     bindToSheet: cellMap.byBind,
     foldLink: cellMap.foldLink,
+    physByCell,
     styles,
     xfers: [],
     rowMin: 0,

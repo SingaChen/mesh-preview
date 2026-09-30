@@ -272,6 +272,17 @@ input {
   min-width: var(--touch);
 }
 
+.map-zoom #map-phys {
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.map-zoom .fit[aria-pressed="true"] {
+  background: var(--btn-active);
+  border-color: #4aa394;
+  color: var(--accent);
+}
+
 .map-pane canvas {
   flex: 1;
   min-height: 0;
@@ -374,6 +385,11 @@ body.narrow-split.show-3d .map-pane:not([hidden]) {
 
 .chip.stitch-pick[hidden] {
   display: none;
+}
+
+.chip.stitch-pick span {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .fit {

@@ -36,6 +36,11 @@
  * column left of the physical needle; its transfers and flips stay on the
  * physical column. Rings 2–4 stay on the step3 columns.
  *
+ * The phys sheet copies the bed and physical needle already stored on each
+ * ring 0 and ring 1 cell, including transfers and flips. It does not place
+ * needles. Rings 2–4 have no tracked physical needle, so those cells are
+ * left out.
+ *
  * Same-bed double occupancy throws and does not write a sheet.
  *
  *   node scripts/build-step4-ring0.mjs
@@ -1485,6 +1490,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
     ["columns", "ring 0 knit and transfer: front = phys, back = 37−phys. No knit phys−1. Ring 1 knits are that column minus 1. Ring 1 transfers and flips keep the physical column. The front decrease is F← on columns 6…18. Rings 2–4 stay on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 adds no extra row on this sample; ring 1 still inserts two Flip rows"],
+    ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第 3–5 圈没有这份数据。"],
   ];
   legend.forEach((pair, i) => {
     parts.push(labelRecord(i, 0, xf, pair[0]));
@@ -1509,6 +1515,22 @@ function cellMapSheet(entries, xf) {
   });
   parts.push(eof());
   return { name: "cellmap", bytes: Buffer.concat(parts) };
+}
+
+function physSheet(entries, xf) {
+  const parts = [bof(0x0010)];
+  ["sheetRow", "sheetCol", "bed", "phys"].forEach((label, col) => {
+    parts.push(labelRecord(0, col, xf, label));
+  });
+  entries.forEach((entry, i) => {
+    const row = i + 1;
+    parts.push(numberRecord(row, 0, xf, entry.sheetRow));
+    parts.push(numberRecord(row, 1, xf, entry.sheetCol));
+    parts.push(labelRecord(row, 2, xf, entry.bed));
+    parts.push(numberRecord(row, 3, xf, entry.phys));
+  });
+  parts.push(eof());
+  return { name: "phys", bytes: Buffer.concat(parts) };
 }
 
 function writeCfb(workbook) {
@@ -1836,13 +1858,31 @@ export function buildRing0Workbook(step3, bind) {
       });
     }
   }
+  const physEntries = [];
+  const seenPhys = new Set();
+  for (let sheetRow = 0; sheetRow < rows.length; sheetRow++) {
+    for (const cell of occupied(rows[sheetRow])) {
+      if (sheetRow >= ring2Sheet) continue;
+      if ((cell.bed !== "F" && cell.bed !== "B") || !Number.isInteger(cell.phys)) continue;
+      const key = `${sheetRow},${cell.col}`;
+      if (seenPhys.has(key)) fail(`phys ${key} 记了两次`);
+      seenPhys.add(key);
+      physEntries.push({ sheetRow, sheetCol: cell.col, bed: cell.bed, phys: cell.phys });
+    }
+  }
+  let tracked = 0;
+  for (let sheetRow = 0; sheetRow < ring2Sheet; sheetRow++) tracked += occupied(rows[sheetRow]).length;
+  if (physEntries.length !== tracked) {
+    fail(`phys 表 ${physEntries.length} 行，第一圈和第二圈有符号的格子是 ${tracked}`);
+  }
   const dataSheet = sheetFromGrid("step4-ring0", step3.headerLabel || "dir\\col", needles, rows, xfIndexForFill);
   const legend = legendSheet(xfIndexForFill, ring, ring1);
   const mapSheet = cellMapSheet(cellMap, xfIndexForFill("rgb(255,255,255)"));
+  const phys = physSheet(physEntries, xfIndexForFill("rgb(255,255,255)"));
   const xfBytes = Buffer.concat(palette.map((fill) => xfRecord(icvForFill(fill))));
   const bofBytes = bof(0x0005);
   const eofBytes = eof();
-  const sheets = [dataSheet, legend, mapSheet];
+  const sheets = [dataSheet, legend, mapSheet, phys];
   const boundsheetLen = sheets.reduce((sum, sheet) => sum + boundsheet(0, sheet.name).length, 0);
   const globalLen = bofBytes.length + xfBytes.length + boundsheetLen + eofBytes.length;
   let cursor = globalLen;
@@ -1863,6 +1903,7 @@ export function buildRing0Workbook(step3, bind) {
     ring1,
     step3ToSheet,
     cellMap,
+    phys: physEntries,
     summary: summarizeRing0(rows.slice(0, ring.sheetRows.length)),
   };
 }

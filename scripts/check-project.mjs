@@ -59,7 +59,12 @@ import {
 } from "../src/readable-map.js";
 import { hitTestContent, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
-import { excelLegendKind, parseExcelReadableMap } from "../src/excel-map.js";
+import {
+  excelLegendKind,
+  formatPhysicalNeedle,
+  formatPhysicalNeedles,
+  parseExcelReadableMap,
+} from "../src/excel-map.js";
 import {
   assertAlignedRow,
   buildFromFiles,
@@ -911,6 +916,8 @@ assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') &&
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");
+assert(html.includes('id="map-phys"') && html.includes("物理针"), "map toolbar has a physical-needle toggle");
+assert(/id="map-phys"[^>]*aria-pressed="false"/.test(html), "physical-needle toggle starts off");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
 assert(mainSrc.includes("ReadableMapView") && mainSrc.includes("buildReadableMapGrid"), "main mounts the 2D map");
 assert(mainSrc.includes("parseExcelReadableMap") && mainSrc.includes("step4-ring0"), "main labels the ring0 sheet in the map header");
@@ -922,6 +929,10 @@ assert(
   "map click passes the sheet so an inserted recenter row is not a bind row",
 );
 assert(mainSrc.includes("paintStitchPick(stitch)") && mainSrc.includes("isTransferDir") && mainSrc.includes("isFlipDir"), "map knit pick reuses paintStitchPick; X/X+ and Flip do not");
+assert(
+  mainSrc.includes("showPhysNeedle") && mainSrc.includes("formatPhysicalNeedle") && mainSrc.includes("formatPhysicalNeedles") && mainSrc.includes("#map-phys"),
+  "the physical-needle toggle reads recorded bed and phys",
+);
 assert(!mainSrc.includes("excelMapAsBindMap"), "do not pair Excel cells in generation order");
 assert(mainSrc.includes("dataset.mapCells"), "chip records the bound map cell keys for the pick");
 assert(mainSrc.includes("paintStitchPick") && mainSrc.includes("pickedStitch"), "map pick highlight follows the stitch chip");
@@ -947,6 +958,7 @@ assert(css.includes("chrome-collapsed"), "collapsed chrome hides topbar + dock")
 assert(css.includes(".stage canvas") && css.includes("width: 100%") && css.includes("height: 100%"), "canvas CSS fills the stage");
 assert(css.includes(".split") && css.includes(".map-pane") && css.includes("narrow-split"), "layout is a left-right split with a narrow fallback");
 assert(css.includes(".stitch-pick") && css.includes(".hud-chips"), "stitch readout is a HUD chip under the mesh label");
+assert(css.includes("#map-phys") && css.includes('.map-zoom .fit[aria-pressed="true"]'), "physical-needle toggle has a pressed state");
 
 assert(aspectFromSize(800, 400) === 2, "wide stage is aspect 2, not the constructor default 1");
 assert(aspectFromSize(390, 844) === 390 / 844, "phone portrait uses true canvas aspect");
@@ -1010,6 +1022,46 @@ assert(
     "ring0 moves of 1 stitch omit R/L and the number",
   );
   const tokenAt = (row, col) => ring0.rows[row].cells.find((c) => c.col === col)?.token;
+  const ring2Sheet = built.step3ToSheet[built.ring1Span.end];
+  assert(ring2Sheet === 30, `ring 2 still starts at sheet row 30, got ${ring2Sheet}`);
+  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < ring2Sheet), "phys sheet stops before ring 2");
+  for (let sheetRow = 0; sheetRow < built.rows.length; sheetRow++) {
+    for (const src of built.rows[sheetRow].cells) {
+      const got = ring0.rows[sheetRow].cells.find((cell) => cell.col === src.col);
+      const tracked = src.token && sheetRow < ring2Sheet;
+      if (tracked) {
+        assert(
+          got.bed === src.bed && got.phys === src.phys && (got.bed === "F" || got.bed === "B") && Number.isInteger(got.phys),
+          `phys sheet keeps row ${sheetRow} col ${src.col} ${src.bed}${src.phys}`,
+        );
+      } else {
+        assert(got.bed == null && got.phys == null, `row ${sheetRow} col ${src.col} has no invented physical needle`);
+      }
+    }
+  }
+  const physAt = (row, col) => ring0.rows[row].cells.find((cell) => cell.col === col);
+  assert(physAt(0, 18).bed === "F" && physAt(0, 18).phys === 18, "cast-on front column 18 is physical 18");
+  assert(physAt(0, 19).bed === "B" && physAt(0, 19).phys === 18, "cast-on back column 19 is physical 18");
+  assert(physAt(1, 19).bed === "B" && physAt(1, 19).phys === 18, "B→ records the source physical needle 18");
+  assert(physAt(2, 18).bed === "B" && physAt(2, 18).phys === 19, "the moved stitch is physical 19 at sheet column 18");
+  assert(physAt(2, 20).bed === "B" && physAt(2, 20).phys === 17 && physAt(2, 20).col === 20, "sheet column 20 is physical 17");
+  assert(formatPhysicalNeedle(physAt(2, 18)).title === "后床 B" && formatPhysicalNeedle(physAt(2, 18)).detail === "物理针 19", "readout says back bed and physical 19");
+  assert(formatPhysicalNeedle(physAt(0, 18)).title === "前床 F" && formatPhysicalNeedle(physAt(0, 18)).detail === "物理针 18", "readout says front bed and physical 18");
+  assert(formatPhysicalNeedle(physAt(2, 20)).detail === "物理针 17", "readout does not substitute the sheet column");
+  const ring2Cell = ring0.rows[ring2Sheet].cells.find((cell) => cell.token);
+  assert(ring2Cell && formatPhysicalNeedle(ring2Cell).title === "无物理针" && formatPhysicalNeedle(ring2Cell).detail === "无物理针", "ring 2 says there is no physical needle");
+  assert(formatPhysicalNeedle(physAt(0, 37)).title === "无物理针", "an empty cell does not invent a needle");
+  assert(formatPhysicalNeedle({ col: 20, token: "B+R1", bed: "B" }).title === "无物理针", "a bed glyph without a recorded phys is not a needle");
+  assert(formatPhysicalNeedle({ col: 17, token: "·" }).title === "无物理针", "the sheet column is not reported as a physical needle");
+  const moved = formatPhysicalNeedles([
+    { row: 1, col: 19, bed: "B", phys: 18 },
+    { row: 2, col: 18, bed: "B", phys: 19 },
+  ]);
+  assert(moved.title === "物理针" && moved.detail.includes("行 1 列 19 后床 B 物理针 18") && moved.detail.includes("行 2 列 18 后床 B 物理针 19"), "a stitch that moved lists each recorded needle");
+  assert(formatPhysicalNeedles([]).title === "无物理针" && formatPhysicalNeedles([{ row: 30, col: 0, token: "·" }]).title === "无物理针", "no records stay 无物理针");
+  assert(formatPhysicalNeedles([{ row: 0, col: 0, bed: "F", phys: 0 }, { row: 4, col: 0, bed: "F", phys: 0 }]).detail === "物理针 0", "identical needles collapse to one readout");
+  assert(step3.rows[2].cells.every((cell) => cell.bed == null && cell.phys == null), "step3 has no physical-needle sheet");
+  assert(ring0.legend.some((row) => row.key === "phys" && /表列号不是物理针号/.test(row.note)), "legend says the column is not the physical needle");
   assert(tokenAt(0, 18) === "F·" && tokenAt(0, 19) === "B·" && tokenAt(0, 20) === "BvR" && tokenAt(0, 21) === "" && tokenAt(0, 37) === "", "cast-on packs the fold and does not reserve column 37");
   assert(tokenAt(1, 19) === "B→" && ring0.rows[1].cells.filter((c) => c.token).length === 1, "the increase is still one back B→ on column 19");
   assert(ring0.rows[1].cells.find((c) => c.token === "B→").fill === "rgb(204,204,255)", "shaping transfer fill is ice blue");
@@ -1030,6 +1082,8 @@ assert(
   assert(ring0.bindToSheet?.size > 0 && ring0.cellMap?.size === ring0.bindToSheet.size, "cellmap round-trips bind and sheet cells");
   assert(sheetRowForBindRow(3, 3) === 4 && bindRowForSheetRow(3, 3) == null && bindRowForSheetRow(4, 3) === 3, "bind row 3 is sheet row 4; the insert itself is not a bind row");
   const ringGrid = buildReadableMapGrid(ring0, bound.stitches);
+  const gridPhys = ringGrid.grid[2][18 - ring0.colMin];
+  assert(gridPhys.bed === "B" && gridPhys.phys === 19, "the map grid keeps the recorded physical needle");
   const ringKeys = highlightKeysForStitch(bound.stitches[20], { map: ring0, grid: ringGrid, bind: stitchBind });
   assert(ringKeys.size === 1 && ringKeys.has("0,20"), "face 20 lights the cast-on vR on physical column 20");
   const row3Stitch = bound.stitches.find((s) => s.mapCells?.some((c) => c.display_row === 3 && c.col === 18));
