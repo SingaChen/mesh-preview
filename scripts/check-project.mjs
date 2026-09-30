@@ -1228,10 +1228,10 @@ assert(
   assert(stitchForMapCell(14, 19, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
   const row8Moves = ring0.rows[8].cells.filter((c) => c.token);
   assert(
-    row8Moves.every((c) => c.token === "F←") && row8Moves.map((c) => c.col).join(",") === [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(","),
-    "sheet row 8 shifts the front bed from the decrease anchor, columns 5..18",
+    row8Moves.every((c) => c.token === "F←") && row8Moves.map((c) => c.col).join(",") === [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(","),
+    "sheet row 8 shifts the front bed from the decrease anchor, columns 6..18",
   );
-  assert(tokenAt(8, 5) === "F←" && tokenAt(8, 4) === "" && tokenAt(8, 19) === "", "sheet row 8 draws the anchor and not the back bed");
+  assert(tokenAt(8, 6) === "F←" && tokenAt(8, 5) === "" && tokenAt(8, 19) === "", "sheet row 8 draws the anchor and not the back bed");
   const row12Moves = ring0.rows[12].cells.filter((c) => c.token);
   assert(
     row12Moves.every((c) => c.token === "F→") && row12Moves.length === 17 && row12Moves[0].col === 2 && row12Moves.at(-1).col === 18,

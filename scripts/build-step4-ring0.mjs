@@ -49,11 +49,15 @@
  * column that is not one of those stitches wraps onto the back tail.
  * Knits and transfers use that same lookup, then draw with the same
  * columns: front = phys, back = 37 − phys. There is no knit-row phys−1
- * and no extra stitch inserted when a course skips a chart. A front
- * pass that also names the back includes the front needle at the fold,
- * because column 18 is the back stitch and the front's last needle has
- * no column of its own. After each inc/dec it uses the same window rule
- * as ring 0. Rings 2–4 stay on the step3 columns.
+ * and no extra stitch inserted when a course skips a chart. A decrease
+ * anchor is the stitch on the -R1 chart, not that column read as a
+ * physical needle: the front's chart sits one needle left of its
+ * needle, so the column would slide the anchor. Arrows start on that
+ * stitch. A front pass that also names the back includes the front
+ * needle at the fold, because column 18 is the back stitch and the
+ * front's last needle has no column of its own. After each inc/dec it
+ * uses the same window rule as ring 0. Rings 2–4 stay on the step3
+ * columns.
  *
  * The phys sheet copies the bed and physical needle already stored on each
  * ring 0 and ring 1 cell, including transfers and flips. It does not place
@@ -1456,17 +1460,6 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
       if (!stitchAt(col)) fail(`step3 行 ${ri} 移圈列 ${col} 没有线圈`);
     }
     const shapeBed = shapingBedForMove(cols, delta);
-    if (delta < 0) {
-      const start = Math.min(...cols);
-      if (decAnchor == null) fail(`step3 行 ${ri} 减针移圈没有锚点`);
-      if (decAnchor !== start - 1) fail(`step3 行 ${ri} 减针锚点 ${decAnchor} 不挨着移圈起点 ${start}`);
-      const anchor = stitchAt(decAnchor);
-      if (!anchor) fail(`step3 行 ${ri} 减针锚点 ${decAnchor} 没有线圈`);
-      if (anchor.bed !== shapeBed) {
-        fail(`step3 行 ${ri} 减针锚点在 ${anchor.bed}${anchor.phys}，成形床是 ${shapeBed}`);
-      }
-      cols = [decAnchor, ...cols];
-    }
     const selected = [];
     const seen = new Set();
     for (const col of cols) {
@@ -1475,6 +1468,26 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed) {
       if (seen.has(st.id)) continue;
       seen.add(st.id);
       selected.push(st);
+    }
+    // The -R1 column names the anchor by its chart, the index step3 still
+    // uses. On the front that chart sits one needle to the right of the
+    // column, so resolving the column as a physical needle slides the
+    // anchor. Arrows start on the anchor stitch itself. A pass that
+    // already selected it (the first transfer column is that physical
+    // needle) does not add the neighbor.
+    if (delta < 0) {
+      const start = Math.min(...cols);
+      if (decAnchor == null) fail(`step3 行 ${ri} 减针移圈没有锚点`);
+      if (decAnchor !== start - 1) fail(`step3 行 ${ri} 减针锚点 ${decAnchor} 不挨着移圈起点 ${start}`);
+      const anchor = stitchOnChart(decAnchor);
+      if (!anchor) fail(`step3 行 ${ri} 减针锚点 chart ${decAnchor} 没有线圈`);
+      if (anchor.bed !== shapeBed) {
+        fail(`step3 行 ${ri} 减针锚点在 ${anchor.bed}${anchor.phys}，成形床是 ${shapeBed}`);
+      }
+      if (!seen.has(anchor.id)) {
+        seen.add(anchor.id);
+        selected.push(anchor);
+      }
     }
     // Column 18 is the back stitch at the fold, so a front pass that also
     // names the back does not have a column for the front's last needle.
@@ -1703,11 +1716,11 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["NOTE", ring.notes[0] || "第一圈整圈织完时已经 F≥B 且 |F−B|≤1，没有额外翻针。"],
     ["对齐", ring.notes.find((note) => note.includes("错开一针")) || ""],
     ["NOTE2", ring.notes.find((note) => note.includes("物理 17")) || "移圈改物理针，下一织行再映回表。"],
-    ["第二圈", `继承第一圈末床位，在这些物理针上接着织。前床仍是物理 0…18，第一针是 F0。Step3 列是旧的移针序号，不再用它把起点定到 chart 0（那一针现在是 F1）。前床列 C 就是物理针 C，所以短行表列 0…6 是 F0…F6，不另补一针。后床列 C 仍是 chart C 上的那一针。对不上这些针的负列才绕回后床末尾。织行和移圈用同一套查找，再按物理列画出来，不再把织行往左偏一格。前床这一趟如果同时点到后床，就从锚点收到前床末针，这张样本是表列 5…18 的 F←。加减针后用和第一圈相同的规则：数目差一针在右折返翻，数目齐但错开一针就整床移，其它情况停。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
+    ["第二圈", `继承第一圈末床位，在这些物理针上接着织。前床仍是物理 0…18，第一针是 F0。Step3 列是旧的移针序号，不再用它把起点定到 chart 0（那一针现在是 F1）。前床列 C 就是物理针 C，所以短行表列 0…6 是 F0…F6，不另补一针。后床列 C 仍是 chart C 上的那一针。对不上这些针的负列才绕回后床末尾。织行和移圈用同一套查找，再按物理列画出来，不再把织行往左偏一格。前床这一趟如果同时点到后床，就从锚点收到前床末针。锚点是 -R1 那一格 chart 上的线圈，不把这一格再读成物理针，所以这张样本箭头从继承时的 F6 起，表列 6…18。加减针后用和第一圈相同的规则：数目差一针在右折返翻，数目齐但错开一针就整床移，其它情况停。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
     ["绕回", "Step3 负列如果已经对上某枚针，就画在它自己的物理列上。对不上的负列才是后床末尾绕回，表列 = 37−物理针。前床物理针 0 由列 0 织到，不占负列。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0 and ring 1 knits, transfers, flips, and racks: front = phys, back = 37−phys. No knit phys−1. The front decrease is F← on columns 5…18. Rings 2–4 stay on step3 columns"],
+    ["columns", "ring 0 and ring 1 knits, transfers, flips, and racks: front = phys, back = 37−phys. No knit phys−1. The front decrease is F← on columns 6…18, from the inherited anchor. Rings 2–4 stay on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 inserts one whole-bed align row after shaping; ring 1 still inserts two Flip rows"],
     ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第 3–5 圈没有这份数据。"],
   ];
@@ -1985,9 +1998,22 @@ export function buildRing0Workbook(step3, bind) {
   if (
     frontDec.dir !== "X" ||
     occupied(frontDec).some((cell) => cell.token !== "F←" || cell.bed !== "F") ||
-    frontDecCols.join(",") !== [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(",")
+    frontDecCols.join(",") !== [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].join(",")
   ) {
-    fail(`前床减针应从锚点画 F← 列 5…18，得到 ${frontDecCols.join(",")}`);
+    fail(`前床减针应从锚点画 F← 列 6…18，得到 ${frontDecCols.join(",")}`);
+  }
+  const inheritedFrontAnchor = ring.stitches.find((st) => st.bed === "F" && st.chart === 5);
+  const frontAnchorArrow = occupied(frontDec).find((cell) => cell.col === 6);
+  if (
+    !inheritedFrontAnchor ||
+    inheritedFrontAnchor.phys !== 6 ||
+    !frontAnchorArrow ||
+    frontAnchorArrow.id !== inheritedFrontAnchor.id ||
+    frontAnchorArrow.phys !== 6
+  ) {
+    fail(
+      `前床减针锚点应仍是继承时的 F6，得到继承 ${inheritedFrontAnchor ? `id ${inheritedFrontAnchor.id} F${inheritedFrontAnchor.phys}` : "缺失"}，箭头 ${frontAnchorArrow ? `id ${frontAnchorArrow.id} F${frontAnchorArrow.phys}` : "缺失"}`,
+    );
   }
   const backDec = rows[step3ToSheet[16]];
   const backDecCols = occupied(backDec)
