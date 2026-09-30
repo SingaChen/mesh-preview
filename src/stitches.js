@@ -14,9 +14,10 @@
  *   after stripping inc/dec. Front column = phys, back column = 37 − phys,
  *   on knit rows and transfer rows. Cast-on packs the back bed against the
  *   front (column 19). The |F−B|=1 empty belongs at the left junction and
- *   is not reserved before that row is reached, so cast-on does not leave
- *   column 37 empty on purpose. The increase is still one B→ on column 19
- *   and that stitch stays there. Ring 1 does not
+ *   is not reserved before that row is reached. The increase is still one
+ *   B→ on column 19; that moves back phys 18 to 19 and the next knit row
+ *   is drawn from the new physical needles (column 20 = phys 17, going
+ *   left). Ring 1 does not
  *   inherit those beds yet: its knits still sit one column left, and its
  *   transfers keep the physical column. A decrease includes the anchor,
  *   so sheet row 7 is F← on columns 6..18. Negative step3 columns wrap

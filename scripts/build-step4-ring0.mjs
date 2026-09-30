@@ -15,22 +15,22 @@
  *
  * An inc/dec row moves only the shaping bed. The other bed keeps its
  * needles; its chart index still follows step3 so the next row finds it.
- * Knit rows and transfer rows use the same physical columns. There is no
- * knit-row phys−1 offset on ring 0, and no whole-bed recenter.
+ * A transfer changes the physical needle. The arrow is drawn on the source
+ * column. The next knit row is drawn from the physical needles after the
+ * move: front column = phys, back column = 37 − phys. Sheet column numbers
+ * are that mapping, not the physical needle numbers. There is no knit-row
+ * phys−1 offset on ring 0, and no whole-bed recenter.
  *
  * After shaping, rebalance only once every stripped-circumference stitch
  * is on the needles. Until then the missing stitches are unkitted cast-on,
  * not an F/B excess, so this sample does not flip during the short rows.
- * The transfer is still the step3 ←1 mirrored to B→, drawn on the source
- * needle. A one-step phys+1 from the packed fold lands on column 18, the
- * front's last needle, and the left-junction empty is not arranged on that
- * row, so the stitch stays put. The new stitch has no opened hole between
- * its chart neighbors; it is born on the next free needle of the shaping
- * bed, and not-yet-cast-on back slots slide one needle toward the junction.
- * That slide is not a transfer. The ring ends F19/B19, front still starting
- * at column 0, with no Flip and no seat row. By then the junction needle
- * holds a stitch, not an empty. A later decrease, a front increase, or a
- * finished ring that is still unbalanced, stops instead of inventing a move.
+ * The new stitch is born on the single free physical needle between its
+ * chart neighbors. If that gap is not one needle, the build stops. This
+ * sample's B→ takes the back stitch from phys 18 to phys 19 and leaves the
+ * other on phys 17, so the next leftward row starts at column 20. The ring
+ * ends F19/B19, front still starting at column 0, with no Flip and no seat
+ * row. A later decrease, or a finished ring that is still unbalanced,
+ * stops instead of inventing a move.
  *
  * Ring 1 is unchanged and does not inherit these beds. Its knits stay one
  * column left of the physical needle; its transfers and flips stay on the
@@ -586,6 +586,30 @@ function planBaseBeds(step3Rows, rowEnd) {
   return { plan, n, frontN, backN, spareAtEnd };
 }
 
+function chartNeighbors(stitches, chart) {
+  let left = null;
+  let right = null;
+  for (const st of stitches.values()) {
+    if (st.chart < chart && (!left || st.chart > left.chart)) left = st;
+    if (st.chart > chart && (!right || st.chart < right.chart)) right = st;
+  }
+  return { left, right };
+}
+
+/** The one free physical needle between two chart neighbors. Anything else stops. */
+function physInHole(left, right, where) {
+  if (!left || !right) fail(`${where}: 新圈没有两边的线圈，先停`);
+  if (left.bed !== right.bed) {
+    fail(`${where}: 新圈夹在 ${left.bed}${left.phys} 与 ${right.bed}${right.phys} 之间，先停`);
+  }
+  const lo = Math.min(left.phys, right.phys);
+  const hi = Math.max(left.phys, right.phys);
+  if (hi !== lo + 2) {
+    fail(`${where}: ${left.bed} 物理空档不是一针（${left.phys}…${right.phys}），先停`);
+  }
+  return { bed: left.bed, phys: lo + 1 };
+}
+
 function increaseShapeBed(fresh, live, stitches, where) {
   const beds = new Set();
   for (const col of fresh) {
@@ -704,8 +728,6 @@ export function simulateRing0(step3Rows, rowEnd) {
     }
     const fresh = new Set();
     let pass = 0;
-    let openedPhys = null;
-    let increaseHeld = false;
     for (const cell of incs.slice().reverse()) {
       const added = parseIncN(cell.token);
       const pivot0 = cell.col + step;
@@ -728,48 +750,15 @@ export function simulateRing0(step3Rows, rowEnd) {
         }
         if (problems.length) fail(`transfer row ${ri} (knit ${op.knit} pass ${pass}): ${problems.join("; ")}`);
         const shapeBed = increaseShapeBed(fresh, live, stitches, `step3 行 ${op.knit}`);
-        if (shapeBed !== "B") {
-          fail(`step3 行 ${op.knit}: 第一圈这张样本的加针在后床。前床加针要进哪一枚空针还没定，先停`);
-        }
-        if (incs.length !== 1 || added !== 1) {
-          fail(`step3 行 ${op.knit}: 一次加多针的落点还没定，先停`);
-        }
-        if (!base.spareAtEnd) {
-          fail(`step3 行 ${op.knit}: 底圈不是 F=B+1，后床加针落点还没定，先停`);
-        }
         const moved = applySelectiveMove(live, stitches, pivot0, step, step === 1 ? 1 : -1, shapeBed);
         live = moved.live;
-        if (moved.moves.length !== 1 || moved.moves[0].bed !== "B") {
-          fail(`step3 行 ${ri}: 后床加针应只移动一针，得到 ${moved.moves.map((m) => `${m.bed}${m.fromPhys}`).join(",") || "没有"}`);
-        }
-        const m = moved.moves[0];
-        if (m.toPhys !== m.fromPhys + 1) {
-          fail(`step3 行 ${ri}: 后床 chart 镜像应先是物理针 +1，得到 ${m.fromPhys}→${m.toPhys}`);
-        }
-        const stMoved = stitches.get(m.id);
-        const oneStepCol = columnForPhys("B", m.toPhys);
-        const blockedByFront = [...stitches.values()].some(
-          (st) => st.bed === "F" && columnForPhys("F", st.phys) === oneStepCol,
-        );
-        if (!blockedByFront) {
-          openedPhys = m.fromPhys;
-        } else {
-          // This row has not reached the left junction, so that empty is not
-          // arranged. phys+1 shares the front's column. Hold the needle.
-          stMoved.phys = m.fromPhys;
-          m.toPhys = m.fromPhys;
-          increaseHeld = true;
-          for (const [chart, slot] of base.plan) {
-            if (slot.bed !== "B" || usedPlan.has(chart)) continue;
-            slot.phys -= 1;
-            if (slot.phys < 0) {
-              fail(`step3 行 ${op.knit}: 还没起的后床针顺延后小于 0`);
-            }
-          }
+        if (!moved.moves.length || moved.moves.some((m) => m.bed !== shapeBed || m.toPhys === m.fromPhys)) {
+          fail(
+            `step3 行 ${ri}: 加针应改成形床的物理针，得到 ${moved.moves.map((m) => `${m.bed}${m.fromPhys}→${m.toPhys}`).join(",") || "没有"}`,
+          );
         }
         assertNoSharedNeedle(stitches, `step3 行 ${op.knit} 加针`);
         const token = toAbsoluteToken(`${arrow}1`, shapeBed);
-        if (token !== "B→") fail(`step3 行 ${ri}: 本样本后床加针应记 B→，得到 ${token}`);
         const srcFill = got.find((c) => c.col === moved.moves[0].chart)?.fill || got[0].fill || "rgb(204,204,255)";
         sheetRows.push({
           dir: "X+",
@@ -801,22 +790,10 @@ export function simulateRing0(step3Rows, rowEnd) {
           usedPlan.add(cell.col);
           placed = base.plan.get(cell.col);
         } else if (fresh.has(cell.col)) {
-          if (openedPhys != null) {
-            if ([...stitches.values()].some((st) => st.bed === "B" && st.phys === openedPhys)) {
-              fail(`${where}: 让出的后床 ${openedPhys} 已被占`);
-            }
-            placed = { bed: "B", phys: openedPhys };
-            openedPhys = null;
-          } else if (increaseHeld) {
-            const liveBack = [...stitches.values()].filter((st) => st.bed === "B").map((st) => st.phys);
-            if (!liveBack.length) fail(`${where}: 后床还没有线圈，新圈无处可放`);
-            const phys = Math.min(...liveBack) - 1;
-            if (phys < 0 || [...stitches.values()].some((st) => st.bed === "B" && st.phys === phys)) {
-              fail(`${where}: 已织后床外侧没有空着的下一针（${phys}）`);
-            }
-            placed = { bed: "B", phys };
-          } else {
-            fail(`${where}: 加针空档没有能落下的后床针。不假设右折返夹缝，也不提前用左衔接，先停`);
+          const { left, right } = chartNeighbors(stitches, cell.col);
+          placed = physInHole(left, right, where);
+          if ([...stitches.values()].some((st) => st.bed === placed.bed && st.phys === placed.phys)) {
+            fail(`${where}: 空档 ${placed.bed}${placed.phys} 已被占`);
           }
         } else {
           fail(`${where} 不是底圈里还没织的针，也不是这次加针的空档`);
@@ -865,13 +842,15 @@ export function simulateRing0(step3Rows, rowEnd) {
       `第一圈结束 F${f.length}[${f.map((st) => st.phys)}] B${b.length}[${b.map((st) => st.phys)}] 不是 F${tF}/B${tB}、前床从 0 连续。不发明翻针。`,
     );
   }
-  if (f.at(-1).phys !== tF - 1 || (b.length && (b[0].phys !== 0 || b.at(-1).phys !== tB - 1))) {
-    fail(`第一圈结束针位不是前 0…${tF - 1}、后 0…${tB - 1}`);
+  if (f.at(-1).phys !== tF - 1) {
+    fail(`第一圈结束前床末针不是 ${tF - 1}，得到 ${f.map((st) => st.phys).join(",")}`);
   }
   const frontCol = columnForPhys("F", f.at(-1).phys);
   const backCol = b.length ? columnForPhys("B", b.at(-1).phys) : null;
   if (tF === tB) {
-    if (backCol !== frontCol + 1) fail(`F=B 时右折返应贴住，前床列 ${frontCol} 后床列 ${backCol}`);
+    if (backCol !== frontCol + 1 && backCol !== frontCol) {
+      fail(`F=B 时右折返表列是前 ${frontCol} 后 ${backCol}，先停`);
+    }
   } else if (tF === tB + 1) {
     fail(`结束仍差 1 针（F${tF}/B${tB}）。空针应在已经走到的左衔接，这张样本不该停在这里，先停`);
   } else {
@@ -898,21 +877,30 @@ export function simulateRing0(step3Rows, rowEnd) {
   if (v.id !== v0.id) fail(`行 2 列 20 线圈 ${v.id} 不是行 0 列 20 的线圈 ${v0.id}`);
   if (s0.bed !== "B" || s0.phys !== 18) fail(`起针列 19 应为后床 18（紧挨前床），得到 ${s0.bed} ${s0.phys}`);
   if (v0.bed !== "B" || v0.phys !== 17) fail(`起针列 20 应为后床 17，得到 ${v0.bed} ${v0.phys}`);
-  if (s.token !== "vL" || s.bed !== "B" || s.phys !== 18) {
-    fail(`行 2 vL 应留在后床 18（本行没走到左衔接，1 步又会占前床的列），得到 ${s.token} ${s.bed} ${s.phys}`);
+  if (s.token !== "vL" || s.bed !== "B" || s.phys !== 19) {
+    fail(`行 2 vL 应在移圈后的后床物理针 19，得到 ${s.token} ${s.bed} ${s.phys}`);
   }
-  if (br.token !== "^R" || br.bed !== "B" || br.phys !== 16) {
-    fail(`行 2 ^R 应落在已织后床外侧的后床 16，得到 ${br.token} ${br.bed} ${br.phys}`);
+  if (br.token !== "^R" || br.bed !== "B" || br.phys !== 18) {
+    fail(`行 2 ^R 应夹在物理 19 和 17 之间（物理 18），得到 ${br.token} ${br.bed} ${br.phys}`);
   }
   if (v.token !== "+R1" || v.bed !== "B" || v.phys !== 17) {
     fail(`行 2 +R1 应仍是后床 17，得到 ${v.token} ${v.bed} ${v.phys}`);
   }
-  if (!(s.phys > v.phys && v.phys > br.phys)) {
-    fail(`行 2 新线圈不在两枚旧线圈之间，应在外侧：${s.phys}/${v.phys}/${br.phys}`);
+  if (!(s.phys > br.phys && br.phys > v.phys)) {
+    fail(`行 2 新线圈应夹在转入针和 +R1 之间：${s.phys}/${br.phys}/${v.phys}`);
+  }
+  const knit2 = sheetRows.find((row) => row.step3 === 2);
+  const knit2cols = (knit2?.cells || [])
+    .slice()
+    .sort((a, b) => a.col - b.col)
+    .map((c) => `${c.col}:${c.token}@${c.phys}`)
+    .join(",");
+  if (knit2cols !== "18:BvL@19,19:B^R@18,20:B+R1@17") {
+    fail(`下一织行应按物理针映回表（从表列 20 / 物理 17 往左），得到 ${knit2cols}`);
   }
   const xfer = sheetRows.find((row) => row.dir === "X+");
   if (!xfer || xfer.cells.length !== 1 || xfer.cells[0].token !== "B→" || xfer.cells[0].col !== 19 || xfer.cells[0].id !== s.id || xfer.cells[0].phys !== 18) {
-    fail(`加针移圈应只在列 19 把线圈 ${s.id} 画成 B→，物理针留在 18，得到 ${xfer ? xfer.cells.map((c) => `${c.col}:${c.token}@${c.phys}`).join(",") : "缺失"}`);
+    fail(`加针移圈应画在移之前的列 19（物理 18），得到 ${xfer ? xfer.cells.map((c) => `${c.col}:${c.token}@${c.phys}`).join(",") : "缺失"}`);
   }
   const castOn = sheetRows.find((row) => row.step3 === 0);
   const castCols = new Map((castOn?.cells || []).map((c) => [c.col, c.token]));
@@ -928,22 +916,22 @@ export function simulateRing0(step3Rows, rowEnd) {
   const caret = at(r3, 18, "step3 行 3 ^L");
   const v3 = at(r3, 20, "step3 行 3 列 20");
   const freshSt = at(r3, 21, "step3 行 3 列 21");
-  if (caret.id !== s.id || caret.token !== "^L" || caret.bed !== "B" || caret.phys !== 18) {
-    fail(`行 3 ^L 应仍在后床 18，得到 id ${caret.id} ${caret.token} ${caret.bed} ${caret.phys}`);
+  if (caret.id !== s.id || caret.token !== "^L" || caret.bed !== "B" || caret.phys !== 19) {
+    fail(`行 3 ^L 应仍在后床物理针 19，得到 id ${caret.id} ${caret.token} ${caret.bed} ${caret.phys}`);
   }
   if (v3.id !== v.id || v3.bed !== "B" || v3.phys !== 17) {
     fail(`行 3 列 20 应仍是后床 17，得到 id ${v3.id} ${v3.bed} ${v3.phys}`);
   }
-  if (freshSt.bed !== "B" || freshSt.phys !== 15 || r2.has(21)) {
-    fail(`行 3 列 21 新起的底圈针应为后床 15，得到 ${freshSt.bed} ${freshSt.phys}`);
+  if (freshSt.bed !== "B" || freshSt.phys !== 16 || r2.has(21)) {
+    fail(`行 3 列 21 新起的底圈针应为后床 16，得到 ${freshSt.bed} ${freshSt.phys}`);
   }
   const r5 = atRow.get(5);
   const tail = at(r5, 36, "step3 行 5 列 36");
-  if (tail.bed !== "B" || tail.phys !== 0 || tail.token !== "·") {
-    fail(`走到后床最后一针时应是线圈而不是空针，得到 ${tail.token} ${tail.bed} ${tail.phys}`);
+  if (tail.bed !== "B" || tail.phys !== 1 || tail.token !== "·") {
+    fail(`后床最后一针应落在物理针 1，得到 ${tail.token} ${tail.bed} ${tail.phys}`);
   }
   notes.push(
-    "NOTE: 左衔接（后床接到前床起点）在起针和第二行都还没走到，所以不为 F−B=1 安排空针，也不把空针放在列 37 或右折返夹缝。加针的 B→ 仍记在原针（列 19）。按 1 步物理针 +1 会落到列 18，和前床末针同一列，不能落；这一行也没有已经安排好的左衔接空针，所以这枚线圈物理针不动。新线圈两边的针已经挨着，中间没有让开的空针，因此不编一个夹缝；它落在已织后床外侧的下一针，还没起的后床针顺延一针。走到最后一针时后床已经和前床一样多，左衔接那一针是线圈，不是空针。",
+    "NOTE: 移圈改的是物理针。B→ 画在移之前的表列 19，把那枚后床针从物理 18 右移到物理 19，旁边那枚仍在物理 17。移完后床占物理 19 和 17。下一织行再按物理针映回表：物理 17 → 表列 20，物理 19 → 表列 18，新线圈补在中间的物理 18（表列 19）。所以这一行 L 从表列 20 起往左，左到右是 vL、^R、+R1。表列号不是物理针号。左衔接这几行还没走到，不为差 1 预留空针。",
   );
 
   const fCharts = f.map((st) => st.chart).sort((a, b) => a - b);
@@ -1488,9 +1476,9 @@ function legendSheet(xfIndexForFill, ring, ring1) {
   const xf = xfIndexForFill("rgb(255,255,255)");
   const end = ring1?.end;
   const legend = [
-    ["第一圈", `去掉加减针后的整圈是 F${ring.baseFront}/B${ring.baseBack}。前床从物理针 0 起，后床紧挨前床，右折返不留夹缝。F=B+1 的空针在后床与前床起点相接的左衔接，只有本行已经走到那里才安排，不预留在列 37。加针只移动成形床，本样本仍是 B→，画在原针。织行和移圈行同一物理列。结束 F${ring.front}/B${ring.back}，前床仍从列 0 起。这张样本没有第一圈 Flip。`],
+    ["第一圈", `去掉加减针后的整圈是 F${ring.baseFront}/B${ring.baseBack}。前床从物理针 0 起，后床紧挨前床。表列由物理针映出：前床列=物理针，后床列=37−物理针，表列号不等于物理针号。移圈改物理针，下一织行再用新物理针映回表。F=B+1 的空针在左衔接，没走到不安排，不预留列 37，右折返不留夹缝。结束 F${ring.front}/B${ring.back}，前床仍从列 0 起。这张样本没有第一圈 Flip。`],
     ["NOTE", ring.notes[0] || "第一圈整圈织完时已经 F≥B 且 |F−B|≤1，没有额外翻针。"],
-    ["NOTE2", ring.notes.find((note) => note.includes("左衔接")) || "本行没走到左衔接，不安排空针。"],
+    ["NOTE2", ring.notes.find((note) => note.includes("物理 17")) || "移圈改物理针，下一织行再映回表。"],
     ["第二圈", `暂不继承第一圈床位，仍用原先的第二圈。负数列是后床末尾绕回。每步按当时的 N 重算 F=ceil(N/2)、B=floor(N/2)。移圈只移动成形那一床。织行比物理针列少 1。结束 F${end?.f.length ?? "?"}/B${end?.b.length ?? "?"}`],
     ["绕回", "Step3 负数列仍是后床末尾原有的圈，表列 = (37−物理针)−1，与整行对齐到 step3 chart。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],

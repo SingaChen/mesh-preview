@@ -642,7 +642,7 @@ async function loadSample() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("左 3D · 右 step4-ring0（第一圈物理针，起针不预留空针；第二圈仍用上一版）· 窄屏切 3D/图");
+      setStatus("左 3D · 右 step4-ring0（第一圈移圈后按物理针画；第二圈仍用上一版）· 窄屏切 3D/图");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
