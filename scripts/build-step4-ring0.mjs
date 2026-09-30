@@ -60,7 +60,10 @@
  * continues from the back fold inward: the next column is the highest
  * back needle, then the next lower one, with no empty cell and no
  * stacking. A short course stops on its last column and does not draw
- * a needle it did not reach. That fold recount is not a turn. On the
+ * a needle it did not reach. That fold recount is not a turn. A decrease
+ * transfer splits the course: the later rows in the same direction are
+ * still that course, so a column past the front uses this same recount
+ * and stays on the physical needle the course already ended on. On the
  * second and third circles, when the next knit reverses on the column
  * where the previous knit stopped, and nothing has transferred or
  * flipped, the course only rises: the first stitch is that same needle,
@@ -1405,6 +1408,11 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
   const events = [];
   const trace = [];
   let decAnchor = null;
+  // Direction of a course whose decrease transfer has run. Later knits
+  // in that direction are the rest of the same course.
+  let splitDir = null;
+  let pendingSplitDir = null;
+  let continueSplit = false;
   // The stitch and course column where the previous knit stopped.
   // Cleared by a transfer, flip, or whole-bed move.
   let carriedTurn = null;
@@ -1545,7 +1553,10 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
         if (front) return front;
         return null;
       }
-      if (!crosses) return stitchAt(col);
+      // The remainder of a decrease-split course is still that course.
+      // Recount it like a crossing row so the column stays on the
+      // physical needle the course ended on, not the shifted chart.
+      if (!crosses && !continueSplit) return stitchAt(col);
       const phys = backHi - (col - frontHi - 1);
       const back = backAt.get(phys);
       if (!back) {
@@ -1713,7 +1724,14 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     const wraps = placed.filter((cell) => cell.wrap);
     const endCol = visit.at(-1)?.col;
     const endItem = placed.find((item) => !item.wrap && item.chart === endCol);
-    carriedTurn = endItem ? { dir: row.dir, col: endCol, id: endItem.id } : null;
+    // The following short-row turn already meets the chart stitch. Keep
+    // that anchor when the remainder was drawn on the repacked needle.
+    let turnId = endItem?.id ?? null;
+    if (continueSplit && endItem && endCol > frontHi) {
+      const charted = stitchAt(endCol);
+      if (charted) turnId = charted.id;
+    }
+    carriedTurn = endItem ? { dir: row.dir, col: endCol, id: turnId } : null;
     if (wraps.length) {
       const ontoBack = wraps.reduce((best, cell) => (cell.chart > best.chart ? cell : best));
       const beforeFold = placed
@@ -1899,9 +1917,15 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
       byRow.set(i, { dir: row.dir, step3: i, cells: moved.drawn });
       snapshotCounts(`step3 行 ${i} ${row.dir}`);
       if (row.dir === "X") {
+        const followedDecrease = decAnchor != null && pendingSplitDir != null;
         insertRepair(`step3 行 ${i} 减针后`, i);
         decAnchor = null;
+        splitDir = followedDecrease ? pendingSplitDir : null;
+        pendingSplitDir = null;
         snapshotCounts(`step3 行 ${i} 减针对齐后`);
+      } else {
+        splitDir = null;
+        pendingSplitDir = null;
       }
       continue;
     }
@@ -1910,7 +1934,14 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     const inc = occupied(row).find((cell) => parseIncN(cell.token));
     if (dec && parseDecN(dec.token) !== 1) fail(`step3 行 ${i} 多针减针 ${dec.token}`);
     if (inc && parseIncN(inc.token) !== 1) fail(`step3 行 ${i} 多针加针 ${inc.token}`);
-    if (dec) decAnchor = dec.col;
+    continueSplit = splitDir === row.dir;
+    if (!continueSplit) splitDir = null;
+    if (dec) {
+      decAnchor = dec.col;
+      pendingSplitDir = row.dir;
+    } else {
+      pendingSplitDir = null;
+    }
     const knit = drawKnit(row, i);
     byRow.set(i, { dir: row.dir, step3: i, cells: knit.placed });
     assertNoSharedNeedle(stitches, `step3 行 ${i} 织完`);
