@@ -1355,9 +1355,21 @@ assert(
   );
   const laterR = built.step3ToSheet[32];
   const laterL = built.step3ToSheet[33];
+  const laterNext = built.step3ToSheet[34];
+  assert(laterR === 37 && laterL === 38 && laterNext === 39, "the third-circle turn stays on sheet rows 37…39");
   assert(
-    physicalNeedleGlyph(physAt(laterR, 31)) === "B6" && physicalNeedleGlyph(physAt(laterL, 31)) === "B5",
-    "the third circle still starts its return one needle off; that turn is not part of this fix",
+    tokenAt(laterR, 31) === "BvR" &&
+      physicalNeedleGlyph(physAt(laterR, 31)) === "B6" &&
+      tokenAt(laterL, 31) === "B^R" &&
+      tokenAt(laterL, 20) === "BvL" &&
+      [31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20]
+        .map((col) => physicalNeedleGlyph(physAt(laterL, col)))
+        .join(",") === "B6,B7,B8,B9,B10,B11,B12,B13,B14,B15,B16,B17" &&
+      tokenAt(laterNext, 20) === "B^L" &&
+      tokenAt(laterNext, 21) === "B·" &&
+      tokenAt(laterNext, 22) === "BvR" &&
+      [20, 21, 22].map((col) => physicalNeedleGlyph(physAt(laterNext, col))).join(",") === "B17,B16,B15",
+    "37R ends on B6 and 38L rises on that needle through B17; the next course starts on B17",
   );
   assert(physicalNeedleGlyph(physAt(12, 0)) === "F0" && physAt(12, 0).bed === "F" && physAt(12, 0).phys === 0, "the front bed's first needle is F0 at column 0");
   assert(physicalNeedleGlyph(physAt(7, 0)) === "F0" && physicalNeedleGlyph(physAt(7, 1)) === "F1", "the opening row starts at F0 and the next stitch stays F1");
