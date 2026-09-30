@@ -1410,13 +1410,14 @@ assert(
   const backRealign = ring0.rows[43].cells.filter((cell) => cell.token);
   assert(
     ring0.rows[43].dir === "X" &&
-      tokenAt(43, 37) === "" &&
       backRealign.length === 19 &&
-      backRealign.every((cell) => cell.token === "B→" && cell.bed === "B" && cell.phys >= 1 && cell.phys <= 19) &&
-      backRealign.some((cell) => cell.phys === 1) &&
-      backRealign.some((cell) => cell.phys === 19) &&
-      !backRealign.some((cell) => cell.phys === 0),
-    "after the increase realign the back rack is B1…B19 and does not mark B0",
+      backRealign.every((cell) => cell.token === "B→" && cell.bed === "B" && cell.phys >= 0 && cell.phys <= 18) &&
+      backRealign.some((cell) => cell.phys === 0) &&
+      backRealign.some((cell) => cell.phys === 18) &&
+      !backRealign.some((cell) => cell.phys === 19) &&
+      physicalNeedleGlyph(physAt(43, 37)) === "B0" &&
+      physicalNeedleGlyph(physAt(43, 19)) === "B18",
+    "the post-increase back rack labels the source window B0…B18",
   );
   let failed = false;
   try {
