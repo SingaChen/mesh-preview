@@ -1010,18 +1010,19 @@ assert(
     "ring0 moves of 1 stitch omit R/L and the number",
   );
   const tokenAt = (row, col) => ring0.rows[row].cells.find((c) => c.col === col)?.token;
-  assert(tokenAt(0, 18) === "F·" && tokenAt(0, 19) === "B·" && tokenAt(0, 20) === "BvR" && tokenAt(0, 21) === "" && tokenAt(0, 37) === "", "cast-on packs the back against the front and leaves column 37 empty");
-  assert(tokenAt(1, 19) === "B→" && ring0.rows[1].cells.filter((c) => c.token).length === 1, "the increase is still one back B→, drawn on column 19 before it enters the back-end empty");
+  assert(tokenAt(0, 18) === "F·" && tokenAt(0, 19) === "B·" && tokenAt(0, 20) === "BvR" && tokenAt(0, 21) === "" && tokenAt(0, 37) === "", "cast-on packs the fold and does not reserve column 37");
+  assert(tokenAt(1, 19) === "B→" && ring0.rows[1].cells.filter((c) => c.token).length === 1, "the increase is still one back B→ on column 19");
   assert(ring0.rows[1].cells.find((c) => c.token === "B→").fill === "rgb(204,204,255)", "shaping transfer fill is ice blue");
-  assert(tokenAt(2, 19) === "B^R" && tokenAt(2, 20) === "B+R1" && tokenAt(2, 37) === "BvL", "row 2 puts the moved stitch on the back-end empty and the new stitch on the vacated needle");
+  assert(tokenAt(2, 19) === "BvL" && tokenAt(2, 20) === "B+R1" && tokenAt(2, 21) === "B^R" && tokenAt(2, 37) === "", "row 2 keeps the moved stitch and puts the new stitch outside, with no column 37");
   assert(tokenAt(2, 18) === "", "row 2 does not draw the unmoved front needle");
-  assert(tokenAt(3, 37) === "B^L" && tokenAt(3, 19) === "B·" && tokenAt(3, 20) === "B·" && tokenAt(3, 21) === "B·" && tokenAt(3, 22) === "BvR", "row 3 keeps the moved stitch at the back end");
-  assert(built.ring.anchors.castOnFold.phys === 18 && built.ring.anchors.s.phys === 0, "the fold stitch is back 18 at cast-on and back 0 after the increase");
-  assert(built.ring.anchors.caret.phys === 0 && built.ring.anchors.v.phys === 17 && built.ring.anchors.v3.phys === 17 && built.ring.anchors.fresh.phys === 16, "V stays on back 17 and the new cast-on needle is back 16");
+  assert(tokenAt(3, 19) === "B^L" && tokenAt(3, 20) === "B·" && tokenAt(3, 21) === "B·" && tokenAt(3, 22) === "B·" && tokenAt(3, 23) === "BvR" && tokenAt(3, 37) === "", "row 3 keeps the held stitch on column 19");
+  assert(tokenAt(5, 37) === "B·", "the last back stitch is a stitch at column 37 once that row is reached, not an empty");
+  assert(built.ring.anchors.castOnFold.phys === 18 && built.ring.anchors.s.phys === 18, "the fold stitch stays on back 18; the increase does not jump");
+  assert(built.ring.anchors.br.phys === 16 && built.ring.anchors.caret.phys === 18 && built.ring.anchors.v.phys === 17 && built.ring.anchors.v3.phys === 17 && built.ring.anchors.fresh.phys === 15, "the new stitch is outside the live pair and later cast-on slides one needle");
   assert(ring0.legend.some((row) => /去掉加减针后的整圈/.test(`${row.key} ${row.note}`)), "legend says ring 0 splits the stripped circumference");
-  assert(ring0.legend.some((row) => /空针在后床末尾/.test(`${row.key} ${row.note}`)), "legend puts the spare needle at the end of the back bed");
+  assert(ring0.legend.some((row) => /左衔接/.test(`${row.key} ${row.note}`)), "legend puts the spare at the left junction and only once the row reaches it");
+  assert(!ring0.legend.some((row) => /空针在后床末尾|后床末尾空针/.test(`${row.key} ${row.note}`)), "legend no longer calls column 37 the spare the increase enters");
   assert(ring0.legend.some((row) => /没织上的是短行起针/.test(`${row.key} ${row.note}`)), "legend notes that partial cast-on is not a flip");
-  assert(ring0.legend.some((row) => /后床末尾空针/.test(`${row.key} ${row.note}`)), "legend says the increase enters the back-end empty");
   assert(ring0.legend.some((row) => /负数列是后床末尾绕回/.test(`${row.key} ${row.note}`)), "legend says ring 1 negative columns wrap onto the back tail");
   assert(stitchBind.n_display_rows === 121 && stitchBind.byIndex.get(20)?.cells[0].label === "vR", "stitch_map_bind.json is still the step3 dump");
   assert(recenterInsertIndex(excelMap, stitchBind) == null, "step3 sheet stays identity-mapped to bind rows");
@@ -1034,14 +1035,15 @@ assert(
   const row3Stitch = bound.stitches.find((s) => s.mapCells?.some((c) => c.display_row === 3 && c.col === 18));
   assert(row3Stitch, "bind still has a face on display_row 3 col 18");
   const row3Keys = highlightKeysForStitch(row3Stitch, { map: ring0, grid: ringGrid, bind: stitchBind });
-  assert(row3Keys.has("3,37") && !row3Keys.has("3,19") && !row3Keys.has("3,18"), "row 3 ^L lights the back-end column 37");
+  assert(row3Keys.has("3,19") && !row3Keys.has("3,37") && !row3Keys.has("3,18"), "row 3 ^L stays on column 19");
   const step3Row3 = highlightKeysForStitch(row3Stitch, { map: excelMap, grid: excelGrid, bind: stitchBind });
   assert(step3Row3.has("3,18") && !step3Row3.has("3,19"), "step3 highlight of that face stays on bind row 3");
   assert(stitchForMapCell(1, 19, stitchBind, bound.stitches, ring0) == null, "clicking the increase transfer selects no face");
-  assert(stitchForMapCell(3, 37, stitchBind, bound.stitches, ring0) === row3Stitch, "sheet row 3 col 37 selects the bind row 3 face");
-  assert(stitchForMapCell(3, 19, stitchBind, bound.stitches, ring0) !== row3Stitch, "sheet row 3 col 19 is the new stitch, not the ^L");
+  assert(stitchForMapCell(3, 19, stitchBind, bound.stitches, ring0) === row3Stitch, "sheet row 3 col 19 selects the bind row 3 face");
+  assert(stitchForMapCell(3, 21, stitchBind, bound.stitches, ring0) !== row3Stitch, "sheet row 3 col 21 is the new stitch, not the ^L");
+  assert(stitchForMapCell(3, 37, stitchBind, bound.stitches, ring0) == null, "sheet row 3 col 37 is empty");
   assert(
-    highlightKeysForMapCell(3, 37, { map: ring0, grid: ringGrid, bind: stitchBind }).has("3,37"),
+    highlightKeysForMapCell(3, 19, { map: ring0, grid: ringGrid, bind: stitchBind }).has("3,19"),
     "clicking the ^L cell highlights that sheet cell",
   );
   const row6Stitch = bound.stitches.find((s) => s.mapCells?.some((c) => c.display_row === 6));
