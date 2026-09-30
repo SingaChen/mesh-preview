@@ -19,14 +19,17 @@
  *   is drawn from the new physical needles (column 20 = phys 17, going
  *   left). After that knit the assigned windows are F19/B19 but one
  *   needle apart (front 0…18, back 1…19), so the back bed racks onto
- *   0…18 and later ring-0 rows use the new needles. Ring 1 does not
- *   inherit those beds yet: its knits still sit one column left, and its
- *   transfers keep the physical column. A decrease includes the anchor,
- *   so sheet row 8 is F← on columns 6..18. Negative step3 columns wrap
- *   to the back-bed tail with that same shift. Two Flip rows are inserted
- *   on the stitch's physical column before the flip: ⬇ at column 19
- *   (sheet row 9, back 18→front 18) and ⬆ at column 19 (sheet row 14,
- *   front 19→back 18). Rings 2–4 stay on step3 columns). Falls back to
+ *   0…18 and later ring-0 rows use the new needles. Ring 1 inherits
+ *   those beds. Knits and transfers use the same columns (front = phys,
+ *   back = 37 − phys); the old knit phys−1 offset is gone. The opening
+ *   short row is physical 1…7 at columns 1…7. The front's first needle
+ *   stays physical 0 and is drawn as F0 at column 0 when the course
+ *   reaches chart −1. A decrease includes the anchor, so sheet row 8 is
+ *   F← on columns 6..18. Negative columns that are not already a stitch
+ *   wrap onto the back tail at 37 − phys. Two Flip rows stay on the
+ *   stitch's physical column before the flip: ⬇ at column 19 (sheet row
+ *   9) and ⬆ at column 19 (sheet row 14). Rings 2–4 stay on step3
+ *   columns). Falls back to
  *   step3 xfer. The sheet has 124 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
