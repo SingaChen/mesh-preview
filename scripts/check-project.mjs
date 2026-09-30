@@ -1281,6 +1281,16 @@ assert(
     "sheet row 10 racks the back bed off the right-fold empty, B→ on source needles 0…17",
   );
   assert(tokenAt(12, 37) === "" && physAt(12, 36).bed === "B" && physAt(12, 36).phys === 1, "the next full knit leaves back physical 0 empty at the left fold");
+  assert(
+    tokenAt(14, 18) === "F·" &&
+      tokenAt(14, 19) === "F·" &&
+      tokenAt(14, 20) === "BvR" &&
+      physicalNeedleGlyph(physAt(14, 19)) === "F19" &&
+      physicalNeedleGlyph(physAt(14, 20)) === "B18" &&
+      physAt(14, 19).phys === 19 &&
+      physAt(14, 20).phys === 18,
+    "after the increase, column 19 keeps F19 and B18 sits in the next column",
+  );
   assert(physicalNeedleGlyph(physAt(12, 0)) === "F0" && physAt(12, 0).bed === "F" && physAt(12, 0).phys === 0, "the front bed's first needle is F0 at column 0");
   assert(physicalNeedleGlyph(physAt(7, 0)) === "F0" && physicalNeedleGlyph(physAt(7, 1)) === "F1", "the opening row starts at F0 and the next stitch stays F1");
   const frontZero = ring0.bindToSheet.get("9,0");
