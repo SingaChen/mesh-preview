@@ -30,7 +30,13 @@ import {
   parseReadableMap,
   parseStitchMapBind,
 } from "./stitches.js";
-import { isFlipDir, isTransferDir, parseExcelReadableMap } from "./excel-map.js";
+import {
+  formatPhysicalNeedle,
+  formatPhysicalNeedles,
+  isFlipDir,
+  isTransferDir,
+  parseExcelReadableMap,
+} from "./excel-map.js";
 import { bindDualRange } from "./dual-range.js";
 import {
   activeRingIndex,
@@ -103,6 +109,7 @@ const paneMapBtn = document.querySelector("#pane-map");
 const mapZoomIn = document.querySelector("#map-zoom-in");
 const mapZoomOut = document.querySelector("#map-zoom-out");
 const mapFitBtn = document.querySelector("#map-fit");
+const mapPhysBtn = document.querySelector("#map-phys");
 
 const viewer = new MeshViewer(canvas);
 const mapView = mapCanvas ? new ReadableMapView(mapCanvas) : null;
@@ -117,6 +124,8 @@ let project = null;
 let outputIndex = 0;
 let scene = null;
 let pickedStitch = null;
+let showPhysNeedle = false;
+let physPickKeys = null;
 const geomCache = new Map();
 const textCache = new Map();
 
@@ -137,10 +146,54 @@ function mapKeysForStitch(stitch) {
   });
 }
 
+function readableCell(row, col) {
+  return scene?.readableMap?.rows?.[row]?.cells?.find((cell) => cell.col === col) || null;
+}
+
+function showPhysChip(parts, keys) {
+  if (!stitchPickEl) return;
+  stitchPickEl.hidden = false;
+  if (stitchPickTitle) stitchPickTitle.textContent = parts.title;
+  if (stitchPickText) stitchPickText.textContent = parts.detail;
+  stitchPickEl.dataset.mapCells = [...keys].join(" ");
+}
+
+function paintPhysicalCell(row, col, stitch) {
+  const parts = formatPhysicalNeedle(readableCell(row, col));
+  physPickKeys = new Set([`${row},${col}`]);
+  pickedStitch = stitch || null;
+  viewer.setSelectedStitch(stitch || null);
+  showPhysChip(parts, physPickKeys);
+  paintMapHighlight();
+}
+
+function paintPhysicalStitch(stitch) {
+  if (!stitch) {
+    paintStitchPick(null);
+    return;
+  }
+  const keys = mapKeysForStitch(stitch);
+  const records = [...keys].map((key) => {
+    const comma = key.indexOf(",");
+    const row = Number(key.slice(0, comma));
+    const col = Number(key.slice(comma + 1));
+    return readableCell(row, col) || { row, col };
+  });
+  physPickKeys = keys;
+  pickedStitch = stitch;
+  viewer.setSelectedStitch(stitch);
+  showPhysChip(formatPhysicalNeedles(records), keys);
+  paintMapHighlight();
+}
+
 function onMapCellPick(hit) {
   if (!hit) return;
   const stitches = scene?.stitches?.bound?.stitches || [];
   const stitch = stitchForMapCell(hit.row, hit.col, stitchMapBind(), stitches, scene?.readableMap);
+  if (showPhysNeedle) {
+    paintPhysicalCell(hit.row, hit.col, stitch);
+    return;
+  }
   if (stitch) {
     paintStitchPick(stitch);
     return;
@@ -152,6 +205,7 @@ function onMapCellPick(hit) {
 if (mapView) mapView.onCellPick = onMapCellPick;
 
 function paintStitchPick(stitch) {
+  physPickKeys = null;
   pickedStitch = stitch || null;
   const parts = formatStitchPickParts(stitch);
   viewer.setSelectedStitch(parts ? stitch : null);
@@ -773,6 +827,12 @@ function paintReadableMap() {
 
 function paintMapHighlight() {
   if (!mapView) return;
+  if (physPickKeys) {
+    mapView.setHighlight(new Set());
+    mapView.setPickHighlight(physPickKeys);
+    mapView.ensureVisible(physPickKeys);
+    return;
+  }
   if (pickedStitch) {
     const keys = mapKeysForStitch(pickedStitch);
     mapView.setHighlight(new Set());
@@ -848,6 +908,15 @@ mapFitBtn?.addEventListener("click", () => {
   mapView?.resize();
   mapView?.fit({ overview: true });
 });
+mapPhysBtn?.addEventListener("click", () => {
+  showPhysNeedle = mapPhysBtn.getAttribute("aria-pressed") !== "true";
+  pressed(mapPhysBtn, showPhysNeedle);
+  if (showPhysNeedle) {
+    if (pickedStitch) paintPhysicalStitch(pickedStitch);
+  } else {
+    paintStitchPick(pickedStitch);
+  }
+});
 pane3dBtn?.addEventListener("click", () => setMobilePane("3d"));
 paneMapBtn?.addEventListener("click", () => setMobilePane("map"));
 narrowSplitMq.addEventListener?.("change", () => syncPaneLayout());
@@ -914,7 +983,9 @@ canvas.addEventListener("pointermove", (ev) => {
 });
 canvas.addEventListener("pointerup", (ev) => {
   if (pointer.moved || !scene?.stitches?.rowChunks?.length) return;
-  paintStitchPick(viewer.pickStitch(ev.clientX, ev.clientY));
+  const stitch = viewer.pickStitch(ev.clientX, ev.clientY);
+  if (showPhysNeedle) paintPhysicalStitch(stitch);
+  else paintStitchPick(stitch);
 });
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

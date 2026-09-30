@@ -98,6 +98,8 @@ export function buildExcelReadableMapGrid(map) {
         xf: cell.xf,
         fill: cell.fill,
         kind: cell.kind,
+        bed: cell.bed,
+        phys: cell.phys,
         source: "excel",
         stitchIndex: null,
         termType: null,
