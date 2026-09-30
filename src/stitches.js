@@ -32,9 +32,12 @@
  *   A negative column that does not resolve wraps onto the back tail at
  *   37 − phys. Two Flip rows stay on the
  *   stitch's physical column before the flip: ⬇ at column 19 (sheet row
- *   9) and ⬆ at column 19 (sheet row 14). Rings 2–4 stay on step3
- *   columns). Falls back to
- *   step3 xfer. The sheet has 124 rows; stitch_map_bind.json stays at 121.
+ *   9) and ⬆ at column 19 (sheet row 15). When |F−B|=1 and the empty
+ *   needle is still on the right fold, the next row racks that whole bed
+ *   so the empty sits at the left junction: after the ⬇, sheet row 10 is
+ *   B→ on the source needles and the following knit leaves column 37
+ *   empty. Rings 2–4 stay on step3 columns). Falls back to
+ *   step3 xfer. The sheet has 126 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
