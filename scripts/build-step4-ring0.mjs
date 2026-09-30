@@ -61,12 +61,12 @@
  * back needle, then the next lower one, with no empty cell and no
  * stacking. A short course stops on its last column and does not draw
  * a needle it did not reach. That fold recount is not a turn. On the
- * second circle, when the next knit reverses on the column where the
- * previous knit stopped, and nothing has transferred or flipped, the
- * course only rises: the first stitch is that same needle, and each
- * later column is one step in the new direction. It does not take an
- * extra needle toward or away from the fold, and it does not copy the
- * previous row's other labels. This sample's increase knit ends at F19
+ * second and third circles, when the next knit reverses on the column
+ * where the previous knit stopped, and nothing has transferred or
+ * flipped, the course only rises: the first stitch is that same needle,
+ * and each later column is one step in the new direction. It does not
+ * take an extra needle toward or away from the fold, and it does not
+ * copy the previous row's other labels. This sample's increase knit ends at F19
  * on column 19. The flip row still shows that stitch. After that flip
  * the stitch is B19, and the rack leaves it at B18, so the next knit
  * that reaches column 19 starts on B18 and column 18 is F18. A longer
@@ -88,10 +88,11 @@
  * short bed so the empty sits at the left junction. An increase may slide
  * the front bed onto F−1; the following increase knit then racks that bed
  * back so the front starts at 0, and the usual window rule runs after that.
- * Ring 2 keeps the same course columns from its first knit through step3
- * row 43. Step3 row 44's decrease leaves equal counts two needles apart
- * (front 0…17, back 2…19). The locked rack covers one needle, so that row
- * and everything after it stay on the step3 columns.
+ * Ring 2 keeps those course columns, including the same rise-only turn,
+ * from its first knit through step3 row 43. Step3 row 44's decrease
+ * leaves equal counts two needles apart (front 0…17, back 2…19). The
+ * locked rack covers one needle, so that row and everything after it
+ * stay on the step3 columns.
  *
  * The phys sheet copies the bed and physical needle already stored on each
  * tracked cell, including transfers and flips. It does not place needles.
@@ -2036,7 +2037,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["绕回", "Step3 负列如果已经对上某枚针，就画在它自己的物理列上。对不上的负列才是后床末尾绕回，表列 = 37−物理针。前床物理针 0 由列 0 织到，不占负列。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0, and ring 1 transfers, flips, racks, and the left-fold wrap tail: front = phys, back = 37−phys. A ring 1 knit is drawn on its course column. That column is the front needle when one exists there; past the front it is the next back needle inward from the fold. Labels are the needles. No stacking and no empty column between F and B. This sample's increase knit ends at F19 on column 19. After the flip and rack, column 19 is B18 and column 18 is F18, including on longer courses. The front decrease is F← on columns 6…18, from the inherited anchor. A second-circle short row that turns on the previous course's last column stays on that needle and then steps one needle per column. 24R ends on B15, so 25L is B15, B16, B17, B18. The next course starts on that B18 and ends on B11, and 27L stays on B11. Ring 2 uses the fold recount from step3 row 28 through row 43. Step3 row 44 onward stays on step3 columns"],
+    ["columns", "ring 0, and ring 1 transfers, flips, racks, and the left-fold wrap tail: front = phys, back = 37−phys. A ring 1 knit is drawn on its course column. That column is the front needle when one exists there; past the front it is the next back needle inward from the fold. Labels are the needles. No stacking and no empty column between F and B. This sample's increase knit ends at F19 on column 19. After the flip and rack, column 19 is B18 and column 18 is F18, including on longer courses. The front decrease is F← on columns 6…18, from the inherited anchor. A short row that turns on the previous course's last column stays on that needle and then steps one needle per column. 24R ends on B15, so 25L is B15, B16, B17, B18. The next course starts on that B18 and ends on B11, and 27L stays on B11. The same turn on the third circle: 37R ends on B6, so 38L starts on B6 and runs to B17, and the next course starts on that B17. Step3 row 44 onward stays on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 inserts one whole-bed align row after shaping. Ring 1 inserts two Flip rows, and after each flip a whole-bed move: the first puts the empty needle on the left fold, the second realigns equal counts. Ring 2's increase racks the front bed back onto 0, then racks the back bed so the empty sits at the left fold. The next one-needle offset racks the back bed once"],
     ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第三圈跟踪到 step3 行 43。从 step3 行 44 起没有这份数据。"],
     ["NOTE3", "第三圈接到第二圈末床位。step3 行 35 的加针把 F0 移到 F−1，负列不绕回后床。行 36 织完后整段把前床移回从 0 起，再把空针放到左衔接。行 44 减针后数目已齐，但前 0…17、后 2…19，错开两针。锁定的整床移只覆盖错开一针，这里先停。+R2、−R2 以及成对的一针移圈没有写成多针成形。"],
@@ -2176,9 +2177,9 @@ export function buildRing0Workbook(step3, bind) {
   if (lockedCourseEnd <= ring2Span.start || lockedCourseEnd > ring2Span.end) {
     fail(`locked course end ${lockedCourseEnd} is outside ring 2`);
   }
-  const ring1 = simulateRing1(step3.rows, ring1Span.start, lockedCourseEnd, ring, ring2Span.start);
+  const ring1 = simulateRing1(step3.rows, ring1Span.start, lockedCourseEnd, ring, lockedCourseEnd);
   try {
-    simulateRing1(step3.rows, ring1Span.start, lockedCourseEnd + 1, ring, ring2Span.start);
+    simulateRing1(step3.rows, ring1Span.start, lockedCourseEnd + 1, ring, lockedCourseEnd);
     fail("step3 行 44 应在错开两针处停下");
   } catch (err) {
     if (!/step3 行 44/.test(err.message) || !/不是错开一针/.test(err.message)) throw err;
