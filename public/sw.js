@@ -1,5 +1,5 @@
 // Vite stamps the CACHE suffix at build time with a content hash of dist/.
-// Bump note: ring 0 uses one physical-column map. Cast-on packs the back bed against the front (column 19 is B·) and does not reserve column 37. B→ at column 19 moves back phys 18 to 19; the next knit row is drawn from the new physical needles, starting at column 20 (phys 17). No ring-0 recenter. Ring 1 flips stay on the pre-flip physical column: sheet row 8 is ⬇ at column 19; sheet row 13 is ⬆ at column 19. Sheet row 7 is F← on columns 6..18. Header −5…37. Bind stays 121. 123 rows. The phys sheet copies those tracked bed and phys values; the map toolbar 物理针 button reads them. Rings 2–4 are not given a physical needle.
+// Bump note: ring 0 racks the back bed one needle after the increase when the counts match but the windows are 0…18 and 1…19. B← is drawn on the source needles; the next knit uses the aligned needles, and the back tail is physical 0 at column 37. Ring 1 is unchanged apart from that extra row: sheet row 9 is ⬇ at column 19; sheet row 14 is ⬆ at column 19. Sheet row 8 is F← on columns 6..18. Header −5…37. Bind stays 121. 124 rows. The phys sheet and the 物理针 toggle still read the tracked bed and needle. Rings 2–4 are not given a physical needle.
 const CACHE = "mesh-preview-v2-__SW_CACHE_ID__";
 
 function isNavigation(request) {
