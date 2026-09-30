@@ -1101,15 +1101,15 @@ assert(
   assert(path1 === 7 && ring0.rows[path1].dir === step3.rows[built.span.rowEnd].dir, "path 1 starts on sheet row 7");
   {
     const tokenAtPath1 = (col) => ring0.rows[path1].cells.find((c) => c.col === col)?.token || "";
-    assert(tokenAtPath1(0) === "", "ring 1 no longer parks the physical-1 stitch on column 0");
     assert(
-      [1, 2, 3, 4, 5, 6, 7].map(tokenAtPath1).join(",") === "F·,F·,F·,F·,F·,F-R1,F·",
-      "ring 1's first knit uses the inherited physical columns 1..7",
+      [0, 1, 2, 3, 4, 5, 6, 7].map(tokenAtPath1).join(",") === "F·,F·,F·,F·,F·,F·,F-R1,F·",
+      "ring 1's first knit starts at the inherited F0 and keeps the short-row stitches beside it",
     );
     assert(
-      [1, 2, 3, 4, 5, 6, 7].map((col) => physicalNeedleGlyph(ring0.rows[path1].cells.find((c) => c.col === col))).join(",") ===
-        "F1,F2,F3,F4,F5,F6,F7",
-      "the short opening row starts at physical needle 1",
+      [0, 1, 2, 3, 4, 5, 6, 7]
+        .map((col) => physicalNeedleGlyph(ring0.rows[path1].cells.find((c) => c.col === col)))
+        .join(",") === "F0,F1,F2,F3,F4,F5,F6,F7",
+      "the opening row starts at physical needle 0",
     );
   }
   assert(!ring0.rows.slice(0, path1).some((r) => r.dir === "Flip"), "Flip is not inside ring 0");
@@ -1220,8 +1220,8 @@ assert(
   const row6Col = row6Stitch.mapCells.find((c) => c.display_row === 6).col;
   const row6Map = ring0.bindToSheet.get(`${6},${row6Col}`);
   const row6Keys = highlightKeysForStitch(row6Stitch, { map: ring0, grid: ringGrid, bind: stitchBind });
-  assert(row6Col === 0 && row6Map.sheetRow === 7 && row6Map.sheetCol === 1, "path 1's first stitch is physical column 1, not the old chart column");
-  assert(row6Keys.has("7,1") && !row6Keys.has("7,0") && !row6Keys.has("7,2"), "path 1 bind row 6 highlights physical column 1");
+  assert(row6Col === 0 && row6Map.sheetRow === 7 && row6Map.sheetCol === 1, "step3 column 0 on the opening row is the physical-1 stitch");
+  assert(row6Keys.has("7,1") && !row6Keys.has("7,0") && !row6Keys.has("7,2"), "bind row 6 column 0 highlights sheet column 1");
   assert(stitchForMapCell(7, row6Map.sheetCol, stitchBind, bound.stitches, ring0) === row6Stitch, "clicking sheet row 7 maps back to bind row 6");
   assert(stitchForMapCell(9, 19, stitchBind, bound.stitches, ring0) == null, "the first ring-1 flip row selects no face");
   assert(stitchForMapCell(14, 19, stitchBind, bound.stitches, ring0) == null, "the second ring-1 flip row selects no face");
@@ -1240,7 +1240,7 @@ assert(
   assert(tokenAt(19, 20) === "" && tokenAt(19, 21) === "B→" && tokenAt(19, 37) === "B→", "the back decrease also starts at the anchor's physical column");
   assert(tokenAt(9, 19) === "⬇" && tokenAt(9, 18) === "" && tokenAt(14, 19) === "⬆" && tokenAt(14, 18) === "", "flips are drawn on the pre-flip physical column");
   assert(physicalNeedleGlyph(physAt(11, 0)) === "F0" && physAt(11, 0).bed === "F" && physAt(11, 0).phys === 0, "the front bed's first needle is F0 at column 0");
-  assert(physicalNeedleGlyph(physAt(7, 0)) === "" && physicalNeedleGlyph(physAt(7, 1)) === "F1", "the opening short row does not relabel physical needle 1 as column 0");
+  assert(physicalNeedleGlyph(physAt(7, 0)) === "F0" && physicalNeedleGlyph(physAt(7, 1)) === "F1", "the opening row starts at F0 and the next stitch stays F1");
   const frontZero = ring0.bindToSheet.get("9,-1");
   assert(frontZero && frontZero.sheetRow === 11 && frontZero.sheetCol === 0, "step3 row 9 col −1 is the inherited front needle 0");
   const frontZeroStitch = stitchForMapCell(11, 0, stitchBind, bound.stitches, ring0);
