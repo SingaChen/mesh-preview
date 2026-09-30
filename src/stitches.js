@@ -43,9 +43,12 @@
  *   stitch at B18. Ring 1 knits are drawn on the course column, so a
  *   column on the front is that front needle and the next column is
  *   the back fold. Sheet row 17 is B18 then F18, F17, F16. Sheet row
- *   20 continues F18, B18, B17 with no empty column. Rings 2–4
- *   stay on step3 columns). Falls back to
- *   step3 xfer. The sheet has 126 rows; stitch_map_bind.json stays at 121.
+ *   20 continues F18, B18, B17 with no empty column. Ring 2 keeps
+ *   those course columns from step3 row 28 through row 43, including
+ *   the increase that parks F0 on F−1 and the following whole-bed
+ *   realign back to 0. Step3 row 44 onward stays on step3 columns).
+ *   Falls back to
+ *   step3 xfer. The sheet has 129 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by

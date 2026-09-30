@@ -1107,8 +1107,8 @@ assert(
   const ring0 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls")));
   const built = buildFromFiles();
   const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
-  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 126, `step4 sheet is 126 rows, got ${ring0.sheet} ${ring0.rows.length}`);
-  assert(ring0.rows.length === step3.rows.length + 5, "sheet adds one ring-0 align row, two ring-1 flip rows, and two whole-bed moves");
+  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 129, `step4 sheet is 129 rows, got ${ring0.sheet} ${ring0.rows.length}`);
+  assert(ring0.rows.length === step3.rows.length + 8, "sheet adds the ring-0 align, two ring-1 flips, two ring-1 racks, and three ring-2 racks");
   assert(ring0.colMin === -5 && ring0.colMax === 37 && ring0.needleCols.length === 43, "ring0 needles are −5…37");
   assert(built.ring.N === 38 && built.ring.front === 19 && built.ring.back === 19, "ring 0 ends F19 B19");
   assert(built.ring.front - built.ring.back === 0, "finished circle stays inside F−B ∈ {0,1}");
@@ -1154,12 +1154,14 @@ assert(
   );
   const tokenAt = (row, col) => ring0.rows[row].cells.find((c) => c.col === col)?.token;
   const ring2Sheet = built.step3ToSheet[built.ring1Span.end];
+  const trackedSheet = built.step3ToSheet[built.lockedCourseEnd];
   assert(ring2Sheet === 33, `ring 2 still starts at sheet row 33, got ${ring2Sheet}`);
-  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < ring2Sheet), "phys sheet stops before ring 2");
+  assert(trackedSheet === 52, `step3 row 44 stays at sheet row 52, got ${trackedSheet}`);
+  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops before the unresolved decrease");
   for (let sheetRow = 0; sheetRow < built.rows.length; sheetRow++) {
     for (const src of built.rows[sheetRow].cells) {
       const got = ring0.rows[sheetRow].cells.find((cell) => cell.col === src.col);
-      const tracked = src.token && sheetRow < ring2Sheet;
+      const tracked = src.token && sheetRow < trackedSheet;
       if (tracked) {
         assert(
           got.bed === src.bed && got.phys === src.phys && (got.bed === "F" || got.bed === "B") && Number.isInteger(got.phys),
@@ -1184,9 +1186,14 @@ assert(
   assert(!/[←→+v^·]/.test([physAt(2, 18), physAt(2, 19), physAt(2, 20), physAt(1, 19)].map(physicalNeedleGlyph).join("")), "physical mode does not keep shaping symbols");
   assert(physicalNeedleGlyph(physAt(0, 37)) === "", "an empty cell stays blank");
   assert(physicalNeedleGlyph({ col: 17, token: "B·" }) === "—", "a bed glyph without recorded phys is not turned into a needle");
-  const ring2Cell = ring0.rows[ring2Sheet].cells.find((cell) => cell.token);
-  assert(ring2Cell && formatPhysicalNeedle(ring2Cell).title === "无物理针" && formatPhysicalNeedle(ring2Cell).detail === "无物理针", "ring 2 says there is no physical needle");
-  assert(physicalNeedleGlyph(ring2Cell) === "—", "a ring 2 symbol without a physical needle is a dash");
+  const ring2Cell = ring0.rows[ring2Sheet].cells.find((cell) => cell.col === 0);
+  assert(
+    ring2Cell && physicalNeedleGlyph(ring2Cell) === "F0" && formatPhysicalNeedle(ring2Cell).detail === "物理针 0",
+    "ring 2's first knit is the inherited F0",
+  );
+  assert(physicalNeedleGlyph(physAt(ring2Sheet, 1)) === "F1", "the next stitch on that short course is F1");
+  const rawLater = ring0.rows[trackedSheet].cells.find((cell) => cell.token);
+  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 44 has no tracked physical needle");
   assert(formatPhysicalNeedle(physAt(0, 37)).title === "无物理针", "an empty cell does not invent a needle");
   assert(formatPhysicalNeedle({ col: 20, token: "B+R1", bed: "B" }).title === "无物理针", "a bed glyph without a recorded phys is not a needle");
   assert(formatPhysicalNeedle({ col: 17, token: "·" }).title === "无物理针", "the sheet column is not reported as a physical needle");
@@ -1332,10 +1339,28 @@ assert(
   const frontZeroKeys = highlightKeysForStitch(frontZeroStitch, { map: ring0, grid: ringGrid, bind: stitchBind });
   assert(frontZeroKeys.has("12,0") && frontZeroKeys.has("12,36"), "the left fold links F0 to the first back stitch, with physical 0 empty");
   const ring2 = ring0.bindToSheet.get("28,0");
-  assert(ring2 && ring2.sheetRow === 33 && ring2.sheetCol === 0, "ring 2 stays on the step3 column, shifted by the align row, two flips, and two whole-bed moves");
+  assert(ring2 && ring2.sheetRow === 33 && ring2.sheetCol === 0, "ring 2's first knit stays on sheet row 33 column 0");
+  const ring1End = built.ring1.trace.find((item) => item.label === "step3 行 27 R");
+  assert(ring1End && ring1End.N === 38 && ring1End.F === 19 && ring1End.B === 19, "ring 1 ends F19 B19");
   assert(
-    built.ring1.end.N === 38 && built.ring1.end.f.length === 19 && built.ring1.end.b.length === 19,
-    "ring 1 ends F19 B19",
+    tokenAt(37, 17) === "F^L" &&
+      tokenAt(37, 18) === "F·" &&
+      tokenAt(37, 19) === "B·" &&
+      physicalNeedleGlyph(physAt(37, 17)) === "F17" &&
+      physicalNeedleGlyph(physAt(37, 18)) === "F18" &&
+      physicalNeedleGlyph(physAt(37, 19)) === "B18" &&
+      tokenAt(37, 20) === "B·",
+    "ring 2's longer course continues F17, F18, B18 with no empty column",
+  );
+  assert(
+    [0, 1, 2, 3, 4, 5].map((col) => tokenAt(40, col)).join(",") === "F←,F←,F←,F←,F←,F←" &&
+      [0, 1, 2, 3, 4, 5].map((col) => physicalNeedleGlyph(physAt(40, col))).join(",") === "F0,F1,F2,F3,F4,F5",
+    "the ring 2 increase transfer is F← on F0…F5",
+  );
+  assert(tokenAt(40, -1) === "", "unresolved negative columns are not drawn on that increase transfer");
+  assert(
+    physicalNeedleGlyph(physAt(42, -1)) === "F-1" && tokenAt(42, -1) === "F→" && physicalNeedleGlyph(physAt(42, 18)) === "F18",
+    "after the increase the front bed racks from F−1 back toward 0",
   );
   let failed = false;
   try {
