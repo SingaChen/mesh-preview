@@ -141,16 +141,18 @@
  * are not balanced between those passes. After the last pass the existing
  * settle runs: seat the front on 0, then the same-index flip and the
  * one-needle rack, or the single excess coil from Hi to Hi−1 when that
- * is the window. An anchor joins a pass only when it already sits against
- * the shaping-bed block. The chart stitch is used when it is that
- * neighbor; otherwise the course stitch on the marker column is used
- * when that stitch is the neighbor. A last pass whose anchor is not
- * against the block stops. A pass that still has decreases left does not
- * pull a distant chart stitch into the move. Columns the recount would
- * place below physical needle 0, or below the live low needle of that
- * bed, are not stitches and do not pull the rest.
+ * is the window. A pass moves only the stitches named from anchor+k
+ * through that block's fold-side edge. The neighbor outside the block
+ * is the landing needle, not a source. Before a repack, a last pass
+ * whose chart stitch sits in that outside slot includes the chart
+ * stitch: it is the edge the transfer columns started one past, and
+ * the landing needle is the one beyond it. A course stitch that only
+ * fills the landing slot after a repack stays put. Columns the recount
+ * would place below physical needle 0, or below the live low needle of
+ * that bed, are not stitches and do not pull the rest.
  * On this sample step3 row 75 is -R2 on B12. The first pass moves
- * B10…B0 one needle; the second moves B12…B1. The pair at the right
+ * B10…B0 and lands on B11; the second moves B11…B1 and lands on B12.
+ * The pair at the right
  * fold is the short bed's high needle and it is occupied, so the settle
  * racks the back bed −1, flips F14 onto B14, then racks the back bed
  * onto 0…13. Row 78 is the same -R2 pattern and lands on F0…F12 /
@@ -2146,12 +2148,14 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
       seen.add(st.id);
       selected.push(st);
     }
-    // The -R1 column names the anchor by its chart, the index step3 still
-    // uses. On the front that chart sits one needle to the right of the
-    // column, so resolving the column as a physical needle slides the
-    // anchor. Arrows start on the anchor stitch itself. A pass that
-    // already selected it (the first transfer column is that physical
-    // needle) does not add the neighbor.
+    // The columns from anchor+k are this pass, through the fold-side
+    // edge of that block. The neighbor just outside is where that edge
+    // lands. It is not a source. Before a repack, the last pass of a
+    // marker that sits one column before the block names its edge by
+    // chart, and the transfer columns start one past that stitch, so
+    // the chart stitch joins the pass and the landing needle is the
+    // one beyond it. A course stitch that only occupies the landing
+    // slot after a repack does not join.
     if (!increase && delta < 0) {
       const start = Math.min(...cols);
       if (decAnchor == null || decreaseLeft < 1) fail(`step3 行 ${ri} 减针移圈没有锚点`);
@@ -2167,30 +2171,17 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
       }
       const onShape = selected.filter((st) => st.bed === shapeBed);
       if (!onShape.length) fail(`NOTE: step3 行 ${ri} 减针移圈在成形床上没有线圈，先停`);
-      const charts = onShape.map((st) => st.chart);
-      const lo = Math.min(...charts);
-      const hi = Math.max(...charts);
-      // Prefer the marker's chart stitch. After the beds have been
-      // repacked the course column can name a different stitch; use that
-      // one when it is the stitch actually sitting against this pass.
+      const lo = Math.min(...onShape.map((st) => st.chart));
       const chartAnchor = stitchOnChart(decAnchor);
-      const courseAnchor = stitchOnTransfer(decAnchor);
-      const against = (st) =>
-        st &&
-        st.bed === shapeBed &&
-        (seen.has(st.id) || st.chart === lo - 1 || st.chart === hi + 1);
-      const anchor = against(chartAnchor) ? chartAnchor : against(courseAnchor) ? courseAnchor : null;
-      if (!anchor && ahead === 1) {
-        const shown = chartAnchor || courseAnchor;
-        if (!shown) fail(`step3 行 ${ri} 减针锚点 chart ${decAnchor} 没有线圈`);
-        if (shown.bed !== shapeBed) {
-          fail(`step3 行 ${ri} 减针锚点在 ${shown.bed}${shown.phys}，成形床是 ${shapeBed}`);
-        }
-        fail(`NOTE: step3 行 ${ri} 减针锚点 ${shown.bed}${shown.phys} 不挨着这一趟要移的线圈，先停`);
-      }
-      if (anchor && !seen.has(anchor.id)) {
-        seen.add(anchor.id);
-        selected.push(anchor);
+      if (
+        ahead === 1 &&
+        chartAnchor &&
+        chartAnchor.bed === shapeBed &&
+        !seen.has(chartAnchor.id) &&
+        chartAnchor.chart === lo - 1
+      ) {
+        seen.add(chartAnchor.id);
+        selected.push(chartAnchor);
       }
     }
     // Column 18 is the back stitch at the fold, so a front pass that also
@@ -2517,11 +2508,11 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["绕回", "Step3 负列如果已经对上某枚针，就画在它自己的物理列上。对不上的负列才是后床末尾绕回，表列 = 37−物理针。前床物理针 0 由列 0 织到，不占负列。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0, and ring 1 transfers, flips, racks, and the left-fold wrap tail: front = phys, back = 37−phys. A ring 1 knit is drawn on its course column. That column is the front needle when one exists there; past the front it is the next back needle inward from the fold. Labels are the needles. No stacking and no empty column between F and B. This sample's increase knit ends at F19 on column 19. After the flip and rack, column 19 is B18 and column 18 is F18, including on longer courses. The front decrease is F← on columns 6…18, from the inherited anchor. A short row that turns on the previous course's last column stays on that needle and then steps one needle per column. After the back decrease the chain stays on the repacked needles: 22R ends on B16, so 23L starts on B16 and ends on B17; 24R is B17 then B16; 25L is B16, B17, B18, F18; 26R starts on that F18 and ends on B12; 27L starts on B12 and ends on B15; 32R is B6 through B1. The same turn on the third circle: 37R ends on B6, so 38L starts on B6 and runs to B17, and the next course starts on that B17. The third-circle increase moves F0 off the bed and the knit fills the gap, so the window stays F0…F18 / B1…B18. Step3 row 40 moves the front F12…F18. Counts are equal and one needle apart, so the next row racks only the back bed onto 0…17. There is no flip on that decrease. Step3 row 44 leaves the front two stitches longer, both beds ending on 17, with the back starting two higher. The right-fold pair of F17 is B17. That needle is occupied, so the back bed racks −1 first and the flip lands on B17. The windows are then one apart, and the locked one-needle rack aligns them. The fourth circle seats the front on needle 0 after a decrease, the same rack an increase uses. Step3 row 69 lands the front on 1…14 and racks it onto 0…13, then racks the back bed onto 0…13. A front increase moves only the front needles after the increase position. It does not rack the whole front. Step3 row 71 draws F→ on F11…F13; step3 row 72 draws F→ on F12…F14. F0…F10 stay, and the holes are at 11 and 12. Step3 row 73 fills those holes (F9…F12, with F+R2 on F10) before any balance. The window is then F0…F15 / B0…B13. The flip lands on B15, past the back bed, and only that coil moves B15→B14. Step3 row 74 knits F10…F12 on F0…F14 / B0…B14. A -Rn marker is n one-needle passes after the knit. Step3 row 75 draws -R2 on B12, then B→ on B10…B0 and B→ on B12…B1. The occupied pair racks the back bed, flips F14 onto B14, and racks onto F0…F13 / B0…B13. Row 78 repeats that onto F0…F12 / B0…B12. Row 86 repeats it onto F0…F11 / B0…B11. Step3 row 87 names back physical needle −1 and stays on step3 columns"],
+    ["columns", "ring 0, and ring 1 transfers, flips, racks, and the left-fold wrap tail: front = phys, back = 37−phys. A ring 1 knit is drawn on its course column. That column is the front needle when one exists there; past the front it is the next back needle inward from the fold. Labels are the needles. No stacking and no empty column between F and B. This sample's increase knit ends at F19 on column 19. After the flip and rack, column 19 is B18 and column 18 is F18, including on longer courses. The front decrease is F← on columns 6…18, from the inherited anchor. A short row that turns on the previous course's last column stays on that needle and then steps one needle per column. After the back decrease the chain stays on the repacked needles: 22R ends on B16, so 23L starts on B16 and ends on B17; 24R is B17 then B16; 25L is B16, B17, B18, F18; 26R starts on that F18 and ends on B12; 27L starts on B12 and ends on B15; 32R is B6 through B1. The same turn on the third circle: 37R ends on B6, so 38L starts on B6 and runs to B17, and the next course starts on that B17. The third-circle increase moves F0 off the bed and the knit fills the gap, so the window stays F0…F18 / B1…B18. Step3 row 40 moves the front F12…F18. Counts are equal and one needle apart, so the next row racks only the back bed onto 0…17. There is no flip on that decrease. Step3 row 44 leaves the front two stitches longer, both beds ending on 17, with the back starting two higher. The right-fold pair of F17 is B17. That needle is occupied, so the back bed racks −1 first and the flip lands on B17. The windows are then one apart, and the locked one-needle rack aligns them. The fourth circle seats the front on needle 0 after a decrease, the same rack an increase uses. Step3 row 69 lands the front on 1…14 and racks it onto 0…13, then racks the back bed onto 0…13. A front increase moves only the front needles after the increase position. It does not rack the whole front. Step3 row 71 draws F→ on F11…F13; step3 row 72 draws F→ on F12…F14. F0…F10 stay, and the holes are at 11 and 12. Step3 row 73 fills those holes (F9…F12, with F+R2 on F10) before any balance. The window is then F0…F15 / B0…B13. The flip lands on B15, past the back bed, and only that coil moves B15→B14. Step3 row 74 knits F10…F12 on F0…F14 / B0…B14. A -Rn marker is n one-needle passes after the knit. Step3 row 75 draws -R2 on B12, then B→ on B10…B0 (lands on B11) and B→ on B11…B1 (lands on B12). The occupied pair racks the back bed, flips F14 onto B14, and racks onto F0…F13 / B0…B13. Row 78 repeats that onto F0…F12 / B0…B12. Row 86 repeats it onto F0…F11 / B0…B11. Step3 row 87 names back physical needle −1 and stays on step3 columns"],
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 inserts one whole-bed align row after shaping. Ring 1 inserts two Flip rows, and after each flip a whole-bed move: the first puts the empty needle on the left fold, the second realigns equal counts. Ring 2's increase does not insert a flip or a rack: the stitch that would land below 0 leaves, and the knit fills the gap. The following front decrease racks only the back bed one needle, onto 0…17. Step3 row 44 racks the back bed −1 to free the paired needle, flips onto that same-index needle, then the one-needle rack aligns the windows. The fourth circle adds one rack, a flip and a rack, another flip and a rack, one more rack, and after step3 row 69 two racks that seat the front on needle 0 and then align the back. Step3 row 71 moves only the front needles after the increase and does not insert a whole-bed rack. After the increase knit on step3 row 73, one Flip lands on B15 and one single-needle row moves that coil to B14. A -Rn marker is n one-needle passes, then the existing settle. Step3 row 75 is -R2: two back passes, then a rack, a flip of F14 onto B14, and a rack onto F0…F13 / B0…B13. Row 78 repeats that group onto F0…F12 / B0…B12. Row 84's -R1 leaves the empty at the left junction and inserts no row. Row 86 repeats the rack, flip, and rack onto F0…F11 / B0…B11. Step3 row 87 is not tracked"],
     ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第四圈跟踪到 step3 行 86。从 step3 行 87 起没有这份数据。"],
     ["分布", "最右列是这一行开始时机器上的线圈窗，例如 F0…F18 / B1…B18。空档写成断开的窗，不并成一段。step3 行 87 记下跟踪结束时的窗；后面的行不再写。"],
-    ["NOTE3", "第三圈接到第二圈末床位，前 0…18、后 1…18。step3 行 35 的加针把 F0 移出针床：没有低于 0 的物理针，负列也不绕回后床。行 36 在空档织进新圈，窗回到前 0…18、后 1…18，数目已是差一针且空针在左衔接，不翻、不移。行 40 的减针按物理针把前床 F12…F18 收一针，移完前 0…17、后仍是 1…18。数目齐、错开一针，只整段移后床到 0…17，不翻针。行 42 的后床减针收到左折返，空针已在左衔接，不移。行 44 减针后前 0…17、后 2…17，前床多两针，高位都在 17。右折返的配对针是同一物理号的 B17。B17 上有线圈，先整段移后床 -1 空出 B17，再把 F17 翻到 B17，窗变成前 0…16、后 1…17。数目齐、错开一针，再整段移后床对齐到 0…16。不是一次移两针。第三圈结束时前 0…16、后 1…16。第四圈接着这副床。行 53 数目齐、错开一针，只整段移后床。行 57 把 B15 翻到 F15，再把空针移到左衔接。行 63 把 F15 翻到 B15，再对齐。行 65 把空针移到左衔接，结束时前 0…14、后 1…14。行 69 的减针让前床落到 1…14，后床已经是 1…14。和加针一样先整段移前床 -1，前床从 0 起（0…13）。数目齐、错开一针，再整段移后床对齐到 0…13。行 71 的加针位在 F10。只把加针位之后的 F11…F13 右移一针，F0…F10 不动。行 72 再把 F12…F14 右移一针，空档留在 11 和 12。行 73 先把这两针织进 F11、F12，窗变成前 0…15、后 0…13。右折返先把 F15 翻到 B15，再只把这一针从 B15 收到 B14，不整床移。窗变成前 0…14、后 0…14。行 74 在这副窗上织 F10…F12。行 75 的 -R2 是两次一针移圈，先移后床 B10…B0，再移 B12…B1，两次之间不对齐。配对针 B14 上有线圈，先整段移后床空出 B14，再把 F14 翻到 B14，再对齐到前 0…13、后 0…13。行 78 同样是 -R2，对齐到前 0…12、后 0…12。行 84 的 -R1 空针已在左衔接，不移。行 86 再空出 B12、把 F12 翻到 B12、对齐到前 0…11、后 0…11。行 87 的行程列越过前床之后要接到后床物理针 -1，这一针不在，先停。这一行记下前 0…11、后 0…11，后面的行不再写。+R2、−R2 以及成对的一针移圈没有写成多针成形。"],
+    ["NOTE3", "第三圈接到第二圈末床位，前 0…18、后 1…18。step3 行 35 的加针把 F0 移出针床：没有低于 0 的物理针，负列也不绕回后床。行 36 在空档织进新圈，窗回到前 0…18、后 1…18，数目已是差一针且空针在左衔接，不翻、不移。行 40 的减针按物理针把前床 F12…F18 收一针，移完前 0…17、后仍是 1…18。数目齐、错开一针，只整段移后床到 0…17，不翻针。行 42 的后床减针收到左折返，空针已在左衔接，不移。行 44 减针后前 0…17、后 2…17，前床多两针，高位都在 17。右折返的配对针是同一物理号的 B17。B17 上有线圈，先整段移后床 -1 空出 B17，再把 F17 翻到 B17，窗变成前 0…16、后 1…17。数目齐、错开一针，再整段移后床对齐到 0…16。不是一次移两针。第三圈结束时前 0…16、后 1…16。第四圈接着这副床。行 53 数目齐、错开一针，只整段移后床。行 57 把 B15 翻到 F15，再把空针移到左衔接。行 63 把 F15 翻到 B15，再对齐。行 65 把空针移到左衔接，结束时前 0…14、后 1…14。行 69 的减针让前床落到 1…14，后床已经是 1…14。和加针一样先整段移前床 -1，前床从 0 起（0…13）。数目齐、错开一针，再整段移后床对齐到 0…13。行 71 的加针位在 F10。只把加针位之后的 F11…F13 右移一针，F0…F10 不动。行 72 再把 F12…F14 右移一针，空档留在 11 和 12。行 73 先把这两针织进 F11、F12，窗变成前 0…15、后 0…13。右折返先把 F15 翻到 B15，再只把这一针从 B15 收到 B14，不整床移。窗变成前 0…14、后 0…14。行 74 在这副窗上织 F10…F12。行 75 的 -R2 是两次一针移圈，先移后床 B10…B0（落到 B11），再移 B11…B1（落到 B12），两次之间不对齐。配对针 B14 上有线圈，先整段移后床空出 B14，再把 F14 翻到 B14，再对齐到前 0…13、后 0…13。行 78 同样是 -R2，对齐到前 0…12、后 0…12。行 84 的 -R1 空针已在左衔接，不移。行 86 再空出 B12、把 F12 翻到 B12、对齐到前 0…11、后 0…11。行 87 的行程列越过前床之后要接到后床物理针 -1，这一针不在，先停。这一行记下前 0…11、后 0…11，后面的行不再写。+R2、−R2 以及成对的一针移圈没有写成多针成形。"],
   ];
   legend.forEach((pair, i) => {
     parts.push(labelRecord(i, 0, xf, pair[0]));
@@ -3202,8 +3193,8 @@ export function buildRing0Workbook(step3, bind) {
   if (bedsAt(step3ToSheet[77]) !== "F0…F14 / B1…B14") {
     fail(`step3 行 77 开始应是 F0…F14 / B1…B14，得到 ${bedsAt(step3ToSheet[77])}`);
   }
-  if (courseText(77) !== "25:B→/B12 26:B→/B11 27:B→/B10 28:B→/B9 29:B→/B8 30:B→/B7 31:B→/B6 32:B→/B5 33:B→/B4 34:B→/B3 35:B→/B2 36:B→/B1") {
-    fail(`step3 行 77 应只把 B12…B1 收一针，得到 ${courseText(77)}`);
+  if (courseText(77) !== "26:B→/B11 27:B→/B10 28:B→/B9 29:B→/B8 30:B→/B7 31:B→/B6 32:B→/B5 33:B→/B4 34:B→/B3 35:B→/B2 36:B→/B1") {
+    fail(`step3 行 77 应把 B11…B1 收到 B12，得到 ${courseText(77)}`);
   }
   if (bedsAt(step3ToSheet[77] + 1) !== "F0…F14 / B2…B14") {
     fail(`空出 B14 应是 F0…F14 / B2…B14，得到 ${bedsAt(step3ToSheet[77] + 1)}`);
@@ -3220,8 +3211,8 @@ export function buildRing0Workbook(step3, bind) {
   if (courseText(79) !== "30:B→/B7 31:B→/B6 32:B→/B5 33:B→/B4 34:B→/B3 35:B→/B2 36:B→/B1 37:B→/B0") {
     fail(`step3 行 79 应只把 B7…B0 收一针，得到 ${courseText(79)}`);
   }
-  if (courseText(80) !== "28:B→/B9 29:B→/B8 30:B→/B7 31:B→/B6 32:B→/B5 33:B→/B4 34:B→/B3 35:B→/B2 36:B→/B1") {
-    fail(`step3 行 80 应只把 B9…B1 收一针，得到 ${courseText(80)}`);
+  if (courseText(80) !== "29:B→/B8 30:B→/B7 31:B→/B6 32:B→/B5 33:B→/B4 34:B→/B3 35:B→/B2 36:B→/B1") {
+    fail(`step3 行 80 应把 B8…B1 收到 B9，得到 ${courseText(80)}`);
   }
   if (bedsAt(step3ToSheet[81]) !== "F0…F12 / B0…B12") {
     fail(`行 80 对齐后应是 F0…F12 / B0…B12，得到 ${bedsAt(step3ToSheet[81])}`);
@@ -3229,14 +3220,14 @@ export function buildRing0Workbook(step3, bind) {
   if (courseText(83) !== "18:B^L/B7 19:B·/B6 20:B-R1/B5 21:B·/B4") {
     fail(`step3 行 83 应是 -R1 在 B5，得到 ${courseText(83)}`);
   }
-  if (courseText(84) !== "32:B→/B5 33:B→/B4 34:B→/B3 35:B→/B2 36:B→/B1 37:B→/B0") {
-    fail(`step3 行 84 应把 B5…B0 收一针，得到 ${courseText(84)}`);
+  if (courseText(84) !== "33:B→/B4 34:B→/B3 35:B→/B2 36:B→/B1 37:B→/B0") {
+    fail(`step3 行 84 应把 B4…B0 收到 B5，得到 ${courseText(84)}`);
   }
   if (bedsAt(step3ToSheet[85]) !== "F0…F12 / B1…B12") {
     fail(`行 84 之后空针应已在左衔接，得到 ${bedsAt(step3ToSheet[85])}`);
   }
-  if (courseText(86) !== "34:B→/B3 35:B→/B2 36:B→/B1") {
-    fail(`step3 行 86 应把 B3…B1 收一针，得到 ${courseText(86)}`);
+  if (courseText(86) !== "35:B→/B2 36:B→/B1") {
+    fail(`step3 行 86 应把 B2…B1 收到 B3，得到 ${courseText(86)}`);
   }
   if (bedsAt(step3ToSheet[87]) !== "F0…F11 / B0…B11") {
     fail(`行 86 对齐后应记下 F0…F11 / B0…B11，得到 ${bedsAt(step3ToSheet[87])}`);

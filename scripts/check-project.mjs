@@ -1523,8 +1523,9 @@ assert(
       tokenAt(95, 27) === "B→" &&
       physicalNeedleGlyph(physAt(95, 27)) === "B10" &&
       physicalNeedleGlyph(physAt(95, 37)) === "B0" &&
-      tokenAt(96, 25) === "B→" &&
-      physicalNeedleGlyph(physAt(96, 25)) === "B12" &&
+      tokenAt(96, 25) === "" &&
+      tokenAt(96, 26) === "B→" &&
+      physicalNeedleGlyph(physAt(96, 26)) === "B11" &&
       physicalNeedleGlyph(physAt(96, 36)) === "B1" &&
       tokenAt(97, 23) === "B←" &&
       physicalNeedleGlyph(physAt(97, 23)) === "B14" &&
@@ -1536,8 +1537,9 @@ assert(
       tokenAt(104, 13) === "⬆" &&
       physicalNeedleGlyph(physAt(104, 13)) === "F13" &&
       ring0.rows[106].beds === "F0…F12 / B0…B12" &&
-      tokenAt(109, 32) === "B→" &&
-      physicalNeedleGlyph(physAt(109, 32)) === "B5" &&
+      tokenAt(109, 32) === "" &&
+      tokenAt(109, 33) === "B→" &&
+      physicalNeedleGlyph(physAt(109, 33)) === "B4" &&
       ring0.rows[110].beds === "F0…F12 / B1…B12" &&
       tokenAt(113, 12) === "⬆" &&
       physicalNeedleGlyph(physAt(113, 12)) === "F12" &&
