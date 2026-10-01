@@ -451,17 +451,17 @@ assert(toRelativeToken("F→2") === "→2" && toRelativeToken("B←2") === "→2
   const cleared = settleAssignedWindows(surplus, new Map(), new Set(), "试让");
   assert(
     cleared.length === 3 &&
-      cleared[0].row.windowAlign &&
+      cleared[0].row.dir === "Flip" &&
       cleared[0].beds === "F0…F3 / B2…B3" &&
-      cleared[0].row.cells.map((cell) => `${cell.token}@${cell.phys}`).sort().join(",") === "B←@2,B←@3" &&
-      cleared[1].row.dir === "Flip" &&
-      cleared[1].row.cells[0].token === "⬆" &&
-      cleared[1].row.cells[0].phys === 3 &&
-      cleared[1].beds === "F0…F3 / B1…B2" &&
+      cleared[0].row.cells[0].token === "⬆" &&
+      cleared[0].row.cells[0].phys === 3 &&
+      cleared[1].row.windowAlign &&
+      cleared[1].beds === "F0…F2 / B2…B4" &&
+      cleared[1].row.cells.map((cell) => `${cell.token}@${cell.phys}`).sort().join(",") === "B←@2,B←@3,B←@4" &&
       cleared[2].row.windowAlign &&
       cleared[2].beds === "F0…F2 / B1…B3" &&
       cleared[2].row.cells.map((cell) => `${cell.token}@${cell.phys}`).sort().join(",") === "B←@1,B←@2,B←@3",
-    "a two-stitch front surplus with a shared high needle racks, flips onto the vacated needle, then racks again",
+    "a two-stitch front surplus flips onto the empty right-fold needle, then racks one needle at a time",
   );
   assert(physOf(surplus, "F") === "0,1,2" && physOf(surplus, "B") === "0,1,2", "the two one-needle racks land both windows on 0…2");
   stopped = false;
@@ -1133,7 +1133,7 @@ assert(
   const built = buildFromFiles();
   const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
   assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 130, `step4 sheet is 130 rows, got ${ring0.sheet} ${ring0.rows.length}`);
-  assert(ring0.rows.length === step3.rows.length + 9, "sheet adds the ring-0 align, two ring-1 flips, two ring-1 racks, the row-40 rack, and the row-44 rack, flip, and rack");
+  assert(ring0.rows.length === step3.rows.length + 9, "sheet adds the ring-0 align, two ring-1 flips, two ring-1 racks, the row-40 rack, and the row-44 flip and two racks");
   assert(ring0.colMin === -5 && ring0.colMax === 37 && ring0.needleCols.length === 43, "ring0 needles are −5…37");
   assert(built.ring.N === 38 && built.ring.front === 19 && built.ring.back === 19, "ring 0 ends F19 B19");
   assert(built.ring.front - built.ring.back === 0, "finished circle stays inside F−B ∈ {0,1}");
@@ -1167,7 +1167,7 @@ assert(
   }
   assert(!ring0.rows.slice(0, path1).some((r) => r.dir === "Flip"), "Flip is not inside ring 0");
   const flipRows = ring0.rows.map((row, index) => (row.dir === "Flip" ? index : -1)).filter((index) => index >= 0);
-  assert(flipRows.join(",") === "9,15,52", `flip rows are sheets 9, 15, and 52, got ${flipRows}`);
+  assert(flipRows.join(",") === "9,15,51", `flip rows are sheets 9, 15, and 51, got ${flipRows}`);
   const bedMoves = ring0.rows.flatMap((r) => r.cells.map((c) => c.token)).filter((token) => /^[FB][←→]/.test(token));
   assert(bedMoves.includes("F→") && bedMoves.includes("F←") && bedMoves.includes("B→") && bedMoves.includes("B←"), "ring0 sheet uses the 1-stitch arrows this sample moves");
   assert(
@@ -1468,10 +1468,10 @@ assert(
       ring0.rows[41].beds === "F0…F4,F6…F18 / B1…B18" &&
       ring0.rows[42].dir === "R" &&
       ring0.rows[42].beds === "F0…F18 / B1…B18" &&
-      ring0.rows.slice(16, 52).every((row) => row.dir !== "Flip") &&
-      ring0.rows[52].dir === "Flip" &&
-      tokenAt(52, 17) === "⬆" &&
-      physicalNeedleGlyph(physAt(52, 17)) === "F17",
+      ring0.rows.slice(16, 51).every((row) => row.dir !== "Flip") &&
+      ring0.rows[51].dir === "Flip" &&
+      tokenAt(51, 17) === "⬆" &&
+      physicalNeedleGlyph(physAt(51, 17)) === "F17",
     "the increase leaves F0 off the bed, the knit fills F5, and the next flip is F17 at the right fold",
   );
   assert(built.step3ToSheet[40] === 45 && built.step3ToSheet[41] === 47, "the front decrease and the following knit stay on sheets 45 and 47");
@@ -1498,7 +1498,7 @@ assert(
       ring0.rows[49].beds === "F0…F17 / B1…B17" &&
       ring0.rows[50].beds === "F0…F17 / B1…B17" &&
       ring0.rows[51].beds === "F0…F17 / B2…B17" &&
-      ring0.rows[52].beds === "F0…F17 / B1…B16" &&
+      ring0.rows[52].beds === "F0…F16 / B2…B18" &&
       ring0.rows[53].beds === "F0…F16 / B1…B17" &&
       ring0.rows[54].beds === "F0…F16 / B0…B16" &&
       ring0.rows[56].beds === "F0…F16 / B1…B16" &&
