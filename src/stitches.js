@@ -62,8 +62,9 @@
  *   B10…B0 onto B11, then B11…B1 onto B12, then the occupied pair flips F14 onto B14 and
  *   aligns to F0…F13 / B0…B13. Row 78 repeats that onto F0…F12 / B0…B12.
  *   Row 84 leaves the empty at the left junction. Row 86 lands on
- *   F0…F11 / B0…B11. Step3 row 87 names back physical needle −1 and
- *   stays raw.
+ *   F0…F11 / B0…B11. Step3 row 87 is an R-direction -R1: chart order
+ *   knits B2 then B1, and the transfer moves B1 onto B0. Balance stops
+ *   because the back window is B0,B2…B11.
  *   Falls back to
  *   step3 xfer. The sheet has 149 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
