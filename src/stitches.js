@@ -46,8 +46,8 @@
  *   20 continues F18, B18, B17 with no empty column. Ring 2 keeps
  *   those course columns from step3 row 28 through row 49. The increase
  *   drops the stitch that would land below needle 0, and the knit fills
- *   the gap, so the window stays F0…F18 / B1…B18. Step3 row 44 flips
- *   F17 onto empty B18, then racks the back bed one needle at a time.
+ *   the gap, so the window stays F0…F18 / B1…B18. Step3 row 44 racks
+ *   the back bed −1 to free B17, then flips F17 onto that pair.
  *   The next circle stays on step3 columns).
  *   Falls back to
  *   step3 xfer. The sheet has 130 rows; stitch_map_bind.json stays at 121.
