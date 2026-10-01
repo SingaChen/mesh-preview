@@ -410,7 +410,89 @@ assert(toRelativeToken("F→2") === "→2" && toRelativeToken("B←2") === "→2
     "a right-fold flip that leaves the empty on the short bed is followed by the whole-bed shift",
   );
   assert(physOf(afterDec, "F") === "0,1,2" && physOf(afterDec, "B") === "1,2", "after the flip and the shift the empty is at the left junction");
-  let pairMiss = false;
+  const lowPack = make([
+    ["F", 0],
+    ["F", 1],
+    ["F", 2],
+    ["F", 3],
+    ["B", 0],
+    ["B", 1],
+  ]);
+  const packedOff = settleAssignedWindows(lowPack, new Map(), new Set(), "试配");
+  assert(
+    packedOff.length === 2 &&
+      packedOff[0].row.dir === "Flip" &&
+      packedOff[0].row.cells[0].token === "⬆" &&
+      packedOff[0].row.cells[0].phys === 3 &&
+      packedOff[0].beds === "F0…F3 / B0…B1" &&
+      !packedOff[1].row.windowAlign &&
+      packedOff[1].row.cells.length === 1 &&
+      packedOff[1].row.cells[0].token === "B←" &&
+      packedOff[1].row.cells[0].phys === 3 &&
+      packedOff[1].row.cells[0].bed === "B" &&
+      packedOff[1].beds === "F0…F2 / B0…B1,B3",
+    "one past the packed high flips, then moves only that coil Hi to Hi−1",
+  );
+  assert(physOf(lowPack, "F") === "0,1,2" && physOf(lowPack, "B") === "0,1,2", "the single coil lands on the packed high");
+  const highPack = make([
+    ["F", 0],
+    ["F", 1],
+    ["F", 2],
+    ["F", 3],
+    ["F", 4],
+    ["F", 5],
+    ["F", 6],
+    ["F", 7],
+    ["F", 8],
+    ["B", 0],
+    ["B", 1],
+    ["B", 2],
+    ["B", 3],
+    ["B", 4],
+    ["B", 5],
+    ["B", 6],
+  ]);
+  const highOff = settleAssignedWindows(highPack, new Map(), new Set(), "试高");
+  assert(
+    highOff.length === 2 &&
+      highOff[0].row.cells[0].token === "⬆" &&
+      highOff[0].row.cells[0].phys === 8 &&
+      highOff[1].row.cells.length === 1 &&
+      highOff[1].row.cells[0].token === "B←" &&
+      highOff[1].row.cells[0].phys === 8 &&
+      !highOff[1].row.windowAlign,
+    "the same Hi to Hi−1 rule uses whatever index the windows have",
+  );
+  assert(physOf(highPack, "F") === "0,1,2,3,4,5,6,7" && physOf(highPack, "B") === "0,1,2,3,4,5,6,7", "index 8 packs onto 7");
+  const backLong = make([
+    ["F", 0],
+    ["F", 1],
+    ["F", 2],
+    ["F", 3],
+    ["F", 4],
+    ["B", 0],
+    ["B", 1],
+    ["B", 2],
+    ["B", 3],
+    ["B", 4],
+    ["B", 5],
+    ["B", 6],
+  ]);
+  const backOff = settleAssignedWindows(backLong, new Map(), new Set(), "试后");
+  assert(
+    backOff.length === 2 &&
+      backOff[0].row.cells[0].token === "⬇" &&
+      backOff[0].row.cells[0].phys === 6 &&
+      backOff[0].row.cells[0].bed === "B" &&
+      backOff[1].row.cells.length === 1 &&
+      backOff[1].row.cells[0].token === "F←" &&
+      backOff[1].row.cells[0].phys === 6 &&
+      backOff[1].row.cells[0].bed === "F" &&
+      !backOff[1].row.windowAlign,
+    "an excess on the front uses the same single-coil step",
+  );
+  assert(physOf(backLong, "F") === "0,1,2,3,4,5" && physOf(backLong, "B") === "0,1,2,3,4,5", "the front coil packs onto the shared high");
+  let wider = false;
   try {
     settleAssignedWindows(
       make([
@@ -418,17 +500,18 @@ assert(toRelativeToken("F→2") === "→2" && toRelativeToken("B←2") === "→2
         ["F", 1],
         ["F", 2],
         ["F", 3],
+        ["F", 4],
         ["B", 0],
         ["B", 1],
       ]),
       new Map(),
       new Set(),
-      "试配",
+      "试宽",
     );
   } catch (err) {
-    pairMiss = /不是空着的相邻针/.test(err.message);
+    wider = /不是空着的相邻针/.test(err.message);
   }
-  assert(pairMiss, "a one-stitch gap whose adjacent empty is not the same-index pair stops");
+  assert(wider, "a gap wider than one past the packed high still stops");
   let stopped = false;
   try {
     settleAssignedWindows(
@@ -1141,8 +1224,8 @@ assert(
   const ring0 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls")));
   const built = buildFromFiles();
   const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
-  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 138, `step4 sheet is 138 rows, got ${ring0.sheet} ${ring0.rows.length}`);
-  assert(ring0.rows.length === step3.rows.length + 17, "sheet adds the earlier settle rows plus eight fourth-circle settle rows");
+  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 140, `step4 sheet is 140 rows, got ${ring0.sheet} ${ring0.rows.length}`);
+  assert(ring0.rows.length === step3.rows.length + 19, "sheet adds the earlier settle rows plus ten fourth-circle settle rows");
   assert(ring0.colMin === -5 && ring0.colMax === 37 && ring0.needleCols.length === 43, "ring0 needles are −5…37");
   assert(built.ring.N === 38 && built.ring.front === 19 && built.ring.back === 19, "ring 0 ends F19 B19");
   assert(built.ring.front - built.ring.back === 0, "finished circle stays inside F−B ∈ {0,1}");
@@ -1176,7 +1259,7 @@ assert(
   }
   assert(!ring0.rows.slice(0, path1).some((r) => r.dir === "Flip"), "Flip is not inside ring 0");
   const flipRows = ring0.rows.map((row, index) => (row.dir === "Flip" ? index : -1)).filter((index) => index >= 0);
-  assert(flipRows.join(",") === "9,15,52,68,76", `flip rows are sheets 9, 15, 52, 68, and 76, got ${flipRows}`);
+  assert(flipRows.join(",") === "9,15,52,68,76,91", `flip rows are sheets 9, 15, 52, 68, 76, and 91, got ${flipRows}`);
   const bedMoves = ring0.rows.flatMap((r) => r.cells.map((c) => c.token)).filter((token) => /^[FB][←→]/.test(token));
   assert(bedMoves.includes("F→") && bedMoves.includes("F←") && bedMoves.includes("B→") && bedMoves.includes("B←"), "ring0 sheet uses the 1-stitch arrows this sample moves");
   assert(
@@ -1191,8 +1274,8 @@ assert(
   const trackedSheet = built.step3ToSheet[built.lockedCourseEnd];
   assert(ring2Sheet === 33, `ring 2 still starts at sheet row 33, got ${ring2Sheet}`);
   assert(built.step3ToSheet[44] === 50, `step3 row 44 stays at sheet row 50, got ${built.step3ToSheet[44]}`);
-  assert(trackedSheet === 92, `step3 row 75 stays raw at sheet row 92, got ${trackedSheet}`);
-  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops where the front increase cannot flip onto an adjacent needle");
+  assert(trackedSheet === 94, `step3 row 75 stays raw at sheet row 94, got ${trackedSheet}`);
+  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops at the -R2");
   for (let sheetRow = 0; sheetRow < built.rows.length; sheetRow++) {
     for (const src of built.rows[sheetRow].cells) {
       const got = ring0.rows[sheetRow].cells.find((cell) => cell.col === src.col);
@@ -1379,14 +1462,14 @@ assert(
   const laterRemain = built.step3ToSheet[75];
   assert(
     built.lockedCourseEnd === 75 &&
-      laterRemain === 92 &&
+      laterRemain === 94 &&
       laterRemain === trackedSheet &&
       built.step3ToSheet[69] === 84 &&
       built.step3ToSheet[70] === 87 &&
       built.step3ToSheet[71] === 88 &&
       built.step3ToSheet[72] === 89 &&
       built.step3ToSheet[73] === 90 &&
-      built.step3ToSheet[74] === 91 &&
+      built.step3ToSheet[74] === 93 &&
       tokenAt(84, 0) === "F→" &&
       physicalNeedleGlyph(physAt(84, 0)) === "F0" &&
       physicalNeedleGlyph(physAt(84, 11)) === "F11" &&
@@ -1418,20 +1501,27 @@ assert(
       tokenAt(90, 12) === "FvR" &&
       physicalNeedleGlyph(physAt(90, 12)) === "F12" &&
       ring0.rows[90].beds === "F0…F10,F13…F15 / B0…B13" &&
-      tokenAt(91, 10) === "FvL" &&
-      physicalNeedleGlyph(physAt(91, 10)) === "F10" &&
-      physicalNeedleGlyph(physAt(91, 12)) === "F12" &&
+      tokenAt(91, 15) === "⬆" &&
+      physicalNeedleGlyph(physAt(91, 15)) === "F15" &&
       ring0.rows[91].beds === "F0…F15 / B0…B13" &&
+      tokenAt(92, 22) === "B←" &&
+      physicalNeedleGlyph(physAt(92, 22)) === "B15" &&
+      ring0.rows[92].cells.filter((cell) => cell.token).length === 1 &&
+      ring0.rows[92].beds === "F0…F14 / B0…B13,B15" &&
+      tokenAt(93, 10) === "FvL" &&
+      physicalNeedleGlyph(physAt(93, 10)) === "F10" &&
+      physicalNeedleGlyph(physAt(93, 12)) === "F12" &&
+      ring0.rows[93].beds === "F0…F14 / B0…B14" &&
       tokenAt(laterRemain, 17) === "-R2" &&
       physAt(laterRemain, 17).bed == null &&
-      ring0.rows[laterRemain].beds === "F0…F15 / B0…B13" &&
+      ring0.rows[laterRemain].beds === "F0…F14 / B0…B14" &&
       ring0.rows[laterRemain + 1].beds === "" &&
       ring0.rows[59].beds === "F0…F16 / B1…B16" &&
       tokenAt(68, 22) === "⬇" &&
       physicalNeedleGlyph(physAt(68, 22)) === "B15" &&
       tokenAt(76, 15) === "⬆" &&
       physicalNeedleGlyph(physAt(76, 15)) === "F15",
-    "tracking runs through step3 row 74; the +R2 knits before balance, and row 75 keeps that window",
+    "tracking runs through the post-increase flip and the single-coil pack; row 75 stays raw",
   );
   assert(
     tokenAt(23, 21) === "B^R" &&
