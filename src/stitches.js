@@ -48,10 +48,13 @@
  *   drops the stitch that would land below needle 0, and the knit fills
  *   the gap, so the window stays F0…F18 / B1…B18. Step3 row 44 racks
  *   the back bed −1 to free B17, then flips F17 onto that pair.
- *   The fourth circle keeps those beds through step3 row 68. Row 69
- *   shifts the front off needle 0 and stays on step3 columns).
+ *   The fourth circle keeps those beds. A decrease seats the front
+ *   on needle 0 the same way an increase does. Step3 row 69 racks
+ *   the front from 1…14 onto 0…13, then racks the back onto 0…13.
+ *   Step3 row 71 names a transfer column with no live needle and
+ *   stays on step3 columns.
  *   Falls back to
- *   step3 xfer. The sheet has 136 rows; stitch_map_bind.json stays at 121.
+ *   step3 xfer. The sheet has 138 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
