@@ -1107,8 +1107,8 @@ assert(
   const ring0 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls")));
   const built = buildFromFiles();
   const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
-  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 129, `step4 sheet is 129 rows, got ${ring0.sheet} ${ring0.rows.length}`);
-  assert(ring0.rows.length === step3.rows.length + 8, "sheet adds the ring-0 align, two ring-1 flips, two ring-1 racks, one ring-2 flip, and two ring-2 racks");
+  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 131, `step4 sheet is 131 rows, got ${ring0.sheet} ${ring0.rows.length}`);
+  assert(ring0.rows.length === step3.rows.length + 10, "sheet adds the ring-0 align, two ring-1 flips, two ring-1 racks, two later flips, and four later racks");
   assert(ring0.colMin === -5 && ring0.colMax === 37 && ring0.needleCols.length === 43, "ring0 needles are −5…37");
   assert(built.ring.N === 38 && built.ring.front === 19 && built.ring.back === 19, "ring 0 ends F19 B19");
   assert(built.ring.front - built.ring.back === 0, "finished circle stays inside F−B ∈ {0,1}");
@@ -1142,7 +1142,7 @@ assert(
   }
   assert(!ring0.rows.slice(0, path1).some((r) => r.dir === "Flip"), "Flip is not inside ring 0");
   const flipRows = ring0.rows.map((row, index) => (row.dir === "Flip" ? index : -1)).filter((index) => index >= 0);
-  assert(flipRows.join(",") === "9,15,43", `flip rows are sheets 9, 15, and 43, got ${flipRows}`);
+  assert(flipRows.join(",") === "9,15,43,49", `flip rows are sheets 9, 15, 43, and 49, got ${flipRows}`);
   const bedMoves = ring0.rows.flatMap((r) => r.cells.map((c) => c.token)).filter((token) => /^[FB][←→]/.test(token));
   assert(bedMoves.includes("F→") && bedMoves.includes("F←") && bedMoves.includes("B→") && bedMoves.includes("B←"), "ring0 sheet uses the 1-stitch arrows this sample moves");
   assert(
@@ -1156,7 +1156,7 @@ assert(
   const ring2Sheet = built.step3ToSheet[built.ring1Span.end];
   const trackedSheet = built.step3ToSheet[built.lockedCourseEnd];
   assert(ring2Sheet === 33, `ring 2 still starts at sheet row 33, got ${ring2Sheet}`);
-  assert(trackedSheet === 48, `step3 row 40 stays at sheet row 48, got ${trackedSheet}`);
+  assert(trackedSheet === 52, `step3 row 42 stays at sheet row 52, got ${trackedSheet}`);
   assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops before the unresolved decrease");
   for (let sheetRow = 0; sheetRow < built.rows.length; sheetRow++) {
     for (const src of built.rows[sheetRow].cells) {
@@ -1193,7 +1193,7 @@ assert(
   );
   assert(physicalNeedleGlyph(physAt(ring2Sheet, 1)) === "F1", "the next stitch on that short course is F1");
   const rawLater = ring0.rows[trackedSheet].cells.find((cell) => cell.token);
-  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 40 has no tracked physical needle");
+  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 42 has no tracked physical needle");
   assert(formatPhysicalNeedle(physAt(0, 37)).title === "无物理针", "an empty cell does not invent a needle");
   assert(formatPhysicalNeedle({ col: 20, token: "B+R1", bed: "B" }).title === "无物理针", "a bed glyph without a recorded phys is not a needle");
   assert(formatPhysicalNeedle({ col: 17, token: "·" }).title === "无物理针", "the sheet column is not reported as a physical needle");
@@ -1343,7 +1343,7 @@ assert(
   );
   const laterRemain = built.step3ToSheet[43];
   assert(
-    laterRemain === 51 &&
+    laterRemain === 53 &&
       laterRemain >= trackedSheet &&
       tokenAt(laterRemain, 25) === "·" &&
       physAt(laterRemain, 25).bed == null,
@@ -1450,6 +1450,31 @@ assert(
       physicalNeedleGlyph(physAt(44, 36)) === "B1" &&
       physicalNeedleGlyph(physAt(44, 18)) === "B19",
     "the post-increase back rack labels the source window B1…B19",
+  );
+  assert(built.step3ToSheet[40] === 48 && built.step3ToSheet[41] === 51, "the front decrease and the following knit stay on sheets 48 and 51");
+  assert(
+    [12, 13, 14, 15, 16, 17, 18].map((col) => `${tokenAt(48, col)}/${physicalNeedleGlyph(physAt(48, col))}`).join(",") ===
+      "F←/F12,F←/F13,F←/F14,F←/F15,F←/F16,F←/F17,F←/F18",
+    "step3 row 40 shifts the front bed back from F12 through F18",
+  );
+  assert(tokenAt(49, 19) === "⬇" && physicalNeedleGlyph(physAt(49, 19)) === "B18", "the decrease repair flips B18 to the front at column 19");
+  const backAfterDec = ring0.rows[50].cells.filter((cell) => cell.token);
+  assert(
+    ring0.rows[50].dir === "X" &&
+      backAfterDec.length === 18 &&
+      backAfterDec.every((cell) => cell.token === "B→" && cell.bed === "B" && cell.phys >= 0 && cell.phys <= 17) &&
+      physicalNeedleGlyph(physAt(50, 37)) === "B0" &&
+      physicalNeedleGlyph(physAt(50, 20)) === "B17",
+    "the decrease repair racks the back bed off B0…B17",
+  );
+  assert(
+    physicalNeedleGlyph(physAt(51, 12)) === "F12" &&
+      physicalNeedleGlyph(physAt(51, 18)) === "F18" &&
+      physicalNeedleGlyph(physAt(51, 19)) === "B18" &&
+      physicalNeedleGlyph(physAt(51, 24)) === "B13" &&
+      physicalNeedleGlyph(physAt(51, 25)) === "B12" &&
+      tokenAt(51, 24) === "B-R1",
+    "after that repair the next knit runs F12…F18, B18…B12, with -R1 on B13",
   );
   let failed = false;
   try {
