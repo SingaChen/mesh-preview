@@ -59,7 +59,7 @@
  *   then moves only that coil from Hi to Hi−1. On this sample that is
  *   F15 onto B15, then B15 onto B14. A -Rn marker is n one-needle
  *   passes after the knit, then that same settle. Step3 row 75 is -R2:
- *   B10…B0, then B12…B1, then the occupied pair flips F14 onto B14 and
+ *   B10…B0 onto B11, then B11…B1 onto B12, then the occupied pair flips F14 onto B14 and
  *   aligns to F0…F13 / B0…B13. Row 78 repeats that onto F0…F12 / B0…B12.
  *   Row 84 leaves the empty at the left junction. Row 86 lands on
  *   F0…F11 / B0…B11. Step3 row 87 names back physical needle −1 and
