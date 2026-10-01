@@ -117,16 +117,20 @@
  * the left-fold empty are decided. Step3 row 69 lands the front on
  * 1…14 with the back already on 1…14. That rack moves the front onto
  * 0…13. Counts are equal and one needle apart, so the next row racks
- * the back bed onto 0…13. Step3 row 71 names a transfer column that
- * is not a live needle. Generation stops and that row stays on step3
- * columns.
+ * the back bed onto 0…13. A front increase first racks that bed by one
+ * needle at a time until the transfer columns land on live stitches,
+ * and only then moves those stitches. Balance runs after the new
+ * stitches exist. Step3 row 71 is that increase: two front racks, then
+ * the transfer. The following knit fills the holes. The beds are then
+ * two needles apart at the right fold, which the one-stitch flip does
+ * not cover, so generation stops there.
  *
  * The phys sheet copies the bed and physical needle already stored on each
  * tracked cell, including transfers and flips. It does not place needles.
- * Cells from step3 row 71 on have no tracked physical needle, so they
+ * Cells from step3 row 73 on have no tracked physical needle, so they
  * are left out. The far-right 分布 column is the live F/B window at the start
  * of that row. It is the state machine's needles, including a gap when
- * the window is not one span. Step3 row 71 records the window tracking
+ * the window is not one span. Step3 row 73 records the window tracking
  * ended on; later rows are blank.
  *
  * Same-bed double occupancy throws and does not write a sheet.
@@ -845,26 +849,35 @@ export function settleAssignedWindows(stitches, plan, usedPlan, where, options =
   // would have landed below 0 has already left the bed, so this rack
   // does not start from a negative needle.
   if (options.seatFront && front[0] !== 0) {
-    const delta = -front[0];
-    const beforeFront = spanText(front);
-    const beforeBack = spanText(back);
-    const beds = bedsAtStart(stitches);
-    const cells = rackWholeBed(stitches, plan, usedPlan, "F", delta, where);
-    const landed = measure();
-    if (landed.front[0] !== 0) {
-      fail(
-        `NOTE: ${where} 前床从 ${beforeFront} 整段移 ${delta}，仍不是从物理针 0 起（${spanText(landed.front)}），先停`,
-      );
+    // One needle per row. A front that starts two above 0 takes two
+    // racks, not one two-needle rack.
+    let guard = 0;
+    while (front[0] !== 0) {
+      if (++guard > 8) {
+        fail(`NOTE: ${where} 前床从 ${spanText(front)} 起，一次只移一针仍回不到 0，先停`);
+      }
+      const delta = front[0] > 0 ? -1 : 1;
+      const beforeFront = spanText(front);
+      const beforeBack = spanText(back);
+      const beds = bedsAtStart(stitches);
+      const cells = rackWholeBed(stitches, plan, usedPlan, "F", delta, where);
+      const landed = measure();
+      if (landed.front[0] !== front[0] + delta) {
+        fail(
+          `NOTE: ${where} 前床从 ${beforeFront} 整段移 ${delta} 后是 ${spanText(landed.front)}，先停`,
+        );
+      }
+      const parked = landed.front[0] === 0 ? `前床从物理针 0 起（${spanText(landed.front)}）` : `前床来到 ${spanText(landed.front)}`;
+      fixes.push({
+        row: { dir: "X", step3: null, windowAlign: true, cells },
+        beds,
+        note: `NOTE: ${where} 前床落到 ${beforeFront}（后 ${beforeBack}）。整段移前床 ${delta}，${parked}。`,
+      });
+      front = landed.front;
+      back = landed.back;
+      tF = landed.tF;
+      tB = landed.tB;
     }
-    fixes.push({
-      row: { dir: "X", step3: null, windowAlign: true, cells },
-      beds,
-      note: `NOTE: ${where} 前床落到 ${beforeFront}（后 ${beforeBack}）。整段移前床 ${delta}，前床从物理针 0 起（${spanText(landed.front)}）。`,
-    });
-    front = landed.front;
-    back = landed.back;
-    tF = landed.tF;
-    tB = landed.tB;
   }
   if (front[0] !== 0) {
     fail(`NOTE: ${where} 前床不是从物理针 0 起（${spanText(front)}），先停`);
@@ -1723,8 +1736,60 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
         placeStitch(cell, st);
       } else births.push(cell);
     }
-    if (births.length > 1) fail(`step3 行 ${ri} 一行多针新生，列 ${births.map((c) => c.col).join(",")}`);
-    for (const cell of births) {
+    // One new stitch still uses the single-hole path below. Several new
+    // stitches are allowed only when they are adjacent columns and they
+    // exactly fill one front gap that the increase transfers opened.
+    if (births.length > 1) {
+      const ordered = births.slice().sort((a, b) => a.col - b.col);
+      for (let n = 1; n < ordered.length; n++) {
+        if (ordered[n].col !== ordered[n - 1].col + 1) {
+          fail(`step3 行 ${ri} 一行多针新生，列 ${ordered.map((c) => c.col).join(",")} 不连续`);
+        }
+      }
+      const gapLeft = frontAtPhys(ordered[0].col - 1);
+      const gapRight = frontAtPhys(ordered.at(-1).col + 1);
+      if (
+        !gapLeft ||
+        !gapRight ||
+        gapLeft.bed !== "F" ||
+        gapRight.bed !== "F" ||
+        gapRight.phys !== gapLeft.phys + ordered.length + 1
+      ) {
+        fail(
+          `step3 行 ${ri} 新圈列 ${ordered.map((c) => c.col).join(",")} 前床空档不是 ${ordered.length} 针（${gapLeft ? gapLeft.phys : "无"}…${gapRight ? gapRight.phys : "无"}）`,
+        );
+      }
+      const bias = gapLeft.phys - gapLeft.chart;
+      if (gapRight.phys - gapRight.chart !== bias) {
+        fail(`NOTE: step3 行 ${ri} 新圈列 ${ordered[0].col} 两侧前床偏差不一致，先停`);
+      }
+      for (let n = 0; n < ordered.length; n++) {
+        const cell = ordered[n];
+        const phys = gapLeft.phys + 1 + n;
+        if (cell.col !== phys) fail(`step3 行 ${ri} 新圈列 ${cell.col} 不在前床空档 ${phys}`);
+        const bornChart = cell.col - bias;
+        if (live.has(bornChart)) fail(`NOTE: step3 行 ${ri} 新圈列 ${cell.col} 的 chart ${bornChart} 已被占用，先停`);
+        if ([...stitches.values()].some((st) => st.bed === "F" && st.phys === phys)) {
+          fail(`step3 行 ${ri} 新圈延伸到已被占用的 F${phys}`);
+        }
+        const id = nextId++;
+        const st = { id, bed: "F", phys, chart: bornChart };
+        stitches.set(id, st);
+        live.set(bornChart, id);
+        const painted = paintToken(cell, toAbsoluteToken(cell.token, "F"));
+        placed.push({
+          col: cell.col,
+          token: painted.token,
+          fill: painted.fill,
+          phys,
+          bed: "F",
+          id,
+          chart: cell.col,
+          birth: true,
+        });
+      }
+    }
+    for (const cell of births.length > 1 ? [] : births) {
       let left = null;
       let right = null;
       for (const st of stitches.values()) {
@@ -1913,13 +1978,23 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     const delta = arrow[1] === "→" ? 1 : -1;
     const increase = row.dir === "X+";
     let cols = cells.map((cell) => cell.col).sort((a, b) => (delta < 0 ? a - b : b - a));
+    const maxCol = Math.max(...cols);
+    const frontHiNow = () => {
+      let hi = -1;
+      for (const st of stitches.values()) if (st.bed === "F" && st.phys > hi) hi = st.phys;
+      return hi;
+    };
     // A knit wraps an unresolved negative column onto the back tail.
     // An increase transfer does not. Those columns are not a second set of
     // back-tail stitches. A shaping stitch that would land below physical
     // needle 0 leaves the bed instead of occupying F−1.
+    // A → increase may also name the empty destination past the last
+    // stitch, and a hole a previous pass already opened. Those are slots,
+    // not missing stitches. Any other positive column still has to resolve.
     cols = cols.filter((col) => {
       if (stitchOnTransfer(col)) return true;
       if (col < 0) return false;
+      if (increase && delta > 0 && (col === maxCol || col <= frontHiNow())) return false;
       fail(`step3 行 ${ri} 移圈列 ${col} 没有线圈`);
     });
     if (!cols.length) fail(`step3 行 ${ri} 移圈没有对上的线圈`);
@@ -2039,6 +2114,64 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     return { drawn, consumed };
   };
 
+  // Front increase, before the transfer. Whole-bed ±1 racks until every
+  // source column names a live stitch. The highest column may stay empty:
+  // it is the destination the transfer moves into. Balance is not done
+  // here; it runs only after the knit has placed the new stitches.
+  const freeFrontIncreaseSlots = (row, ri) => {
+    const cells = occupied(row);
+    const token = cells[0]?.token || "";
+    const arrow = token.match(/^(←|→)(\d+)$/);
+    if (!arrow || Number(arrow[2]) !== 1 || arrow[1] !== "→") return;
+    const cols = cells.map((cell) => cell.col);
+    const maxCol = Math.max(...cols);
+    const frontHiOf = () => {
+      let hi = -1;
+      for (const st of stitches.values()) if (st.bed === "F" && st.phys > hi) hi = st.phys;
+      return hi;
+    };
+    const needsMove = () => {
+      const frontHi = frontHiOf();
+      return cols.filter((col) => {
+        if (col === maxCol || col < 0) return false;
+        if (stitchOnTransfer(col)) return false;
+        if (col <= frontHi) return false;
+        return true;
+      });
+    };
+    if (!needsMove().length) return;
+    const resolved = cols.filter((col) => stitchOnTransfer(col)).sort((a, b) => a - b);
+    const edge = resolved.length ? stitchOnTransfer(resolved[0]) : null;
+    if (!edge || edge.bed !== "F") return;
+    let guard = 0;
+    while (needsMove().length) {
+      const pending = needsMove();
+      if (++guard > 6) {
+        fail(`NOTE: step3 行 ${ri} 加针前 前床整段移了 ${guard - 1} 次仍对不上列 ${pending.join(",")}，先停`);
+      }
+      const where = `step3 行 ${ri} 加针前`;
+      const beforeLive = listsOf(stitches);
+      const beforeF = beforeLive.f.map((st) => st.phys);
+      const beforeB = beforeLive.b.map((st) => st.phys);
+      const beds = bedsAtStart(stitches);
+      const movedCells = rackWholeBed(stitches, new Map(), new Set(), "F", 1, where);
+      const afterLive = listsOf(stitches);
+      const note = `NOTE: ${where} 前床 ${spanText(beforeF)}、后 ${spanText(beforeB)}。整段移前床 +1，空出加针位（前 ${spanText(afterLive.f.map((st) => st.phys))}、后 ${spanText(afterLive.b.map((st) => st.phys))}）。`;
+      events.push({ after: ri, where, fixes: [{ dir: "X", note }] });
+      inserts.push({
+        before: ri,
+        dir: "X",
+        windowAlign: true,
+        cells: sparseCells(movedCells),
+        beds,
+      });
+      const still = needsMove();
+      if (still.length >= pending.length) {
+        fail(`NOTE: ${where} 整段移前床 +1 没有让加针列 ${still.join(",")} 落到针上，先停`);
+      }
+    }
+  };
+
   const insertRepair = (where, step3After, seatFront = false) => {
     const fixes = settleAssignedWindows(stitches, new Map(), new Set(), where, { seatFront });
     events.push({
@@ -2065,8 +2198,10 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     const beds = bedsAtStart(stitches);
     if (row.dir === "X" || row.dir === "X+") {
       carriedTurn = null;
+      if (row.dir === "X+") freeFrontIncreaseSlots(row, i);
+      const rowBeds = bedsAtStart(stitches);
       const moved = drawMove(row, i);
-      byRow.set(i, { dir: row.dir, step3: i, cells: moved.drawn, beds });
+      byRow.set(i, { dir: row.dir, step3: i, cells: moved.drawn, beds: rowBeds });
       snapshotCounts(`step3 行 ${i} ${row.dir}`);
       if (row.dir === "X") {
         const followedDecrease = decAnchor != null && decreasePending;
@@ -2086,7 +2221,6 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     const dec = occupied(row).find((cell) => parseDecN(cell.token));
     const inc = occupied(row).find((cell) => parseIncN(cell.token));
     if (dec && parseDecN(dec.token) !== 1) fail(`step3 行 ${i} 多针减针 ${dec.token}`);
-    if (inc && parseIncN(inc.token) !== 1) fail(`step3 行 ${i} 多针加针 ${inc.token}`);
     if (dec) {
       decAnchor = dec.col;
       decreasePending = true;
@@ -2094,6 +2228,9 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
       decreasePending = false;
     }
     const knit = drawKnit(row, i);
+    if (inc && parseIncN(inc.token) !== 1 && knit.births.length !== parseIncN(inc.token)) {
+      fail(`step3 行 ${i} 多针加针 ${inc.token}`);
+    }
     byRow.set(i, { dir: row.dir, step3: i, cells: knit.placed, beds });
     assertNoSharedNeedle(stitches, `step3 行 ${i} 织完`);
     if (inc || knit.births.length) {
@@ -2231,11 +2368,11 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["绕回", "Step3 负列如果已经对上某枚针，就画在它自己的物理列上。对不上的负列才是后床末尾绕回，表列 = 37−物理针。前床物理针 0 由列 0 织到，不占负列。同一个圈只有一列。点左折返时两端一起高亮"],
     ["F… / B…", "bed follows the stitch. Flip is ⬇ back→front or ⬆ front→back on the inserted row"],
     ["F→ / B←", "1 stitch: arrow only (F→ F← B→ B←). 2 or more keeps the count (F→2). No R/L"],
-    ["columns", "ring 0, and ring 1 transfers, flips, racks, and the left-fold wrap tail: front = phys, back = 37−phys. A ring 1 knit is drawn on its course column. That column is the front needle when one exists there; past the front it is the next back needle inward from the fold. Labels are the needles. No stacking and no empty column between F and B. This sample's increase knit ends at F19 on column 19. After the flip and rack, column 19 is B18 and column 18 is F18, including on longer courses. The front decrease is F← on columns 6…18, from the inherited anchor. A short row that turns on the previous course's last column stays on that needle and then steps one needle per column. After the back decrease the chain stays on the repacked needles: 22R ends on B16, so 23L starts on B16 and ends on B17; 24R is B17 then B16; 25L is B16, B17, B18, F18; 26R starts on that F18 and ends on B12; 27L starts on B12 and ends on B15; 32R is B6 through B1. The same turn on the third circle: 37R ends on B6, so 38L starts on B6 and runs to B17, and the next course starts on that B17. The third-circle increase moves F0 off the bed and the knit fills the gap, so the window stays F0…F18 / B1…B18. Step3 row 40 moves the front F12…F18. Counts are equal and one needle apart, so the next row racks only the back bed onto 0…17. There is no flip on that decrease. Step3 row 44 leaves the front two stitches longer, both beds ending on 17, with the back starting two higher. The right-fold pair of F17 is B17. That needle is occupied, so the back bed racks −1 first and the flip lands on B17. The windows are then one apart, and the locked one-needle rack aligns them. The fourth circle seats the front on needle 0 after a decrease, the same rack an increase uses. Step3 row 69 lands the front on 1…14 and racks it onto 0…13, then racks the back bed onto 0…13. Step3 row 71 names a transfer column with no live needle, so that row stays on step3 columns"],
-    ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 inserts one whole-bed align row after shaping. Ring 1 inserts two Flip rows, and after each flip a whole-bed move: the first puts the empty needle on the left fold, the second realigns equal counts. Ring 2's increase does not insert a flip or a rack: the stitch that would land below 0 leaves, and the knit fills the gap. The following front decrease racks only the back bed one needle, onto 0…17. Step3 row 44 racks the back bed −1 to free the paired needle, flips onto that same-index needle, then the one-needle rack aligns the windows. The fourth circle adds one rack, a flip and a rack, another flip and a rack, one more rack, and after step3 row 69 two racks that seat the front on needle 0 and then align the back. Step3 row 71 is not tracked"],
-    ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第四圈跟踪到 step3 行 70。从 step3 行 71 起没有这份数据。"],
-    ["分布", "最右列是这一行开始时机器上的线圈窗，例如 F0…F18 / B1…B18。空档写成断开的窗，不并成一段。step3 行 71 记下跟踪结束时的窗；后面的行不再写。"],
-    ["NOTE3", "第三圈接到第二圈末床位，前 0…18、后 1…18。step3 行 35 的加针把 F0 移出针床：没有低于 0 的物理针，负列也不绕回后床。行 36 在空档织进新圈，窗回到前 0…18、后 1…18，数目已是差一针且空针在左衔接，不翻、不移。行 40 的减针按物理针把前床 F12…F18 收一针，移完前 0…17、后仍是 1…18。数目齐、错开一针，只整段移后床到 0…17，不翻针。行 42 的后床减针收到左折返，空针已在左衔接，不移。行 44 减针后前 0…17、后 2…17，前床多两针，高位都在 17。右折返的配对针是同一物理号的 B17。B17 上有线圈，先整段移后床 -1 空出 B17，再把 F17 翻到 B17，窗变成前 0…16、后 1…17。数目齐、错开一针，再整段移后床对齐到 0…16。不是一次移两针。第三圈结束时前 0…16、后 1…16。第四圈接着这副床。行 53 数目齐、错开一针，只整段移后床。行 57 把 B15 翻到 F15，再把空针移到左衔接。行 63 把 F15 翻到 B15，再对齐。行 65 把空针移到左衔接，结束时前 0…14、后 1…14。行 69 的减针让前床落到 1…14，后床已经是 1…14。和加针一样先整段移前床 -1，前床从 0 起（0…13）。数目齐、错开一针，再整段移后床对齐到 0…13。行 71 的移圈列对不上还在针床上的线圈，所以这一行起仍用 step3 的列。+R2、−R2 以及成对的一针移圈没有写成多针成形。"],
+    ["columns", "ring 0, and ring 1 transfers, flips, racks, and the left-fold wrap tail: front = phys, back = 37−phys. A ring 1 knit is drawn on its course column. That column is the front needle when one exists there; past the front it is the next back needle inward from the fold. Labels are the needles. No stacking and no empty column between F and B. This sample's increase knit ends at F19 on column 19. After the flip and rack, column 19 is B18 and column 18 is F18, including on longer courses. The front decrease is F← on columns 6…18, from the inherited anchor. A short row that turns on the previous course's last column stays on that needle and then steps one needle per column. After the back decrease the chain stays on the repacked needles: 22R ends on B16, so 23L starts on B16 and ends on B17; 24R is B17 then B16; 25L is B16, B17, B18, F18; 26R starts on that F18 and ends on B12; 27L starts on B12 and ends on B15; 32R is B6 through B1. The same turn on the third circle: 37R ends on B6, so 38L starts on B6 and runs to B17, and the next course starts on that B17. The third-circle increase moves F0 off the bed and the knit fills the gap, so the window stays F0…F18 / B1…B18. Step3 row 40 moves the front F12…F18. Counts are equal and one needle apart, so the next row racks only the back bed onto 0…17. There is no flip on that decrease. Step3 row 44 leaves the front two stitches longer, both beds ending on 17, with the back starting two higher. The right-fold pair of F17 is B17. That needle is occupied, so the back bed racks −1 first and the flip lands on B17. The windows are then one apart, and the locked one-needle rack aligns them. The fourth circle seats the front on needle 0 after a decrease, the same rack an increase uses. Step3 row 69 lands the front on 1…14 and racks it onto 0…13, then racks the back bed onto 0…13. A front increase then racks the front one needle at a time until the source columns land on stitches, and only afterwards runs the transfer. Step3 row 71 takes two +1 racks and draws F→ on F11…F15; step3 row 72 draws F→ on F12…F16 and leaves holes at 11 and 12. Step3 row 73 would fill those holes, and the beds then end two apart at the right fold, so that row stays on step3 columns"],
+    ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 inserts one whole-bed align row after shaping. Ring 1 inserts two Flip rows, and after each flip a whole-bed move: the first puts the empty needle on the left fold, the second realigns equal counts. Ring 2's increase does not insert a flip or a rack: the stitch that would land below 0 leaves, and the knit fills the gap. The following front decrease racks only the back bed one needle, onto 0…17. Step3 row 44 racks the back bed −1 to free the paired needle, flips onto that same-index needle, then the one-needle rack aligns the windows. The fourth circle adds one rack, a flip and a rack, another flip and a rack, one more rack, and after step3 row 69 two racks that seat the front on needle 0 and then align the back. Step3 row 71 is preceded by two more front racks. Step3 row 73 is not tracked"],
+    ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第四圈跟踪到 step3 行 72。从 step3 行 73 起没有这份数据。"],
+    ["分布", "最右列是这一行开始时机器上的线圈窗，例如 F0…F18 / B1…B18。空档写成断开的窗，不并成一段。step3 行 73 记下跟踪结束时的窗；后面的行不再写。"],
+    ["NOTE3", "第三圈接到第二圈末床位，前 0…18、后 1…18。step3 行 35 的加针把 F0 移出针床：没有低于 0 的物理针，负列也不绕回后床。行 36 在空档织进新圈，窗回到前 0…18、后 1…18，数目已是差一针且空针在左衔接，不翻、不移。行 40 的减针按物理针把前床 F12…F18 收一针，移完前 0…17、后仍是 1…18。数目齐、错开一针，只整段移后床到 0…17，不翻针。行 42 的后床减针收到左折返，空针已在左衔接，不移。行 44 减针后前 0…17、后 2…17，前床多两针，高位都在 17。右折返的配对针是同一物理号的 B17。B17 上有线圈，先整段移后床 -1 空出 B17，再把 F17 翻到 B17，窗变成前 0…16、后 1…17。数目齐、错开一针，再整段移后床对齐到 0…16。不是一次移两针。第三圈结束时前 0…16、后 1…16。第四圈接着这副床。行 53 数目齐、错开一针，只整段移后床。行 57 把 B15 翻到 F15，再把空针移到左衔接。行 63 把 F15 翻到 B15，再对齐。行 65 把空针移到左衔接，结束时前 0…14、后 1…14。行 69 的减针让前床落到 1…14，后床已经是 1…14。和加针一样先整段移前床 -1，前床从 0 起（0…13）。数目齐、错开一针，再整段移后床对齐到 0…13。行 71 加针前先整段移前床 +1 两次，前床从 0…13 来到 2…15，再把 F11…F15 右移一针。行 72 再把 F12…F16 右移一针，空档留在 11 和 12。行 73 要把这两针织进去；织完并把前床移回 0 之后，右折返是 F15，后床只到 13，配对不是相邻的空针，所以这一行起仍用 step3 的列。+R2、−R2 以及成对的一针移圈没有写成多针成形。"],
   ];
   legend.forEach((pair, i) => {
     parts.push(labelRecord(i, 0, xf, pair[0]));
@@ -2370,16 +2507,16 @@ export function buildRing0Workbook(step3, bind) {
   }
   // Same physical-column transfer through the next circle.
   // A later row that the locked rules do not cover throws; that row stays raw.
-  const lockedCourseEnd = 71;
+  const lockedCourseEnd = 73;
   if (lockedCourseEnd <= ring3Span.start || lockedCourseEnd > ring3Span.end) {
     fail(`locked course end ${lockedCourseEnd} is outside ring 4`);
   }
   const ring1 = simulateRing1(step3.rows, ring1Span.start, lockedCourseEnd, ring, lockedCourseEnd);
   try {
     simulateRing1(step3.rows, ring1Span.start, lockedCourseEnd + 1, ring, lockedCourseEnd);
-    fail("step3 行 71 的移圈列应对不上线圈");
+    fail("step3 行 73 加针后应在右折返配不上相邻空针时停下");
   } catch (err) {
-    if (!/step3 行 71/.test(err.message) || !/移圈列 30 没有线圈/.test(err.message)) throw err;
+    if (!/step3 行 73/.test(err.message) || !/不是空着的相邻针/.test(err.message)) throw err;
   }
 
   const rows = [];
@@ -2405,6 +2542,18 @@ export function buildRing0Workbook(step3, bind) {
     if (i < lockedCourseEnd) {
       const built = ring1.byRow.get(i);
       if (!built) fail(`step3 row ${i} was not simulated`);
+      for (const extra of ring1.inserts) {
+        if (extra.before !== i) continue;
+        pushSparse({
+          dir: extra.dir,
+          step3: null,
+          recenter: extra.dir === "X",
+          flip: extra.dir === "Flip",
+          cells: extra.cells,
+          shifted: true,
+          beds: extra.beds,
+        });
+      }
       step3ToSheet[i] = rows.length;
       pushSparse({ dir: built.dir, step3: i, cells: built.cells, shifted: true, beds: built.beds });
       for (const extra of ring1.inserts) {
@@ -2719,6 +2868,8 @@ export function buildRing0Workbook(step3, bind) {
     "Flip:NOTE: step3 行 63 减针后 数目不是 F15/B15，在右折返把 F15 翻到 B15。 || X:NOTE: step3 行 63 减针后 数目 F15/B15 已齐，物理窗前 0…14、后 1…15 错开一针。整段移后床 -1，对齐到 0…14。",
     "X:NOTE: step3 行 65 减针后 数目 F15/B14 已是差一针，但空针在右折返（前 0…14、后 0…13）。整段移后床 +1，空针落到左衔接 1…14。",
     "X:NOTE: step3 行 69 减针后 前床落到 1…14（后 1…14）。整段移前床 -1，前床从物理针 0 起（0…13）。 || X:NOTE: step3 行 69 减针后 数目 F14/B14 已齐，物理窗前 0…13、后 1…14 错开一针。整段移后床 -1，对齐到 0…13。",
+    "X:NOTE: step3 行 71 加针前 前床 0…13、后 0…13。整段移前床 +1，空出加针位（前 1…14、后 0…13）。",
+    "X:NOTE: step3 行 71 加针前 前床 1…14、后 0…13。整段移前床 +1，空出加针位（前 2…15、后 0…13）。",
   ];
   if (laterEvents.join(" | ") !== wantLater.join(" | ")) {
     fail(`第三圈对齐结果变了：${laterEvents.join(" | ")}`);
@@ -2848,17 +2999,35 @@ export function buildRing0Workbook(step3, bind) {
   if (bedsAt(step3ToSheet[70]) !== "F0…F13 / B0…B13") {
     fail(`step3 行 70 开始应是 F0…F13 / B0…B13，得到 ${bedsAt(step3ToSheet[70])}`);
   }
-  if (bedsAt(step3ToSheet[71]) !== "F0…F13 / B0…B13") {
-    fail(`step3 行 71 应记下跟踪结束时的窗，得到 ${bedsAt(step3ToSheet[71])}`);
+  if (bedsAt(step3ToSheet[71] - 2) !== "F0…F13 / B0…B13") {
+    fail(`行 71 第一次移前床之前应是 F0…F13 / B0…B13，得到 ${bedsAt(step3ToSheet[71] - 2)}`);
   }
-  if (bedsAt(step3ToSheet[72]) !== "") {
-    fail(`跟踪停下之后不再写床位，得到 ${bedsAt(step3ToSheet[72])}`);
+  if (bedsAt(step3ToSheet[71] - 1) !== "F1…F14 / B0…B13") {
+    fail(`行 71 第二次移前床之前应是 F1…F14 / B0…B13，得到 ${bedsAt(step3ToSheet[71] - 1)}`);
+  }
+  if (bedsAt(step3ToSheet[71]) !== "F2…F15 / B0…B13") {
+    fail(`step3 行 71 开始应是 F2…F15 / B0…B13，得到 ${bedsAt(step3ToSheet[71])}`);
+  }
+  if (bedsAt(step3ToSheet[72]) !== "F2…F10,F12…F16 / B0…B13") {
+    fail(`step3 行 72 开始应留着 F11 的空档，得到 ${bedsAt(step3ToSheet[72])}`);
+  }
+  if (bedsAt(step3ToSheet[73]) !== "F2…F10,F13…F17 / B0…B13") {
+    fail(`step3 行 73 应记下跟踪结束时的窗，得到 ${bedsAt(step3ToSheet[73])}`);
+  }
+  if (bedsAt(step3ToSheet[74]) !== "") {
+    fail(`跟踪停下之后不再写床位，得到 ${bedsAt(step3ToSheet[74])}`);
   }
   if (courseText(69) !== "0:F→/F0 1:F→/F1 2:F→/F2 3:F→/F3 4:F→/F4 5:F→/F5 6:F→/F6 7:F→/F7 8:F→/F8 9:F→/F9 10:F→/F10 11:F→/F11") {
     fail(`step3 行 69 应把前床 F0…F11 收一针，得到 ${courseText(69)}`);
   }
   if (courseText(70) !== "9:FvL/F9 10:F·/F10 11:F·/F11") {
     fail(`step3 行 70 应是 F9…F11，得到 ${courseText(70)}`);
+  }
+  if (courseText(71) !== "11:F→/F11 12:F→/F12 13:F→/F13 14:F→/F14 15:F→/F15") {
+    fail(`step3 行 71 应把前床 F11…F15 右移一针，得到 ${courseText(71)}`);
+  }
+  if (courseText(72) !== "12:F→/F12 13:F→/F13 14:F→/F14 15:F→/F15 16:F→/F16") {
+    fail(`step3 行 72 应把前床 F12…F16 右移一针，得到 ${courseText(72)}`);
   }
   const seatFrontRow = rows[step3ToSheet[69] + 1];
   const seatFrontCols = occupied(seatFrontRow)
