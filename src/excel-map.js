@@ -219,6 +219,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
   }
   const colMin = Math.min(...needles.map((n) => n.needle));
   const colMax = Math.max(...needles.map((n) => n.needle));
+  const bedsCol = headerRow.findIndex((cell, index) => index > 0 && tokenString(cell) === "分布");
   const legend = parseLegendSheet(findXlsSheet(book, "legend"));
   const cellMap = parseCellMapSheet(findXlsSheet(book, "cellmap"));
   const physByCell = parsePhysSheet(findXlsSheet(book, "phys"));
@@ -266,6 +267,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
       dir,
       knitRow: knit,
       cells: rowCells,
+      beds: bedsCol > 0 ? tokenString(raw[bedsCol]) : "",
     });
   }
 
