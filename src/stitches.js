@@ -54,10 +54,12 @@
  *   A front increase moves only the front needles after the increase
  *   position. It does not rack the whole front bed. Step3 row 71 moves
  *   F11…F13; row 72 moves F12…F14. F0…F10 stay. Step3 row 73 knits the
- *   new stitches before any front/back balance. The flip waits while
- *   F15 is not an adjacent empty needle.
+ *   new stitches before any front/back balance. A count that is one
+ *   stitch off an equal packed window flips onto the same-index pair,
+ *   then moves only that coil from Hi to Hi−1. On this sample that is
+ *   F15 onto B15, then B15 onto B14.
  *   Falls back to
- *   step3 xfer. The sheet has 138 rows; stitch_map_bind.json stays at 121.
+ *   step3 xfer. The sheet has 140 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
