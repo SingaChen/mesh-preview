@@ -51,10 +51,12 @@
  *   The fourth circle keeps those beds. A decrease seats the front
  *   on needle 0 the same way an increase does. Step3 row 69 racks
  *   the front from 1…14 onto 0…13, then racks the back onto 0…13.
- *   Step3 row 71 names a transfer column with no live needle and
- *   stays on step3 columns.
+ *   A front increase racks the front one needle at a time before the
+ *   transfer. Step3 row 71 does that twice, then moves F11…F15.
+ *   Step3 row 73 stays on step3 columns: after the new stitches the
+ *   right-fold pair is not an adjacent empty needle.
  *   Falls back to
- *   step3 xfer. The sheet has 138 rows; stitch_map_bind.json stays at 121.
+ *   step3 xfer. The sheet has 140 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
