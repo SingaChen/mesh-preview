@@ -1191,7 +1191,7 @@ assert(
   const trackedSheet = built.step3ToSheet[built.lockedCourseEnd];
   assert(ring2Sheet === 33, `ring 2 still starts at sheet row 33, got ${ring2Sheet}`);
   assert(built.step3ToSheet[44] === 50, `step3 row 44 stays at sheet row 50, got ${built.step3ToSheet[44]}`);
-  assert(trackedSheet === 90, `step3 row 73 stays raw at sheet row 90, got ${trackedSheet}`);
+  assert(trackedSheet === 92, `step3 row 75 stays raw at sheet row 92, got ${trackedSheet}`);
   assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops where the front increase cannot flip onto an adjacent needle");
   for (let sheetRow = 0; sheetRow < built.rows.length; sheetRow++) {
     for (const src of built.rows[sheetRow].cells) {
@@ -1228,7 +1228,7 @@ assert(
   );
   assert(physicalNeedleGlyph(physAt(ring2Sheet, 1)) === "F1", "the next stitch on that short course is F1");
   const rawLater = ring0.rows[trackedSheet].cells.find((cell) => cell.token);
-  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 73 has no tracked physical needle");
+  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 75 has no tracked physical needle");
   assert(formatPhysicalNeedle(physAt(0, 37)).title === "无物理针", "an empty cell does not invent a needle");
   assert(formatPhysicalNeedle({ col: 20, token: "B+R1", bed: "B" }).title === "无物理针", "a bed glyph without a recorded phys is not a needle");
   assert(formatPhysicalNeedle({ col: 17, token: "·" }).title === "无物理针", "the sheet column is not reported as a physical needle");
@@ -1376,15 +1376,17 @@ assert(
       physicalNeedleGlyph(physAt(22, 21)) === "B16",
     "the back decrease remainder stays on B16, the needle the split course ended on",
   );
-  const laterRemain = built.step3ToSheet[73];
+  const laterRemain = built.step3ToSheet[75];
   assert(
-    built.lockedCourseEnd === 73 &&
-      laterRemain === 90 &&
+    built.lockedCourseEnd === 75 &&
+      laterRemain === 92 &&
       laterRemain === trackedSheet &&
       built.step3ToSheet[69] === 84 &&
       built.step3ToSheet[70] === 87 &&
       built.step3ToSheet[71] === 88 &&
       built.step3ToSheet[72] === 89 &&
+      built.step3ToSheet[73] === 90 &&
+      built.step3ToSheet[74] === 91 &&
       tokenAt(84, 0) === "F→" &&
       physicalNeedleGlyph(physAt(84, 0)) === "F0" &&
       physicalNeedleGlyph(physAt(84, 11)) === "F11" &&
@@ -1408,16 +1410,28 @@ assert(
       physicalNeedleGlyph(physAt(89, 14)) === "F14" &&
       tokenAt(89, 10) === "" &&
       ring0.rows[89].beds === "F0…F10,F12…F14 / B0…B13" &&
-      tokenAt(laterRemain, 10) === "+R2" &&
-      physAt(laterRemain, 10).bed == null &&
-      ring0.rows[laterRemain].beds === "F0…F10,F13…F15 / B0…B13" &&
+      tokenAt(90, 9) === "F^L" &&
+      tokenAt(90, 10) === "F+R2" &&
+      physicalNeedleGlyph(physAt(90, 10)) === "F10" &&
+      tokenAt(90, 11) === "F·" &&
+      physicalNeedleGlyph(physAt(90, 11)) === "F11" &&
+      tokenAt(90, 12) === "FvR" &&
+      physicalNeedleGlyph(physAt(90, 12)) === "F12" &&
+      ring0.rows[90].beds === "F0…F10,F13…F15 / B0…B13" &&
+      tokenAt(91, 10) === "FvL" &&
+      physicalNeedleGlyph(physAt(91, 10)) === "F10" &&
+      physicalNeedleGlyph(physAt(91, 12)) === "F12" &&
+      ring0.rows[91].beds === "F0…F15 / B0…B13" &&
+      tokenAt(laterRemain, 17) === "-R2" &&
+      physAt(laterRemain, 17).bed == null &&
+      ring0.rows[laterRemain].beds === "F0…F15 / B0…B13" &&
       ring0.rows[laterRemain + 1].beds === "" &&
       ring0.rows[59].beds === "F0…F16 / B1…B16" &&
       tokenAt(68, 22) === "⬇" &&
       physicalNeedleGlyph(physAt(68, 22)) === "B15" &&
       tokenAt(76, 15) === "⬆" &&
       physicalNeedleGlyph(physAt(76, 15)) === "F15",
-    "tracking runs through step3 row 72; row 71 moves only F11…F13, and row 73 keeps the holed window",
+    "tracking runs through step3 row 74; the +R2 knits before balance, and row 75 keeps that window",
   );
   assert(
     tokenAt(23, 21) === "B^R" &&

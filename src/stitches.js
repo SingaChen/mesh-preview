@@ -53,9 +53,9 @@
  *   the front from 1…14 onto 0…13, then racks the back onto 0…13.
  *   A front increase moves only the front needles after the increase
  *   position. It does not rack the whole front bed. Step3 row 71 moves
- *   F11…F13; row 72 moves F12…F14. F0…F10 stay.
- *   Step3 row 73 stays on step3 columns: after the new stitches the
- *   right-fold pair is not an adjacent empty needle.
+ *   F11…F13; row 72 moves F12…F14. F0…F10 stay. Step3 row 73 knits the
+ *   new stitches before any front/back balance. The flip waits while
+ *   F15 is not an adjacent empty needle.
  *   Falls back to
  *   step3 xfer. The sheet has 138 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
