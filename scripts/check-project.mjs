@@ -1141,8 +1141,8 @@ assert(
   const ring0 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls")));
   const built = buildFromFiles();
   const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
-  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 140, `step4 sheet is 140 rows, got ${ring0.sheet} ${ring0.rows.length}`);
-  assert(ring0.rows.length === step3.rows.length + 19, "sheet adds the earlier settle rows plus ten fourth-circle settle rows");
+  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 138, `step4 sheet is 138 rows, got ${ring0.sheet} ${ring0.rows.length}`);
+  assert(ring0.rows.length === step3.rows.length + 17, "sheet adds the earlier settle rows plus eight fourth-circle settle rows");
   assert(ring0.colMin === -5 && ring0.colMax === 37 && ring0.needleCols.length === 43, "ring0 needles are −5…37");
   assert(built.ring.N === 38 && built.ring.front === 19 && built.ring.back === 19, "ring 0 ends F19 B19");
   assert(built.ring.front - built.ring.back === 0, "finished circle stays inside F−B ∈ {0,1}");
@@ -1191,7 +1191,7 @@ assert(
   const trackedSheet = built.step3ToSheet[built.lockedCourseEnd];
   assert(ring2Sheet === 33, `ring 2 still starts at sheet row 33, got ${ring2Sheet}`);
   assert(built.step3ToSheet[44] === 50, `step3 row 44 stays at sheet row 50, got ${built.step3ToSheet[44]}`);
-  assert(trackedSheet === 92, `step3 row 73 stays raw at sheet row 92, got ${trackedSheet}`);
+  assert(trackedSheet === 90, `step3 row 73 stays raw at sheet row 90, got ${trackedSheet}`);
   assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops where the front increase cannot flip onto an adjacent needle");
   for (let sheetRow = 0; sheetRow < built.rows.length; sheetRow++) {
     for (const src of built.rows[sheetRow].cells) {
@@ -1379,12 +1379,12 @@ assert(
   const laterRemain = built.step3ToSheet[73];
   assert(
     built.lockedCourseEnd === 73 &&
-      laterRemain === 92 &&
+      laterRemain === 90 &&
       laterRemain === trackedSheet &&
       built.step3ToSheet[69] === 84 &&
       built.step3ToSheet[70] === 87 &&
-      built.step3ToSheet[71] === 90 &&
-      built.step3ToSheet[72] === 91 &&
+      built.step3ToSheet[71] === 88 &&
+      built.step3ToSheet[72] === 89 &&
       tokenAt(84, 0) === "F→" &&
       physicalNeedleGlyph(physAt(84, 0)) === "F0" &&
       physicalNeedleGlyph(physAt(84, 11)) === "F11" &&
@@ -1398,32 +1398,26 @@ assert(
       ring0.rows[85].beds === "F1…F14 / B1…B14" &&
       ring0.rows[86].beds === "F0…F13 / B1…B14" &&
       ring0.rows[87].beds === "F0…F13 / B0…B13" &&
-      tokenAt(88, 0) === "F→" &&
-      physicalNeedleGlyph(physAt(88, 0)) === "F0" &&
+      tokenAt(88, 11) === "F→" &&
+      physicalNeedleGlyph(physAt(88, 11)) === "F11" &&
       physicalNeedleGlyph(physAt(88, 13)) === "F13" &&
+      tokenAt(88, 0) === "" &&
       ring0.rows[88].beds === "F0…F13 / B0…B13" &&
-      tokenAt(89, 1) === "F→" &&
-      physicalNeedleGlyph(physAt(89, 1)) === "F1" &&
+      tokenAt(89, 12) === "F→" &&
+      physicalNeedleGlyph(physAt(89, 12)) === "F12" &&
       physicalNeedleGlyph(physAt(89, 14)) === "F14" &&
-      ring0.rows[89].beds === "F1…F14 / B0…B13" &&
-      tokenAt(90, 11) === "F→" &&
-      physicalNeedleGlyph(physAt(90, 11)) === "F11" &&
-      physicalNeedleGlyph(physAt(90, 15)) === "F15" &&
-      ring0.rows[90].beds === "F2…F15 / B0…B13" &&
-      tokenAt(91, 12) === "F→" &&
-      physicalNeedleGlyph(physAt(91, 12)) === "F12" &&
-      physicalNeedleGlyph(physAt(91, 16)) === "F16" &&
-      ring0.rows[91].beds === "F2…F10,F12…F16 / B0…B13" &&
+      tokenAt(89, 10) === "" &&
+      ring0.rows[89].beds === "F0…F10,F12…F14 / B0…B13" &&
       tokenAt(laterRemain, 10) === "+R2" &&
       physAt(laterRemain, 10).bed == null &&
-      ring0.rows[laterRemain].beds === "F2…F10,F13…F17 / B0…B13" &&
+      ring0.rows[laterRemain].beds === "F0…F10,F13…F15 / B0…B13" &&
       ring0.rows[laterRemain + 1].beds === "" &&
       ring0.rows[59].beds === "F0…F16 / B1…B16" &&
       tokenAt(68, 22) === "⬇" &&
       physicalNeedleGlyph(physAt(68, 22)) === "B15" &&
       tokenAt(76, 15) === "⬆" &&
       physicalNeedleGlyph(physAt(76, 15)) === "F15",
-    "tracking runs through step3 row 72; row 71 racks the front twice then transfers, and row 73 keeps the holed window",
+    "tracking runs through step3 row 72; row 71 moves only F11…F13, and row 73 keeps the holed window",
   );
   assert(
     tokenAt(23, 21) === "B^R" &&
