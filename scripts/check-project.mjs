@@ -440,6 +440,30 @@ assert(toRelativeToken("F→2") === "→2" && toRelativeToken("B←2") === "→2
     stopped = /NOTE:/.test(err.message);
   }
   assert(stopped, "an offset that is not one needle stops");
+  const surplus = make([
+    ["F", 0],
+    ["F", 1],
+    ["F", 2],
+    ["F", 3],
+    ["B", 2],
+    ["B", 3],
+  ]);
+  const cleared = settleAssignedWindows(surplus, new Map(), new Set(), "试让");
+  assert(
+    cleared.length === 3 &&
+      cleared[0].row.windowAlign &&
+      cleared[0].beds === "F0…F3 / B2…B3" &&
+      cleared[0].row.cells.map((cell) => `${cell.token}@${cell.phys}`).sort().join(",") === "B←@2,B←@3" &&
+      cleared[1].row.dir === "Flip" &&
+      cleared[1].row.cells[0].token === "⬆" &&
+      cleared[1].row.cells[0].phys === 3 &&
+      cleared[1].beds === "F0…F3 / B1…B2" &&
+      cleared[2].row.windowAlign &&
+      cleared[2].beds === "F0…F2 / B1…B3" &&
+      cleared[2].row.cells.map((cell) => `${cell.token}@${cell.phys}`).sort().join(",") === "B←@1,B←@2,B←@3",
+    "a two-stitch front surplus with a shared high needle racks, flips onto the vacated needle, then racks again",
+  );
+  assert(physOf(surplus, "F") === "0,1,2" && physOf(surplus, "B") === "0,1,2", "the two one-needle racks land both windows on 0…2");
   stopped = false;
   try {
     settleAssignedWindows(
@@ -1108,8 +1132,8 @@ assert(
   const ring0 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step4_ring0.xls")));
   const built = buildFromFiles();
   const step3 = parseExcelReadableMap(readFileSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")));
-  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 127, `step4 sheet is 127 rows, got ${ring0.sheet} ${ring0.rows.length}`);
-  assert(ring0.rows.length === step3.rows.length + 6, "sheet adds the ring-0 align, two ring-1 flips, two ring-1 racks, and one later rack");
+  assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 130, `step4 sheet is 130 rows, got ${ring0.sheet} ${ring0.rows.length}`);
+  assert(ring0.rows.length === step3.rows.length + 9, "sheet adds the ring-0 align, two ring-1 flips, two ring-1 racks, the row-40 rack, and the row-44 rack, flip, and rack");
   assert(ring0.colMin === -5 && ring0.colMax === 37 && ring0.needleCols.length === 43, "ring0 needles are −5…37");
   assert(built.ring.N === 38 && built.ring.front === 19 && built.ring.back === 19, "ring 0 ends F19 B19");
   assert(built.ring.front - built.ring.back === 0, "finished circle stays inside F−B ∈ {0,1}");
@@ -1143,7 +1167,7 @@ assert(
   }
   assert(!ring0.rows.slice(0, path1).some((r) => r.dir === "Flip"), "Flip is not inside ring 0");
   const flipRows = ring0.rows.map((row, index) => (row.dir === "Flip" ? index : -1)).filter((index) => index >= 0);
-  assert(flipRows.join(",") === "9,15", `flip rows are sheets 9 and 15, got ${flipRows}`);
+  assert(flipRows.join(",") === "9,15,52", `flip rows are sheets 9, 15, and 52, got ${flipRows}`);
   const bedMoves = ring0.rows.flatMap((r) => r.cells.map((c) => c.token)).filter((token) => /^[FB][←→]/.test(token));
   assert(bedMoves.includes("F→") && bedMoves.includes("F←") && bedMoves.includes("B→") && bedMoves.includes("B←"), "ring0 sheet uses the 1-stitch arrows this sample moves");
   assert(
@@ -1157,8 +1181,9 @@ assert(
   const ring2Sheet = built.step3ToSheet[built.ring1Span.end];
   const trackedSheet = built.step3ToSheet[built.lockedCourseEnd];
   assert(ring2Sheet === 33, `ring 2 still starts at sheet row 33, got ${ring2Sheet}`);
-  assert(trackedSheet === 50, `step3 row 44 stays at sheet row 50, got ${trackedSheet}`);
-  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops before the unresolved decrease");
+  assert(built.step3ToSheet[44] === 50, `step3 row 44 stays at sheet row 50, got ${built.step3ToSheet[44]}`);
+  assert(trackedSheet === 59, `the next circle starts at sheet row 59, got ${trackedSheet}`);
+  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops at the next circle");
   for (let sheetRow = 0; sheetRow < built.rows.length; sheetRow++) {
     for (const src of built.rows[sheetRow].cells) {
       const got = ring0.rows[sheetRow].cells.find((cell) => cell.col === src.col);
@@ -1194,7 +1219,7 @@ assert(
   );
   assert(physicalNeedleGlyph(physAt(ring2Sheet, 1)) === "F1", "the next stitch on that short course is F1");
   const rawLater = ring0.rows[trackedSheet].cells.find((cell) => cell.token);
-  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 44 has no tracked physical needle");
+  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 50 has no tracked physical needle");
   assert(formatPhysicalNeedle(physAt(0, 37)).title === "无物理针", "an empty cell does not invent a needle");
   assert(formatPhysicalNeedle({ col: 20, token: "B+R1", bed: "B" }).title === "无物理针", "a bed glyph without a recorded phys is not a needle");
   assert(formatPhysicalNeedle({ col: 17, token: "·" }).title === "无物理针", "the sheet column is not reported as a physical needle");
@@ -1342,15 +1367,16 @@ assert(
       physicalNeedleGlyph(physAt(22, 21)) === "B16",
     "the back decrease remainder stays on B16, the needle the split course ended on",
   );
-  const laterRemain = built.step3ToSheet[45];
+  const laterRemain = built.step3ToSheet[50];
   assert(
-    laterRemain === 51 &&
-      laterRemain > trackedSheet &&
-      tokenAt(laterRemain, 28) === "·" &&
-      physAt(laterRemain, 28).bed == null &&
-      ring0.rows[laterRemain].beds === "" &&
-      ring0.rows[trackedSheet].beds === "F0…F17 / B1…B17",
-    "step3 row 44 records the window it starts from, and the next row leaves 分布 blank",
+    built.lockedCourseEnd === 50 &&
+      laterRemain === 59 &&
+      laterRemain === trackedSheet &&
+      tokenAt(laterRemain, 0) === "·" &&
+      physAt(laterRemain, 0).bed == null &&
+      ring0.rows[laterRemain].beds === "F0…F16 / B1…B16" &&
+      ring0.rows[laterRemain + 1].beds === "",
+    "tracking runs through step3 row 49; row 50 keeps the ending window and the next row leaves 分布 blank",
   );
   assert(
     tokenAt(23, 21) === "B^R" &&
@@ -1442,8 +1468,11 @@ assert(
       ring0.rows[41].beds === "F0…F4,F6…F18 / B1…B18" &&
       ring0.rows[42].dir === "R" &&
       ring0.rows[42].beds === "F0…F18 / B1…B18" &&
-      ring0.rows.slice(16).every((row) => row.dir !== "Flip"),
-    "the increase leaves F0 off the bed, the knit fills F5, and no later row flips",
+      ring0.rows.slice(16, 52).every((row) => row.dir !== "Flip") &&
+      ring0.rows[52].dir === "Flip" &&
+      tokenAt(52, 17) === "⬆" &&
+      physicalNeedleGlyph(physAt(52, 17)) === "F17",
+    "the increase leaves F0 off the bed, the knit fills F5, and the next flip is F17 at the right fold",
   );
   assert(built.step3ToSheet[40] === 45 && built.step3ToSheet[41] === 47, "the front decrease and the following knit stay on sheets 45 and 47");
   assert(
@@ -1467,6 +1496,12 @@ assert(
       ring0.rows[47].beds === "F0…F17 / B0…B17" &&
       ring0.rows[48].beds === "F0…F17 / B0…B17" &&
       ring0.rows[49].beds === "F0…F17 / B1…B17" &&
+      ring0.rows[50].beds === "F0…F17 / B1…B17" &&
+      ring0.rows[51].beds === "F0…F17 / B2…B17" &&
+      ring0.rows[52].beds === "F0…F17 / B1…B16" &&
+      ring0.rows[53].beds === "F0…F16 / B1…B17" &&
+      ring0.rows[54].beds === "F0…F16 / B0…B16" &&
+      ring0.rows[56].beds === "F0…F16 / B1…B16" &&
       ring0.needleCols.at(-1) === 37 &&
       !ring0.needleCols.includes(NaN),
     "the far-right column is the start-of-row window and is not a needle column",
