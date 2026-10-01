@@ -4,6 +4,8 @@ import { cellFill } from "./readable-map.js";
 const CELL = 22;
 /** Wide enough for 3-digit display_row + dir, e.g. `120 X+`. */
 const LABEL_W = 56;
+/** Far-right start-of-row window, e.g. `F0…F4,F6…F18 / B1…B18`. */
+const BEDS_W = 248;
 const HEAD_H = 20;
 const XFER_H = 10;
 const PAD = 12;
@@ -13,6 +15,14 @@ export const MAP_CLICK_SLOP = 8;
 export const MAP_CELL = CELL;
 export const MAP_LABEL_W = LABEL_W;
 export const MAP_HEAD_H = HEAD_H;
+export const MAP_BEDS_W = BEDS_W;
+
+/** Extra width when the sheet carries a start-of-row bed window. */
+export function excelBedsWidth(grid) {
+  if (!grid || (grid.theme !== "excel" && grid.source !== "excel")) return 0;
+  if (!(grid.rows || []).some((row) => row?.beds)) return 0;
+  return BEDS_W;
+}
 
 /** First-column label: 0-based display_row + dir, e.g. `0 R`, `7 X`, `12 X+`. */
 export function rowDirLabel(row, dir) {
@@ -245,7 +255,7 @@ export class ReadableMapView {
     if (!g?.nRows) return { w: 0, h: 0 };
     if (this.isExcel()) {
       return {
-        w: LABEL_W + g.nCols * CELL,
+        w: LABEL_W + g.nCols * CELL + excelBedsWidth(g),
         h: HEAD_H + g.nRows * CELL,
       };
     }
@@ -423,6 +433,36 @@ export class ReadableMapView {
               : "11px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
           ctx.fillText(label, x + CELL / 2, y + CELL / 2);
           ctx.font = "10px Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+        }
+      }
+    }
+
+    const bedsW = excelBedsWidth(g);
+    if (bedsW) {
+      const x = LABEL_W + g.nCols * CELL;
+      ctx.fillStyle = headerFill;
+      ctx.fillRect(x, 0, bedsW, HEAD_H);
+      ctx.strokeStyle = gridLine;
+      ctx.strokeRect(x + 0.5, 0.5, bedsW - 1, HEAD_H - 1);
+      ctx.fillStyle = labelInk;
+      ctx.font = `9px ${LABEL_FONT}`;
+      ctx.textAlign = "center";
+      ctx.fillText("分布", x + bedsW / 2, HEAD_H / 2);
+      ctx.font = `11px ${LABEL_FONT}`;
+      ctx.textAlign = "left";
+      for (let r = 0; r < g.nRows; r++) {
+        const row = g.rowMin + r;
+        const y = this._rowY(row);
+        const meta = g.rows[r] || g.rows.find((rowMeta) => rowMeta.row === row);
+        const text = meta?.beds || "";
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(x, y, bedsW, CELL);
+        ctx.strokeStyle = gridLine;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, bedsW - 1, CELL - 1);
+        if (text) {
+          ctx.fillStyle = labelInk;
+          ctx.fillText(text, x + 6, y + CELL / 2);
         }
       }
     }
