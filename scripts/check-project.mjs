@@ -1469,7 +1469,13 @@ assert(
       built.step3ToSheet[70] === 95 &&
       built.step3ToSheet[71] === 96 &&
       built.step3ToSheet[72] === 97 &&
+      built.step3ToSheet[64] === 84 &&
+      built.step3ToSheet[66] === 88 &&
       built.step3ToSheet[73] === 98 &&
+      tokenAt(84, 24) === "B·" &&
+      physicalNeedleGlyph(physAt(84, 24)) === "B8" &&
+      tokenAt(88, 22) === "B·" &&
+      physicalNeedleGlyph(physAt(88, 22)) === "B8" &&
       built.step3ToSheet[74] === 101 &&
       tokenAt(91, 0) === "F→" &&
       physicalNeedleGlyph(physAt(91, 0)) === "F0" &&
@@ -1496,6 +1502,7 @@ assert(
       physicalNeedleGlyph(physAt(97, 15)) === "F15" &&
       ring0.rows[97].beds === "F0…F10,F12…F15 / B1…B14" &&
       tokenAt(98, 9) === "F^L" &&
+      physicalNeedleGlyph(physAt(98, 9)) === "F8" &&
       tokenAt(98, 10) === "F+R2" &&
       physicalNeedleGlyph(physAt(98, 10)) === "F10" &&
       tokenAt(98, 12) === "FvR" &&
@@ -1632,6 +1639,8 @@ assert(
       physicalNeedleGlyph(physAt(43, 19)) === "F19" &&
       ring0.rows[45].dir === "R" &&
       ring0.rows[45].beds === "F0…F18 / B0…B18" &&
+      tokenAt(45, 4) === "F^L" &&
+      physicalNeedleGlyph(physAt(45, 4)) === "F5" &&
       ring0.rows.slice(16, 42).every((row) => row.dir !== "Flip"),
     "the increase keeps F−1, the knit fills F5, and the balance seats that stitch on F0",
   );

@@ -56,6 +56,11 @@
  *   on 1…14 with the back on 0…14, seats the front onto 0…13, flips B14
  *   onto F14, and racks the empty to the left junction, F0…F14 / B1…B14.
  *   The next L starts one needle outward from that stacked seat, at F10.
+ *   An increase that racks the front uses that same outward step: step3
+ *   row 37 starts at F5. A back course whose fold start is the seat does
+ *   too: step3 rows 64 and 66 start at B8. A transfer that leaves the
+ *   previous end needle unmoved keeps the fold, so row 73 starts on F8
+ *   and still knits the new stitches at F11 and F12.
  *   A front increase moves only the front needles after the increase
  *   position. Step3 row 71 moves F11…F14; row 72 moves F12…F15. F0…F10
  *   stay. Step3 row 73 knits the new stitches before any front/back

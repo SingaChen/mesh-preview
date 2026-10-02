@@ -165,7 +165,16 @@
  * Step3 row 89 knits the next -R1 on B0. Row 90's transfer column does
  * not name a stitch, so tracking stops. A decrease's next knit starts
  * one needle outward from the landing after that balance. On the front
- * that is why step3 row 70, the old sheet-87 L, starts at F10.
+ * the balance delta is that step: step3 row 70, the old sheet-87 L,
+ * starts at F10, not on the seat F11. The same step is the carriage
+ * direction when the fold already sits on the seat. Step3 row 64 (sheet
+ * 84) and row 66 (sheet 88) are back L courses, so they start at B8,
+ * one needle past the seat B7. An increase has no stacked landing. When
+ * its balance racks the front, the next knit reads that rack the same
+ * way: step3 row 37 (sheet 45) starts at F5. A transfer that does not
+ * move the needle where the previous knit stopped keeps that fold.
+ * Step3 row 70 ends on F8; rows 71 and 72 do not move it, so row 73
+ * (sheet 98) starts on F8 and still knits the new stitches at F11 and F12.
  *
  * The phys sheet copies the bed and physical needle already stored on each
  * tracked cell, including transfers and flips. It does not place needles.
@@ -1686,17 +1695,22 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
   // front use the fold recount, in either direction.
   let recountPastFront = false;
   // The stitch and course column where the previous knit stopped.
-  // Cleared by a transfer, flip, or whole-bed move.
+  // A transfer or balance that moves that stitch clears it. A pass that
+  // leaves the stitch on the same needle keeps the fold, so the next
+  // opposite course can start there.
   let carriedTurn = null;
   // Needle and column of that same knit end. A decrease transfer does not
   // clear it. The next course that starts on this column stays on this
   // needle and then steps one needle per column. Whole-bed racks may
   // change which stitch sits there; the column still means this needle.
   let courseEnd = null;
-  // Landing of the last decrease pass, at the phys it had when the
-  // source was consumed. Balance may rack that same stitch. The next
-  // knit reads the delta and then forgets it. Back courses already
-  // follow the bed highs, so only a front landing shifts front columns.
+  // Landing of the last decrease, or the end stitch of an increase
+  // whose balance racked the front, at the phys it had before that
+  // move. The next knit reads how far that stitch traveled and then
+  // forgets it. A back course whose fold start is still that landing
+  // steps one needle further in the carriage direction. The fold
+  // already used the new bed high, so the rack delta is not applied
+  // a second time on the back.
   let pendingSeat = null;
   const PAST_BED = { pastBed: true };
   // An increase whose same-index pair is neither an empty neighbor nor
@@ -1833,6 +1847,20 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     // the back needles inward from the fold. A course that stays on the
     // back keeps the chart lookup, so a column with no stitch can still
     // be born; it is still drawn on the course column, not at 37 − phys.
+    // The fold recount lands on the post-balance seat. The next course
+    // starts one needle outward from that seat, in the direction this
+    // row travels. L on the back walks toward higher phys; R toward lower.
+    let backTravel = 0;
+    if (pendingSeat?.bed === "B" && courseCols.length) {
+      const landing = stitches.get(pendingSeat.id);
+      if (landing?.bed === "B") {
+        const startCol = row.dir === "L" ? Math.max(...courseCols) : Math.min(...courseCols);
+        if (startCol > frontHi) {
+          const startPhys = backHi - (startCol - frontHi - 1);
+          if (startPhys === landing.phys) backTravel = row.dir === "L" ? 1 : -1;
+        }
+      }
+    }
     const stitchOnCourse = (col) => {
       if (col <= frontHi) {
         let phys = col;
@@ -1851,7 +1879,7 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
       // crossing course already uses — on the remainder and every later
       // course.
       if (!crosses && !recountPastFront) return stitchAt(col);
-      const phys = backHi - (col - frontHi - 1);
+      const phys = backHi - (col - frontHi - 1) + backTravel;
       const back = backAt.get(phys);
       if (!back) {
         // No needle below 0. The cell is not a stitch and it is not a new
@@ -2064,29 +2092,54 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
         }
         return frontAtPhys(st.phys - 1);
       };
-      const seen = new Set(placed.filter((item) => item.wrap).map((item) => item.id));
-      let st = turnStitch;
-      for (const cell of visit) {
-        const item = placed.find((placedCell) => !placedCell.wrap && !placedCell.birth && placedCell.chart === cell.col);
-        if (!item || !st) {
+      const birthOnVisit = visit.some((cell) => placed.some((item) => item.birth && item.chart === cell.col));
+      // An increase course births into the holes the transfers opened.
+      // Those holes stay on their needles. The fold only puts the first
+      // column back on the needle the previous course finished on, when
+      // the recount had stepped one past it.
+      if (birthOnVisit) {
+        const stepped = stepNeedle(turnStitch, row.dir);
+        if (!stepped || firstItem.id !== stepped.id) {
           fail(
-            `NOTE: step3 行 ${ri} 折返停在 ${turnStitch.bed}${turnStitch.phys}，下一列没有相邻的针，先停`,
+            `NOTE: step3 行 ${ri} 折返停在 ${turnStitch.bed}${turnStitch.phys}，下一列不是相邻的针，先停`,
           );
         }
-        if (seen.has(st.id)) {
-          fail(`NOTE: step3 行 ${ri} 折返从 ${turnStitch.bed}${turnStitch.phys} 接着走时 ${st.bed}${st.phys} 重复，先停`);
+        if (placed.some((item) => item !== firstItem && item.id === turnStitch.id)) {
+          fail(`NOTE: step3 行 ${ri} 折返从 ${turnStitch.bed}${turnStitch.phys} 接着走时重复，先停`);
         }
-        seen.add(st.id);
-        if (item.id !== st.id) {
-          const painted = paintToken(cell, toAbsoluteToken(cell.token, st.bed));
-          item.token = painted.token;
-          item.fill = painted.fill;
-          item.phys = st.phys;
-          item.bed = st.bed;
-          item.id = st.id;
-          item.stair = true;
+        const cell = visit[0];
+        const painted = paintToken(cell, toAbsoluteToken(cell.token, turnStitch.bed));
+        firstItem.token = painted.token;
+        firstItem.fill = painted.fill;
+        firstItem.phys = turnStitch.phys;
+        firstItem.bed = turnStitch.bed;
+        firstItem.id = turnStitch.id;
+        firstItem.stair = true;
+      } else {
+        const seen = new Set(placed.filter((item) => item.wrap).map((item) => item.id));
+        let st = turnStitch;
+        for (const cell of visit) {
+          const item = placed.find((placedCell) => !placedCell.wrap && !placedCell.birth && placedCell.chart === cell.col);
+          if (!item || !st) {
+            fail(
+              `NOTE: step3 行 ${ri} 折返停在 ${turnStitch.bed}${turnStitch.phys}，下一列没有相邻的针，先停`,
+            );
+          }
+          if (seen.has(st.id)) {
+            fail(`NOTE: step3 行 ${ri} 折返从 ${turnStitch.bed}${turnStitch.phys} 接着走时 ${st.bed}${st.phys} 重复，先停`);
+          }
+          seen.add(st.id);
+          if (item.id !== st.id) {
+            const painted = paintToken(cell, toAbsoluteToken(cell.token, st.bed));
+            item.token = painted.token;
+            item.fill = painted.fill;
+            item.phys = st.phys;
+            item.bed = st.bed;
+            item.id = st.id;
+            item.stair = true;
+          }
+          st = stepNeedle(st, row.dir);
         }
-        st = stepNeedle(st, row.dir);
       }
     }
     seatCourseContinuity(placed, courseCells, row.dir, `step3 行 ${ri}`);
@@ -2498,7 +2551,14 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     const row = step3Rows[i];
     const beds = bedsAtStart(stitches);
     if (row.dir === "X" || row.dir === "X+") {
-      carriedTurn = null;
+      const heldTurn = carriedTurn;
+      const heldStitch = heldTurn ? stitches.get(heldTurn.id) : null;
+      const heldBed = heldStitch?.bed;
+      const heldPhys = heldStitch?.phys;
+      const keepFold = () => {
+        const still = heldTurn ? stitches.get(heldTurn.id) : null;
+        carriedTurn = still && still.bed === heldBed && still.phys === heldPhys ? heldTurn : null;
+      };
       const rowBeds = bedsAtStart(stitches);
       let moved;
       try {
@@ -2521,7 +2581,10 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
         if (backDecrease) recountPastFront = true;
         // The remaining passes of this -Rn still have to move. Balancing
         // between them shifts the needles the next pass is about to use.
-        if (decreaseLeft > 0) continue;
+        if (decreaseLeft > 0) {
+          keepFold();
+          continue;
+        }
         try {
           const repaired = insertRepair(`step3 行 ${i} 减针后`, i, true);
           balancePending = repaired.deferred;
@@ -2536,6 +2599,7 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
       } else if (decreaseLeft > 0) {
         fail(`NOTE: step3 行 ${i} 减针还剩 ${decreaseLeft} 次一针移圈，这一行是 ${row.dir}，先停`);
       }
+      keepFold();
       continue;
     }
     if (row.dir !== "R" && row.dir !== "L") fail(`step3 行 ${i} 方向 ${row.dir} 不在第二圈规则里`);
@@ -2560,9 +2624,20 @@ export function simulateRing1(step3Rows, rowStart, rowEnd, seed, turnBefore = ro
     byRow.set(i, { dir: row.dir, step3: i, cells: knit.placed, beds });
     assertNoSharedNeedle(stitches, `step3 行 ${i} 织完`);
     if (inc || knit.births.length) {
+      const endId = carriedTurn?.id;
+      const before = endId != null ? stitches.get(endId) : null;
+      const beforeBed = before?.bed;
+      const beforePhys = before?.phys;
       const repaired = insertRepair(`step3 行 ${i} 加针后`, i, true, true);
       balancePending = repaired.deferred;
-      carriedTurn = null;
+      const after = endId != null ? stitches.get(endId) : null;
+      // The increase has no stacked landing. A balance that racks the
+      // front moves the course-end stitch with that bed. The next knit
+      // reads the same delta a decrease landing would.
+      if (before && after && beforeBed === "F" && after.bed === "F" && after.phys !== beforePhys) {
+        pendingSeat = { id: after.id, bed: "F", phys: beforePhys };
+      }
+      if (!after || after.bed !== beforeBed || after.phys !== beforePhys) carriedTurn = null;
     } else if (balancePending) {
       const repaired = insertRepair(`step3 行 ${i} 加针后`, i, true, true);
       balancePending = repaired.deferred;
@@ -2708,7 +2783,7 @@ function legendSheet(xfIndexForFill, ring, ring1) {
     ["rows", "stitch_map_bind.json stays 121. The cellmap sheet maps each bind cell to its sheet row and column. Ring 0 inserts one whole-bed align row after shaping. Ring 1 inserts two Flip rows, and after each flip a whole-bed move: the first puts the empty needle on the left fold, the second realigns equal counts. Ring 2's increase keeps the stitch on F−1. After the knit, one rack seats the front on 0, one Flip moves F19 onto B19, and one rack aligns the back onto 0…18. The following front decrease flips B18 onto F18 and racks the back bed onto 1…18. After step3 row 69 the front seats on 0, B14 flips onto F14, and the back racks onto 1…14. Step3 row 71 moves only the front needles after the increase, F11…F14. Step3 row 72 moves F12…F15. After the increase knit on step3 row 73, one Flip lands on B16 and one single-needle row moves that coil to B15. A -Rn marker is n one-needle passes, then the existing settle. Step3 row 75 is -R2: two back passes, then a rack, a flip of F15 onto B15, and a rack onto F0…F14 / B1…B14. Step3 row 87 knits B2 then B1. Row 88 moves the live edge B1 onto B2. Balance racks and flips onto F0…F11 / B0…B11. Row 90's transfer names no stitch, so tracking stops and that window is recorded"],
     ["phys", "表 phys 只抄生成时已经跟踪的床和物理针。表列号不是物理针号。第四圈跟踪到 step3 行 89。从 step3 行 90 起没有这份数据。"],
     ["分布", "最右列是这一行开始时机器上的线圈窗，例如 F0…F18 / B1…B18。空档写成断开的窗，不并成一段。step3 行 90 记下跟踪结束时的窗；后面的行不再写。"],
-    ["NOTE3", "第三圈接到第二圈末床位，前 0…18、后 1…18。step3 行 35 的加针把 F0 留在 F−1，不删。行 36 在空档织进新圈，开始窗是 F−1…F4、F6…F18 / B1…B18。然后整段移前床 +1，F−1 落到 F0（前 0…19）。右折返把 F19 翻到 B19，再整段移后床 −1，对齐到前 0…18、后 0…18。行 40 的减针按物理针把前床 F12…F18 收一针，移完前 0…17、后仍是 0…18。数目不是 F19/B18，先把 B18 翻到 F18，再整段移后床 +1，空针落到左衔接 1…18。行 42 的后床减针把 B12…B1 收到高位。配对针 B18 上有线圈，先整段移后床 −1 空出它，再把 F18 翻到 B18，对齐到前 0…17、后 0…17。行 44 减针后前 0…17、后 1…17，空针已在左衔接，不移。行 45 的 R 行程从 B7 起，是后床按平衡后的高位往外数的那一针。行 46 再空出 B17、把 F17 翻到 B17、对齐到前 0…16、后 0…16。第三圈结束时前 0…16、后 0…16。第四圈接着这副床。行 53 把 B16 翻到 F16，再把空针移到左衔接。行 57 数目齐、错开一针，只整段移后床。行 63 把空针移到左衔接。行 65 把 F15 翻到 B15，再对齐，结束时前 0…14、后 0…14。行 69 的减针让前床落到 1…14，后床是 0…14。和加针一样先整段移前床 -1，前床从 0 起（0…13）。然后把 B14 翻到 F14，再把空针移到左衔接，前 0…14、后 1…14。行 70 是这一次减针之后的 L 行程：平衡后的落点再往外一针，所以从 F10 起，不是从落点 F11 起。窗是前 0…14、后 1…14。行 71 的加针位在 F10。只把加针位之后的 F11…F14 右移一针，F0…F10 不动。行 72 再把 F12…F15 右移一针。行 73 先把新圈织进去。右折返先把 F16 翻到 B16，再只把这一针从 B16 收到 B15，不整床移。窗变成前 0…15、后 1…15。行 74 在这副窗上织 F10…F12。行 75 的 -R2 是两次一针移圈，先移后床 B12…B1，再移 B13…B2，两次之间不对齐。配对针 B15 上有线圈，先整段移后床空出 B15，再把 F15 翻到 B15，再把空针移到左衔接，前 0…14、后 1…14。行 78 同样是 -R2，对齐到前 0…13、后 1…13。行 84 空出 B13、把 F13 翻到 B13、对齐到前 0…12、后 0…12。行 86 把 B2…B0 收到高位，空针已在左衔接，不移。行 87 是 R 向 -R1，按 chart 先织 B2 再织 B1。行 88 这一床从 B1 起，没有 B0，所以只把活着的边缘 B1 收到 B2。平衡再空出 B12、把 F12 翻到 B12、对齐到前 0…11、后 0…11。行 89 在 B0 上织下一针 -R1。行 90 的移圈列对不上线圈，先停，并记下前 0…11、后 0…11。后面的行不再写。+R2、−R2 以及成对的一针移圈没有写成多针成形。"],
+    ["NOTE3", "第三圈接到第二圈末床位，前 0…18、后 1…18。step3 行 35 的加针把 F0 留在 F−1，不删。行 36 在空档织进新圈，开始窗是 F−1…F4、F6…F18 / B1…B18。然后整段移前床 +1，F−1 落到 F0（前 0…19）。右折返把 F19 翻到 B19，再整段移后床 −1，对齐到前 0…18、后 0…18。行 37 的 R 行程从 F5 起，是这一次前床整段 +1 之后再往外的一针。行 40 的减针按物理针把前床 F12…F18 收一针，移完前 0…17、后仍是 0…18。数目不是 F19/B18，先把 B18 翻到 F18，再整段移后床 +1，空针落到左衔接 1…18。行 42 的后床减针把 B12…B1 收到高位。配对针 B18 上有线圈，先整段移后床 −1 空出它，再把 F18 翻到 B18，对齐到前 0…17、后 0…17。行 44 减针后前 0…17、后 1…17，空针已在左衔接，不移。行 45 的 R 行程从 B7 起，是后床按平衡后的高位往外数的那一针。行 46 再空出 B17、把 F17 翻到 B17、对齐到前 0…16、后 0…16。第三圈结束时前 0…16、后 0…16。第四圈接着这副床。行 53 把 B16 翻到 F16，再把空针移到左衔接。行 57 数目齐、错开一针，只整段移后床。行 63 把空针移到左衔接。行 64 的 L 从 B8 起，是落点再往外一针。行 65 把 F15 翻到 B15，再对齐，结束时前 0…14、后 0…14。行 66 的 L 同样从 B8 起。行 69 的减针让前床落到 1…14，后床是 0…14。和加针一样先整段移前床 -1，前床从 0 起（0…13）。然后把 B14 翻到 F14，再把空针移到左衔接，前 0…14、后 1…14。行 70 是这一次减针之后的 L 行程：平衡后的落点再往外一针，所以从 F10 起，不是从落点 F11 起。窗是前 0…14、后 1…14。行 71 的加针位在 F10。只把加针位之后的 F11…F14 右移一针，F0…F10 不动。行 72 再把 F12…F15 右移一针。行 70 停在 F8，这两次移圈没有动它，所以行 73 的 R 从 F8 起，再把新圈织进 F11、F12。右折返先把 F16 翻到 B16，再只把这一针从 B16 收到 B15，不整床移。窗变成前 0…15、后 1…15。行 74 在这副窗上织 F10…F12。行 75 的 -R2 是两次一针移圈，先移后床 B12…B1，再移 B13…B2，两次之间不对齐。配对针 B15 上有线圈，先整段移后床空出 B15，再把 F15 翻到 B15，再把空针移到左衔接，前 0…14、后 1…14。行 78 同样是 -R2，对齐到前 0…13、后 1…13。行 84 空出 B13、把 F13 翻到 B13、对齐到前 0…12、后 0…12。行 86 把 B2…B0 收到高位，空针已在左衔接，不移。行 87 是 R 向 -R1，按 chart 先织 B2 再织 B1。行 88 这一床从 B1 起，没有 B0，所以只把活着的边缘 B1 收到 B2。平衡再空出 B12、把 F12 翻到 B12、对齐到前 0…11、后 0…11。行 89 在 B0 上织下一针 -R1。行 90 的移圈列对不上线圈，先停，并记下前 0…11、后 0…11。后面的行不再写。+R2、−R2 以及成对的一针移圈没有写成多针成形。"],
   ];
   legend.forEach((pair, i) => {
     parts.push(labelRecord(i, 0, xf, pair[0]));
@@ -3287,6 +3362,15 @@ export function buildRing0Workbook(step3, bind) {
   if (bedsAt(step3ToSheet[37]) !== "F0…F18 / B0…B18") {
     fail(`加针平衡后应是 F0…F18 / B0…B18，得到 ${bedsAt(step3ToSheet[37])}`);
   }
+  if (courseText(37) !== "4:F^L/F5 5:F·/F6 6:FvR/F7") {
+    fail(`step3 行 37 应落在前床整段 +1 之后再往外一针，从 F5 起，得到 ${courseText(37)}`);
+  }
+  if (courseText(38) !== "5:FvL/F6 6:F^R/F7") {
+    fail(`step3 行 38 应沿着行 37 的折返从 F7 回到 F6，得到 ${courseText(38)}`);
+  }
+  if (courseText(39) !== "5:F^L/F6 6:F·/F7 7:F·/F8 8:F·/F9 9:F·/F10 10:F·/F11 11:F-R1/F12 12:F·/F13") {
+    fail(`step3 行 39 应沿着折返从 F6 走到 F13，-R1 在 F12，得到 ${courseText(39)}`);
+  }
   if (bedsAt(step3ToSheet[40]) !== "F0…F18 / B0…B18") {
     fail(`step3 行 40 开始应仍是 F0…F18 / B0…B18，得到 ${bedsAt(step3ToSheet[40])}`);
   }
@@ -3341,8 +3425,20 @@ export function buildRing0Workbook(step3, bind) {
   if (bedsAt(step3ToSheet[64]) !== "F0…F15 / B1…B15") {
     fail(`行 63 对齐后应是 F0…F15 / B1…B15，得到 ${bedsAt(step3ToSheet[64])}`);
   }
+  if (courseText(64) !== "22:B·/B10 23:B-L1/B9 24:B·/B8") {
+    fail(`step3 行 64 应落在平衡后的落点再往外一针，从 B8 起，得到 ${courseText(64)}`);
+  }
   if (bedsAt(step3ToSheet[66]) !== "F0…F14 / B0…B14") {
     fail(`行 65 移床后应是 F0…F14 / B0…B14，得到 ${bedsAt(step3ToSheet[66])}`);
+  }
+  if (courseText(66) !== "16:BvL/B14 17:B·/B13 18:B·/B12 19:B·/B11 20:B·/B10 21:B·/B9 22:B·/B8") {
+    fail(`step3 行 66 应落在平衡后的落点再往外一针，从 B8 起，得到 ${courseText(66)}`);
+  }
+  if (courseText(67) !== "16:B^L/B14 17:BvR/B13") {
+    fail(`step3 行 67 应沿着行 66 的折返从 B14 走到 B13，得到 ${courseText(67)}`);
+  }
+  if (courseText(68) !== "11:F·/F10 12:F-L1/F11 13:F·/F12 14:F·/F13 15:F·/F14 16:B·/B14 17:B^R/B13") {
+    fail(`step3 行 68 应沿着折返从 B13 走到 F10，-L1 在 F11，得到 ${courseText(68)}`);
   }
   if (bedsAt(step3ToSheet[68]) !== "F0…F14 / B0…B14") {
     fail(`第四圈末行应是 F0…F14 / B0…B14，得到 ${bedsAt(step3ToSheet[68])}`);
@@ -3464,8 +3560,8 @@ export function buildRing0Workbook(step3, bind) {
   if (courseText(72) !== "12:F→/F12 13:F→/F13 14:F→/F14 15:F→/F15") {
     fail(`step3 行 72 应只把加针位之后的 F12…F15 右移一针，得到 ${courseText(72)}`);
   }
-  if (courseText(73) !== "9:F^L/F9 10:F+R2/F10 11:F·/F11 12:FvR/F12") {
-    fail(`step3 行 73 应先把加针织进 F11、F12，得到 ${courseText(73)}`);
+  if (courseText(73) !== "9:F^L/F8 10:F+R2/F10 11:F·/F11 12:FvR/F12") {
+    fail(`step3 行 73 折返应停在 F8，并织进 F11、F12，得到 ${courseText(73)}`);
   }
   if (courseText(74) !== "10:FvL/F10 11:F·/F11 12:F^R/F12") {
     fail(`加针对齐后的短行程应停在 F10…F12，得到 ${courseText(74)}`);
