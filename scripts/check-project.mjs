@@ -1479,7 +1479,8 @@ assert(
       built.step3ToSheet[74] === 101 &&
       tokenAt(91, 0) === "F→" &&
       physicalNeedleGlyph(physAt(91, 0)) === "F0" &&
-      physicalNeedleGlyph(physAt(91, 11)) === "F11" &&
+      physicalNeedleGlyph(physAt(91, 10)) === "F10" &&
+      !tokenAt(91, 11) &&
       tokenAt(92, 1) === "F←" &&
       physicalNeedleGlyph(physAt(92, 1)) === "F1" &&
       physicalNeedleGlyph(physAt(92, 14)) === "F14" &&
@@ -1489,9 +1490,9 @@ assert(
       ring0.rows[92].beds === "F1…F14 / B0…B14" &&
       ring0.rows[95].beds === "F0…F14 / B1…B14" &&
       tokenAt(95, 9) === "FvL" &&
-      physicalNeedleGlyph(physAt(95, 9)) === "F8" &&
+      physicalNeedleGlyph(physAt(95, 9)) === "F7" &&
       tokenAt(95, 11) === "F·" &&
-      physicalNeedleGlyph(physAt(95, 11)) === "F10" &&
+      physicalNeedleGlyph(physAt(95, 11)) === "F9" &&
       tokenAt(96, 11) === "F→" &&
       physicalNeedleGlyph(physAt(96, 11)) === "F11" &&
       physicalNeedleGlyph(physAt(96, 14)) === "F14" &&
@@ -1502,7 +1503,7 @@ assert(
       physicalNeedleGlyph(physAt(97, 15)) === "F15" &&
       ring0.rows[97].beds === "F0…F10,F12…F15 / B1…B14" &&
       tokenAt(98, 9) === "F^L" &&
-      physicalNeedleGlyph(physAt(98, 9)) === "F8" &&
+      physicalNeedleGlyph(physAt(98, 9)) === "F7" &&
       tokenAt(98, 10) === "F+R2" &&
       physicalNeedleGlyph(physAt(98, 10)) === "F10" &&
       tokenAt(98, 12) === "FvR" &&
@@ -1540,7 +1541,7 @@ assert(
       ring0.rows[128].beds === "F0…F11 / B0…B11" &&
       ring0.rows[129].beds === "F0…F11 / B0…B11" &&
       ring0.rows[130].beds === "",
-    "tracking keeps F−1 through the seat, starts the old 87L at F10, and sheet 129 records F0…F11 / B0…B11",
+    "tracking keeps F−1 through the seat, starts sheet 95 at F9 and sheet 98 at F7, and sheet 129 records F0…F11 / B0…B11",
   );
   assert(
     tokenAt(23, 21) === "B^R" &&

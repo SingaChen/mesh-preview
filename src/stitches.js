@@ -55,14 +55,16 @@
  *   needle 0 the same way an increase does. Step3 row 69 lands the front
  *   on 1…14 with the back on 0…14, seats the front onto 0…13, flips B14
  *   onto F14, and racks the empty to the left junction, F0…F14 / B1…B14.
- *   The next L starts one needle outward from that stacked seat, at F10.
+ *   The marker knit sat one needle low, so the pass stacks F10 onto F11.
+ *   The rack leaves that seat at F10, and the next L starts one needle
+ *   outward, at F9.
  *   An increase that racks the front uses that same outward step: step3
  *   row 37 starts at F5. A back course whose fold start is the seat does
  *   too: step3 row 64 starts at B8. When the marker knit sat to the high
  *   side of the raw column, the pass uses that offset. Row 40 stacks F13
  *   onto F12, and row 41 starts at F13. Row 65 stacks B10 onto B9, and
  *   row 66 starts at B9. The column past F18 on row 41 is empty. A transfer that leaves the
- *   previous end needle unmoved keeps the fold, so row 73 starts on F8
+ *   previous end needle unmoved keeps the fold, so row 73 starts on F7
  *   and still knits the new stitches at F11 and F12.
  *   A front increase moves only the front needles after the increase
  *   position. Step3 row 71 moves F11…F14; row 72 moves F12…F15. F0…F10
