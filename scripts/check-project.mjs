@@ -1274,8 +1274,8 @@ assert(
   const trackedSheet = built.step3ToSheet[built.lockedCourseEnd];
   assert(ring2Sheet === 33, `ring 2 still starts at sheet row 33, got ${ring2Sheet}`);
   assert(built.step3ToSheet[44] === 50, `step3 row 44 stays at sheet row 50, got ${built.step3ToSheet[44]}`);
-  assert(trackedSheet === 117, `step3 row 89 stays raw at sheet row 117, got ${trackedSheet}`);
-  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops before the gapped window");
+  assert(trackedSheet === 118, `step3 row 90 stays raw at sheet row 118, got ${trackedSheet}`);
+  assert(built.phys.length > 0 && built.phys.every((entry) => entry.sheetRow < trackedSheet), "phys sheet stops before the unmatched decrease");
   for (let sheetRow = 0; sheetRow < built.rows.length; sheetRow++) {
     for (const src of built.rows[sheetRow].cells) {
       const got = ring0.rows[sheetRow].cells.find((cell) => cell.col === src.col);
@@ -1311,7 +1311,7 @@ assert(
   );
   assert(physicalNeedleGlyph(physAt(ring2Sheet, 1)) === "F1", "the next stitch on that short course is F1");
   const rawLater = ring0.rows[trackedSheet].cells.find((cell) => cell.token);
-  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 89 has no tracked physical needle");
+  assert(rawLater && formatPhysicalNeedle(rawLater).title === "无物理针" && physicalNeedleGlyph(rawLater) === "—", "step3 row 90 has no tracked physical needle");
   assert(formatPhysicalNeedle(physAt(0, 37)).title === "无物理针", "an empty cell does not invent a needle");
   assert(formatPhysicalNeedle({ col: 20, token: "B+R1", bed: "B" }).title === "无物理针", "a bed glyph without a recorded phys is not a needle");
   assert(formatPhysicalNeedle({ col: 17, token: "·" }).title === "无物理针", "the sheet column is not reported as a physical needle");
@@ -1460,8 +1460,8 @@ assert(
     "the back decrease remainder stays on B16, the needle the split course ended on",
   );
   assert(
-    built.lockedCourseEnd === 89 &&
-      trackedSheet === 117 &&
+    built.lockedCourseEnd === 90 &&
+      trackedSheet === 118 &&
       built.step3ToSheet[69] === 84 &&
       built.step3ToSheet[70] === 87 &&
       built.step3ToSheet[71] === 88 &&
@@ -1550,16 +1550,21 @@ assert(
       physicalNeedleGlyph(physAt(115, 24)) === "B1" &&
       tokenAt(116, 36) === "B→" &&
       physicalNeedleGlyph(physAt(116, 36)) === "B1" &&
-      tokenAt(116, 37) === "" &&
+      tokenAt(116, 37) === "B→" &&
+      physicalNeedleGlyph(physAt(116, 37)) === "B0" &&
       ring0.rows[116].beds === "F0…F11 / B0…B11" &&
-      ring0.rows[117].beds === "F0…F11 / B0,B2…B11" &&
-      ring0.rows[118].beds === "" &&
+      tokenAt(117, 24) === "B-R1" &&
+      physicalNeedleGlyph(physAt(117, 24)) === "B1" &&
+      tokenAt(117, 25) === "" &&
+      ring0.rows[117].beds === "F0…F11 / B1…B11" &&
+      ring0.rows[118].beds === "F0…F11 / B1…B11" &&
+      ring0.rows[119].beds === "" &&
       ring0.rows[59].beds === "F0…F16 / B1…B16" &&
       tokenAt(68, 22) === "⬇" &&
       physicalNeedleGlyph(physAt(68, 22)) === "B15" &&
       tokenAt(76, 15) === "⬆" &&
       physicalNeedleGlyph(physAt(76, 15)) === "F15",
-    "tracking runs through the R-direction -R1: sheet 115 knits B2 then B1, sheet 116 moves B1 onto B0, and the gapped back window is recorded on sheet 117",
+    "tracking runs through the R-direction -R1: sheet 115 knits B2 then B1, sheet 116 moves B0 to B1 and B1 onto B2, and sheet 118 records F0…F11 / B1…B11",
   );
   assert(
     tokenAt(23, 21) === "B^R" &&
