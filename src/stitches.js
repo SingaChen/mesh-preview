@@ -45,28 +45,30 @@
  *   the back fold. Sheet row 17 is B18 then F18, F17, F16. Sheet row
  *   20 continues F18, B18, B17 with no empty column. Ring 2 keeps
  *   those course columns from step3 row 28 through row 49. The increase
- *   drops the stitch that would land below needle 0, and the knit fills
- *   the gap, so the window stays F0…F18 / B1…B18. Step3 row 44 racks
- *   the back bed −1 to free B17, then flips F17 onto that pair.
- *   The fourth circle keeps those beds. A decrease seats the front
- *   on needle 0 the same way an increase does. Step3 row 69 racks
- *   the front from 1…14 onto 0…13, then racks the back onto 0…13.
+ *   keeps the stitch that lands on F−1. After the knit, one rack seats
+ *   that needle on F0, one flip moves F19 onto B19, and one rack aligns
+ *   the back onto 0…18, so the window is F0…F18 / B0…B18. The following
+ *   front decrease flips B18 onto F18 and racks the back bed onto 1…18.
+ *   Step3 row 44 leaves the empty at the left junction. Step3 row 46
+ *   frees B17, flips F17 onto that pair, and aligns to F0…F16 / B0…B16.
+ *   The fourth circle keeps those beds. A decrease seats the front on
+ *   needle 0 the same way an increase does. Step3 row 69 lands the front
+ *   on 1…14 with the back on 0…14, seats the front onto 0…13, flips B14
+ *   onto F14, and racks the empty to the left junction, F0…F14 / B1…B14.
+ *   The next L starts one needle outward from that stacked seat, at F10.
  *   A front increase moves only the front needles after the increase
- *   position. It does not rack the whole front bed. Step3 row 71 moves
- *   F11…F13; row 72 moves F12…F14. F0…F10 stay. Step3 row 73 knits the
- *   new stitches before any front/back balance. A count that is one
- *   stitch off an equal packed window flips onto the same-index pair,
- *   then moves only that coil from Hi to Hi−1. On this sample that is
- *   F15 onto B15, then B15 onto B14. A -Rn marker is n one-needle
- *   passes after the knit, then that same settle. Step3 row 75 is -R2:
- *   B10…B0 onto B11, then B11…B1 onto B12, then the occupied pair flips F14 onto B14 and
- *   aligns to F0…F13 / B0…B13. Row 78 repeats that onto F0…F12 / B0…B12.
- *   Row 84 leaves the empty at the left junction. Row 86 lands on
- *   F0…F11 / B0…B11. Step3 row 87 is an R-direction -R1: chart order
- *   knits B2 then B1. The decrease moves that edge pair toward the high
- *   side, B0 to B1 and B1 onto B2. Balance leaves F0…F11 / B1…B11.
- *   Falls back to
- *   step3 xfer. The sheet has 149 rows; stitch_map_bind.json stays at 121.
+ *   position. Step3 row 71 moves F11…F14; row 72 moves F12…F15. F0…F10
+ *   stay. Step3 row 73 knits the new stitches before any front/back
+ *   balance, then flips F16 onto B16 and moves only that coil from 16 to
+ *   15. A -Rn marker is n one-needle passes after the knit, then that
+ *   same settle. Step3 row 75 is -R2 on B14: B12…B1, then B13…B2, then
+ *   the occupied pair settles to F0…F14 / B1…B14. Row 84 lands on
+ *   F0…F12 / B0…B12. Row 86 moves B2…B0 and leaves the empty at the left
+ *   junction. Step3 row 87 is an R-direction -R1: chart order knits B2
+ *   then B1. The bed starts at B1, so the pass moves only B1 onto B2.
+ *   Balance lands on F0…F11 / B0…B11. Row 89 knits the next -R1 on B0.
+ *   Row 90 stops. Falls back to
+ *   step3 xfer. The sheet has 160 rows; stitch_map_bind.json stays at 121.
  *   A cellmap sheet maps bind cells onto the physical columns.
  *   Do not color that view from Term.Type. Stitch chip col/row still
  *   come from the txt companion when present; highlight binds by
