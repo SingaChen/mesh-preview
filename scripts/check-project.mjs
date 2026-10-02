@@ -1475,7 +1475,7 @@ assert(
       tokenAt(84, 24) === "B·" &&
       physicalNeedleGlyph(physAt(84, 24)) === "B8" &&
       tokenAt(88, 22) === "B·" &&
-      physicalNeedleGlyph(physAt(88, 22)) === "B8" &&
+      physicalNeedleGlyph(physAt(88, 22)) === "B9" &&
       built.step3ToSheet[74] === 101 &&
       tokenAt(91, 0) === "F→" &&
       physicalNeedleGlyph(physAt(91, 0)) === "F0" &&
@@ -1646,9 +1646,9 @@ assert(
   );
   assert(built.step3ToSheet[40] === 48 && built.step3ToSheet[41] === 51, "the front decrease and the following knit stay on sheets 48 and 51");
   assert(
-    [12, 13, 14, 15, 16, 17, 18].map((col) => `${tokenAt(48, col)}/${physicalNeedleGlyph(physAt(48, col))}`).join(",") ===
-      "F←/F12,F←/F13,F←/F14,F←/F15,F←/F16,F←/F17,F←/F18",
-    "step3 row 40 shifts the front bed back from F12 through F18",
+    [13, 14, 15, 16, 17, 18].map((col) => `${tokenAt(48, col)}/${physicalNeedleGlyph(physAt(48, col))}`).join(",") ===
+      "F←/F13,F←/F14,F←/F15,F←/F16,F←/F17,F←/F18",
+    "step3 row 40 shifts the front bed back from F13 through F18",
   );
   const backRealign = ring0.rows[50].cells.filter((cell) => cell.token);
   assert(
@@ -1680,13 +1680,14 @@ assert(
     "the window column is not a needle cell",
   );
   assert(
-    physicalNeedleGlyph(physAt(51, 12)) === "F12" &&
-      physicalNeedleGlyph(physAt(51, 18)) === "F18" &&
+    physicalNeedleGlyph(physAt(51, 12)) === "F13" &&
+      physicalNeedleGlyph(physAt(51, 17)) === "F18" &&
+      !tokenAt(51, 18) &&
       physicalNeedleGlyph(physAt(51, 19)) === "B18" &&
       physicalNeedleGlyph(physAt(51, 24)) === "B13" &&
       physicalNeedleGlyph(physAt(51, 25)) === "B12" &&
       tokenAt(51, 24) === "B-R1",
-    "after that rack the next knit runs F12…F18, B18…B12, with -R1 on B13",
+    "after that rack the next knit runs F13…F18, an empty column, then B18…B12, with -R1 on B13",
   );
   const backDec = ring0.rows[52].cells.filter((cell) => cell.token);
   assert(
