@@ -202,8 +202,14 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   }
   assert(knitBeds.size === 475 && knitBeds.get(0) === "F" && frontBeds === 254 && backBeds === 219 && bothBeds === 2, "each face takes the bed of its knit course");
   assert(knitBeds.get(385) === "FB" && knitBeds.get(465) === "FB", "fold-crossing knit spans stay on both beds");
-  assert(KNIT_BED_RGB.F[0] === 1 && KNIT_BED_RGB.F[1] === 1 && KNIT_BED_RGB.F[2] === 1, "front bed draws white");
-  assert(Math.round(KNIT_BED_RGB.B[0] * 255) === 204 && KNIT_BED_RGB.B[1] === 1 && KNIT_BED_RGB.B[2] === 1, "back bed draws the sheet cyan");
+  assert(
+    KNIT_BED_RGB.F.map((c) => Math.round(c * 255)).join(",") === "255,176,32",
+    "front bed draws amber rgb(255,176,32)",
+  );
+  assert(
+    KNIT_BED_RGB.B.map((c) => Math.round(c * 255)).join(",") === "56,156,255",
+    "back bed draws blue rgb(56,156,255)",
+  );
   const bind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
   const face0 = stitchForMapCell(0, 0, bind, null, facesMap);
   assert(face0?.index === 0, "clicking the first cell selects stitch face 0, not a step3 column");

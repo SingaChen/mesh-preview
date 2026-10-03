@@ -202,10 +202,13 @@ export function formatPhysicalNeedle(cell) {
   };
 }
 
-/** Sheet plain fills: front bed is white, back bed is cyan. Display only. */
+/**
+ * 3D knit-bed display colors only. Front is amber and back is blue so the
+ * two beds separate at a glance on the dark mesh. These are not the sheet fills.
+ */
 export const KNIT_BED_RGB = {
-  F: [1, 1, 1],
-  B: [204 / 255, 1, 1],
+  F: [255 / 255, 176 / 255, 32 / 255],
+  B: [56 / 255, 156 / 255, 255 / 255],
 };
 
 /**
