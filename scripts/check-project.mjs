@@ -285,9 +285,16 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
       marked(facesMap.rows[ring1IncAt + 1]).some((cell) => cell.token === "⬆" && cell.bed === "F" && cell.phys === 19) &&
       facesMap.rows[ring1IncAt + 2]?.dir === "X" &&
       marked(ring1Inc).some((cell) => cell.token === "B^L" && cell.phys === 4) &&
-      marked(ring1Inc).some((cell) => cell.token === "BvR" && cell.phys === 18) &&
       marked(ring1Inc).some((cell) => cell.token === "F+R1"),
-    "course 7 knits the increase from B4 through B18, then flips and racks",
+    "course 7 knits the increase from B4, then flips and racks",
+  );
+  const course7Tail = ["F·@F17", "F·@F18", "F·@F19", "BvR@B18"].map((glyph) => {
+    const [token, needle] = glyph.split("@");
+    return marked(ring1Inc).find((cell) => cell.token === token && `${cell.bed}${cell.phys}` === needle);
+  });
+  assert(
+    course7Tail.every(Boolean) && course7Tail.map((cell) => cell.col).join(",") === "17,18,19,20",
+    "course 7 knits occupied F19 between F18 and B18 before the row ends",
   );
   const face51 = highlightKeysForStitch({ index: 51 }, { map: facesMap, bind });
   const face123 = highlightKeysForStitch({ index: 123 }, { map: facesMap, bind });

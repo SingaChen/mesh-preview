@@ -26,8 +26,12 @@
  * shift. Nothing moved → the next course starts on that same needle.
  * Increase: if a row has n increase sites, do those transfers first
  * to open every site, then knit the whole row once. Do not
- * transfer-and-knit at each site. The increase is finished when that
- * knit reaches its end; balance after the knit. The next course is
+ * transfer-and-knit at each site. While the course travels, every
+ * needle that currently holds a loop is knitted. An increase may
+ * push a loop past the last cell this course draws on that bed;
+ * that loop is knitted before the course leaves the bed. An empty
+ * needle is not knitted. The increase is finished when that knit
+ * reaches its end; balance after the knit. The next course is
  * counted from the post-balance needles. A stitch that would sit
  * below 0 (F−1) is kept and balanced onto F0.
  * Decrease, on a bed that is already seated: a hang of n occupies
@@ -848,6 +852,79 @@ function stepCircle(stitch, dirSign, stitches) {
   return circle[(at + dirSign + circle.length) % circle.length];
 }
 
+/**
+ * Knit every occupied needle the carriage passes on the way to the
+ * next planned cell. The circle contains only needles that hold a
+ * loop, so an empty needle is never inserted. A short-row turn is
+ * itself a planned cell, so the fill stays inside this course.
+ */
+function fillOccupiedOnTravel(knitCells, stitches, dirSign, where) {
+  if (knitCells.length < 2) return [];
+  const circle = orderedCircle(stitches);
+  const indexOf = new Map(circle.map((st, i) => [st.id, i]));
+  const seen = new Set(knitCells.map((cell) => cell.id));
+  const added = [];
+  const out = [];
+  for (let i = 0; i < knitCells.length; i++) {
+    const cell = knitCells[i];
+    out.push(cell);
+    const next = knitCells[i + 1];
+    if (!next) continue;
+    const from = indexOf.get(cell.id);
+    const to = indexOf.get(next.id);
+    if (from == null || to == null) {
+      const missing = from == null ? cell : next;
+      fail(`${where}: ${missing.token}@${missing.bed}${missing.phys} id ${missing.id} is not on the bed (${circle.length} stitches)`);
+    }
+    let at = from;
+    let guard = 0;
+    while (at !== to) {
+      at = (at + dirSign + circle.length) % circle.length;
+      if (++guard > circle.length) fail(`${where}: travel does not reach the next knit stitch`);
+      if (at === to) break;
+      const st = circle[at];
+      if (seen.has(st.id)) fail(`${where}: ${st.bed}${st.phys} is already knitted on this course`);
+      const painted = paint(st.bed, "·", "plain");
+      const extra = {
+        col: columnForPhys(st.bed, st.phys),
+        token: painted.token,
+        fill: painted.fill,
+        phys: st.phys,
+        bed: st.bed,
+        id: st.id,
+        role: "knit",
+        label: "·",
+      };
+      out.push(extra);
+      added.push(extra);
+      seen.add(st.id);
+    }
+  }
+  knitCells.splice(0, knitCells.length, ...out);
+  return added;
+}
+
+function occupiedTravelNote(where, skipped) {
+  if (!skipped.length) return "";
+  const names = skipped.map((cell) => `${cell.bed}${cell.phys}`).join("、");
+  return `${where}: 行程经过仍有线圈的 ${names}，离开这一床之前织上。`;
+}
+
+/** Keep each cell on its needle column. A mirror collision draws the later cell onward. */
+function settleColumns(knitCells, dirSign, where) {
+  const taken = new Set();
+  for (const cell of knitCells) {
+    let col = cell.col;
+    let guard = 0;
+    while (taken.has(col)) {
+      if (++guard > knitCells.length + 2) fail(`${where}: visit-order columns do not fit`);
+      col += dirSign;
+    }
+    cell.col = col;
+    taken.add(col);
+  }
+}
+
 function rekeyWale(stitches, live, stitch, wale, where) {
   if (live.get(wale) != null && live.get(wale) !== stitch.id) {
     fail(`${where}: wale ${wale} is already ${live.get(wale)}`);
@@ -981,30 +1058,15 @@ export function seatRing(courses, planInfo, carried = null) {
         tIdx: cell.tIdx,
       });
     }
+    const dirSign = course.dir === 0 ? 1 : -1;
+    const skipped = fillOccupiedOnTravel(knitCells, stitches, dirSign, where);
     const seenNeedle = new Set();
     for (const cell of knitCells) {
       const key = `${cell.bed}:${cell.phys}`;
       if (seenNeedle.has(key)) fail(`${where}: ${cell.bed}${cell.phys} is knitted twice in one course`);
       seenNeedle.add(key);
     }
-    const cols = knitCells.map((c) => c.col);
-    if (new Set(cols).size !== cols.length) {
-      // The course left the front and continued onto the facing back needles.
-      // Mirror columns would stack those two beds. Draw the rest in visit order.
-      const step = course.dir === 0 ? 1 : -1;
-      let col = knitCells[0].col;
-      const taken = new Set();
-      for (const cell of knitCells) {
-        let guard = 0;
-        while (taken.has(col)) {
-          if (++guard > knitCells.length + 2) fail(`${where}: visit-order columns do not fit`);
-          col += step;
-        }
-        cell.col = col;
-        taken.add(col);
-        col += step;
-      }
-    }
+    settleColumns(knitCells, dirSign, where);
     const start = knitCells[0];
     const end = knitCells.at(-1);
     // A fold-return starts on the previous end, after whatever transfers
@@ -1023,12 +1085,14 @@ export function seatRing(courses, planInfo, carried = null) {
         }
       }
     }
+    const travelNote = occupiedTravelNote(where, skipped);
     sheet.push({
       dir: course.dir === 0 ? "R" : "L",
       kind: "knit",
       course: ci,
       cells: knitCells,
       beds: knitBeds,
+      ...(travelNote ? { note: travelNote } : {}),
     });
     coursesOut.push({
       course: ci,
@@ -1082,7 +1146,9 @@ export function seatRing(courses, planInfo, carried = null) {
  * Ring 1 continues on the bed ring 0 left behind.
  * Seeds are the live needles in right-going order, starting at F0.
  * A new wale steps one needle along that circle. Increase transfers
- * open every site first, then the whole row is knitted once. Balance
+ * open every site first, then the whole row is knitted once. Every
+ * needle that holds a loop on that travel is knitted, including one
+ * an increase pushed past the last drawn cell on its bed. Balance
  * runs after that knit, and the next course uses the post-balance
  * needles. A decrease of hang n is n+1 cells. Knit through the last
  * of them. The transfer starts at the first dot and repeats from that
@@ -1156,22 +1222,7 @@ export function seatContinuation(courses, seeds) {
         }
         seenNeedle.add(key);
       }
-      const cols = knitCells.map((c) => c.col);
-      if (new Set(cols).size !== cols.length) {
-        const draw = course.dir === 0 ? 1 : -1;
-        let col = knitCells[0].col;
-        const taken = new Set();
-        for (const cell of knitCells) {
-          let guard = 0;
-          while (taken.has(col)) {
-            if (++guard > knitCells.length + 2) fail(`${where}: visit-order columns do not fit`);
-            col += draw;
-          }
-          cell.col = col;
-          taken.add(col);
-          col += draw;
-        }
-      }
+      settleColumns(knitCells, dirSign, where);
     };
 
     if (decs.length && incs.length) fail(`${where}: a course does not increase and decrease together`);
@@ -1190,6 +1241,7 @@ export function seatContinuation(courses, seeds) {
       let firstId = null;
       let recvBed = "";
       let recvPhys = null;
+      let skippedPrefix = [];
       course.cells.forEach((cell, index) => {
         if (index === 0) {
           const known = waleToId.get(cell.wale);
@@ -1242,6 +1294,7 @@ export function seatContinuation(courses, seeds) {
           spanLeft -= 1;
         }
         if (spanHang && spanLeft === 0) {
+          skippedPrefix = fillOccupiedOnTravel(prefix, stitches, dirSign, where);
           const first = stitches.get(firstId);
           if (!first) fail(`${where}: the first decrease cell left the bed`);
           if (recvPhys == null) fail(`${where}: decrease has no receiving needle`);
@@ -1315,7 +1368,7 @@ export function seatContinuation(courses, seeds) {
         course: ci,
         cells: prefix,
         beds: knitBeds,
-        note: notes.join(" "),
+        note: [notes.join(" "), occupiedTravelNote(where, skippedPrefix)].filter(Boolean).join(" "),
       });
       for (const row of transfers) sheet.push(row);
       const fixes = balanceBeds(stitches, new Map(), where);
@@ -1330,6 +1383,7 @@ export function seatContinuation(courses, seeds) {
         });
       }
       let endId = firstId;
+      let restCount = pending.length;
       if (pending.length) {
         const continuation = pending.map((item) => {
           const st = stitches.get(item.id);
@@ -1347,7 +1401,9 @@ export function seatContinuation(courses, seeds) {
             tIdx: item.cell.tIdx,
           };
         });
+        const skippedRest = fillOccupiedOnTravel(continuation, stitches, dirSign, where);
         finishKnit(continuation);
+        restCount = continuation.length;
         const first = continuation[0];
         const last = continuation.at(-1);
         endId = last.id;
@@ -1357,7 +1413,9 @@ export function seatContinuation(courses, seeds) {
           course: ci,
           cells: continuation,
           beds: liveWindow(stitches),
-          note: `${where}: 平衡之后的下一课，从 ${first.bed}${first.phys} 织到 ${last.bed}${last.phys}。`,
+          note: [`${where}: 平衡之后的下一课，从 ${first.bed}${first.phys} 织到 ${last.bed}${last.phys}。`, occupiedTravelNote(where, skippedRest)]
+            .filter(Boolean)
+            .join(" "),
         });
       }
       const endSt = stitches.get(endId);
@@ -1368,7 +1426,7 @@ export function seatContinuation(courses, seeds) {
         dir: dirName,
         start: `${start.bed}${start.phys}`,
         end: knitEnd,
-        n: prefix.length + pending.length,
+        n: prefix.length + restCount,
       });
       cursor = endSt;
       prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
@@ -1469,10 +1527,19 @@ export function seatContinuation(courses, seeds) {
           tIdx: item.cell.tIdx,
         });
       }
+      const skipped = fillOccupiedOnTravel(knitCells, stitches, dirSign, where);
       finishKnit(knitCells);
       const start = knitCells[0];
       const end = knitCells.at(-1);
-      sheet.push({ dir: course.dir === 0 ? "R" : "L", kind: "knit", course: ci, cells: knitCells, beds: knitBeds });
+      const travelNote = occupiedTravelNote(where, skipped);
+      sheet.push({
+        dir: course.dir === 0 ? "R" : "L",
+        kind: "knit",
+        course: ci,
+        cells: knitCells,
+        beds: knitBeds,
+        ...(travelNote ? { note: travelNote } : {}),
+      });
       coursesOut.push({
         course: ci,
         dir: course.dir === 0 ? "R" : "L",
