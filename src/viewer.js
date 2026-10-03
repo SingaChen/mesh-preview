@@ -5,6 +5,7 @@ import { columnHue, triangulate } from "./stitches.js";
 import { stitchesVisibleForSliders } from "./range.js";
 import { aspectFromSize, displayedSize, needsViewportSync } from "./viewport.js";
 import { defaultBaseLayers, isBaseHidden, normalizeBaseLayers } from "./display.js";
+import { KNIT_BED_RGB } from "./excel-map.js";
 
 const YARN = 0xe8d5c4;
 const OVERLAY = 0x5eead4;
@@ -15,6 +16,8 @@ export class MeshViewer {
     this.loader = new OBJLoader();
     this.baseLayers = defaultBaseLayers();
     this.showOverlay = true;
+    this.showKnitBed = false;
+    this._knitBeds = null;
     this.showWarp = true;
     this.showBody = true;
     this.bodyGeom = null;
@@ -246,6 +249,16 @@ export class MeshViewer {
     this._rebuildStitches();
   }
 
+  setKnitBeds(beds) {
+    this._knitBeds = beds instanceof Map ? beds : null;
+    if (this.showKnitBed && this._stitchState) this._rebuildStitches();
+  }
+
+  setShowKnitBed(on) {
+    this.showKnitBed = Boolean(on);
+    if (this._stitchState) this._rebuildStitches();
+  }
+
   pickStitch(clientX, clientY) {
     if (!this.stitchMesh) return null;
     const rect = this.canvas.getBoundingClientRect();
@@ -314,18 +327,18 @@ export class MeshViewer {
 
     for (const s of visible) {
       const dim = solo && s.col !== highlightCol;
-      if (s.termColor) {
-        color.setRGB(s.termColor.r, s.termColor.g, s.termColor.b);
-        if (dim) color.multiplyScalar(0.35);
-      } else {
-        const hue = columnHue(s.col ?? columns[0], columns);
-        color.setHSL(hue * 0.85, dim ? 0.25 : 0.78, dim ? 0.16 : s.col === highlightCol ? 0.64 : 0.52);
-      }
+      const bed = this.showKnitBed ? this._knitBeds?.get(s.index) : null;
+      const split = bed === "FB" ? knitBedSplit(s.verts) : null;
       const tris = triangulate(s.verts);
-      for (const v of tris) {
-        positions.push(v.x, v.y, v.z);
-        colors.push(color.r, color.g, color.b);
-        stitchIndex.push(s.index);
+      for (let i = 0; i < tris.length; i += 3) {
+        const which = split ? knitBedHalf(tris[i], tris[i + 1], tris[i + 2], split) : bed;
+        paintStitchColor(color, which, s, dim, columns, highlightCol);
+        for (let k = 0; k < 3; k++) {
+          const v = tris[i + k];
+          positions.push(v.x, v.y, v.z);
+          colors.push(color.r, color.g, color.b);
+          stitchIndex.push(s.index);
+        }
       }
       const vs = s.verts || [];
       for (let i = 0; i < vs.length; i++) {
@@ -713,6 +726,48 @@ export class MeshViewer {
     this.controls.dispose();
     this.renderer.dispose();
   }
+}
+
+function paintStitchColor(color, bed, stitch, dim, columns, highlightCol) {
+  if (bed === "F" || bed === "B") {
+    const [r, g, b] = KNIT_BED_RGB[bed];
+    color.setRGB(r, g, b);
+    if (dim) color.multiplyScalar(0.35);
+    return;
+  }
+  if (stitch.termColor) {
+    color.setRGB(stitch.termColor.r, stitch.termColor.g, stitch.termColor.b);
+    if (dim) color.multiplyScalar(0.35);
+    return;
+  }
+  const hue = columnHue(stitch.col ?? columns[0], columns);
+  color.setHSL(hue * 0.85, dim ? 0.25 : 0.78, dim ? 0.16 : stitch.col === highlightCol ? 0.64 : 0.52);
+}
+
+/** Longest axis of a stitch polygon. The low half is drawn as the front bed. */
+function knitBedSplit(verts) {
+  const min = { x: Infinity, y: Infinity, z: Infinity };
+  const max = { x: -Infinity, y: -Infinity, z: -Infinity };
+  for (const v of verts || []) {
+    if (!v) continue;
+    min.x = Math.min(min.x, v.x);
+    min.y = Math.min(min.y, v.y);
+    min.z = Math.min(min.z, v.z);
+    max.x = Math.max(max.x, v.x);
+    max.y = Math.max(max.y, v.y);
+    max.z = Math.max(max.z, v.z);
+  }
+  const span = { x: max.x - min.x, y: max.y - min.y, z: max.z - min.z };
+  let axis = "x";
+  if (span.y >= span.x && span.y >= span.z) axis = "y";
+  else if (span.z >= span.x && span.z >= span.y) axis = "z";
+  return { axis, mid: (min[axis] + max[axis]) / 2 };
+}
+
+function knitBedHalf(a, b, c, split) {
+  const axis = split.axis;
+  const mid = (a[axis] + b[axis] + c[axis]) / 3;
+  return mid < split.mid ? "F" : "B";
 }
 
 function ringSliderN(bound) {

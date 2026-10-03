@@ -63,6 +63,8 @@ import {
   excelLegendKind,
   formatPhysicalNeedle,
   formatPhysicalNeedles,
+  knitBedsByFace,
+  KNIT_BED_RGB,
   parseExcelReadableMap,
   physicalNeedleGlyph,
 } from "../src/excel-map.js";
@@ -189,6 +191,19 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
     for (const face of Array.isArray(value) ? value : [value]) faceIds.add(face);
   }
   assert(faceIds.has(0) && faceIds.has(46) && faceIds.has(182) && faceIds.has(292) && faceIds.has(398) && faceIds.size === 475, "the one sheet maps ring 0 through ring 4 stitch faces");
+  const knitBeds = knitBedsByFace(facesMap);
+  let frontBeds = 0;
+  let backBeds = 0;
+  let bothBeds = 0;
+  for (const bed of knitBeds.values()) {
+    if (bed === "F") frontBeds += 1;
+    else if (bed === "B") backBeds += 1;
+    else if (bed === "FB") bothBeds += 1;
+  }
+  assert(knitBeds.size === 475 && knitBeds.get(0) === "F" && frontBeds === 254 && backBeds === 219 && bothBeds === 2, "each face takes the bed of its knit course");
+  assert(knitBeds.get(385) === "FB" && knitBeds.get(465) === "FB", "fold-crossing knit spans stay on both beds");
+  assert(KNIT_BED_RGB.F[0] === 1 && KNIT_BED_RGB.F[1] === 1 && KNIT_BED_RGB.F[2] === 1, "front bed draws white");
+  assert(Math.round(KNIT_BED_RGB.B[0] * 255) === 204 && KNIT_BED_RGB.B[1] === 1 && KNIT_BED_RGB.B[2] === 1, "back bed draws the sheet cyan");
   const bind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
   const face0 = stitchForMapCell(0, 0, bind, null, facesMap);
   assert(face0?.index === 0, "clicking the first cell selects stitch face 0, not a step3 column");
@@ -1356,6 +1371,15 @@ assert(html.includes('id="load-faces-ring0"') && !html.includes('id="load-faces-
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");
+{
+  const stageHtml = html.slice(html.indexOf('id="stage-3d"'), html.indexOf('id="map-pane"'));
+  const dockHtml = html.slice(html.indexOf('class="display-bar"'), html.indexOf('id="status"'));
+  assert(stageHtml.includes('id="toggle-knit-bed"') && stageHtml.includes("床位") && stageHtml.includes("Bed"), "knit-bed switch sits on the 3D stitchmesh view");
+  assert(/id="toggle-knit-bed"[^>]*aria-pressed="false"/.test(stageHtml), "knit-bed switch defaults off");
+  assert(!dockHtml.includes("toggle-knit-bed"), "knit-bed switch does not join the Base / Warp / Stitch dock");
+}
+assert(mainSrc.includes("setShowKnitBed") && mainSrc.includes("knitBedsByFace") && mainSrc.includes("#toggle-knit-bed"), "main wires the knit-bed switch from the loaded sheet");
+assert(viewerSrc.includes("showKnitBed = false") && viewerSrc.includes("KNIT_BED_RGB") && viewerSrc.includes('bed === "FB"'), "viewer recolors stitches by knit bed only while the switch is on");
 assert(html.includes('id="map-phys"') && html.includes("物理针"), "map toolbar has a physical-needle toggle");
 assert(/id="map-phys"[^>]*aria-pressed="false"/.test(html), "physical-needle toggle starts off");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");

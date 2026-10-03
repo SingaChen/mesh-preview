@@ -202,6 +202,37 @@ export function formatPhysicalNeedle(cell) {
   };
 }
 
+/** Sheet plain fills: front bed is white, back bed is cyan. Display only. */
+export const KNIT_BED_RGB = {
+  F: [1, 1, 1],
+  B: [204 / 255, 1, 1],
+};
+
+/**
+ * Physical bed holding each stitch on the course where it is knitted.
+ * Knit rows only (dir R or L). A face whose knit cells sit on both beds
+ * is "FB" (a fold-crossing span). Transfer and flip rows are not that course.
+ */
+export function knitBedsByFace(map) {
+  const counts = new Map();
+  for (const cell of map?.cells || []) {
+    if (!isKnitDir(cell.dir) || !tokenString(cell.token)) continue;
+    if (!Number.isInteger(cell.faceIndex)) continue;
+    if (cell.bed !== "F" && cell.bed !== "B") continue;
+    let rec = counts.get(cell.faceIndex);
+    if (!rec) {
+      rec = { F: 0, B: 0 };
+      counts.set(cell.faceIndex, rec);
+    }
+    rec[cell.bed] += 1;
+  }
+  const beds = new Map();
+  for (const [face, rec] of counts) {
+    beds.set(face, rec.F && rec.B ? "FB" : rec.B ? "B" : "F");
+  }
+  return beds;
+}
+
 export function formatPhysicalNeedles(records) {
   const known = [];
   for (const cell of records || []) {

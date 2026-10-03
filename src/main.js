@@ -36,6 +36,7 @@ import {
   isFacesRing0BedChart,
   isFlipDir,
   isTransferDir,
+  knitBedsByFace,
   parseExcelReadableMap,
 } from "./excel-map.js";
 import { bindDualRange } from "./dual-range.js";
@@ -88,6 +89,7 @@ const stitchPickTitle = document.querySelector("#stitch-pick-title");
 const stitchPickText = document.querySelector("#stitch-pick-text");
 const statusEl = document.querySelector("#status");
 const overlayBtn = document.querySelector("#toggle-overlay");
+const knitBedBtn = document.querySelector("#toggle-knit-bed");
 const warpBtn = document.querySelector("#toggle-warp");
 const baseMenu = document.querySelector("#base-menu");
 const baseMenuBtn = document.querySelector("#base-menu-btn");
@@ -580,6 +582,7 @@ async function showOutput(index, { fit = false } = {}) {
     const cols = await loadCols(output);
     viewer.setBaseLayers(baseLayers);
     viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
+    viewer.setShowKnitBed(knitBedBtn?.getAttribute("aria-pressed") === "true");
     viewer.setShowWarp(warpBtn.getAttribute("aria-pressed") === "true");
 
     const models = [];
@@ -607,6 +610,7 @@ async function showOutput(index, { fit = false } = {}) {
     }
 
     const readableMap = stitches?.map || (await loadReadableMap(output));
+    viewer.setKnitBeds(knitBedsByFace(readableMap));
     scene = {
       models,
       columns: cols?.columns || null,
@@ -1012,6 +1016,12 @@ overlayBtn.addEventListener("click", () => {
   const on = overlayBtn.getAttribute("aria-pressed") !== "true";
   pressed(overlayBtn, on);
   viewer.setShowOverlay(on);
+});
+
+knitBedBtn?.addEventListener("click", () => {
+  const on = knitBedBtn.getAttribute("aria-pressed") !== "true";
+  pressed(knitBedBtn, on);
+  viewer.setShowKnitBed(on);
 });
 
 let pointer = { x: 0, y: 0, moved: false };
