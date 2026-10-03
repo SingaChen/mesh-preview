@@ -8,11 +8,10 @@
  *
  * faces_ring_layout stores one Term.Type per stitch, in chain order.
  * Direction is the path chain: a Type 2/5/6 pair flips a right-going
- * course, a Type 1 pair flips a left-going course. That flip is a
- * fold-return during the walk, not the end of the ring. Once the walk
- * has resumed the direction it started in, later apex pairs stay in
- * the same course. The ring is finished when its terms are finished;
- * the next stitch would be the next ring, and it is not a fold-return.
+ * course, a Type 1 pair flips a left-going course. Each of those flips
+ * is a fold-return short row and its own course. The next course starts
+ * on the needle that turn ended on. The ring finishes when its terms
+ * finish; the stitch after that is the next ring, and it is not filled.
  * Increase and decrease needle counts are that term's hang: Term.remain,
  * which path_generate stores as n_extra = |a-b| from the term's points.
  * rings[0].hangs[] is that count. A missing list is an error. Hang is
@@ -129,13 +128,6 @@ export function coursesFromTypes(types, hangs) {
   const rows = [];
   let col = 0;
   let direction = dir[0];
-  const primary = direction;
-  // Furthest wale the primary direction has knitted. The resumed walk
-  // continues there, instead of folding back onto the short-row needle.
-  let highWater = 0;
-  // True after a fold-return has brought the walk back onto primary.
-  // Further apex pairs are stitches in this course. They do not close the ring.
-  let resumed = false;
   let pending = false;
 
   const ensure = (d) => {
@@ -153,34 +145,16 @@ export function coursesFromTypes(types, hangs) {
   const emit = (label, kind, tIdx, ttype, adv = 1) => {
     ensure(direction);
     rows.at(-1).cells.push({ label, kind, wale: col, tIdx, ttype });
-    if (primary === 0) highWater = Math.max(highWater, col);
-    else highWater = Math.min(highWater, col);
     if (adv) col = advance(col, direction, adv);
   };
+  // A fold-return short row ends here. The next course starts on this
+  // needle. Later flips do the same. Running out of terms ends the ring;
+  // that is not another turnaround, and the next ring is not filled.
   const close = (wrapCol, nextDir) => {
     rows.push({ dir: nextDir, cells: [] });
     direction = nextDir;
     col = wrapCol;
     pending = true;
-  };
-  // A fold-return turns during the walk and the next course starts on
-  // that needle. Returning to the primary direction does not close the
-  // ring: the next stitch is the unknit frontier, and the course runs
-  // to the end of this ring. The stitch after that would start the next
-  // ring. Later rings are not filled.
-  const foldReturn = (wrapCol, nextDir) => {
-    if (resumed) return false;
-    if (nextDir === primary) {
-      const frontier = primary === 0 ? highWater + 1 : highWater - 1;
-      rows.push({ dir: nextDir, cells: [], resumed: true });
-      direction = nextDir;
-      col = frontier;
-      pending = false;
-      resumed = true;
-      return true;
-    }
-    close(wrapCol, nextDir);
-    return true;
   };
   const stackStart = (tIdx, ttype) => {
     if (!pending) return;
@@ -236,7 +210,7 @@ export function coursesFromTypes(types, hangs) {
         }
         emit(label, kind, i, t, 1);
       }
-      if (asEnd) foldReturn(advance(first, direction, n - 1), i + 1 < types.length ? nxt : direction);
+      if (asEnd) close(advance(first, direction, n - 1), i + 1 < types.length ? nxt : direction);
       continue;
     }
 
@@ -268,7 +242,7 @@ export function coursesFromTypes(types, hangs) {
       }
       const wrapCol = col;
       emit(`v${side}${mark}`, kind, i, t, 1);
-      foldReturn(wrapCol, i + 1 < types.length ? nxt : direction);
+      close(wrapCol, i + 1 < types.length ? nxt : direction);
       continue;
     }
 
@@ -905,10 +879,9 @@ export function seatRing(courses, planInfo) {
     }
     const start = knitCells[0];
     const end = knitCells.at(-1);
-    // A fold-return starts on the previous end. The course that resumes
-    // the ring does not: it starts at the unknit frontier. The stitch
-    // after this ring would be the next ring.
-    if (prevEnd && !course.resumed && !incs.length && !decs.length) {
+    // A fold-return starts on the previous end, after whatever transfers
+    // happened since. The course after this ring is not filled.
+    if (prevEnd && !incs.length && !decs.length) {
       const endSt = stitches.get(prevEnd.id);
       if (endSt && start.id !== prevEnd.id) {
         const travel = course.dir === 0 ? 1 : -1;
@@ -1148,7 +1121,7 @@ export function renderReport(built) {
     if (row.note) lines.push(`    ${row.note}`);
   });
   lines.push("");
-  lines.push("折返只发生在走这一环的途中：短行从上一针被移圈之后的那一针起。环不是靠折返收口的。走完这一环之后，下一针是下一环的起点，这里不填。");
+  lines.push("每一次折返短行单独成课，从上一针被移圈之后的那一针起。整床平衡把终点针收进一针时，下一课从落座后沿行程方向向外的那一针起。走完这一环的项之后，下一针是下一环的起点，这里不填。");
   const shaping = built.termTypes
     .map((t, i) => ({ i, t, h: built.hangs[i] }))
     .filter((x) => x.t === 3 || x.t === 4 || x.t === 5 || x.t === 6 || x.t === 7 || x.t === 8);
