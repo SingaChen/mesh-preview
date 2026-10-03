@@ -32,6 +32,15 @@ export function isExcelReadableMapName(name) {
   return /readable_map|step3/i.test(base);
 }
 
+/** faces_ring ring-0 bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isFacesRing0BedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^faces_ring0_step4_bed\.xlsx?$/i.test(base);
+}
+
 export function isKnitDir(dir) {
   return dir === "R" || dir === "L";
 }
@@ -206,6 +215,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
     findXlsSheet(book, "step4-ring0") ||
     findXlsSheet(book, "step3") ||
     findXlsSheet(book, (s) => /step\s*4\s*-\s*ring\s*0|step\s*3/i.test(s.name)) ||
+    findXlsSheet(book, "ring0") ||
     book.sheets.find((s) => tokenString(s.rows?.[0]?.[0]).includes("dir"));
   if (!step?.rows?.length) {
     throw new Error("xls: missing readable_map sheet");
