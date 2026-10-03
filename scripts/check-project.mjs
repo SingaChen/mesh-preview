@@ -220,14 +220,16 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
         [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((phys) => `F←/${phys}`).join(","),
     "the transfer after row 7R starts at F6, the last decrease cell, not at F7 or the far-end pair",
   );
-  const frontCont = marked(facesMap.rows[frontDecAt + 2]);
+  const frontCont = marked(facesMap.rows[frontDecAt + 4]);
+  assert(facesMap.rows[frontDecAt + 2]?.dir === "Flip" && marked(facesMap.rows[frontDecAt + 2]).map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ") === "⬇@B18", "balance flips B18→F18 immediately after the decrease transfer");
+  assert(facesMap.rows[frontDecAt + 3]?.dir === "X", "the back rack follows that flip, before the remaining knit");
   assert(
-    facesMap.rows[frontDecAt + 2]?.dir === "R" &&
+    facesMap.rows[frontDecAt + 4]?.dir === "R" &&
+      facesMap.rows[frontDecAt + 4].beds.includes("后18[1…18]") &&
       frontCont.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ") ===
         "F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 FvR@F14",
-    "the continuation is knitted after the transfer, from F6 through F14",
+    "the remaining knit is the next course, on the post-balance window",
   );
-  assert(facesMap.rows[frontDecAt + 3]?.dir === "Flip", "balance follows the continuation");
   const frontNext = marked(joined[joined.indexOf(frontDec) + 2]);
   assert(
     frontNext.some((cell) => cell.token === "F^R" && cell.phys === 14) &&
@@ -265,6 +267,25 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   );
   const backNext = marked(joined[joined.indexOf(backDec) + 2]);
   assert(backNext.some((cell) => cell.token === "B^R" && cell.phys === 15), "the next row starts at B15");
+  const ring0Inc = facesMap.rows.find((row) => row.cells.some((cell) => cell.token === "B+R1"));
+  const ring0IncAt = facesMap.rows.indexOf(ring0Inc);
+  const ring0IncCells = marked(ring0Inc);
+  assert(
+    facesMap.rows[ring0IncAt - 1]?.dir === "X" &&
+      ring0IncCells.some((cell) => cell.token === "B+R1" && cell.phys === 16) &&
+      ring0IncCells.some((cell) => cell.token === "B^R" && cell.phys === 17) &&
+      ring0IncCells.some((cell) => cell.token === "BvL" && cell.phys === 18),
+    "ring 0 balances the increase before knitting it, so the row sits on B16…B18",
+  );
+  const ring1Inc = facesMap.rows.find((row) => row.cells.some((cell) => cell.token === "F+R1"));
+  const ring1IncAt = facesMap.rows.indexOf(ring1Inc);
+  assert(
+    facesMap.rows[ring1IncAt - 2]?.dir === "Flip" &&
+      marked(facesMap.rows[ring1IncAt - 2]).some((cell) => cell.token === "⬆" && cell.bed === "F" && cell.phys === 19) &&
+      facesMap.rows[ring1IncAt - 1]?.dir === "X" &&
+      marked(ring1Inc).some((cell) => cell.token === "B^L" && cell.phys === 3),
+    "the course 7 increase balances before the knit, so that row starts at B3",
+  );
   const face51 = highlightKeysForStitch({ index: 51 }, { map: facesMap, bind });
   const face123 = highlightKeysForStitch({ index: 123 }, { map: facesMap, bind });
   assert(face51.size === 2 && face123.size === 2, "each hang-1 decrease lights both span cells");

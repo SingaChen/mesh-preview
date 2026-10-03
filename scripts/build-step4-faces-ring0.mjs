@@ -25,9 +25,10 @@
  * whole-bed balance since that end. Count from the needle after the
  * shift. Nothing moved → the next course starts on that same needle.
  * Increase: if a row has n increase sites, do those transfers first
- * to open every site, then knit the whole row once. Do not
- * transfer-and-knit at each site. A stitch that would sit below 0
- * (F−1) is kept and balanced onto F0.
+ * to open every site. Do not transfer-and-knit at each site. As soon
+ * as the shaping transfers are finished, balance the beds, then knit
+ * the row once on the post-balance needles. A stitch that would sit
+ * below 0 (F−1) is kept and balanced onto F0.
  * Decrease, on a bed that is already seated: a hang of n occupies
  * n+1 cells, all in the decrease color. The first is -Rn. The rest
  * are plain dots on that bed. Knit through the last of those cells.
@@ -41,10 +42,11 @@
  * the knitting order: the cells through the last decrease cell, then
  * those transfers, then the stitches that remain. Those remaining
  * stitches are not drawn on the row that precedes the transfer. Do
- * not jump to the far end of the bed. Continuation needles are the
- * needles after the transfer and before bed balance.
- * Balance once after that row's increase transfers and the knit
- * (including a mid-row decrease). Balance is a whole-bed shift so
+ * not jump to the far end of the bed. Balance runs as soon as those
+ * transfers finish, before the remaining stitches are knitted. The
+ * remaining knit is the next course, counted on the post-balance
+ * window.
+ * Balance is a whole-bed shift so
  * F≥B and |F−B|≤1, front low end at F0, extra stitch at the fold
  * gap. The next row starts on the end stitch's needle after that
  * shift. Flips only at the right fold, same physical index, one by
@@ -932,7 +934,28 @@ export function seatRing(courses, planInfo, carried = null) {
             role: "increase",
           })),
           beds,
-          note: `${where}: partial increase move on ${shapeBed}, then the increase, balance after the knit.`,
+          note: `${where}: partial increase move on ${shapeBed}, then the increase, balance before the knit.`,
+        });
+      }
+    }
+
+    if (incs.length) {
+      for (const cell of course.cells) {
+        if (!fresh.has(cell.wale) || live.get(cell.wale) != null) continue;
+        const { left, right } = neighbors(live, stitches, cell.wale);
+        const placed = physInHole(left, right, `${where} wale ${cell.wale}`);
+        birth(placed, cell.wale, false);
+        assertNoShare(stitches, where);
+      }
+      const fixes = balanceBeds(stitches, plan, where);
+      for (const fix of fixes) {
+        sheet.push({
+          dir: fix.dir,
+          kind: fix.kind,
+          course: ci,
+          cells: fix.cells,
+          beds: fix.beds,
+          note: fix.note,
         });
       }
     }
@@ -1035,22 +1058,6 @@ export function seatRing(courses, planInfo, carried = null) {
       n: knitCells.length,
     });
     prevEnd = { id: end.id, bed: end.bed, phys: end.phys };
-
-    if (incs.length || decs.length) {
-      const fixes = balanceBeds(stitches, plan, where);
-      for (const fix of fixes) {
-        sheet.push({
-          dir: fix.dir,
-          kind: fix.kind,
-          course: ci,
-          cells: fix.cells,
-          beds: fix.beds,
-          note: fix.note,
-        });
-      }
-      const endSt = stitches.get(prevEnd.id);
-      if (endSt) prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
-    }
   }
 
   if (!carried) {
@@ -1079,12 +1086,13 @@ export function seatRing(courses, planInfo, carried = null) {
  * Ring 1 continues on the bed ring 0 left behind.
  * Seeds are the live needles in right-going order, starting at F0.
  * A new wale steps one needle along that circle. Increase transfers
- * open every site first, then the whole row is knitted once.
+ * open every site first, then balance, then the whole row is knitted
+ * once on the post-balance needles.
  * A decrease of hang n is n+1 cells. Knit through the last of them.
  * The transfer starts at the first dot and repeats from that same
- * needle n times, stacking onto the first cell. Those transfer rows
- * sit between the two knit rows. Balance runs once after the
- * continuation.
+ * needle n times, stacking onto the first cell. Balance runs as soon
+ * as those transfers finish. The remaining stitches are the next
+ * course, counted on the post-balance window.
  */
 export function seatContinuation(courses, seeds) {
   const stitches = new Map();
@@ -1173,11 +1181,10 @@ export function seatContinuation(courses, seeds) {
 
     if (decs.length) {
       const prefix = [];
-      const continuation = [];
       let knitBeds = null;
-      let contBeds = null;
       const transfers = [];
       const notes = [];
+      const pending = [];
       let at = cursor;
       let spanLeft = 0;
       let spanHang = 0;
@@ -1201,17 +1208,21 @@ export function seatContinuation(courses, seeds) {
         st.wale = cell.wale;
         if (!knitBeds) knitBeds = liveWindow(stitches);
         const painted = paint(st.bed, cell.label, cell.kind);
-        (pastSpan ? continuation : prefix).push({
-          col: columnForPhys(st.bed, st.phys),
-          token: painted.token,
-          fill: painted.fill,
-          phys: st.phys,
-          bed: st.bed,
-          id: st.id,
-          role: "knit",
-          label: cell.label,
-          tIdx: cell.tIdx,
-        });
+        if (pastSpan) {
+          pending.push({ cell, id: st.id });
+        } else {
+          prefix.push({
+            col: columnForPhys(st.bed, st.phys),
+            token: painted.token,
+            fill: painted.fill,
+            phys: st.phys,
+            bed: st.bed,
+            id: st.id,
+            role: "knit",
+            label: cell.label,
+            tIdx: cell.tIdx,
+          });
+        }
         const nDec = decAdded(cell.label);
         const isHeader = nDec && (cell.kind === "dec" || cell.kind === "wrapDec");
         if (isHeader) {
@@ -1271,15 +1282,14 @@ export function seatContinuation(courses, seeds) {
           }
           const spanCells = prefix.slice(-passes - 1);
           const drawnSpan = spanCells.map((c) => `${c.token}@${c.bed}${c.phys}`).join(" ");
-          let line = `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。然后从 ${recvName} 起移 ${passes} 次（${movedNotes.join("；")}）。`;
+          let line = `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。然后从 ${recvName} 起移 ${passes} 次（${movedNotes.join("；")}）。移圈一结束就平衡床位。`;
           spanHang = 0;
           pastSpan = true;
-          contBeds = liveWindow(stitches);
           if (index + 1 < course.cells.length) {
             at = stepCircle(first, dirSign, stitches);
             if (!at || !stitches.has(at.id)) fail(`${where}: the next needle after the decrease is not on the bed`);
             if (at.id === first.id) fail(`${where}: continuation returned to the first decrease cell`);
-            line += ` 移圈之后再织剩下的针，从 ${at.bed}${at.phys} 起。`;
+            line += ` 剩下的针是下一课，针号等平衡之后再数。`;
           } else {
             line += ` 减针格后面没有剩下的针。`;
           }
@@ -1291,25 +1301,16 @@ export function seatContinuation(courses, seeds) {
       });
       if (!prefix.length) fail(`${where}: decrease row has no knit cells`);
       finishKnit(prefix);
-      if (continuation.length) finishKnit(continuation);
       const seenId = new Set();
-      for (const cell of [...prefix, ...continuation]) {
+      for (const cell of prefix) {
         if (seenId.has(cell.id)) fail(`${where}: stitch ${cell.id} is knitted twice`);
         seenId.add(cell.id);
       }
+      for (const item of pending) {
+        if (seenId.has(item.id)) fail(`${where}: stitch ${item.id} is knitted twice`);
+        seenId.add(item.id);
+      }
       const start = prefix[0];
-      const end = continuation.length ? continuation.at(-1) : prefix.find((cell) => cell.id === firstId);
-      if (!end || !stitches.has(end.id)) fail(`${where}: the row ended on a stitch the decrease consumed`);
-      const knitEnd = `${end.bed}${end.phys}`;
-      const fixes = balanceBeds(stitches, new Map(), where);
-      const endSt = stitches.get(end.id);
-      if (!endSt) fail(`${where}: the row end left the bed`);
-      const nextAt = `${endSt.bed}${endSt.phys}`;
-      let tail = `剩下的针织到 ${knitEnd}。`;
-      if (knitEnd !== nextAt) tail += ` 整床平衡之后这一针在 ${nextAt}，下一行从 ${nextAt} 起。不再把 ${knitEnd} 当成还占着。`;
-      else if (fixes.length) tail += ` 整床平衡没有改终点针，下一行从 ${nextAt} 起。`;
-      else tail += ` 平衡没有再整床摇，下一行从 ${nextAt} 起。`;
-      notes.push(tail);
       const dirName = course.dir === 0 ? "R" : "L";
       sheet.push({
         dir: dirName,
@@ -1320,24 +1321,7 @@ export function seatContinuation(courses, seeds) {
         note: notes.join(" "),
       });
       for (const row of transfers) sheet.push(row);
-      if (continuation.length) {
-        const first = continuation[0];
-        sheet.push({
-          dir: dirName,
-          kind: "knit",
-          course: ci,
-          cells: continuation,
-          beds: contBeds || liveWindow(stitches),
-          note: `${where}: 移圈之后接着织，从 ${first.bed}${first.phys} 到 ${knitEnd}。`,
-        });
-      }
-      coursesOut.push({
-        course: ci,
-        dir: dirName,
-        start: `${start.bed}${start.phys}`,
-        end: knitEnd,
-        n: prefix.length + continuation.length,
-      });
+      const fixes = balanceBeds(stitches, new Map(), where);
       for (const fix of fixes) {
         sheet.push({
           dir: fix.dir,
@@ -1348,6 +1332,47 @@ export function seatContinuation(courses, seeds) {
           note: fix.note,
         });
       }
+      let endId = firstId;
+      if (pending.length) {
+        const continuation = pending.map((item) => {
+          const st = stitches.get(item.id);
+          if (!st) fail(`${where}: a remaining stitch left the bed during balance`);
+          const painted = paint(st.bed, item.cell.label, item.cell.kind);
+          return {
+            col: columnForPhys(st.bed, st.phys),
+            token: painted.token,
+            fill: painted.fill,
+            phys: st.phys,
+            bed: st.bed,
+            id: st.id,
+            role: "knit",
+            label: item.cell.label,
+            tIdx: item.cell.tIdx,
+          };
+        });
+        finishKnit(continuation);
+        const first = continuation[0];
+        const last = continuation.at(-1);
+        endId = last.id;
+        sheet.push({
+          dir: dirName,
+          kind: "knit",
+          course: ci,
+          cells: continuation,
+          beds: liveWindow(stitches),
+          note: `${where}: 平衡之后的下一课，从 ${first.bed}${first.phys} 织到 ${last.bed}${last.phys}。`,
+        });
+      }
+      const endSt = stitches.get(endId);
+      if (!endSt) fail(`${where}: the row end left the bed`);
+      const knitEnd = `${endSt.bed}${endSt.phys}`;
+      coursesOut.push({
+        course: ci,
+        dir: dirName,
+        start: `${start.bed}${start.phys}`,
+        end: knitEnd,
+        n: prefix.length + pending.length,
+      });
       cursor = endSt;
       prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
     }
@@ -1385,7 +1410,7 @@ export function seatContinuation(courses, seeds) {
             role: "increase",
           })),
           beds,
-          note: `${where}: partial increase move on ${marker.bed}, then the increase, balance after the knit.`,
+          note: `${where}: partial increase move on ${marker.bed}, then the increase, balance before the knit.`,
         });
       }
       const hole = orderedCircle(stitches);
@@ -1404,11 +1429,11 @@ export function seatContinuation(courses, seeds) {
       void markerAt;
     }
 
+    let knitPlan = null;
     if (!decs.length) {
       let shiftFrom = null;
       let shapeBed = null;
-      const knitBeds = liveWindow(stitches);
-      const knitCells = [];
+      knitPlan = [];
       for (const item of placed) {
         const cell = item.cell;
         let id = fresh.has(cell.wale) ? waleToId.get(cell.wale) : item.id;
@@ -1424,7 +1449,31 @@ export function seatContinuation(courses, seeds) {
         }
         const st = stitches.get(id);
         if (!st) continue;
-        const painted = paint(st.bed, cell.label, cell.kind);
+        knitPlan.push({ cell, id: st.id });
+      }
+    }
+
+    if (incs.length) {
+      const fixes = balanceBeds(stitches, new Map(), where);
+      for (const fix of fixes) {
+        sheet.push({
+          dir: fix.dir,
+          kind: fix.kind,
+          course: ci,
+          cells: fix.cells,
+          beds: fix.beds,
+          note: fix.note,
+        });
+      }
+    }
+
+    if (knitPlan) {
+      const knitBeds = liveWindow(stitches);
+      const knitCells = [];
+      for (const item of knitPlan) {
+        const st = stitches.get(item.id);
+        if (!st) fail(`${where}: knit stitch ${item.id} left the bed during balance`);
+        const painted = paint(st.bed, item.cell.label, item.cell.kind);
         knitCells.push({
           col: columnForPhys(st.bed, st.phys),
           token: painted.token,
@@ -1433,8 +1482,8 @@ export function seatContinuation(courses, seeds) {
           bed: st.bed,
           id: st.id,
           role: "knit",
-          label: cell.label,
-          tIdx: cell.tIdx,
+          label: item.cell.label,
+          tIdx: item.cell.tIdx,
         });
       }
       finishKnit(knitCells);
@@ -1450,22 +1499,6 @@ export function seatContinuation(courses, seeds) {
       });
       cursor = stitches.get(end.id);
       prevEnd = { id: end.id, bed: end.bed, phys: end.phys };
-    }
-
-    if (incs.length) {
-      const fixes = balanceBeds(stitches, new Map(), where);
-      for (const fix of fixes) {
-        sheet.push({
-          dir: fix.dir,
-          kind: fix.kind,
-          course: ci,
-          cells: fix.cells,
-          beds: fix.beds,
-          note: fix.note,
-        });
-      }
-      const endSt = stitches.get(prevEnd.id);
-      if (endSt) cursor = endSt;
     }
   }
 
@@ -1980,8 +2013,22 @@ function assertRunningDecrease(built) {
       }
     }
     const afterX = index + 1 + hang;
-    const continuation = rows[afterX];
-    const later = continuation && continuation.kind === "knit" && continuation.course === row.course ? continuation : null;
+    let cursor = afterX;
+    while (
+      rows[cursor] &&
+      rows[cursor].course === row.course &&
+      rows[cursor].kind !== "knit"
+    ) {
+      cursor += 1;
+    }
+    const later = rows[cursor] && rows[cursor].kind === "knit" && rows[cursor].course === row.course ? rows[cursor] : null;
+    if (!later && rows.slice(afterX, cursor).some((item) => item.kind === "knit")) {
+      fail(`course ${row.course} knitted again before balance`);
+    }
+    const between = rows.slice(afterX, cursor);
+    if (between.some((item) => item.kind === "knit")) {
+      fail(`course ${row.course} knitted the rest of the row before balance`);
+    }
     const knitted = later ? [...row.cells, ...later.cells] : row.cells;
     if (dec.bed === "F" && knitted.some((cell) => cell.bed === "B")) {
       fail(`front decrease row appended the back-bed tail`);
@@ -1990,11 +2037,15 @@ function assertRunningDecrease(built) {
       fail(`a decrease cell is knitted again`);
     }
     const endRow = later || row;
-    const nextKnit = rows.slice(afterX + (later ? 1 : 0)).find((item) => item.kind === "knit");
+    const nextKnit = rows.slice(cursor + (later ? 1 : 0)).find((item) => item.kind === "knit");
     if (!nextKnit) fail(`course ${row.course} has no following row`);
-    if (nextKnit.course === row.course) fail(`course ${row.course} has another knit after the continuation`);
+    if (nextKnit.course === row.course) fail(`course ${row.course} has another knit after the remaining row`);
     if (nextKnit.cells[0].id !== endRow.cells.at(-1).id) {
       fail(`course ${row.course} next row does not start on the end stitch`);
+    }
+    const tail = rows.slice(cursor + (later ? 1 : 0), rows.indexOf(nextKnit));
+    if (tail.some((item) => item.course === row.course && (item.kind === "flip" || item.kind === "balance"))) {
+      fail(`course ${row.course} balanced after the remaining knit`);
     }
   }
 }
