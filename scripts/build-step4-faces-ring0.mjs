@@ -21,22 +21,31 @@
  *   F = ceil(N/2), B = floor(N/2), front low end is physical F0.
  *   The extra stitch when the counts differ by 1 is the fold gap.
  * Identity is F# / B#. A combined chart may draw back = 37 − phys.
- * Course start is the previous course's end, plus transfers since.
- * Nothing moved → fold return on that needle. A whole-bed balance
- * leaves the next knit one needle outward from the seat, in the
- * travel direction, when the end stitch itself was consumed.
- * Increase: partial move, then the increase knit, then balance.
- * A stitch that would sit below 0 (F−1) is kept and balanced onto F0.
- * Decrease, once those stitches are already on the bed: knit up to
- * that stitch, transfer, then keep knitting the rest of the same row.
- * The landing needle is the inward neighbor. It only receives the
- * stitch: it is not a transfer source and it is not knitted again.
- * The rest of the row starts at the next needle past that landing,
- * in the travel direction. If balance then racks a whole bed by one,
- * that rest and the next row's start use the needle after the rack.
- * The pre-rack needle is not still occupied.
- * Flips only at the right fold, same physical index.
+ * Course start is the previous course's end, plus transfers and any
+ * whole-bed balance since that end. Count from the needle after the
+ * shift. Nothing moved → the next course starts on that same needle.
+ * Increase: if a row has n increase sites, do those transfers first
+ * to open every site, then knit the whole row once. Do not
+ * transfer-and-knit at each site. A stitch that would sit below 0
+ * (F−1) is kept and balanced onto F0.
+ * Decrease, on a bed that is already seated: knit up to the decrease,
+ * transfer, then knit the rest of that same row. R decreases the high
+ * end of the shaping bed, L the low end. The stacked edge pair still
+ * moves forward. The landing is the inward neighbor: it only receives,
+ * it is not a source, and it is not knitted again on this row. The
+ * rest of the row starts at the next needle past that landing, in
+ * the travel direction. Those continuation needles are the needles
+ * before bed balance.
+ * Balance once after that row's increase transfers and the knit
+ * (including a mid-row decrease). Balance is a whole-bed shift so
+ * F≥B and |F−B|≤1, front low end at F0, extra stitch at the fold
+ * gap. The next row starts on the end stitch's needle after that
+ * shift. Flips only at the right fold, same physical index, one by
+ * one. F17→B18 is not a flip.
  * A 1-needle transfer omits the number (F→, B←).
+ * A fold-return short row is its own course. It is not glued into
+ * the next long row. Finishing the ring is not a fold-return: the
+ * next stitch is the next ring.
  *
  * Later rings are not filled.
  *
@@ -272,6 +281,13 @@ function decAdded(label) {
   if (tagged) return Number(tagged[1]);
   const tail = String(label).match(/-(\d+)$/);
   return tail ? Number(tail[1]) : 0;
+}
+
+function decSide(label) {
+  const tagged = String(label).match(/-([RL])/);
+  if (tagged) return tagged[1];
+  const wrapped = String(label).match(/[v^]([RL])/);
+  return wrapped ? wrapped[1] : "";
 }
 
 /** Birth wales of stitches that are not increase holes. */
@@ -652,38 +668,48 @@ function paint(bed, label, kind) {
  * L moves the low end forward (higher index). R moves the high end
  * forward (lower index). The landing neighbor is not a source.
  * The stacked edge pair still moves: B0,B1 → B1,B2 when the low
- * end is chosen and B2 is free. An occupied landing that is not a
- * source receives the inner stitch as the stack and that source is
- * consumed; the outer stitch still moves onto the needle it left.
+ * end is chosen and B2 is free. An occupied landing receives the
+ * inner stitch. That stack is drawn, then the inner leaves the bed.
+ * The outer stitch still moves onto the needle the inner left.
  */
 export function decreaseEdge(stitches, live, bed, end, where) {
   const onBed = [...stitches.values()].filter((st) => st.bed === bed).sort((a, b) => a.phys - b.phys);
   if (onBed.length < 2) fail(`${where}: ${bed} decrease needs an edge pair`);
+  if (end !== "L" && end !== "R") fail(`${where}: decrease end ${end} is not L or R`);
   const low = end === "L";
   const edge = low ? onBed[0] : onBed.at(-1);
   const inner = low ? onBed[1] : onBed.at(-2);
-  const landingPhys = low ? inner.phys + 1 : inner.phys - 1;
+  const step = low ? 1 : -1;
+  if (inner.phys !== edge.phys + step) {
+    fail(`${where}: ${bed} edge ${edge.phys} and ${inner.phys} are not one step apart`);
+  }
+  const landingPhys = inner.phys + step;
   const landing = onBed.find((st) => st.phys === landingPhys) || null;
   if (landing && (landing.id === edge.id || landing.id === inner.id)) {
     fail(`${where}: landing ${bed}${landingPhys} is a source`);
   }
-  const step = low ? 1 : -1;
-  const sources = [inner, edge];
+  const moves = [];
   const consumed = [];
   if (landing) {
+    moves.push({ id: inner.id, bed, from: inner.phys, to: landingPhys, stacked: true });
     consumed.push(inner.id);
-    if (live.get(inner.wale) === inner.id) live.delete(inner.wale);
+    if (live && live.get(inner.wale) === inner.id) live.delete(inner.wale);
     stitches.delete(inner.id);
-  }
-  const moves = [];
-  const ordered = landing ? [edge] : [inner, edge];
-  for (const st of ordered) {
-    const from = st.phys;
+    const from = edge.phys;
     const to = from + step;
     const occ = [...stitches.values()].find((other) => other.bed === bed && other.phys === to);
-    if (occ && occ.id !== st.id) fail(`${where}: ${bed}${from}→${to} lands on ${occ.id}`);
-    moves.push({ id: st.id, bed, from, to });
-    st.phys = to;
+    if (occ && occ.id !== edge.id) fail(`${where}: ${bed}${from}→${to} lands on ${occ.id}`);
+    moves.push({ id: edge.id, bed, from, to, stacked: false });
+    edge.phys = to;
+  } else {
+    for (const st of [inner, edge]) {
+      const from = st.phys;
+      const to = from + step;
+      const occ = [...stitches.values()].find((other) => other.bed === bed && other.phys === to && other.id !== st.id);
+      if (occ) fail(`${where}: ${bed}${from}→${to} lands on ${occ.id}`);
+      moves.push({ id: st.id, bed, from, to, stacked: false });
+      st.phys = to;
+    }
   }
   assertNoShare(stitches, where);
   const token = moveToken(bed, 0, step);
@@ -695,57 +721,10 @@ export function decreaseEdge(stitches, live, bed, end, where) {
     bed,
     id: m.id,
     role: "decrease",
+    stacked: Boolean(m.stacked),
   }));
   cells.sort((a, b) => a.col - b.col);
-  return { cells, consumed, moves, landingPhys };
-}
-
-/**
- * The course has already knitted the decrease stitch. Every needle on
- * that bed still ahead of it steps one needle back toward it. The
- * nearest lands on the decrease stitch: that is the loop from behind,
- * and it is drawn, then taken off the bed. The rest of the tail fills
- * the gap. `dirSign` is +1 when the course travels right.
- */
-export function shiftTailTowardDecrease(stitches, marker, dirSign, where) {
-  const bed = marker.bed;
-  const forward = bed === "F" ? dirSign : -dirSign;
-  if (forward !== 1 && forward !== -1) fail(`${where}: bad travel`);
-  const behind = [...stitches.values()]
-    .filter((st) => st.bed === bed && (st.phys - marker.phys) * forward > 0)
-    .sort((a, b) => (a.phys - b.phys) * forward);
-  if (!behind.length) fail(`${where}: ${bed}${marker.phys} has no needle behind it to decrease`);
-  const step = -forward;
-  const incoming = behind[0];
-  const fromIn = incoming.phys;
-  const toIn = fromIn + step;
-  if (toIn !== marker.phys) {
-    fail(`${where}: ${bed}${fromIn} does not stack onto ${bed}${marker.phys}`);
-  }
-  const moves = [{ id: incoming.id, bed, from: fromIn, to: toIn, stacked: true }];
-  stitches.delete(incoming.id);
-  for (const st of behind.slice(1)) {
-    const from = st.phys;
-    const to = from + step;
-    const occ = [...stitches.values()].find((other) => other.bed === bed && other.phys === to);
-    if (occ) fail(`${where}: ${bed}${from}→${bed}${to} lands on ${occ.id}`);
-    moves.push({ id: st.id, bed, from, to, stacked: false });
-    st.phys = to;
-  }
-  assertNoShare(stitches, where);
-  const token = moveToken(bed, 0, step);
-  const cells = moves.map((m) => ({
-    col: columnForPhys(bed, m.from),
-    token,
-    fill: FILL.xfer,
-    phys: m.from,
-    bed,
-    id: m.id,
-    role: "decrease",
-    stacked: m.stacked,
-  }));
-  cells.sort((a, b) => a.col - b.col);
-  return { cells, stackedId: incoming.id, moves };
+  return { cells, consumed, moves, landingPhys, landingId: landing ? landing.id : null };
 }
 
 function shapeBedOf(fresh, live, stitches, where) {
@@ -794,9 +773,8 @@ function liveWindow(stitches) {
 
 /**
  * Knit the first ring onto physical needles.
- * Increase: partial move, knit, balance.
- * This ring has no decrease. A decrease on an already seated bed is
- * seated mid-course by shiftTailTowardDecrease.
+ * Increase transfers open every site before the one knit, then balance.
+ * This ring has no decrease. A later ring decreases on the seated bed.
  */
 function orderedCircle(stitches) {
   const front = [...stitches.values()].filter((st) => st.bed === "F").sort((a, b) => a.phys - b.phys);
@@ -1044,10 +1022,12 @@ export function seatRing(courses, planInfo, carried = null) {
 /**
  * Ring 1 continues on the bed ring 0 left behind.
  * Seeds are the live needles in right-going order, starting at F0.
- * A new wale steps one needle along that circle. An increase inserts one
- * needle before its knit. A decrease stays on one row: knit up to it,
- * transfer onto the inward neighbor, balance, then knit the rest of
- * that same row from the post-balance needle.
+ * A new wale steps one needle along that circle. Increase transfers
+ * open every site first, then the whole row is knitted once.
+ * A decrease stays on one row: knit up to it, move the R high end or
+ * the L low end, then knit the rest from the next needle past that
+ * landing. Balance runs once after that knit. The next row starts on
+ * the end stitch after the shift.
  */
 export function seatContinuation(courses, seeds) {
   const stitches = new Map();
@@ -1138,8 +1118,8 @@ export function seatContinuation(courses, seeds) {
       const knitCells = [];
       let knitBeds = null;
       const transfers = [];
-      const balances = [];
       const notes = [];
+      const landingIds = [];
       let at = cursor;
       course.cells.forEach((cell, index) => {
         if (index === 0) {
@@ -1151,6 +1131,8 @@ export function seatContinuation(courses, seeds) {
         }
         const st = at;
         if (!st || !stitches.has(st.id)) fail(`${where}: walk has no cursor`);
+        if (landingIds.includes(st.id)) fail(`${where}: landing is knitted on this row`);
+        if (st.wale != null && st.wale !== cell.wale && waleToId.get(st.wale) === st.id) waleToId.delete(st.wale);
         waleToId.set(cell.wale, st.id);
         st.wale = cell.wale;
         if (!knitBeds) knitBeds = liveWindow(stitches);
@@ -1169,74 +1151,94 @@ export function seatContinuation(courses, seeds) {
         const nDec = decAdded(cell.label);
         const isDec = nDec && (cell.kind === "dec" || cell.kind === "wrapDec");
         if (isDec) {
-          const landBefore = `${st.bed}${st.phys}`;
+          const side = decSide(cell.label);
+          if (side !== "R" && side !== "L") fail(`${where}: decrease ${cell.label} has no R/L end`);
+          const shapeBed = st.bed;
+          const knitAt = `${st.bed}${st.phys}`;
+          const pairNotes = [];
+          let landingSt = null;
           for (let k = 0; k < nDec; k++) {
             const beds = liveWindow(stitches);
-            const moved = shiftTailTowardDecrease(stitches, st, dirSign, `${where} decrease ${k + 1}`);
-            if (moved.moves.some((m) => m.id === st.id)) fail(`${where}: landing ${landBefore} was used as a transfer source`);
-            for (const [wale, id] of [...waleToId]) {
-              if (id === moved.stackedId) waleToId.delete(wale);
+            const moved = decreaseEdge(stitches, waleToId, shapeBed, side, `${where} decrease ${k + 1}`);
+            if (moved.landingId != null && moved.moves.some((m) => m.id === moved.landingId)) {
+              fail(`${where}: landing ${shapeBed}${moved.landingPhys} is a transfer source`);
             }
-            const stack = moved.moves[0];
+            for (const id of moved.consumed) {
+              for (const [wale, mapped] of [...waleToId]) {
+                if (mapped === id) waleToId.delete(wale);
+              }
+            }
+            const landing = [...stitches.values()].find((s) => s.bed === shapeBed && s.phys === moved.landingPhys);
+            if (!landing) fail(`${where}: landing ${shapeBed}${moved.landingPhys} is empty`);
+            landingSt = landing;
+            landingIds.push(landing.id);
+            const described = moved.moves
+              .map((m) => `${m.bed}${m.from}→${m.bed}${m.to}${m.stacked ? "（套进落针）" : ""}`)
+              .join("，");
+            pairNotes.push(described);
+            const endName = side === "R" ? "高端" : "低端";
             transfers.push({
               dir: "X",
               kind: "decrease",
               course: ci,
               cells: moved.cells,
               beds,
-              note: `${where}: 落针 ${landBefore} 只接 ${stack.bed}${stack.from}，不是移圈源。`,
+              note: `${where}: ${endName}成对前移。${described}。落针 ${shapeBed}${moved.landingPhys} 只接圈，不是移圈源。`,
             });
           }
-          const peek = index + 1 < course.cells.length ? stepCircle(st, dirSign, stitches) : null;
-          const contBefore = peek ? `${peek.bed}${peek.phys}` : "";
-          const fixes = balanceBeds(stitches, new Map(), where);
-          for (const fix of fixes) balances.push(fix);
-          const landAfter = `${st.bed}${st.phys}`;
-          const peekAfter = index + 1 < course.cells.length ? stepCircle(st, dirSign, stitches) : null;
-          const contAfter = peekAfter ? `${peekAfter.bed}${peekAfter.phys}` : "";
-          if (peekAfter && peekAfter.id === st.id) fail(`${where}: the landing ${landAfter} would be knitted again`);
-          let line = `${where}: 同一行。织到 ${landBefore}，移圈，再从落针的下一针接着织。落针只接圈。`;
-          if (contBefore) {
-            line += ` 平衡前接着织的下一针是 ${contBefore}，整床平衡后是 ${contAfter}。`;
-            if (contBefore !== contAfter) line += ` 不再把 ${contBefore} 当成还占着这针。`;
-            else if (fixes.length) line += ` 整床平衡没有改这一行后半段的针号。`;
+          const bedName = shapeBed === "F" ? "前床" : "后床";
+          const endName = side === "R" ? "高端" : "低端";
+          let line = `${where}: 同一行。织到 ${knitAt}，再减${bedName}${endName}（${pairNotes.join("；")}）。落针 ${landingSt.bed}${landingSt.phys} 只接圈，这一行不再织它。`;
+          if (index + 1 < course.cells.length) {
+            at = stepCircle(landingSt, dirSign, stitches);
+            if (!at || !stitches.has(at.id)) fail(`${where}: the next needle past the landing is not on the bed`);
+            if (at.id === landingSt.id) fail(`${where}: continuation returned to the landing`);
+            line += ` 后半段从 ${at.bed}${at.phys} 接着织，这一针还是平衡前的针号。`;
+          } else {
+            line += ` 减针后面没有剩余的针。`;
           }
-          if (landBefore !== landAfter) line += ` 落针随整床从 ${landBefore} 到 ${landAfter}。`;
-          if (!fixes.length) line += ` 平衡没有再整床摇。`;
           notes.push(line);
-        }
-        if (index + 1 < course.cells.length) {
+        } else if (index + 1 < course.cells.length) {
           at = stepCircle(st, dirSign, stitches);
           if (!at || !stitches.has(at.id)) fail(`${where}: the next needle is not on the bed`);
-          if (isDec && at.id === st.id) fail(`${where}: continuation returned to the landing`);
         }
       });
       finishKnit(knitCells);
+      const seenId = new Set();
+      for (const cell of knitCells) {
+        if (seenId.has(cell.id)) fail(`${where}: stitch ${cell.id} is knitted twice`);
+        seenId.add(cell.id);
+      }
       const start = knitCells[0];
       const end = knitCells.at(-1);
+      if (!stitches.has(end.id)) fail(`${where}: the row ended on a stitch the decrease consumed`);
+      const knitEnd = `${end.bed}${end.phys}`;
+      const fixes = balanceBeds(stitches, new Map(), where);
       const endSt = stitches.get(end.id);
       if (!endSt) fail(`${where}: the row end left the bed`);
-      const endNow = `${endSt.bed}${endSt.phys}`;
-      if (end.bed !== endSt.bed || end.phys !== endSt.phys) {
-        fail(`${where}: continuation cell ${end.bed}${end.phys} is not the post-balance needle ${endNow}`);
-      }
+      const nextAt = `${endSt.bed}${endSt.phys}`;
+      let tail = `这一行织到 ${knitEnd}。`;
+      if (knitEnd !== nextAt) tail += ` 整床平衡之后这一针在 ${nextAt}，下一行从 ${nextAt} 起。不再把 ${knitEnd} 当成还占着。`;
+      else if (fixes.length) tail += ` 整床平衡没有改终点针，下一行从 ${nextAt} 起。`;
+      else tail += ` 平衡没有再整床摇，下一行从 ${nextAt} 起。`;
+      notes.push(tail);
       sheet.push({
         dir: course.dir === 0 ? "R" : "L",
         kind: "knit",
         course: ci,
         cells: knitCells,
         beds: knitBeds,
-        note: `${notes.join(" ")} 这一行收到 ${endNow}，下一行从 ${endNow} 起。`,
+        note: notes.join(" "),
       });
       coursesOut.push({
         course: ci,
         dir: course.dir === 0 ? "R" : "L",
         start: `${start.bed}${start.phys}`,
-        end: endNow,
+        end: knitEnd,
         n: knitCells.length,
       });
       for (const row of transfers) sheet.push(row);
-      for (const fix of balances) {
+      for (const fix of fixes) {
         sheet.push({
           dir: fix.dir,
           kind: fix.kind,
@@ -1783,39 +1785,28 @@ function selfCheckNegativeSeat() {
   }
 }
 
-function selfCheckContinueAfterRack() {
+function selfCheckOccupiedStack() {
   const stitches = new Map();
-  for (let phys = 0; phys <= 4; phys++) stitches.set(phys, { id: phys, bed: "F", phys, wale: phys });
-  const marker = stitches.get(1);
-  shiftTailTowardDecrease(stitches, marker, 1, "racked decrease");
-  const before = stepCircle(marker, 1, stitches);
-  if (`${before.bed}${before.phys}` !== "F2") fail(`pre-balance continue is ${before.bed}${before.phys}`);
-  for (const st of stitches.values()) st.phys += 1;
-  const after = stepCircle(marker, 1, stitches);
-  if (after.id !== before.id) fail("the rack changed which stitch the row continues on");
-  if (`${after.bed}${after.phys}` !== "F3") fail(`post-balance continue is ${after.bed}${after.phys}`);
-  const parked = [...stitches.values()].find((st) => st.phys === 2);
-  if (!parked || parked.id !== marker.id) fail("the pre-balance continue needle should now hold the landing");
-}
-
-function selfCheckTailDecrease() {
-  const stitches = new Map();
-  for (let phys = 0; phys <= 4; phys++) stitches.set(phys, { id: phys, bed: "F", phys, wale: phys });
-  const moved = shiftTailTowardDecrease(stitches, stitches.get(2), 1, "tail decrease");
-  const phys = [...stitches.values()].map((st) => st.phys).sort((a, b) => a - b);
-  if (phys.join(",") !== "0,1,2,3") fail(`tail decrease phys ${phys}`);
-  if (moved.stackedId !== 3) fail("the needle behind F2 should be the loop that stacks");
-  if (moved.cells.map((c) => c.phys).join(",") !== "3,4") fail(`tail decrease drew ${moved.cells.map((c) => c.phys)}`);
-  if (moved.cells.some((c) => c.token !== "F←")) fail(`tail token ${moved.cells.map((c) => c.token)}`);
-  if (stitches.has(3)) fail("the stacked loop should leave the bed");
-  const back = new Map();
-  for (let p = 0; p <= 4; p++) back.set(p, { id: p, bed: "B", phys: p, wale: p });
-  const backMove = shiftTailTowardDecrease(back, back.get(2), 1, "back tail");
-  const backPhys = [...back.values()].map((st) => st.phys).sort((a, b) => a - b);
-  if (backPhys.join(",") !== "1,2,3,4") fail(`back tail phys ${backPhys}`);
-  if (backMove.stackedId !== 1 || backMove.cells[0].token !== "B→" || backMove.cells[0].phys !== 1) {
-    fail(`back stack should be B1→B2, got ${backMove.cells.map((c) => `${c.token}@${c.phys}`)}`);
+  const live = new Map();
+  for (let phys = 0; phys <= 4; phys++) {
+    stitches.set(phys, { id: phys, bed: "F", phys, wale: phys });
+    live.set(phys, phys);
   }
+  const moved = decreaseEdge(stitches, live, "F", "R", "occupied stack");
+  const phys = [...stitches.values()].map((st) => st.phys).sort((a, b) => a - b);
+  if (phys.join(",") !== "0,1,2,3") fail(`occupied R decrease phys ${phys}`);
+  if (stitches.has(3)) fail("the inner loop should leave the bed after it stacks");
+  if (!stitches.has(2) || stitches.get(2).phys !== 2) fail("the landing stays put and only receives");
+  if (stitches.get(4).phys !== 3) fail("the outer stitch should move onto the needle the inner left");
+  if (moved.landingPhys !== 2 || moved.landingId !== 2) fail(`landing should be F2, got ${moved.landingPhys}`);
+  if (moved.moves.some((m) => m.id === 2)) fail("landing F2 is a source");
+  const drawn = moved.cells.map((c) => `${c.token}@${c.phys}${c.stacked ? "*" : ""}`).join(",");
+  if (drawn !== "F←@3*,F←@4" && drawn !== "F←@4,F←@3*") {
+    const byPhys = [...moved.cells].sort((a, b) => a.phys - b.phys);
+    const text = byPhys.map((c) => `${c.token}@${c.phys}${c.stacked ? "*" : ""}`).join(",");
+    if (text !== "F←@3*,F←@4") fail(`occupied stack drew ${text}`);
+  }
+  if (moved.cells.some((c) => /1$/.test(c.token))) fail("1-needle stack must omit the number");
 }
 
 function assertRunningDecrease(built) {
@@ -1834,25 +1825,35 @@ function assertRunningDecrease(built) {
     const prev = rows[index - 1];
     if (prev && prev.kind === "decrease") fail(`decrease at ${dec.bed}${dec.phys} moved the bed before the knit reached it`);
     const shift = rows[index + 1];
-    if (!shift || shift.kind !== "decrease") fail(`decrease at ${dec.bed}${dec.phys} is not followed by the tail shift`);
-    if (shift.cells.some((cell) => cell.bed === dec.bed && cell.phys === dec.phys)) {
-      fail(`landing ${dec.bed}${dec.phys} is a transfer source`);
-    }
-    const forward = dec.bed === "F" ? (row.dir === "R" ? 1 : -1) : row.dir === "R" ? -1 : 1;
-    const stackPhys = dec.phys + forward;
-    const stack = shift.cells.find((cell) => cell.bed === dec.bed && cell.phys === stackPhys);
-    if (!stack) fail(`missing the loop that stacks from ${dec.bed}${stackPhys} onto ${dec.bed}${dec.phys}`);
-    const arrow = forward > 0 ? "←" : "→";
+    if (!shift || shift.kind !== "decrease") fail(`decrease at ${dec.bed}${dec.phys} is not followed by the edge transfer`);
+    if (shift.cells.length !== 2) fail(`edge pair at ${dec.bed}${dec.phys} drew ${shift.cells.length} moves`);
+    const side = decSide(dec.label || "");
+    if (side !== "R" && side !== "L") fail(`decrease ${dec.label} has no end`);
+    const arrow = side === "R" ? "←" : "→";
     if (shift.cells.some((cell) => cell.token !== `${dec.bed}${arrow}` || cell.bed !== dec.bed)) {
-      fail(`tail shift at ${dec.bed}${dec.phys} is not one step back on that bed`);
+      fail(`edge pair at ${dec.bed}${dec.phys} is not one step on that bed`);
+    }
+    const sources = shift.cells.map((cell) => cell.phys).sort((a, b) => a - b);
+    if (sources[1] !== sources[0] + 1) fail(`edge pair phys ${sources} are not adjacent`);
+    const innerPhys = side === "R" ? sources[0] : sources[1];
+    const landingPhys = innerPhys + (side === "R" ? -1 : 1);
+    if (shift.cells.some((cell) => cell.phys === landingPhys)) fail(`landing ${dec.bed}${landingPhys} is a transfer source`);
+    if (!shift.cells.some((cell) => cell.stacked && cell.phys === innerPhys)) {
+      fail(`the loop stacking onto ${dec.bed}${landingPhys} was not drawn`);
     }
     const decAt = row.cells.indexOf(dec);
     const later = row.cells.slice(decAt + 1);
     if (!later.length) fail(`course ${row.course} does not continue on the decrease row`);
-    if (later.some((cell) => cell.id === dec.id)) fail(`landing ${dec.bed}${dec.phys} is knitted again`);
-    const again = rows[index + 2];
-    if (again && again.kind === "knit" && again.course === row.course) {
-      fail(`course ${row.course} continued on a second knit row`);
+    if (later.some((cell) => cell.id === dec.id)) fail(`decrease stitch ${dec.bed}${dec.phys} is knitted again`);
+    if (later.some((cell) => cell.bed === dec.bed && cell.phys === landingPhys)) {
+      fail(`landing ${dec.bed}${landingPhys} is knitted again`);
+    }
+    if (shift.cells.length > 2) fail(`course ${row.course} shifted a tail instead of the edge pair`);
+    const nextKnit = rows.slice(index + 1).find((item) => item.kind === "knit");
+    if (!nextKnit) fail(`course ${row.course} has no following row`);
+    if (nextKnit.course === row.course) fail(`course ${row.course} continued on a second knit row`);
+    if (nextKnit.cells[0].id !== row.cells.at(-1).id) {
+      fail(`course ${row.course} next row does not start on the end stitch`);
     }
   }
 }
@@ -1876,8 +1877,7 @@ function selfCheckDecrease() {
 function main(argv = process.argv.slice(2)) {
   const check = argv.includes("--check");
   selfCheckDecrease();
-  selfCheckTailDecrease();
-  selfCheckContinueAfterRack();
+  selfCheckOccupiedStack();
   selfCheckNegativeSeat();
   const built = buildJoinedChart();
   assertRunningDecrease(built);

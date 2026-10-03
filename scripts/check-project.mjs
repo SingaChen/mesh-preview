@@ -207,45 +207,46 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   assert(
     frontKnit[0]?.phys === 0 &&
       frontDecCell?.phys === 5 &&
-      frontKnit[frontKnit.indexOf(frontDecCell) + 1]?.phys === 6 &&
-      frontKnit.at(-1)?.token === "FvR" &&
-      frontKnit.at(-1)?.phys === 14 &&
-      frontKnit.filter((cell) => cell.phys === 5).length === 1,
-    "the front row knits F0…F5, then continues F6…F14 on that same row",
+      frontKnit[frontKnit.indexOf(frontDecCell) + 1]?.token === "F·" &&
+      frontKnit[frontKnit.indexOf(frontDecCell) + 1]?.phys === 17 &&
+      frontKnit.at(-1)?.token === "BvR" &&
+      frontKnit.at(-1)?.phys === 11 &&
+      frontKnit.filter((cell) => cell.phys === 5).length === 1 &&
+      !frontKnit.some((cell) => cell.bed === "F" && cell.phys === 16),
+    "the front row knits F0…F5, then continues from F17 past landing F16 and ends at B11",
   );
   assert(
     facesMap.rows[frontDecAt + 1]?.dir === "X" &&
-      frontShift.map((cell) => `${cell.token}/${cell.phys}`).join(",") ===
-        [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((phys) => `F←/${phys}`).join(","),
-    "F6 stacks onto F5 and the rest of the front tail steps back one",
+      frontShift.map((cell) => `${cell.token}/${cell.phys}`).join(",") === "F←/17,F←/18",
+    "R decreases the front high end: F17 stacks onto F16 and F18 moves to F17",
   );
   assert(facesMap.rows[frontDecAt + 2]?.dir === "Flip", "balance follows the decrease transfer");
   const frontNext = marked(joined[joined.indexOf(frontDec) + 1]);
   assert(
-    frontNext.some((cell) => cell.token === "F^R" && cell.phys === 14) &&
-      frontNext.some((cell) => cell.bed === "B" && cell.phys === 1) &&
-      !frontNext.some((cell) => cell.bed === "B" && cell.phys === 0),
-    "the next row starts at post-balance F14 and the racked back starts at B1",
+    frontNext.some((cell) => cell.token === "B^R" && cell.phys === 12) &&
+      !frontNext.some((cell) => cell.token === "F^R") &&
+      !frontNext.some((cell) => cell.bed === "B" && cell.phys === 0) &&
+      joined[joined.indexOf(frontDec) + 1].beds.includes("后18[1…18]"),
+    "the next row starts at post-balance B12 and the racked back window starts at B1",
   );
   const backDec = joined.find((row) => row.cells.some((cell) => cell.token === "B-R1"));
   const backKnit = marked(backDec);
   const backDecCell = backKnit.find((cell) => cell.token === "B-R1");
-  const backShift = marked(facesMap.rows[facesMap.rows.indexOf(backDec) + 1]);
+  const backAt = facesMap.rows.indexOf(backDec);
+  const backShift = marked(facesMap.rows[backAt + 1]);
   assert(
-    backDecCell?.phys === 16 &&
-      backKnit[backKnit.indexOf(backDecCell) + 1]?.token === "BvR" &&
-      backKnit[backKnit.indexOf(backDecCell) + 1]?.phys === 15,
-    "the back row continues at B15 after B16 on the same row",
+    backDecCell?.phys === 5 &&
+      backKnit.some((cell) => cell.token === "BvR" && cell.phys === 15) &&
+      !backKnit.some((cell) => cell.bed === "B" && cell.phys === 16),
+    "the back row knits up to B5, then continues at B15 past landing B16",
   );
   assert(
-    facesMap.rows[facesMap.rows.indexOf(backDec) + 1]?.dir === "X" &&
-      backShift[0]?.token === "B→" &&
-      backShift[0]?.phys === 15 &&
-      backShift.map((cell) => cell.phys).join(",") === [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].join(","),
-    "B15 stacks onto B16 and the rest of the back tail steps back one",
+    facesMap.rows[backAt + 1]?.dir === "X" &&
+      backShift.map((cell) => `${cell.token}/${cell.phys}`).join(",") === "B←/18,B←/17",
+    "R decreases the back high end: B17 stacks onto B16 and B18 moves to B17",
   );
   const backNext = marked(joined[joined.indexOf(backDec) + 1]);
-  assert(backNext.some((cell) => cell.token === "B^R" && cell.phys === 15), "the next row starts at post-decrease B15");
+  assert(backNext.some((cell) => cell.token === "B^R" && cell.phys === 16), "the next row starts at post-balance B16");
 }
 
 const fromDiscovery = projectFromDiscovery(index);
