@@ -13,10 +13,10 @@
  * has resumed the direction it started in, later apex pairs stay in
  * the same course. The ring is finished when its terms are finished;
  * the next stitch would be the next ring, and it is not a fold-return.
- * A shaping type is one event. The layout has no point list, so hang
- * is 1 — the unit event that creates Type 3/4/5/6/7/8 (n_extra >= 1).
- * An optional rings[i].hangs[] overrides that, still from the faces_ring
- * record.
+ * Increase and decrease needle counts are that term's hang: Term.remain,
+ * which path_generate stores as n_extra = |a-b| from the term's points.
+ * rings[0].hangs[] is that count. A missing list is an error. Hang is
+ * never defaulted to 1 because a type exists. Non-shaping terms are 0.
  *
  * Seating, after the ring is on the machine:
  *   F = ceil(N/2), B = floor(N/2), front low end is physical F0.
@@ -83,9 +83,16 @@ function loadRing0(path) {
     fail(`ring 0 types (${types?.length}) do not match n_terms ${ring?.n_terms}`);
   }
   if (ring.row !== 0) fail(`first faces_ring row is ${ring.row}, expected 0`);
-  const hangs = Array.isArray(ring.hangs) ? ring.hangs : null;
-  if (hangs && hangs.length !== types.length) fail("ring 0 hangs[] length is not n_terms");
-  return { types: types.map((t) => Number(t)), hangs, nRings: rings.length };
+  const hangs = ring?.hangs;
+  if (!Array.isArray(hangs) || hangs.length !== types.length) {
+    fail("ring 0 hangs[] must be the per-term n_extra from the faces_ring record");
+  }
+  const hangNums = hangs.map((n, i) => {
+    const v = Number(n);
+    if (!Number.isInteger(v) || v < 0) fail(`term ${i} hang ${n} is not a non-negative integer`);
+    return v;
+  });
+  return { types: types.map((t) => Number(t)), hangs: hangNums, nRings: rings.length };
 }
 
 /** Path-chain direction. 0 = knit right, 1 = knit left. */
@@ -104,15 +111,9 @@ export function assignDirections(types) {
   return dir;
 }
 
-function hangOf(types, hangs, index) {
-  if (hangs) {
-    const n = Number(hangs[index]);
-    if (!Number.isInteger(n) || n < 1) fail(`term ${index} hang ${hangs[index]} is not a positive integer`);
-    return n;
-  }
-  const t = types[index];
-  if (t === 3 || t === 4 || t === 5 || t === 6 || t === 7 || t === 8) return 1;
-  return 0;
+function hangOf(hangs, index) {
+  if (!hangs) fail("hangs[] is required; do not substitute 1");
+  return hangs[index];
 }
 
 function advance(col, direction, steps = 1) {
@@ -123,7 +124,7 @@ function advance(col, direction, steps = 1) {
  * Courses along the ring. Wales are the walk cursor of this ring.
  * They are not Step3 columns and they are not needle numbers.
  */
-export function coursesFromTypes(types, hangs = null) {
+export function coursesFromTypes(types, hangs) {
   const dir = assignDirections(types);
   const rows = [];
   let col = 0;
@@ -192,7 +193,7 @@ export function coursesFromTypes(types, hangs = null) {
     const t = types[i];
     const td = dir[i];
     const nxt = i + 1 < types.length ? dir[i + 1] : td;
-    const hang = hangOf(types, hangs, i);
+    const hang = hangOf(hangs, i);
 
     if (t === 4 || t === 6 || t === 8) {
       const added = hang;
@@ -1125,7 +1126,7 @@ function collectRows(header, needles, bodyRows, matrixes) {
 export function renderReport(built) {
   const lines = [];
   lines.push("faces_ring0 step4 床图（只含第一环）");
-  lines.push("输入只有 faces_ring_layout.json 的 ring 0（types，以及可选 hangs）。");
+  lines.push("输入只有 faces_ring_layout.json 的 ring 0（types 和 hangs）。加减针数是该项的 n_extra，不是缺省 1。");
   lines.push("Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。");
   lines.push(`底圈 N=${built.baseN}，拆成 F=${built.baseFront}、B=${built.baseBack}。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。`);
   lines.push(
@@ -1148,6 +1149,23 @@ export function renderReport(built) {
   });
   lines.push("");
   lines.push("折返只发生在走这一环的途中：短行从上一针被移圈之后的那一针起。环不是靠折返收口的。走完这一环之后，下一针是下一环的起点，这里不填。");
+  const shaping = built.termTypes
+    .map((t, i) => ({ i, t, h: built.hangs[i] }))
+    .filter((x) => x.t === 3 || x.t === 4 || x.t === 5 || x.t === 6 || x.t === 7 || x.t === 8);
+  const shapingText = shaping.map((x) => `term ${x.i} Type ${x.t} hang ${x.h}`).join("，");
+  lines.push(`加减针 hang（n_extra）：${shapingText || "无"}。`);
+  const shapingOther = shaping.filter((x) => x.h !== 1);
+  if (shapingOther.length) {
+    lines.push(
+      `其中 hang 不是 1 的：${shapingOther.map((x) => `term ${x.i} hang ${x.h}`).join("，")}。`,
+    );
+  } else {
+    lines.push("加减针里没有 hang 不是 1 的项。");
+  }
+  const other = built.hangs
+    .map((h, i) => ({ i, h, t: built.termTypes[i] }))
+    .filter((x) => x.h !== 1 && !(x.t === 3 || x.t === 4 || x.t === 5 || x.t === 6 || x.t === 7 || x.t === 8));
+  lines.push(`其余 ${other.length} 项不是加减针，hang 为 0。`);
   return `${lines.join("\n")}\n`;
 }
 
@@ -1182,7 +1200,13 @@ export function buildFromFacesRing(path = DEFAULT_PATHS.facesRing) {
   const planInfo = planBeds(base);
   const seated = seatRing(courses, planInfo);
   assertChart(seated);
-  return { ...seated, nRings: ring.nRings, types: ring.types.length };
+  return {
+    ...seated,
+    nRings: ring.nRings,
+    types: ring.types.length,
+    termTypes: ring.types,
+    hangs: ring.hangs,
+  };
 }
 
 function workbookBytes(built) {
@@ -1206,7 +1230,7 @@ function workbookBytes(built) {
   courseRows.push(["input", "faces_ring ring 0 only"]);
   courseRows.push(["not_input", "Step1 Step2 Step3 xls txt maps"]);
   const legendRows = [
-    ["input", "faces_ring_layout.json rings[0].types only. Optional hangs[] if the layout stores them."],
+    ["input", "faces_ring_layout.json rings[0].types and hangs[] (Term.remain / n_extra). Hang is not defaulted to 1."],
     ["not_input", "Step1, Step2, and Step3 xls/txt/maps were not read, joined, or used as column hints."],
     ["scope", "First faces_ring only. Later rings are not filled."],
     ["N", `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
