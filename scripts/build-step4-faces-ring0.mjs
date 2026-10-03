@@ -69,7 +69,9 @@
  * the next long row. Finishing the ring is not a fold-return: the
  * next stitch is the next ring.
  *
- * Later rings are not filled.
+ * Rings 0, 1, and 2 are one sheet. Ring 2 continues on the bed ring 1
+ * left behind. Its first stitch is the next stitch after ring 1, not
+ * a fold-return close.
  *
  *   node scripts/build-step4-faces-ring0.mjs
  *   node scripts/build-step4-faces-ring0.mjs --check
@@ -532,10 +534,32 @@ export function balanceBeds(stitches, plan, where) {
     const shortBed = longBed === "F" ? "B" : "F";
     let longWin = longBed === "F" ? win.front : win.back;
     let shortWin = longBed === "F" ? win.back : win.front;
-    const pair = longWin.at(-1);
+    let pair = longWin.at(-1);
+    // Several decreases on one row can walk the short bed's low end up
+    // while its high end stays past the flip index. Rack that bed back
+    // to 0 one needle at a time, then the same-index flip can run.
+    if (shortWin.includes(pair) && shortWin[0] > 0 && shortWin.at(-1) !== pair) {
+      let guard = 0;
+      while (shortWin[0] > 0) {
+        if (++guard > 8) fail(`${where}: ${shortBed} low end ${shortWin[0]} does not reach 0`);
+        const before = win.text;
+        const cells = rackBed(stitches, plan, shortBed, -1, where);
+        win = measure();
+        fixes.push({
+          dir: "X",
+          kind: "balance",
+          cells,
+          beds: before,
+          note: `${where}: rack ${shortBed} −1 so the low end returns toward 0 (${before} → ${win.text}).`,
+        });
+        longWin = longBed === "F" ? win.front : win.back;
+        shortWin = longBed === "F" ? win.back : win.front;
+        pair = longWin.at(-1);
+      }
+    }
     if (shortWin.includes(pair)) {
       if (shortWin.at(-1) !== pair || shortWin[0] < 1) {
-        fail(`${where}: right-fold pair ${shortBed}${pair} is occupied and a −1 rack cannot clear it`);
+        fail(`${where}: right-fold pair ${shortBed}${pair} is occupied and a −1 rack cannot clear it (${win.text})`);
       }
       const before = win.text;
       const cells = rackBed(stitches, plan, shortBed, -1, where);
@@ -578,7 +602,7 @@ export function balanceBeds(stitches, plan, where) {
     ];
     st.bed = shortBed;
     assertNoShare(stitches, where);
-    win = measure();
+    if (!onePast) win = measure();
     fixes.push({
       dir: "Flip",
       kind: "flip",
@@ -1170,18 +1194,22 @@ export function seatRing(courses, planInfo, carried = null) {
  * remaining stitches. Those stitches are the next course, counted on
  * the post-balance window.
  */
-export function seatContinuation(courses, seeds, prevDir = null) {
-  const stitches = new Map();
-  let nextId = 0;
-  for (const seed of seeds) {
-    const st = { id: nextId++, bed: seed.bed, phys: seed.phys, wale: null, base: true };
-    stitches.set(st.id, st);
+export function seatContinuation(courses, seeds, prevDir = null, carried = null) {
+  const stitches = carried ? carried.stitches : new Map();
+  let nextId = carried ? carried.nextId : 0;
+  if (!carried) {
+    if (!seeds?.length) fail("continuation has no bed to seat");
+    for (const seed of seeds) {
+      const st = { id: nextId++, bed: seed.bed, phys: seed.phys, wale: null, base: true };
+      stitches.set(st.id, st);
+    }
   }
-  const waleToId = new Map();
+  const waleToId = carried ? carried.waleToId : new Map();
   const sheet = [];
   const coursesOut = [];
   let prevEnd = null;
-  let cursor = stitches.get(0);
+  let cursor = carried ? carried.cursor : stitches.get(0);
+  if (!cursor || !stitches.has(cursor.id)) fail("continuation has no cursor");
 
   const liveFromWales = () => {
     const live = new Map();
@@ -1259,6 +1287,8 @@ export function seatContinuation(courses, seeds, prevDir = null) {
       const transfers = [];
       const notes = [];
       const pending = [];
+      let courseStart = null;
+      let knitted = 0;
       let at = cursor;
       let spanLeft = 0;
       let spanHang = 0;
@@ -1371,18 +1401,49 @@ export function seatContinuation(courses, seeds, prevDir = null) {
           }
           const spanCells = prefix.slice(-passes - 1);
           const drawnSpan = spanCells.map((c) => `${c.token}@${c.bed}${c.phys}`).join(" ");
-          let line = `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。然后从 ${recvName} 起移 ${passes} 次（${movedNotes.join("；")}）。移圈一结束就平衡床位。`;
+          const more = course.cells.slice(index + 1).some((item) => decAdded(item.label) && (item.kind === "dec" || item.kind === "wrapDec"));
+          let line = `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。然后从 ${recvName} 起移 ${passes} 次（${movedNotes.join("；")}）。`;
           spanHang = 0;
-          pastSpan = true;
-          if (index + 1 < course.cells.length) {
+          if (more) {
+            // Another decrease is still on this row. Keep knitting it
+            // after the transfer. Balance waits until the row's shaping ends.
+            line += `这一行还有减针，移圈之后接着织，整床平衡等这一行的减针做完。`;
+            notes.push(line);
+            if (!prefix.length) fail(`${where}: decrease row has no knit cells`);
+            finishKnit(prefix);
+            if (!courseStart) courseStart = prefix[0];
+            knitted += prefix.length;
+            const dirName = course.dir === 0 ? "R" : "L";
+            sheet.push({
+              dir: dirName,
+              kind: "knit",
+              course: ci,
+              cells: prefix.slice(),
+              beds: knitBeds,
+              note: notes.join(" "),
+            });
+            for (const row of transfers) sheet.push(row);
+            prefix.length = 0;
+            transfers.length = 0;
+            notes.length = 0;
+            knitBeds = null;
+            pastSpan = false;
             at = stepCircle(first, dirSign, stitches);
             if (!at || !stitches.has(at.id)) fail(`${where}: the next needle after the decrease is not on the bed`);
             if (at.id === first.id) fail(`${where}: continuation returned to the first decrease cell`);
-            line += ` 剩下的针是下一课，针号等平衡之后再数。`;
           } else {
-            line += ` 减针格后面没有剩下的针。`;
+            line += `移圈一结束就平衡床位。`;
+            pastSpan = true;
+            if (index + 1 < course.cells.length) {
+              at = stepCircle(first, dirSign, stitches);
+              if (!at || !stitches.has(at.id)) fail(`${where}: the next needle after the decrease is not on the bed`);
+              if (at.id === first.id) fail(`${where}: continuation returned to the first decrease cell`);
+              line += ` 剩下的针是下一课，针号等平衡之后再数。`;
+            } else {
+              line += ` 减针格后面没有剩下的针。`;
+            }
+            notes.push(line);
           }
-          notes.push(line);
         } else if (index + 1 < course.cells.length) {
           at = stepCircle(st, dirSign, stitches);
           if (!at || !stitches.has(at.id)) fail(`${where}: the next needle is not on the bed`);
@@ -1399,7 +1460,7 @@ export function seatContinuation(courses, seeds, prevDir = null) {
         if (seenId.has(item.id)) fail(`${where}: stitch ${item.id} is knitted twice`);
         seenId.add(item.id);
       }
-      const start = prefix[0];
+      const start = courseStart || prefix[0];
       const dirName = course.dir === 0 ? "R" : "L";
       sheet.push({
         dir: dirName,
@@ -1462,7 +1523,7 @@ export function seatContinuation(courses, seeds, prevDir = null) {
         dir: dirName,
         start: `${start.bed}${start.phys}`,
         end: knitEnd,
-        n: prefix.length + restCount,
+        n: knitted + prefix.length + restCount,
       });
       cursor = endSt;
       prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
@@ -1616,16 +1677,21 @@ export function seatContinuation(courses, seeds, prevDir = null) {
   if (seated.front.length !== seated.tF || seated.back.length !== seated.tB) {
     fail(`seated ${seated.text} is not F${seated.tF}/B${seated.tB}`);
   }
-  const frontN = seeds.filter((seed) => seed.bed === "F").length;
-  const backN = seeds.filter((seed) => seed.bed === "B").length;
+  const frontN = carried
+    ? [...stitches.values()].filter((st) => st.bed === "F").length
+    : seeds.filter((seed) => seed.bed === "F").length;
+  const backN = carried
+    ? [...stitches.values()].filter((st) => st.bed === "B").length
+    : seeds.filter((seed) => seed.bed === "B").length;
   return {
     sheet,
     courses: coursesOut,
     seated,
     live: listsOf(stitches),
-    baseN: seeds.length,
+    baseN: frontN + backN,
     baseFront: frontN,
     baseBack: backN,
+    bed: { stitches, waleToId, cursor, nextId },
   };
 }
 
@@ -1786,11 +1852,14 @@ export function renderReport(built) {
   if (built.afterFirst) {
     lines.push(`第一环落座之后 N=${built.afterFirst.N}，窗 ${built.afterFirst.text}。`);
   }
+  if (built.afterSecond) {
+    lines.push(`第二环结束 N=${built.afterSecond.N}，窗 ${built.afterSecond.text}。`);
+  }
   lines.push(
-    `${built.afterFirst ? "两环结束" : "落座之后"} N=${built.seated.N}，窗 ${built.seated.text}。目标 F=${built.seated.tF} / B=${built.seated.tB}。`,
+    `${built.afterSecond ? "第三环结束" : built.afterFirst ? "两环结束" : "落座之后"} N=${built.seated.N}，窗 ${built.seated.text}。目标 F=${built.seated.tF} / B=${built.seated.tB}。`,
   );
   lines.push("针号是 F# / B#。合图时后床列 = 37 − 物理针，这只是画法，不是从 Step3 抄来的列。");
-  lines.push(built.ringBreak ? "第三环起没有填。" : "后面的环没有填。");
+  lines.push(built.afterSecond ? "第四环起没有填。" : built.ringBreak ? "第三环起没有填。" : "后面的环没有填。");
   lines.push("");
   lines.push("行程（织行）起点针、终点针：");
   for (const course of built.courses) {
@@ -1806,16 +1875,36 @@ export function renderReport(built) {
   });
   lines.push("");
   lines.push(
-    built.ringBreak
-      ? "第二环从第一环的下一针 F0 接在这张表里。每一次折返短行单独成课。第三环起不填。"
-      : "每一次折返短行单独成课。一行相对上一行反向才是折返，第一针停在上一行终点针在移圈和整床移动之后所占的那一针。方向没有反向的下一行，从那一针沿本行方向再走一针。走完这一环的项之后，下一针是下一环的起点，这里不填。",
+    built.afterSecond
+      ? "第二环从第一环的下一针 F0 接在这张表里。第三环不重新落座，第一针是第二环结束之后沿本行方向的下一针；换环本身不是折返。一行相对上一行反向才是折返。每一次折返短行单独成课。第四环起不填。"
+      : built.ringBreak
+        ? "第二环从第一环的下一针 F0 接在这张表里。每一次折返短行单独成课。第三环起不填。"
+        : "每一次折返短行单独成课。一行相对上一行反向才是折返，第一针停在上一行终点针在移圈和整床移动之后所占的那一针。方向没有反向的下一行，从那一针沿本行方向再走一针。走完这一环的项之后，下一针是下一环的起点，这里不填。",
   );
-  const parts = built.ringBreak
-    ? [
-        { name: "第一环", types: built.termTypes.slice(0, built.ringBreak), hangs: built.hangs.slice(0, built.ringBreak), at: 0 },
-        { name: "第二环", types: built.termTypes.slice(built.ringBreak), hangs: built.hangs.slice(built.ringBreak), at: built.ringBreak },
-      ]
+  const breaks = built.ringBreaks || (built.ringBreak != null ? [built.ringBreak] : []);
+  const names = ["第一环", "第二环", "第三环"];
+  const parts = breaks.length
+    ? breaks.concat(built.types).map((end, i) => {
+        const at = i === 0 ? 0 : breaks[i - 1];
+        return { name: names[i] || `第${i + 1}环`, types: built.termTypes.slice(at, end), hangs: built.hangs.slice(at, end), at };
+      })
     : [{ name: "", types: built.termTypes, hangs: built.hangs, at: 0 }];
+  if (built.afterSecond) {
+    let prevDir = null;
+    built.sheet.forEach((row, i) => {
+      if (row.dir !== "R" && row.dir !== "L") return;
+      if (row.course < built.courses.length - built.ring2Courses) {
+        prevDir = row.dir;
+        return;
+      }
+      const fold = prevDir != null && row.dir !== prevDir;
+      const start = row.cells[0];
+      lines.push(
+        `  第三环 row ${i} course ${row.course} ${row.dir} 起点 ${start.bed}${start.phys} ${fold ? "折返" : "续走"}`,
+      );
+      prevDir = row.dir;
+    });
+  }
   for (const part of parts) {
     const shaping = part.types
       .map((t, i) => ({ i: i + part.at, t, h: part.hangs[i] }))
@@ -1883,48 +1972,75 @@ function shiftTerm(cell, offset) {
   return next;
 }
 
-/** Ring 0, then ring 1 on the same bed, one chart. */
+function loadJoinedRing(layout, index) {
+  const ring = layout.rings?.[index];
+  if (!ring) fail(`faces_ring has no ring ${index}`);
+  const types = ring.types?.map((t) => Number(t));
+  const hangs = ring.hangs?.map((n) => Number(n));
+  if (!types || types.length !== ring.n_terms || !hangs || hangs.length !== types.length) {
+    fail(`ring ${index} types and hangs do not match`);
+  }
+  hangs.forEach((n, i) => {
+    if (!Number.isInteger(n) || n < 0) fail(`ring ${index} term ${i} hang ${n} is not a non-negative integer`);
+  });
+  return { types, hangs };
+}
+
+function shiftSheet(rows, courseOffset, termOffset) {
+  return rows.map((row) => ({
+    ...row,
+    course: row.course + courseOffset,
+    note: row.note ? row.note.replace(/course (\d+)/g, (_, n) => `course ${Number(n) + courseOffset}`) : row.note,
+    cells: row.cells.map((cell) => shiftTerm(cell, termOffset)),
+  }));
+}
+
+/** Rings 0, 1, and 2 on one bed. Ring 2 keeps ring 1's stitches. */
 export function buildJoinedChart(path = DEFAULT_PATHS.facesRing) {
   const first = buildFromFacesRing(path);
   const layout = JSON.parse(readFileSync(path, "utf8"));
-  const ring = layout.rings[1];
-  const types = ring.types.map((t) => Number(t));
-  const hangs = ring.hangs.map((n) => Number(n));
-  if (types.length !== ring.n_terms || hangs.length !== types.length) {
-    fail("ring 1 types and hangs do not match");
-  }
+  const ring1 = loadJoinedRing(layout, 1);
   const seeds = [];
   for (let p = 0; p <= 18; p++) seeds.push({ bed: "F", phys: p });
   for (let p = 18; p >= 0; p--) seeds.push({ bed: "B", phys: p });
   const last = first.courses.at(-1);
   const prevDir = last ? (last.dir === "R" ? 0 : 1) : null;
-  const second = seatContinuation(coursesFromTypes(types, hangs), seeds, prevDir);
+  const second = seatContinuation(coursesFromTypes(ring1.types, ring1.hangs), seeds, prevDir);
+  const ring2 = loadJoinedRing(layout, 2);
+  const prev2 = second.courses.at(-1);
+  const prevDir2 = prev2 ? (prev2.dir === "R" ? 0 : 1) : null;
+  const third = seatContinuation(coursesFromTypes(ring2.types, ring2.hangs), null, prevDir2, second.bed);
   const n0 = first.courses.length;
+  const n1 = second.courses.length;
+  const term1 = first.types + ring1.types.length;
   const sheet = [
     ...first.sheet,
-    ...second.sheet.map((row) => ({
-      ...row,
-      course: row.course + n0,
-      note: row.note ? row.note.replace(/course (\d+)/g, (_, n) => `course ${Number(n) + n0}`) : row.note,
-      cells: row.cells.map((cell) => shiftTerm(cell, first.types)),
-    })),
+    ...shiftSheet(second.sheet, n0, first.types),
+    ...shiftSheet(third.sheet, n0 + n1, term1),
   ];
   return {
     sheet,
-    courses: [...first.courses, ...second.courses.map((course) => ({ ...course, course: course.course + n0 }))],
-    seated: second.seated,
+    courses: [
+      ...first.courses,
+      ...second.courses.map((course) => ({ ...course, course: course.course + n0 })),
+      ...third.courses.map((course) => ({ ...course, course: course.course + n0 + n1 })),
+    ],
+    seated: third.seated,
     afterFirst: first.seated,
+    afterSecond: second.seated,
     baseN: first.baseN,
     baseFront: first.baseFront,
     baseBack: first.baseBack,
-    types: first.types + types.length,
-    termTypes: [...first.termTypes, ...types],
-    hangs: [...first.hangs, ...hangs],
+    types: term1 + ring2.types.length,
+    termTypes: [...first.termTypes, ...ring1.types, ...ring2.types],
+    hangs: [...first.hangs, ...ring1.hangs, ...ring2.hangs],
     ringBreak: first.types,
+    ringBreaks: [first.types, term1],
+    ring2Courses: third.courses.length,
     sheetName: "ring0",
-    title: "faces_ring step4 床图（第一环和第二环接在一起）",
+    title: "faces_ring step4 床图（第一环、第二环、第三环接在一起）",
     inputLine:
-      "输入只有 faces_ring_layout.json 的 ring 0 和 ring 1（types 和 hangs）。第二环从第一环结束的下一针 F0 接着织。加减针数是该项的 n_extra。",
+      "输入只有 faces_ring_layout.json 的 ring 0、ring 1 和 ring 2（types 和 hangs）。第二环从第一环结束的下一针 F0 接着织。第三环不重新落座，第一针是第二环结束之后的下一针。加减针数是该项的 n_extra。",
   };
 }
 
@@ -1946,12 +2062,12 @@ export function workbookBytes(built) {
   courseRows.push([]);
   courseRows.push(["baseN", String(built.baseN), `F${built.baseFront}`, `B${built.baseBack}`]);
   courseRows.push(["seatedN", String(built.seated.N), `F${built.seated.tF}`, `B${built.seated.tB}`, built.seated.text]);
-  courseRows.push(["input", built.ringBreak ? "faces_ring ring 0 then ring 1" : "faces_ring ring 0 only"]);
+  courseRows.push(["input", built.afterSecond ? "faces_ring rings 0, 1, and 2" : built.ringBreak ? "faces_ring ring 0 then ring 1" : "faces_ring ring 0 only"]);
   courseRows.push(["not_input", "Step1 Step2 Step3 xls txt maps"]);
   const legendRows = [
     ["input", built.inputLine || "faces_ring_layout.json rings[0].types and hangs[] (Term.remain / n_extra). Hang is not defaulted to 1."],
     ["not_input", "Step1, Step2, and Step3 xls/txt/maps were not read, joined, or used as column hints."],
-    ["scope", built.ringBreak ? "Ring 0 and ring 1 on one sheet. Later rings are not filled." : "First faces_ring only. Later rings are not filled."],
+    ["scope", built.afterSecond ? "Rings 0, 1, and 2 on one sheet. Ring 2 continues the seated bed. Later rings are not filled." : built.ringBreak ? "Ring 0 and ring 1 on one sheet. Later rings are not filled." : "First faces_ring only. Later rings are not filled."],
     ["N", `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
     ["draw", "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
     ["此刻活针", "Last column is how many stitches are already seated when the row starts. 0针 means the beds are still empty. It is not a needle number."],
@@ -2087,10 +2203,12 @@ function assertRunningDecrease(built) {
     const dec = row.cells.find((cell) => decAdded(cell.label || ""));
     if (dec) hits.push({ index, row, dec });
   });
-  if (hits.length !== 2) fail(`expected two knitted decreases, got ${hits.length}`);
+  if (hits.length !== 6) fail(`expected six knitted decreases, got ${hits.length}`);
   for (const { index, row, dec } of hits) {
     const prev = rows[index - 1];
-    if (prev && prev.kind === "decrease") fail(`decrease at ${dec.bed}${dec.phys} moved the bed before the knit reached it`);
+    if (prev && prev.kind === "decrease" && prev.course !== row.course) {
+      fail(`decrease at ${dec.bed}${dec.phys} moved the bed before the knit reached it`);
+    }
     const hang = decAdded(dec.label || "");
     const decAt = row.cells.indexOf(dec);
     const span = row.cells.slice(decAt, decAt + hang + 1);
@@ -2141,6 +2259,13 @@ function assertRunningDecrease(built) {
     if (between.some((item) => item.kind === "knit")) {
       fail(`course ${row.course} knitted the rest of the row before balance`);
     }
+    const laterIsNextDecrease = later && later.cells.some((cell) => decAdded(cell.label || ""));
+    if (laterIsNextDecrease) {
+      if (between.some((item) => item.kind === "balance" || item.kind === "flip")) {
+        fail(`course ${row.course} balanced before a later decrease on the same row`);
+      }
+      continue;
+    }
     const knitted = later ? [...row.cells, ...later.cells] : row.cells;
     if (dec.bed === "F" && knitted.some((cell) => cell.bed === "B")) {
       fail(`front decrease row appended the back-bed tail`);
@@ -2152,8 +2277,12 @@ function assertRunningDecrease(built) {
     const nextKnit = rows.slice(cursor + (later ? 1 : 0)).find((item) => item.kind === "knit");
     if (!nextKnit) fail(`course ${row.course} has no following row`);
     if (nextKnit.course === row.course) fail(`course ${row.course} has another knit after the remaining row`);
-    if (nextKnit.cells[0].id !== endRow.cells.at(-1).id) {
-      fail(`course ${row.course} next row does not start on the end stitch`);
+    const reversed = nextKnit.dir !== endRow.dir;
+    if (reversed && nextKnit.cells[0].id !== endRow.cells.at(-1).id) {
+      fail(`course ${row.course} fold-return does not start on the end stitch`);
+    }
+    if (!reversed && nextKnit.cells[0].id === endRow.cells.at(-1).id) {
+      fail(`course ${row.course} stayed on the end stitch without reversing`);
     }
     const tail = rows.slice(cursor + (later ? 1 : 0), rows.indexOf(nextKnit));
     if (tail.some((item) => item.course === row.course && (item.kind === "flip" || item.kind === "balance"))) {

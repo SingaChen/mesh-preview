@@ -188,14 +188,14 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   for (const value of facesMap.faceByCell.values()) {
     for (const face of Array.isArray(value) ? value : [value]) faceIds.add(face);
   }
-  assert(faceIds.has(0) && faceIds.has(46) && faceIds.size === 182, "the one sheet maps ring 0 and ring 1 stitch faces");
+  assert(faceIds.has(0) && faceIds.has(46) && faceIds.has(182) && faceIds.size === 292, "the one sheet maps ring 0, ring 1, and ring 2 stitch faces");
   const bind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
   const face0 = stitchForMapCell(0, 0, bind, null, facesMap);
   assert(face0?.index === 0, "clicking the first cell selects stitch face 0, not a step3 column");
   const term21 = highlightKeysForStitch({ index: 21 }, { map: facesMap, bind });
   assert(term21.size === 2, "the hang-1 increase term lights both of its knit cells");
   const joined = facesMap.rows.filter((row) => row.dir === "R" || row.dir === "L");
-  assert(joined.length === 24, "each decrease adds a continuation knit after its transfer, so the sheet has ring 0's five courses plus ring 1's seventeen courses and two continuation rows");
+  assert(joined.length === 41, "ring 2 adds thirteen courses, and its four decreases keep knitting the same row, so the sheet has 41 knit rows");
   assert(joined[0].cells.some((cell) => cell.bed === "F" && cell.phys === 0), "the sheet still starts at F0");
   assert(joined[5].cells.some((cell) => cell.bed === "F" && cell.phys === 0), "ring 1 continues at F0 on the same sheet");
   const marked = (row) => (row?.cells || []).filter((cell) => cell.token);
@@ -318,6 +318,22 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   const face51 = highlightKeysForStitch({ index: 51 }, { map: facesMap, bind });
   const face123 = highlightKeysForStitch({ index: 123 }, { map: facesMap, bind });
   assert(face51.size === 2 && face123.size === 2, "each hang-1 decrease lights both span cells");
+  const ring2 = joined[24];
+  const ring2Cells = marked(ring2);
+  assert(
+    ring2.dir === "R" &&
+      ring2Cells[0]?.token === "F·" &&
+      ring2Cells[0]?.phys === 0 &&
+      ring2Cells[0]?.faceIndex === 182 &&
+      joined[23].dir === "R",
+    "ring 2 keeps the bed and starts one needle further, at F0, because the direction did not reverse",
+  );
+  const face253 = highlightKeysForStitch({ index: 253 }, { map: facesMap, bind });
+  assert(face253.size === 2, "ring 2's hang-1 increase lights both of its knit cells");
+  for (const face of [266, 279, 282, 284]) {
+    const keys = highlightKeysForStitch({ index: face }, { map: facesMap, bind });
+    assert(keys.size === 2, `ring 2 decrease face ${face} lights both span cells`);
+  }
 }
 
 const fromDiscovery = projectFromDiscovery(index);
