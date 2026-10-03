@@ -737,11 +737,11 @@ function applyIncrease(live, stitches, pivot, step, shapeBed) {
 
 function liveWindow(stitches) {
   const { f, b, N } = listsOf(stitches);
-  const side = (bed, list) => {
-    if (!list.length) return `${bed}—`;
-    return `${bed}${list.length}[${spanText(list.map((st) => st.phys))}]`;
+  const side = (name, list) => {
+    if (!list.length) return `${name}空`;
+    return `${name}${list.length}[${spanText(list.map((st) => st.phys))}]`;
   };
-  return `N${N} ${side("F", f)} / ${side("B", b)}`;
+  return `${N}针 · ${side("前", f)} · ${side("后", b)}`;
 }
 
 /**
@@ -851,6 +851,7 @@ export function seatRing(courses, planInfo) {
         id: st.id,
         role: "knit",
         label: cell.label,
+        tIdx: cell.tIdx,
       });
     }
     const seenNeedle = new Set();
@@ -1075,7 +1076,7 @@ function collectRows(header, needles, bodyRows, matrixes) {
   const rows = [];
   const head = [{ r: 0, value: header, fill: FILL.plain }];
   needles.forEach((n) => head.push({ r: 0, value: n, fill: FILL.plain }));
-  head.push({ r: 0, value: "分布", fill: FILL.plain });
+  head.push({ r: 0, value: "此刻活针", fill: FILL.plain });
   rows.push(head);
   bodyRows.forEach((row, i) => {
     const line = [{ r: i + 1, value: row.dir, fill: FILL.plain }];
@@ -1116,7 +1117,7 @@ export function renderReport(built) {
     lines.push("表行（格子按织的顺序，不是按表列从左到右）：");
   built.sheet.forEach((row, i) => {
     const cells = row.cells.map((c) => `${c.token}@${c.bed}${c.phys}`).join(" ");
-    lines.push(`  row ${i} ${row.dir}  开始窗 ${row.beds}`);
+    lines.push(`  row ${i} ${row.dir}  这一行开始时 ${row.beds}`);
     lines.push(`    ${cells}`);
     if (row.note) lines.push(`    ${row.note}`);
   });
@@ -1208,10 +1209,29 @@ function workbookBytes(built) {
     ["scope", "First faces_ring only. Later rings are not filled."],
     ["N", `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
     ["draw", "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
+    ["此刻活针", "Last column is how many stitches are already seated when the row starts. 0针 means the beds are still empty. It is not a needle number."],
+    ["phys", "Sheet phys copies the bed and physical needle already tracked on each cell."],
+    ["faces", "Sheet faces maps a knit cell to the ring-0 KnittingStitches face. Face index is the term index. Step3 columns are not used."],
     ["move", "1 needle omits the number (F→, B←). A number appears only for 2 or more."],
     ["flip", "Right fold only, same physical index."],
   ];
-  const { bedRows, extras } = collectRows("dir\\col", needles, body, [courseRows, legendRows]);
+  const physRows = [["sheetRow", "sheetCol", "bed", "phys"]];
+  const faceRows = [["sheetRow", "sheetCol", "face"]];
+  built.sheet.forEach((row, sheetRow) => {
+    for (const cell of row.cells) {
+      if ((cell.bed === "F" || cell.bed === "B") && Number.isInteger(cell.phys)) {
+        physRows.push([sheetRow, cell.col, cell.bed, cell.phys]);
+      }
+      if (row.kind === "knit" && Number.isInteger(cell.tIdx)) {
+        faceRows.push([sheetRow, cell.col, cell.tIdx]);
+      }
+    }
+  });
+  const knitFaces = new Set(faceRows.slice(1).map((row) => row[2]));
+  for (let i = 0; i < built.types; i++) {
+    if (!knitFaces.has(i)) fail(`ring 0 term ${i} has no knit cell on the chart`);
+  }
+  const { bedRows, extras } = collectRows("dir\\col", needles, body, [courseRows, legendRows, physRows, faceRows]);
   const fills = new Set([FILL.plain]);
   for (const row of [...bedRows, ...extras.flat()]) {
     for (const cell of row) if (cell.fill) fills.add(cell.fill);
@@ -1226,6 +1246,8 @@ function workbookBytes(built) {
     sheetBytes("ring0", bedRows, xfIndexForFill),
     sheetBytes("courses", extras[0], xfIndexForFill),
     sheetBytes("legend", extras[1], xfIndexForFill),
+    sheetBytes("phys", extras[2], xfIndexForFill),
+    sheetBytes("faces", extras[3], xfIndexForFill),
   ];
   const xfBytes = Buffer.concat(palette.map((fill) => xfRecord(icvForFill(fill))));
   const bofBytes = bof(0x0005);

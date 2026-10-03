@@ -180,6 +180,17 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
   assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");
   assert(facesMap.rows.some((row) => row.cells.some((cell) => cell.token.startsWith("F"))), "faces-ring0 chart has front-bed tokens");
+  assert(facesMap.bedsHeader === "此刻活针", "faces-ring0 last column is the live-stitch count");
+  assert(facesMap.rows[0].beds.startsWith("0针"), "first row starts with no seated stitches");
+  const front0 = facesMap.rows[0].cells.find((cell) => cell.col === 0 && cell.token);
+  assert(physicalNeedleGlyph(front0) === "F0" && front0.faceIndex === 0, "first knit cell is physical F0 and stitch face 0");
+  const faceIds = new Set(facesMap.faceByCell.values());
+  assert(faceIds.size === 46 && [...faceIds].every((id) => id >= 0 && id < 46), "every ring-0 stitch face is on a knit cell");
+  const bind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
+  const face0 = stitchForMapCell(0, 0, bind, null, facesMap);
+  assert(face0?.index === 0, "clicking the first cell selects stitch face 0, not a step3 column");
+  const term21 = highlightKeysForStitch({ index: 21 }, { map: facesMap, bind });
+  assert(term21.size === 2, "the hang-1 increase term lights both of its knit cells");
 }
 
 const fromDiscovery = projectFromDiscovery(index);

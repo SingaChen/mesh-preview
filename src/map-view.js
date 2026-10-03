@@ -447,7 +447,7 @@ export class ReadableMapView {
       ctx.fillStyle = labelInk;
       ctx.font = `9px ${LABEL_FONT}`;
       ctx.textAlign = "center";
-      ctx.fillText("分布", x + bedsW / 2, HEAD_H / 2);
+      ctx.fillText(g.bedsHeader || "分布", x + bedsW / 2, HEAD_H / 2);
       ctx.font = `11px ${LABEL_FONT}`;
       ctx.textAlign = "left";
       for (let r = 0; r < g.nRows; r++) {

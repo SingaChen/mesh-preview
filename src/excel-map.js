@@ -148,6 +148,20 @@ function parsePhysSheet(sheet) {
   return byCell;
 }
 
+function parseFaceSheet(sheet) {
+  const byCell = new Map();
+  for (let r = 1; r < (sheet?.rows?.length || 0); r++) {
+    const row = sheet.rows[r] || [];
+    const sheetRow = Number(row[0]);
+    const sheetCol = Number(row[1]);
+    const face = Number(row[2]);
+    if (!Number.isInteger(sheetRow) || !Number.isInteger(sheetCol) || !Number.isInteger(face) || face < 0) continue;
+    const key = `${sheetRow},${sheetCol}`;
+    if (!byCell.has(key)) byCell.set(key, face);
+  }
+  return byCell;
+}
+
 const NO_PHYSICAL_NEEDLE = { title: "无物理针", detail: "无物理针" };
 
 /** Bed and physical needle already recorded on a cell. Column is not a needle. */
@@ -229,10 +243,16 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
   }
   const colMin = Math.min(...needles.map((n) => n.needle));
   const colMax = Math.max(...needles.map((n) => n.needle));
-  const bedsCol = headerRow.findIndex((cell, index) => index > 0 && tokenString(cell) === "分布");
+  const bedsCol = headerRow.findIndex((cell, index) => {
+    if (index === 0) return false;
+    const label = tokenString(cell);
+    return label === "分布" || label === "此刻活针";
+  });
+  const bedsHeader = bedsCol > 0 ? tokenString(headerRow[bedsCol]) : "";
   const legend = parseLegendSheet(findXlsSheet(book, "legend"));
   const cellMap = parseCellMapSheet(findXlsSheet(book, "cellmap"));
   const physByCell = parsePhysSheet(findXlsSheet(book, "phys"));
+  const faceByCell = parseFaceSheet(findXlsSheet(book, "faces"));
 
   const rows = [];
   const cells = [];
@@ -254,6 +274,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
       const kind = excelLegendKind(token, dir);
       const resolvedFill = fill || EXCEL_LEGEND_FILLS[kind] || null;
       const recorded = physByCell.get(`${rows.length},${needle}`);
+      const faceIndex = faceByCell.get(`${rows.length},${needle}`);
       const cell = {
         row: rows.length,
         sheetRow: r,
@@ -267,6 +288,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
         source: "excel",
         bed: recorded?.bed,
         phys: recorded?.phys,
+        faceIndex: Number.isInteger(faceIndex) ? faceIndex : null,
       };
       rowCells.push(cell);
       if (token || xfRow[sheetCol] != null) cells.push(cell);
@@ -301,6 +323,8 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
     bindToSheet: cellMap.byBind,
     foldLink: cellMap.foldLink,
     physByCell,
+    faceByCell,
+    bedsHeader,
     styles,
     xfers: [],
     rowMin: 0,

@@ -119,6 +119,7 @@ export function buildExcelReadableMapGrid(map) {
     xfers: [],
     header: map.header || null,
     headerLabel: map.headerLabel || "dir\\col",
+    bedsHeader: map.bedsHeader || "",
     rows: map.rows,
     source: "excel",
     theme: "excel",
@@ -299,9 +300,19 @@ function excelRowDir(grid, displayRow) {
  * Never highlight X / X+ transfer rows. No column-wide fallback.
  * Txt: existing generation-order pairing (cell i ↔ face i) plus row/col.
  */
+function keysForFace(map, face) {
+  const keys = new Set();
+  if (!map?.faceByCell || !Number.isInteger(face)) return keys;
+  for (const [key, index] of map.faceByCell) {
+    if (index === face) keys.add(key);
+  }
+  return keys;
+}
+
 export function highlightKeysForStitch(stitch, { map = null, grid = null, bind = null } = {}) {
   const keys = new Set();
   if (!stitch) return keys;
+  if (map?.faceByCell?.size) return keysForFace(map, Number(stitch.index));
   if (isExcelView(map, grid)) {
     const cells = mapCellsForStitch(stitch, bind);
     if (hasCellMap(map)) {
@@ -382,6 +393,12 @@ function findBoundStitch(rec, stitches) {
  * Transfer / empty cells have no face.
  */
 export function stitchForMapCell(row, col, bind, stitches = null, map = null) {
+  if (map?.faceByCell?.size) {
+    const face = map.faceByCell.get(`${Number(row)},${Number(col)}`);
+    if (!Number.isInteger(face)) return null;
+    if (Array.isArray(stitches)) return stitches.find((s) => s.index === face) || null;
+    return { index: face, face_index: face, path_index: 0, term_index: face };
+  }
   let bindRow;
   let bindCol;
   if (hasCellMap(map)) {
@@ -410,6 +427,11 @@ export function stitchForMapCell(row, col, bind, stitches = null, map = null) {
 
 /** Same keys as clicking the bound stitch face (whole term span). */
 export function highlightKeysForMapCell(row, col, { map = null, grid = null, bind = null } = {}) {
+  if (map?.faceByCell?.size) {
+    const face = map.faceByCell.get(`${Number(row)},${Number(col)}`);
+    if (!Number.isInteger(face)) return new Set();
+    return keysForFace(map, face);
+  }
   let bindRow;
   let bindCol;
   if (hasCellMap(map)) {

@@ -14,21 +14,21 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   course 4 R  start B15  end B0  （16 针）
 
 表行（格子按织的顺序，不是按表列从左到右）：
-  row 0 R  开始窗 N0 F— / B—
+  row 0 R  这一行开始时 0针 · 前空 · 后空
     F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 B·@B18 BvR@B17
-  row 1 X+  开始窗 N21 F19[0…18] / B2[17…18]
+  row 1 X+  这一行开始时 21针 · 前19[0…18] · 后2[17…18]
     B→@B18
     course 1: partial increase move on B, then the increase, balance after the knit.
-  row 2 L  开始窗 N21 F19[0…18] / B2[17…19]
+  row 2 L  这一行开始时 21针 · 前19[0…18] · 后2[17…19]
     B+R1@B17 B^R@B18 BvL@B19
-  row 3 X  开始窗 F19[0…18] / B19[1…19]
+  row 3 X  这一行开始时 F19[0…18] / B19[1…19]
     B←@B19 B←@B18 B←@B17
     course 1: counts match and the beds are one needle apart. Rack B -1 (F19[0…18] / B19[1…19] → F19[0…18] / B19[0…18]).
-  row 4 R  开始窗 N22 F19[0…18] / B3[16…18]
+  row 4 R  这一行开始时 22针 · 前19[0…18] · 后3[16…18]
     B^L@B18 B·@B17 B·@B16 B·@B15 BvR@B14
-  row 5 L  开始窗 N24 F19[0…18] / B5[14…18]
+  row 5 L  这一行开始时 24针 · 前19[0…18] · 后5[14…18]
     B^R@B14 BvL@B15
-  row 6 R  开始窗 N24 F19[0…18] / B5[14…18]
+  row 6 R  这一行开始时 24针 · 前19[0…18] · 后5[14…18]
     B^L@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
 
 每一次折返短行单独成课，从上一针被移圈之后的那一针起。整床平衡把终点针收进一针时，下一课从落座后沿行程方向向外的那一针起。走完这一环的项之后，下一针是下一环的起点，这里不填。
