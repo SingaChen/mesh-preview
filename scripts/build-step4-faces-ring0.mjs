@@ -22,11 +22,15 @@
  *   The extra stitch when the counts differ by 1 is the fold gap.
  * Identity is F# / B#. A combined chart may draw back = 37 − phys.
  * Course start is the previous course's end, plus transfers and any
- * whole-bed balance since that end. Only a fold-return starts on that
- * same end stitch, on the needle it occupies after the shift. Do not
- * step one extra needle on a fold-return. A course that is not a
- * fold-return starts one needle further in its own travel direction.
- * Do not stay on the end needle when the course is not a fold-return.
+ * whole-bed balance since that end. A row is a fold-return if and only
+ * if its travel direction reverses from the previous row. The first
+ * label is not that test: a reversed row that opens on +R1 is still a
+ * fold-return. A fold-return starts on that same end stitch, on the
+ * needle it occupies after the shift. Do not step one extra needle on
+ * a fold-return. A course whose direction does not reverse starts one
+ * needle further in its own travel direction. Do not stay on the end
+ * needle when the course is not a fold-return. Do not classify a
+ * reversed row as a normal row.
  * Increase: if a row has n increase sites, do those transfers first
  * to open every site, then knit the whole row once. Do not
  * transfer-and-knit at each site. While the course travels, every
@@ -303,9 +307,12 @@ function decAdded(label) {
   return tail ? Number(tail[1]) : 0;
 }
 
-/** A fold-return course opens on the previous turn. Its first label is ^R or ^L. */
-function isFoldReturn(course) {
-  return /^\^/.test(course?.cells?.[0]?.label || "");
+/**
+ * A row is a fold-return if and only if its travel direction reverses
+ * from the previous row. The opening label is not the test.
+ */
+function isFoldReturn(course, prevDir) {
+  return prevDir != null && course.dir !== prevDir;
 }
 
 function decSide(label) {
@@ -940,8 +947,10 @@ export function seatRing(courses, planInfo, carried = null) {
     for (const seed of carried) birth({ bed: seed.bed, phys: seed.phys, base: true }, seed.wale, true);
   }
 
+  let prevDir = null;
   for (let ci = 0; ci < courses.length; ci++) {
     const course = courses[ci];
+    const fold = isFoldReturn(course, prevDir);
     const step = course.dir === 0 ? 1 : -1;
     const where = `course ${ci}`;
     const incs = course.cells.filter((c) => incAdded(c.label));
@@ -1005,10 +1014,10 @@ export function seatRing(courses, planInfo, carried = null) {
       if (index === 0 && prevEnd) {
         const endSt = stitches.get(prevEnd.id);
         if (!endSt) fail(`${where}: previous end stitch left the bed`);
-        // Fold-return: the end stitch, on the needle it occupies after
-        // transfers. Anything else: one needle further in this course's
-        // direction. Do not stay on the end needle.
-        st = isFoldReturn(course) ? endSt : stepCircle(endSt, dirSign, stitches);
+        // Direction reversed: the end stitch, on the needle it occupies
+        // after transfers. Same direction: one needle further. Do not
+        // stay on the end needle, and do not step off it on a reversal.
+        st = fold ? endSt : stepCircle(endSt, dirSign, stitches);
         claimWale(live, stitches, st, cell.wale);
       } else {
         let id = live.get(cell.wale);
@@ -1069,7 +1078,7 @@ export function seatRing(courses, planInfo, carried = null) {
     settleColumns(knitCells, dirSign, where);
     const start = knitCells[0];
     const end = knitCells.at(-1);
-    if (prevEnd && isFoldReturn(course)) {
+    if (prevEnd && fold) {
       const endSt = stitches.get(prevEnd.id);
       if (!endSt) fail(`${where}: fold-return lost the previous end stitch`);
       if (start.id !== endSt.id) {
@@ -1121,6 +1130,7 @@ export function seatRing(courses, planInfo, carried = null) {
       const endSt = stitches.get(prevEnd.id);
       if (endSt) prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
     }
+    prevDir = course.dir;
   }
 
   if (!carried) {
@@ -1160,7 +1170,7 @@ export function seatRing(courses, planInfo, carried = null) {
  * remaining stitches. Those stitches are the next course, counted on
  * the post-balance window.
  */
-export function seatContinuation(courses, seeds) {
+export function seatContinuation(courses, seeds, prevDir = null) {
   const stitches = new Map();
   let nextId = 0;
   for (const seed of seeds) {
@@ -1194,17 +1204,18 @@ export function seatContinuation(courses, seeds) {
       for (let g = 1; g <= added; g++) fresh.add(cell.wale + step * g);
     }
 
+    const fold = isFoldReturn(course, prevDir);
     const bindWalk = () => {
       const placed = [];
       let at = cursor;
       course.cells.forEach((cell, index) => {
-        if (index === 0 && isFoldReturn(course)) {
+        if (index === 0 && fold) {
           if (!cursor || !stitches.has(cursor.id)) fail(`${where}: fold-return has no end stitch`);
           at = cursor;
         } else if (index === 0 && waleToId.size === 0) at = cursor;
         else if (index === 0) {
-          // Not a fold-return. One needle further in this course's direction.
-          // Do not stay on the end stitch the wale still names.
+          // Direction did not reverse. One needle further in this course's
+          // direction. Do not stay on the end stitch the wale still names.
           const endSt = cursor && stitches.get(cursor.id);
           if (!endSt) fail(`${where}: previous end stitch left the bed`);
           at = stepCircle(endSt, dirSign, stitches);
@@ -1259,7 +1270,7 @@ export function seatContinuation(courses, seeds) {
       let recvPhys = null;
       course.cells.forEach((cell, index) => {
         if (index === 0) {
-          if (isFoldReturn(course)) {
+          if (fold) {
             if (!cursor || !stitches.has(cursor.id)) fail(`${where}: fold-return has no end stitch`);
             at = cursor;
           } else if (waleToId.size === 0) at = cursor;
@@ -1597,6 +1608,7 @@ export function seatContinuation(courses, seeds) {
         prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
       }
     }
+    prevDir = course.dir;
   }
 
   const seated = windowText(stitches, new Map(), "seated");
@@ -1796,7 +1808,7 @@ export function renderReport(built) {
   lines.push(
     built.ringBreak
       ? "第二环从第一环的下一针 F0 接在这张表里。每一次折返短行单独成课。第三环起不填。"
-      : "每一次折返短行单独成课。折返的第一针是上一行终点针在移圈和整床移动之后所占的那一针。不是折返的下一行，从那一针沿本行方向再走一针。走完这一环的项之后，下一针是下一环的起点，这里不填。",
+      : "每一次折返短行单独成课。一行相对上一行反向才是折返，第一针停在上一行终点针在移圈和整床移动之后所占的那一针。方向没有反向的下一行，从那一针沿本行方向再走一针。走完这一环的项之后，下一针是下一环的起点，这里不填。",
   );
   const parts = built.ringBreak
     ? [
@@ -1884,7 +1896,9 @@ export function buildJoinedChart(path = DEFAULT_PATHS.facesRing) {
   const seeds = [];
   for (let p = 0; p <= 18; p++) seeds.push({ bed: "F", phys: p });
   for (let p = 18; p >= 0; p--) seeds.push({ bed: "B", phys: p });
-  const second = seatContinuation(coursesFromTypes(types, hangs), seeds);
+  const last = first.courses.at(-1);
+  const prevDir = last ? (last.dir === "R" ? 0 : 1) : null;
+  const second = seatContinuation(coursesFromTypes(types, hangs), seeds, prevDir);
   const n0 = first.courses.length;
   const sheet = [
     ...first.sheet,

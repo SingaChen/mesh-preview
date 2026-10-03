@@ -9,8 +9,8 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
 
 行程（织行）起点针、终点针：
   course 0 R  start F0  end B17  （21 针）
-  course 1 L  start B18  end F18  （3 针）
-  course 2 R  start F18  end B14  （5 针）
+  course 1 L  start B17  end B19  （3 针）
+  course 2 R  start B18  end B14  （5 针）
   course 3 L  start B14  end B15  （2 针）
   course 4 R  start B15  end B0  （16 针）
   course 5 R  start F0  end F14  （16 针）
@@ -38,12 +38,12 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
     B→@B18
     course 1: partial increase move on B, then the increase, balance after the knit.
   row 2 L  这一行开始时 21针 · 前19[0…18] · 后2[17…19]
-    B+R1@B18 B^R@B19 FvL@F18
+    B+R1@B17 B^R@B18 BvL@B19
   row 3 X  这一行开始时 F19[0…18] / B19[1…19]
     B←@B19 B←@B18 B←@B17
     course 1: counts match and the beds are one needle apart. Rack B -1 (F19[0…18] / B19[1…19] → F19[0…18] / B19[0…18]).
   row 4 R  这一行开始时 22针 · 前19[0…18] · 后3[16…18]
-    F^L@F18 B·@B18 B·@B17 B·@B15 BvR@B14
+    B^L@B18 B·@B17 B·@B16 B·@B15 BvR@B14
   row 5 L  这一行开始时 24针 · 前19[0…18] · 后5[14…18]
     B^R@B14 BvL@B15
   row 6 R  这一行开始时 24针 · 前19[0…18] · 后5[14…18]

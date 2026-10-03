@@ -274,15 +274,15 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   assert(
     facesMap.rows[ring0IncAt - 1]?.dir === "X+" &&
       facesMap.rows[ring0IncAt + 1]?.dir === "X" &&
-      ring0IncCells.some((cell) => cell.token === "B+R1" && cell.phys === 18) &&
-      ring0IncCells.some((cell) => cell.token === "B^R" && cell.phys === 19) &&
-      ring0IncCells.some((cell) => cell.token === "FvL" && cell.phys === 18),
-    "course 1 is not a fold-return, so it starts one needle further, on B18, and ends on F18",
+      ring0IncCells.some((cell) => cell.token === "B+R1" && cell.phys === 17) &&
+      ring0IncCells.some((cell) => cell.token === "B^R" && cell.phys === 18) &&
+      ring0IncCells.some((cell) => cell.token === "BvL" && cell.phys === 19),
+    "row 2L reverses, so it is a fold-return and starts on the previous end needle B17",
   );
   const ring0Return = marked(facesMap.rows[ring0IncAt + 2]);
   assert(
-    facesMap.rows[ring0IncAt + 2]?.dir === "R" && ring0Return[0]?.token === "F^L" && ring0Return[0]?.phys === 18,
-    "the fold-return after the ring-0 rack starts on the end stitch at F18",
+    facesMap.rows[ring0IncAt + 2]?.dir === "R" && ring0Return[0]?.token === "B^L" && ring0Return[0]?.phys === 18,
+    "the next row also reverses, so the fold-return after the ring-0 rack starts on the shifted end stitch at B18",
   );
   const ring1Inc = facesMap.rows.find((row) => row.cells.some((cell) => cell.token === "F+R1"));
   const ring1IncAt = facesMap.rows.indexOf(ring1Inc);
