@@ -534,32 +534,10 @@ export function balanceBeds(stitches, plan, where) {
     const shortBed = longBed === "F" ? "B" : "F";
     let longWin = longBed === "F" ? win.front : win.back;
     let shortWin = longBed === "F" ? win.back : win.front;
-    let pair = longWin.at(-1);
-    // Several decreases on one row can walk the short bed's low end up
-    // while its high end stays past the flip index. Rack that bed back
-    // to 0 one needle at a time, then the same-index flip can run.
-    if (shortWin.includes(pair) && shortWin[0] > 0 && shortWin.at(-1) !== pair) {
-      let guard = 0;
-      while (shortWin[0] > 0) {
-        if (++guard > 8) fail(`${where}: ${shortBed} low end ${shortWin[0]} does not reach 0`);
-        const before = win.text;
-        const cells = rackBed(stitches, plan, shortBed, -1, where);
-        win = measure();
-        fixes.push({
-          dir: "X",
-          kind: "balance",
-          cells,
-          beds: before,
-          note: `${where}: rack ${shortBed} −1 so the low end returns toward 0 (${before} → ${win.text}).`,
-        });
-        longWin = longBed === "F" ? win.front : win.back;
-        shortWin = longBed === "F" ? win.back : win.front;
-        pair = longWin.at(-1);
-      }
-    }
+    const pair = longWin.at(-1);
     if (shortWin.includes(pair)) {
       if (shortWin.at(-1) !== pair || shortWin[0] < 1) {
-        fail(`${where}: right-fold pair ${shortBed}${pair} is occupied and a −1 rack cannot clear it (${win.text})`);
+        fail(`${where}: right-fold pair ${shortBed}${pair} is occupied and a −1 rack cannot clear it`);
       }
       const before = win.text;
       const cells = rackBed(stitches, plan, shortBed, -1, where);
@@ -602,7 +580,7 @@ export function balanceBeds(stitches, plan, where) {
     ];
     st.bed = shortBed;
     assertNoShare(stitches, where);
-    if (!onePast) win = measure();
+    win = measure();
     fixes.push({
       dir: "Flip",
       kind: "flip",
@@ -1405,9 +1383,9 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
           let line = `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。然后从 ${recvName} 起移 ${passes} 次（${movedNotes.join("；")}）。`;
           spanHang = 0;
           if (more) {
-            // Another decrease is still on this row. Keep knitting it
-            // after the transfer. Balance waits until the row's shaping ends.
-            line += `这一行还有减针，移圈之后接着织，整床平衡等这一行的减针做完。`;
+            // This decrease is finished when its transfer is done.
+            // Balance now, then the same row continues on the post-balance needles.
+            line += `移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。`;
             notes.push(line);
             if (!prefix.length) fail(`${where}: decrease row has no knit cells`);
             finishKnit(prefix);
@@ -1423,14 +1401,27 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
               note: notes.join(" "),
             });
             for (const row of transfers) sheet.push(row);
+            const fixes = balanceBeds(stitches, new Map(), where);
+            for (const fix of fixes) {
+              sheet.push({
+                dir: fix.dir,
+                kind: fix.kind,
+                course: ci,
+                cells: fix.cells,
+                beds: fix.beds,
+                note: fix.note,
+              });
+            }
             prefix.length = 0;
             transfers.length = 0;
             notes.length = 0;
             knitBeds = null;
             pastSpan = false;
-            at = stepCircle(first, dirSign, stitches);
+            const stayed = stitches.get(first.id);
+            if (!stayed) fail(`${where}: the decrease receiver left the bed during balance`);
+            at = stepCircle(stayed, dirSign, stitches);
             if (!at || !stitches.has(at.id)) fail(`${where}: the next needle after the decrease is not on the bed`);
-            if (at.id === first.id) fail(`${where}: continuation returned to the first decrease cell`);
+            if (at.id === stayed.id) fail(`${where}: continuation returned to the first decrease cell`);
           } else {
             line += `移圈一结束就平衡床位。`;
             pastSpan = true;
@@ -2261,9 +2252,9 @@ function assertRunningDecrease(built) {
     }
     const laterIsNextDecrease = later && later.cells.some((cell) => decAdded(cell.label || ""));
     if (laterIsNextDecrease) {
-      if (between.some((item) => item.kind === "balance" || item.kind === "flip")) {
-        fail(`course ${row.course} balanced before a later decrease on the same row`);
-      }
+      const balanced = between.some((item) => item.kind === "balance" || item.kind === "flip");
+      const alreadySeated = /移圈一结束就平衡床位/.test(row.note || "");
+      if (!balanced && !alreadySeated) fail(`course ${row.course} continued to the next decrease before balancing`);
       continue;
     }
     const knitted = later ? [...row.cells, ...later.cells] : row.cells;
