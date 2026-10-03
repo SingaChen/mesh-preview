@@ -41,6 +41,15 @@ export function isFacesRing0BedChart(name) {
   return /^faces_ring0_step4_bed\.xlsx?$/i.test(base);
 }
 
+/** faces_ring ring-1 bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isFacesRing1BedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^faces_ring1_step4_bed\.xlsx?$/i.test(base);
+}
+
 export function isKnitDir(dir) {
   return dir === "R" || dir === "L";
 }
@@ -157,7 +166,10 @@ function parseFaceSheet(sheet) {
     const face = Number(row[2]);
     if (!Number.isInteger(sheetRow) || !Number.isInteger(sheetCol) || !Number.isInteger(face) || face < 0) continue;
     const key = `${sheetRow},${sheetCol}`;
-    if (!byCell.has(key)) byCell.set(key, face);
+    const prev = byCell.get(key);
+    if (prev == null) byCell.set(key, face);
+    else if (Array.isArray(prev)) prev.push(face);
+    else byCell.set(key, [prev, face]);
   }
   return byCell;
 }
@@ -230,6 +242,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
     findXlsSheet(book, "step3") ||
     findXlsSheet(book, (s) => /step\s*4\s*-\s*ring\s*0|step\s*3/i.test(s.name)) ||
     findXlsSheet(book, "ring0") ||
+    findXlsSheet(book, "ring1") ||
     book.sheets.find((s) => tokenString(s.rows?.[0]?.[0]).includes("dir"));
   if (!step?.rows?.length) {
     throw new Error("xls: missing readable_map sheet");
@@ -274,7 +287,8 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
       const kind = excelLegendKind(token, dir);
       const resolvedFill = fill || EXCEL_LEGEND_FILLS[kind] || null;
       const recorded = physByCell.get(`${rows.length},${needle}`);
-      const faceIndex = faceByCell.get(`${rows.length},${needle}`);
+      const faceValue = faceByCell.get(`${rows.length},${needle}`);
+      const faceIndex = Number.isInteger(faceValue) ? faceValue : Array.isArray(faceValue) ? faceValue[0] : null;
       const cell = {
         row: rows.length,
         sheetRow: r,
@@ -288,7 +302,7 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
         source: "excel",
         bed: recorded?.bed,
         phys: recorded?.phys,
-        faceIndex: Number.isInteger(faceIndex) ? faceIndex : null,
+        faceIndex,
       };
       rowCells.push(cell);
       if (token || xfRow[sheetCol] != null) cells.push(cell);

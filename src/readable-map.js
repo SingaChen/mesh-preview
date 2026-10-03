@@ -300,11 +300,16 @@ function excelRowDir(grid, displayRow) {
  * Never highlight X / X+ transfer rows. No column-wide fallback.
  * Txt: existing generation-order pairing (cell i ↔ face i) plus row/col.
  */
+function faceList(value) {
+  if (Array.isArray(value)) return value.filter((face) => Number.isInteger(face));
+  return Number.isInteger(value) ? [value] : [];
+}
+
 function keysForFace(map, face) {
   const keys = new Set();
   if (!map?.faceByCell || !Number.isInteger(face)) return keys;
-  for (const [key, index] of map.faceByCell) {
-    if (index === face) keys.add(key);
+  for (const [key, value] of map.faceByCell) {
+    if (faceList(value).includes(face)) keys.add(key);
   }
   return keys;
 }
@@ -394,8 +399,9 @@ function findBoundStitch(rec, stitches) {
  */
 export function stitchForMapCell(row, col, bind, stitches = null, map = null) {
   if (map?.faceByCell?.size) {
-    const face = map.faceByCell.get(`${Number(row)},${Number(col)}`);
-    if (!Number.isInteger(face)) return null;
+    const faces = faceList(map.faceByCell.get(`${Number(row)},${Number(col)}`));
+    if (!faces.length) return null;
+    const face = faces[0];
     if (Array.isArray(stitches)) return stitches.find((s) => s.index === face) || null;
     return { index: face, face_index: face, path_index: 0, term_index: face };
   }
@@ -428,9 +434,13 @@ export function stitchForMapCell(row, col, bind, stitches = null, map = null) {
 /** Same keys as clicking the bound stitch face (whole term span). */
 export function highlightKeysForMapCell(row, col, { map = null, grid = null, bind = null } = {}) {
   if (map?.faceByCell?.size) {
-    const face = map.faceByCell.get(`${Number(row)},${Number(col)}`);
-    if (!Number.isInteger(face)) return new Set();
-    return keysForFace(map, face);
+    const faces = faceList(map.faceByCell.get(`${Number(row)},${Number(col)}`));
+    if (!faces.length) return new Set();
+    const keys = new Set();
+    for (const face of faces) {
+      for (const key of keysForFace(map, face)) keys.add(key);
+    }
+    return keys;
   }
   let bindRow;
   let bindCol;
