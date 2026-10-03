@@ -204,49 +204,60 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   const frontDecAt = facesMap.rows.indexOf(frontDec);
   const frontDecCell = frontKnit.find((cell) => cell.token === "F-R1");
   const frontShift = marked(facesMap.rows[frontDecAt + 1]);
+  const frontDot = frontKnit[frontKnit.indexOf(frontDecCell) + 1];
   assert(
     frontKnit[0]?.phys === 0 &&
       frontDecCell?.phys === 5 &&
-      frontKnit[frontKnit.indexOf(frontDecCell) + 1]?.token === "F·" &&
-      frontKnit[frontKnit.indexOf(frontDecCell) + 1]?.phys === 17 &&
-      frontKnit.at(-1)?.token === "BvR" &&
-      frontKnit.at(-1)?.phys === 11 &&
+      frontDecCell?.fill === "rgb(255,153,204)" &&
+      frontDot?.token === "F·" &&
+      frontDot?.phys === 6 &&
+      frontDot?.fill === "rgb(255,153,204)" &&
+      frontKnit.at(-1)?.token === "FvR" &&
+      frontKnit.at(-1)?.phys === 15 &&
       frontKnit.filter((cell) => cell.phys === 5).length === 1 &&
-      !frontKnit.some((cell) => cell.bed === "F" && cell.phys === 16),
-    "the front row knits F0…F5, then continues from F17 past landing F16 and ends at B11",
+      !frontKnit.some((cell) => cell.bed === "B"),
+    "row 7R knits F0…F4, then F-R1 at F5 and F· at F6, and the rest stays on F7…F15",
   );
   assert(
     facesMap.rows[frontDecAt + 1]?.dir === "X" &&
-      frontShift.map((cell) => `${cell.token}/${cell.phys}`).join(",") === "F←/17,F←/18",
-    "R decreases the front high end: F17 stacks onto F16 and F18 moves to F17",
+      frontShift.map((cell) => `${cell.token}/${cell.phys}`).join(",") ===
+        [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((phys) => `F←/${phys}`).join(","),
+    "the transfer after row 7R moves F7…F18 back, not the far-end pair",
   );
   assert(facesMap.rows[frontDecAt + 2]?.dir === "Flip", "balance follows the decrease transfer");
   const frontNext = marked(joined[joined.indexOf(frontDec) + 1]);
   assert(
-    frontNext.some((cell) => cell.token === "B^R" && cell.phys === 12) &&
-      !frontNext.some((cell) => cell.token === "F^R") &&
+    frontNext.some((cell) => cell.token === "F^R" && cell.phys === 15) &&
       !frontNext.some((cell) => cell.bed === "B" && cell.phys === 0) &&
       joined[joined.indexOf(frontDec) + 1].beds.includes("后18[1…18]"),
-    "the next row starts at post-balance B12 and the racked back window starts at B1",
+    "the next row starts at F15 after balance leaves that end needle",
   );
   const backDec = joined.find((row) => row.cells.some((cell) => cell.token === "B-R1"));
   const backKnit = marked(backDec);
   const backDecCell = backKnit.find((cell) => cell.token === "B-R1");
+  const backDot = backKnit[backKnit.indexOf(backDecCell) + 1];
   const backAt = facesMap.rows.indexOf(backDec);
   const backShift = marked(facesMap.rows[backAt + 1]);
   assert(
-    backDecCell?.phys === 5 &&
-      backKnit.some((cell) => cell.token === "BvR" && cell.phys === 15) &&
-      !backKnit.some((cell) => cell.bed === "B" && cell.phys === 16),
-    "the back row knits up to B5, then continues at B15 past landing B16",
+    backDecCell?.phys === 15 &&
+      backDecCell?.fill === "rgb(255,153,204)" &&
+      backDot?.token === "B·" &&
+      backDot?.phys === 14 &&
+      backDot?.fill === "rgb(255,153,204)" &&
+      backKnit.some((cell) => cell.token === "BvR" && cell.phys === 13),
+    "the back decrease is B-R1 at B15 and B· at B14, then the remaining BvR at B13",
   );
   assert(
     facesMap.rows[backAt + 1]?.dir === "X" &&
-      backShift.map((cell) => `${cell.token}/${cell.phys}`).join(",") === "B←/18,B←/17",
-    "R decreases the back high end: B17 stacks onto B16 and B18 moves to B17",
+      backShift.every((cell) => cell.token === "B→") &&
+      backShift.map((cell) => cell.phys).join(",") === [13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].join(","),
+    "the back decrease transfers the loops after B14, B13…B0",
   );
   const backNext = marked(joined[joined.indexOf(backDec) + 1]);
-  assert(backNext.some((cell) => cell.token === "B^R" && cell.phys === 16), "the next row starts at post-balance B16");
+  assert(backNext.some((cell) => cell.token === "B^R" && cell.phys === 13), "the next row starts at B13");
+  const face51 = highlightKeysForStitch({ index: 51 }, { map: facesMap, bind });
+  const face123 = highlightKeysForStitch({ index: 123 }, { map: facesMap, bind });
+  assert(face51.size === 2 && face123.size === 2, "each hang-1 decrease lights both span cells");
 }
 
 const fromDiscovery = projectFromDiscovery(index);

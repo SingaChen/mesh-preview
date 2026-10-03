@@ -28,14 +28,16 @@
  * to open every site, then knit the whole row once. Do not
  * transfer-and-knit at each site. A stitch that would sit below 0
  * (F−1) is kept and balanced onto F0.
- * Decrease, on a bed that is already seated: knit up to the decrease,
- * transfer, then knit the rest of that same row. R decreases the high
- * end of the shaping bed, L the low end. The stacked edge pair still
- * moves forward. The landing is the inward neighbor: it only receives,
- * it is not a source, and it is not knitted again on this row. The
- * rest of the row starts at the next needle past that landing, in
- * the travel direction. Those continuation needles are the needles
- * before bed balance.
+ * Decrease, on a bed that is already seated: a hang of n occupies
+ * n+1 cells, all in the decrease color. The first is -Rn. The rest
+ * are plain dots on that bed. Knit those cells, then transfer the
+ * loops after them on that bed, one step back toward the span. The
+ * nearest loop stacks onto the last decrease cell and is drawn. That
+ * landing only receives. It is not a source and it is not knitted
+ * again. Continue only the cells that are still left in this course,
+ * from the next needle in the travel direction. Do not jump to the
+ * far end of the bed and do not append the other bed. Continuation
+ * needles are the needles before bed balance.
  * Balance once after that row's increase transfers and the knit
  * (including a mid-row decrease). Balance is a whole-bed shift so
  * F≥B and |F−B|≤1, front low end at F0, extra stitch at the fold
@@ -229,14 +231,16 @@ export function coursesFromTypes(types, hangs) {
     }
 
     if (t === 3) {
+      if (hang < 1) fail(`term ${i} decrease hang is ${hang}`);
       const side = td === 0 ? "R" : "L";
+      const n = hang + 1;
       ensure(td);
       if (td !== direction && !occupied()) {
         direction = td;
         rows.at(-1).dir = td;
       }
       stackStart(i, t);
-      emit(`-${side}${hang}`, "dec", i, t, 1);
+      for (let k = 0; k < n; k++) emit(k === 0 ? `-${side}${hang}` : "·", "dec", i, t, 1);
       continue;
     }
 
@@ -664,6 +668,52 @@ function paint(bed, label, kind) {
 }
 
 /**
+ * After the decrease span has been knitted, every loop on that bed
+ * still ahead of the last span cell steps one needle back toward it.
+ * The nearest stacks onto that cell. It is drawn, then leaves the bed.
+ * The landing cell is not a source. `dirSign` is +1 when the course
+ * travels right.
+ */
+export function shiftFollowingLoops(stitches, marker, dirSign, where) {
+  const bed = marker.bed;
+  const forward = bed === "F" ? dirSign : -dirSign;
+  if (forward !== 1 && forward !== -1) fail(`${where}: bad travel`);
+  const ahead = [...stitches.values()]
+    .filter((st) => st.bed === bed && st.id !== marker.id && (st.phys - marker.phys) * forward > 0)
+    .sort((a, b) => (a.phys - b.phys) * forward);
+  if (!ahead.length) fail(`${where}: ${bed}${marker.phys} has no loop after the decrease`);
+  const step = -forward;
+  const incoming = ahead[0];
+  if (incoming.phys + step !== marker.phys) {
+    fail(`${where}: ${bed}${incoming.phys} does not stack onto ${bed}${marker.phys}`);
+  }
+  const moves = [{ id: incoming.id, bed, from: incoming.phys, to: marker.phys, stacked: true }];
+  stitches.delete(incoming.id);
+  for (const st of ahead.slice(1)) {
+    const from = st.phys;
+    const to = from + step;
+    const occ = [...stitches.values()].find((other) => other.bed === bed && other.phys === to);
+    if (occ) fail(`${where}: ${bed}${from}→${bed}${to} lands on ${occ.id}`);
+    moves.push({ id: st.id, bed, from, to, stacked: false });
+    st.phys = to;
+  }
+  assertNoShare(stitches, where);
+  const token = moveToken(bed, 0, step);
+  const cells = moves.map((m) => ({
+    col: columnForPhys(bed, m.from),
+    token,
+    fill: FILL.xfer,
+    phys: m.from,
+    bed,
+    id: m.id,
+    role: "decrease",
+    stacked: m.stacked,
+  }));
+  cells.sort((a, b) => a.col - b.col);
+  return { cells, stackedId: incoming.id, moves, landingPhys: marker.phys, landingId: marker.id };
+}
+
+/**
  * Decrease transfer on the shaping bed only.
  * L moves the low end forward (higher index). R moves the high end
  * forward (lower index). The landing neighbor is not a source.
@@ -1024,10 +1074,10 @@ export function seatRing(courses, planInfo, carried = null) {
  * Seeds are the live needles in right-going order, starting at F0.
  * A new wale steps one needle along that circle. Increase transfers
  * open every site first, then the whole row is knitted once.
- * A decrease stays on one row: knit up to it, move the R high end or
- * the L low end, then knit the rest from the next needle past that
- * landing. Balance runs once after that knit. The next row starts on
- * the end stitch after the shift.
+ * A decrease of hang n is n+1 cells on one row. After those cells,
+ * the loops still ahead of them move back one per hang. The rest of
+ * this course, and only that rest, continues from the next needle.
+ * Balance runs once after that knit.
  */
 export function seatContinuation(courses, seeds) {
   const stitches = new Map();
@@ -1119,8 +1169,10 @@ export function seatContinuation(courses, seeds) {
       let knitBeds = null;
       const transfers = [];
       const notes = [];
-      const landingIds = [];
       let at = cursor;
+      let spanLeft = 0;
+      let spanHang = 0;
+      let spanBed = "";
       course.cells.forEach((cell, index) => {
         if (index === 0) {
           const known = waleToId.get(cell.wale);
@@ -1131,7 +1183,6 @@ export function seatContinuation(courses, seeds) {
         }
         const st = at;
         if (!st || !stitches.has(st.id)) fail(`${where}: walk has no cursor`);
-        if (landingIds.includes(st.id)) fail(`${where}: landing is knitted on this row`);
         if (st.wale != null && st.wale !== cell.wale && waleToId.get(st.wale) === st.id) waleToId.delete(st.wale);
         waleToId.set(cell.wale, st.id);
         st.wale = cell.wale;
@@ -1149,53 +1200,57 @@ export function seatContinuation(courses, seeds) {
           tIdx: cell.tIdx,
         });
         const nDec = decAdded(cell.label);
-        const isDec = nDec && (cell.kind === "dec" || cell.kind === "wrapDec");
-        if (isDec) {
-          const side = decSide(cell.label);
-          if (side !== "R" && side !== "L") fail(`${where}: decrease ${cell.label} has no R/L end`);
-          const shapeBed = st.bed;
-          const knitAt = `${st.bed}${st.phys}`;
-          const pairNotes = [];
-          let landingSt = null;
-          for (let k = 0; k < nDec; k++) {
+        const isHeader = nDec && (cell.kind === "dec" || cell.kind === "wrapDec");
+        if (isHeader) {
+          if (spanLeft) fail(`${where}: a decrease span started inside another`);
+          spanHang = nDec;
+          spanLeft = nDec;
+          spanBed = st.bed;
+        } else if (spanLeft > 0) {
+          if (cell.kind !== "dec" || st.bed !== spanBed) {
+            fail(`${where}: decrease span expected a ${spanBed} dot, got ${cell.kind} ${st.bed}${st.phys}`);
+          }
+          spanLeft -= 1;
+        }
+        if (spanHang && spanLeft === 0) {
+          const landing = st;
+          const landingName = `${landing.bed}${landing.phys}`;
+          const movedNotes = [];
+          for (let k = 0; k < spanHang; k++) {
             const beds = liveWindow(stitches);
-            const moved = decreaseEdge(stitches, waleToId, shapeBed, side, `${where} decrease ${k + 1}`);
-            if (moved.landingId != null && moved.moves.some((m) => m.id === moved.landingId)) {
-              fail(`${where}: landing ${shapeBed}${moved.landingPhys} is a transfer source`);
+            const moved = shiftFollowingLoops(stitches, landing, dirSign, `${where} decrease ${k + 1}`);
+            if (moved.moves.some((m) => m.id === landing.id)) fail(`${where}: landing ${landingName} is a transfer source`);
+            for (const [wale, mapped] of [...waleToId]) {
+              if (mapped === moved.stackedId) waleToId.delete(wale);
             }
-            for (const id of moved.consumed) {
-              for (const [wale, mapped] of [...waleToId]) {
-                if (mapped === id) waleToId.delete(wale);
-              }
+            const stack = moved.moves[0];
+            const rest = moved.moves.slice(1);
+            let described = `${stack.bed}${stack.from} 套到 ${stack.bed}${stack.to}`;
+            if (rest.length) {
+              const tails = rest.map((m) => `${m.bed}${m.from}`);
+              described += `，${tails[0]}…${tails.at(-1)} 各退一针`;
             }
-            const landing = [...stitches.values()].find((s) => s.bed === shapeBed && s.phys === moved.landingPhys);
-            if (!landing) fail(`${where}: landing ${shapeBed}${moved.landingPhys} is empty`);
-            landingSt = landing;
-            landingIds.push(landing.id);
-            const described = moved.moves
-              .map((m) => `${m.bed}${m.from}→${m.bed}${m.to}${m.stacked ? "（套进落针）" : ""}`)
-              .join("，");
-            pairNotes.push(described);
-            const endName = side === "R" ? "高端" : "低端";
+            movedNotes.push(described);
             transfers.push({
               dir: "X",
               kind: "decrease",
               course: ci,
               cells: moved.cells,
               beds,
-              note: `${where}: ${endName}成对前移。${described}。落针 ${shapeBed}${moved.landingPhys} 只接圈，不是移圈源。`,
+              note: `${where}: 减针格后面的线圈。${described}。落针 ${landingName} 只接圈，不是移圈源。`,
             });
           }
-          const bedName = shapeBed === "F" ? "前床" : "后床";
-          const endName = side === "R" ? "高端" : "低端";
-          let line = `${where}: 同一行。织到 ${knitAt}，再减${bedName}${endName}（${pairNotes.join("；")}）。落针 ${landingSt.bed}${landingSt.phys} 只接圈，这一行不再织它。`;
+          const spanCells = knitCells.slice(-spanHang - 1);
+          const drawnSpan = spanCells.map((c) => `${c.token}@${c.bed}${c.phys}`).join(" ");
+          let line = `${where}: 减 ${spanHang} 针占 ${spanHang + 1} 格，都是减针色：${drawnSpan}。移的是这几格后面的线圈（${movedNotes.join("；")}）。`;
+          spanHang = 0;
           if (index + 1 < course.cells.length) {
-            at = stepCircle(landingSt, dirSign, stitches);
-            if (!at || !stitches.has(at.id)) fail(`${where}: the next needle past the landing is not on the bed`);
-            if (at.id === landingSt.id) fail(`${where}: continuation returned to the landing`);
-            line += ` 后半段从 ${at.bed}${at.phys} 接着织，这一针还是平衡前的针号。`;
+            at = stepCircle(landing, dirSign, stitches);
+            if (!at || !stitches.has(at.id)) fail(`${where}: the next needle after the decrease is not on the bed`);
+            if (at.id === landing.id) fail(`${where}: continuation returned to the landing`);
+            line += ` 这一行还剩下的针从 ${at.bed}${at.phys} 接着织。`;
           } else {
-            line += ` 减针后面没有剩余的针。`;
+            line += ` 这一行在减针格后面没有剩下的针。`;
           }
           notes.push(line);
         } else if (index + 1 < course.cells.length) {
@@ -1785,28 +1840,35 @@ function selfCheckNegativeSeat() {
   }
 }
 
-function selfCheckOccupiedStack() {
+function selfCheckDecreaseSpan() {
+  const courses = coursesFromTypes([3, 0], [1, 0]);
+  const cells = courses[0].cells;
+  if (cells.length !== 3) fail(`hang-1 decrease should add a dot cell, got ${cells.length}`);
+  if (cells[0].label !== "-R1" || cells[0].kind !== "dec") fail(`decrease header ${cells[0].label}/${cells[0].kind}`);
+  if (cells[1].label !== "·" || cells[1].kind !== "dec" || cells[1].tIdx !== cells[0].tIdx) {
+    fail(`decrease dot ${cells[1].label}/${cells[1].kind}`);
+  }
+  const wider = coursesFromTypes([3], [2]);
+  if (wider[0].cells.length !== 3 || wider[0].cells[0].label !== "-R2") {
+    fail(`hang-2 decrease span ${wider[0].cells.map((c) => c.label)}`);
+  }
+  if (!wider[0].cells.slice(1).every((c) => c.kind === "dec" && c.label === "·")) {
+    fail("hang-2 decrease dots are not plain decrease cells");
+  }
+}
+
+function selfCheckFollowingLoops() {
   const stitches = new Map();
-  const live = new Map();
-  for (let phys = 0; phys <= 4; phys++) {
-    stitches.set(phys, { id: phys, bed: "F", phys, wale: phys });
-    live.set(phys, phys);
-  }
-  const moved = decreaseEdge(stitches, live, "F", "R", "occupied stack");
+  for (let phys = 0; phys <= 5; phys++) stitches.set(phys, { id: phys, bed: "F", phys, wale: phys });
+  const moved = shiftFollowingLoops(stitches, stitches.get(2), 1, "loops after the span");
   const phys = [...stitches.values()].map((st) => st.phys).sort((a, b) => a - b);
-  if (phys.join(",") !== "0,1,2,3") fail(`occupied R decrease phys ${phys}`);
-  if (stitches.has(3)) fail("the inner loop should leave the bed after it stacks");
-  if (!stitches.has(2) || stitches.get(2).phys !== 2) fail("the landing stays put and only receives");
-  if (stitches.get(4).phys !== 3) fail("the outer stitch should move onto the needle the inner left");
-  if (moved.landingPhys !== 2 || moved.landingId !== 2) fail(`landing should be F2, got ${moved.landingPhys}`);
-  if (moved.moves.some((m) => m.id === 2)) fail("landing F2 is a source");
-  const drawn = moved.cells.map((c) => `${c.token}@${c.phys}${c.stacked ? "*" : ""}`).join(",");
-  if (drawn !== "F←@3*,F←@4" && drawn !== "F←@4,F←@3*") {
-    const byPhys = [...moved.cells].sort((a, b) => a.phys - b.phys);
-    const text = byPhys.map((c) => `${c.token}@${c.phys}${c.stacked ? "*" : ""}`).join(",");
-    if (text !== "F←@3*,F←@4") fail(`occupied stack drew ${text}`);
-  }
-  if (moved.cells.some((c) => /1$/.test(c.token))) fail("1-needle stack must omit the number");
+  if (phys.join(",") !== "0,1,2,3,4") fail(`following loops phys ${phys}`);
+  if (stitches.has(3)) fail("the loop after the span should leave the bed");
+  if (stitches.get(2).phys !== 2) fail("the last decrease cell should stay and only receive");
+  if (moved.moves.some((m) => m.id === 2)) fail("the decrease cell is a transfer source");
+  const drawn = [...moved.cells].sort((a, b) => a.phys - b.phys).map((c) => `${c.token}@${c.phys}${c.stacked ? "*" : ""}`).join(",");
+  if (drawn !== "F←@3*,F←@4,F←@5") fail(`following loops drew ${drawn}`);
+  if (moved.cells.some((c) => /1$/.test(c.token))) fail("1-needle transfer must omit the number");
 }
 
 function assertRunningDecrease(built) {
@@ -1824,31 +1886,36 @@ function assertRunningDecrease(built) {
     seenCourse.add(row.course);
     const prev = rows[index - 1];
     if (prev && prev.kind === "decrease") fail(`decrease at ${dec.bed}${dec.phys} moved the bed before the knit reached it`);
-    const shift = rows[index + 1];
-    if (!shift || shift.kind !== "decrease") fail(`decrease at ${dec.bed}${dec.phys} is not followed by the edge transfer`);
-    if (shift.cells.length !== 2) fail(`edge pair at ${dec.bed}${dec.phys} drew ${shift.cells.length} moves`);
-    const side = decSide(dec.label || "");
-    if (side !== "R" && side !== "L") fail(`decrease ${dec.label} has no end`);
-    const arrow = side === "R" ? "←" : "→";
-    if (shift.cells.some((cell) => cell.token !== `${dec.bed}${arrow}` || cell.bed !== dec.bed)) {
-      fail(`edge pair at ${dec.bed}${dec.phys} is not one step on that bed`);
-    }
-    const sources = shift.cells.map((cell) => cell.phys).sort((a, b) => a - b);
-    if (sources[1] !== sources[0] + 1) fail(`edge pair phys ${sources} are not adjacent`);
-    const innerPhys = side === "R" ? sources[0] : sources[1];
-    const landingPhys = innerPhys + (side === "R" ? -1 : 1);
-    if (shift.cells.some((cell) => cell.phys === landingPhys)) fail(`landing ${dec.bed}${landingPhys} is a transfer source`);
-    if (!shift.cells.some((cell) => cell.stacked && cell.phys === innerPhys)) {
-      fail(`the loop stacking onto ${dec.bed}${landingPhys} was not drawn`);
-    }
+    const hang = decAdded(dec.label || "");
     const decAt = row.cells.indexOf(dec);
-    const later = row.cells.slice(decAt + 1);
-    if (!later.length) fail(`course ${row.course} does not continue on the decrease row`);
-    if (later.some((cell) => cell.id === dec.id)) fail(`decrease stitch ${dec.bed}${dec.phys} is knitted again`);
-    if (later.some((cell) => cell.bed === dec.bed && cell.phys === landingPhys)) {
-      fail(`landing ${dec.bed}${landingPhys} is knitted again`);
+    const span = row.cells.slice(decAt, decAt + hang + 1);
+    if (span.length !== hang + 1) fail(`decrease ${dec.label} does not occupy ${hang + 1} cells`);
+    if (span.some((cell) => cell.fill !== FILL.dec || cell.bed !== dec.bed)) {
+      fail(`decrease span at ${dec.bed}${dec.phys} is not all decrease-colored on that bed`);
     }
-    if (shift.cells.length > 2) fail(`course ${row.course} shifted a tail instead of the edge pair`);
+    if (span.slice(1).some((cell) => cell.label !== "·")) fail(`decrease ${dec.label} dot is not a plain dot`);
+    const forward = dec.bed === "F" ? (row.dir === "R" ? 1 : -1) : row.dir === "R" ? -1 : 1;
+    for (let i = 1; i < span.length; i++) {
+      if (span[i].phys !== span[0].phys + forward * i) fail(`decrease span is not consecutive at ${dec.bed}${dec.phys}`);
+    }
+    const last = span.at(-1);
+    const shift = rows[index + 1];
+    if (!shift || shift.kind !== "decrease") fail(`decrease at ${dec.bed}${dec.phys} is not followed by the transfer of the following loops`);
+    const arrow = forward > 0 ? "←" : "→";
+    if (!shift.cells.length || shift.cells.some((cell) => cell.token !== `${dec.bed}${arrow}` || cell.bed !== dec.bed)) {
+      fail(`loops after ${last.bed}${last.phys} did not step back on that bed`);
+    }
+    if (shift.cells.some((cell) => span.some((item) => item.phys === cell.phys))) {
+      fail(`a decrease cell is a transfer source at ${dec.bed}${dec.phys}`);
+    }
+    const after = last.phys + forward;
+    const stack = shift.cells.find((cell) => cell.phys === after && cell.stacked);
+    if (!stack) fail(`the loop after ${last.bed}${last.phys} was not drawn stacking back`);
+    const later = row.cells.slice(decAt + span.length);
+    if (later.some((cell) => span.some((item) => item.id === cell.id))) fail(`a decrease cell is knitted again`);
+    if (dec.bed === "F" && row.cells.some((cell) => cell.bed === "B")) {
+      fail(`front decrease row appended the back-bed tail`);
+    }
     const nextKnit = rows.slice(index + 1).find((item) => item.kind === "knit");
     if (!nextKnit) fail(`course ${row.course} has no following row`);
     if (nextKnit.course === row.course) fail(`course ${row.course} continued on a second knit row`);
@@ -1877,7 +1944,8 @@ function selfCheckDecrease() {
 function main(argv = process.argv.slice(2)) {
   const check = argv.includes("--check");
   selfCheckDecrease();
-  selfCheckOccupiedStack();
+  selfCheckDecreaseSpan();
+  selfCheckFollowingLoops();
   selfCheckNegativeSeat();
   const built = buildJoinedChart();
   assertRunningDecrease(built);
