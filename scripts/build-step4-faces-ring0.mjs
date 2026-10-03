@@ -22,10 +22,11 @@
  *   The extra stitch when the counts differ by 1 is the fold gap.
  * Identity is F# / B#. A combined chart may draw back = 37 − phys.
  * Course start is the previous course's end, plus transfers and any
- * whole-bed balance since that end. A fold-return's first stitch is
- * that same end stitch, on the needle it occupies after the shift.
- * Never step one needle outward in the old direction. A course that
- * is not a fold-return still steps to the next stitch.
+ * whole-bed balance since that end. Only a fold-return starts on that
+ * same end stitch, on the needle it occupies after the shift. Do not
+ * step one extra needle on a fold-return. A course that is not a
+ * fold-return starts one needle further in its own travel direction.
+ * Do not stay on the end needle when the course is not a fold-return.
  * Increase: if a row has n increase sites, do those transfers first
  * to open every site, then knit the whole row once. Do not
  * transfer-and-knit at each site. While the course travels, every
@@ -39,22 +40,21 @@
  * counted from the post-balance needles. A stitch that would sit
  * below 0 (F−1) is kept and balanced onto F0.
  * Decrease, on a bed that is already seated: a hang of n occupies
- * n+1 cells, all in the decrease color. The first is -Rn. The rest
- * are plain dots on that bed. Knit through the last of those cells.
- * The transfer starts at the first receiving needle, the first dot.
- * For one needle that dot is also the last decrease cell, so a
- * 1-needle decrease starts at that cell and not at the next needle.
- * That loop steps back onto the first cell and leaves the bed. Every
- * loop still ahead on that bed steps one needle back with it. Hang n
- * repeats the transfer n times from that same receiving needle, so
- * each of those loops stacks onto the first cell. The sheet order is
- * the knitting order: the cells through the last decrease cell, then
- * those transfers, then the stitches that remain. Those remaining
- * stitches are not drawn on the row that precedes the transfer. Do
- * not jump to the far end of the bed. Balance runs as soon as those
- * transfers finish, before the remaining stitches are knitted. The
- * remaining knit is the next course, counted on the post-balance
- * window.
+ * n+1 cells, all in the decrease color. The first is -Rn or -Ln.
+ * The rest are plain dots on that bed. Knit through the last of
+ * those cells, then transfer. The rest of that row is the next
+ * course. The transfer starts at the second decrease cell, and
+ * every repeat starts there again, not at the next needle after it.
+ * That loop stacks onto the first cell and leaves the bed. Every
+ * loop still ahead of it, toward the end being decreased, steps
+ * one needle onto the first cell. The first cell only receives.
+ * Hang n repeats the transfer n times from that same receiving
+ * needle. R decreases the high end of the shaping bed (higher
+ * physical index). L decreases the low end. The sheet order is the
+ * knitting order: the cells through the last decrease cell, then
+ * those transfers. Balance runs as soon as those transfers finish,
+ * before the remaining stitches are knitted. The remaining knit is
+ * the next course, counted on the post-balance window.
  * Balance is a whole-bed shift so
  * F≥B and |F−B|≤1, front low end at F0, extra stitch at the fold
  * gap. The next row starts on the end stitch's needle after that
@@ -690,17 +690,18 @@ function paint(bed, label, kind) {
 }
 
 /**
- * One decrease transfer, starting at the first receiving needle.
- * That stitch steps one needle back onto the previous cell, is drawn,
- * and leaves the bed. Every loop still ahead on the bed steps back
- * with it. The previous cell only receives; it is not a source.
- * `dirSign` is +1 when the course travels right. Call this again from
- * the same physical needle to stack the next loop onto that same cell.
+ * One decrease transfer, starting at the second decrease cell.
+ * `side` is R or L. R decreases the high end of this bed (higher
+ * physical index): the receiving stitch and every loop above it step
+ * one needle toward the low end, and the receiving stitch stacks onto
+ * the first cell. L decreases the low end, the other way. The first
+ * cell only receives. Call this again from the same physical needle
+ * to stack the next loop onto that same cell.
  */
-export function shiftFollowingLoops(stitches, start, dirSign, where) {
+export function shiftFollowingLoops(stitches, start, side, where) {
   const bed = start.bed;
-  const forward = bed === "F" ? dirSign : -dirSign;
-  if (forward !== 1 && forward !== -1) fail(`${where}: bad travel`);
+  const forward = side === "R" ? 1 : side === "L" ? -1 : 0;
+  if (forward !== 1 && forward !== -1) fail(`${where}: decrease side ${side} is not R or L`);
   const step = -forward;
   const landingPhys = start.phys + step;
   const landing = [...stitches.values()].find((st) => st.bed === bed && st.phys === landingPhys);
@@ -885,6 +886,21 @@ function rekeyWale(stitches, live, stitch, wale, where) {
   live.set(wale, stitch.id);
 }
 
+/** The course cell takes this stitch. A previous owner of the wale lets go. */
+function claimWale(live, stitches, stitch, wale) {
+  const prior = live.get(wale);
+  if (prior != null && prior !== stitch.id) {
+    const other = stitches.get(prior);
+    if (other && other.wale === wale) other.wale = null;
+    live.delete(wale);
+  }
+  if (stitch.wale != null && stitch.wale !== wale && live.get(stitch.wale) === stitch.id) {
+    live.delete(stitch.wale);
+  }
+  stitch.wale = wale;
+  live.set(wale, stitch.id);
+}
+
 /**
  * Needles left by ring 0, in the wale numbers ring 1's walk uses.
  * F0 is wale 0. Wales at or after the increase pivot are the pre-shift
@@ -968,33 +984,68 @@ export function seatRing(courses, planInfo, carried = null) {
       }
     }
 
+    const dirSign = course.dir === 0 ? 1 : -1;
     const knitBeds = liveWindow(stitches);
+    // The increase transfer already opened every hole. Put the new
+    // stitch on that needle before the knit, so a non-fold-return can
+    // start there instead of on the previous end stitch.
+    for (const wale of [...fresh].sort((a, b) => a - b)) {
+      if (live.has(wale)) continue;
+      const { left, right } = neighbors(live, stitches, wale);
+      const placed = physInHole(left, right, `${where} wale ${wale}`);
+      birth(placed, wale, false);
+      assertNoShare(stitches, where);
+    }
     const knitCells = [];
+    const used = new Set();
     let prevKnit = null;
-    for (const cell of course.cells) {
-      let id = live.get(cell.wale);
-      if (id == null && carried && !fresh.has(cell.wale)) {
-        if (!prevKnit) fail(`${where}: wale ${cell.wale} has no previous stitch to wrap onto`);
-        const dirSign = course.dir === 0 ? 1 : -1;
-        const next = stepCircle(prevKnit, dirSign, stitches);
-        rekeyWale(stitches, live, next, cell.wale, where);
-        id = next.id;
+    for (let index = 0; index < course.cells.length; index++) {
+      const cell = course.cells[index];
+      let st = null;
+      if (index === 0 && prevEnd) {
+        const endSt = stitches.get(prevEnd.id);
+        if (!endSt) fail(`${where}: previous end stitch left the bed`);
+        // Fold-return: the end stitch, on the needle it occupies after
+        // transfers. Anything else: one needle further in this course's
+        // direction. Do not stay on the end needle.
+        st = isFoldReturn(course) ? endSt : stepCircle(endSt, dirSign, stitches);
+        claimWale(live, stitches, st, cell.wale);
+      } else {
+        let id = live.get(cell.wale);
+        if (id != null && used.has(id)) id = null;
+        if (id == null && carried && !fresh.has(cell.wale)) {
+          if (!prevKnit) fail(`${where}: wale ${cell.wale} has no previous stitch to wrap onto`);
+          const next = stepCircle(prevKnit, dirSign, stitches);
+          rekeyWale(stitches, live, next, cell.wale, where);
+          id = next.id;
+        }
+        if (id == null && fresh.has(cell.wale) && prevKnit) {
+          st = stepCircle(prevKnit, dirSign, stitches);
+          claimWale(live, stitches, st, cell.wale);
+        }
+        if (!st && id == null) {
+          let placed;
+          const slot = plan.get(cell.wale);
+          if (!placed && slot && !slot.used) {
+            slot.used = true;
+            placed = { bed: slot.bed, phys: slot.phys, base: true };
+          } else if (!placed && fresh.has(cell.wale) && !live.has(cell.wale)) {
+            const { left, right } = neighbors(live, stitches, cell.wale);
+            placed = physInHole(left, right, `${where} wale ${cell.wale}`);
+          } else if (!placed && prevKnit) {
+            st = stepCircle(prevKnit, dirSign, stitches);
+            claimWale(live, stitches, st, cell.wale);
+          } else if (!placed) fail(`${where} wale ${cell.wale} is neither a base stitch nor this increase`);
+          if (!st && placed) {
+            st = birth(placed, cell.wale, placed.base);
+            assertNoShare(stitches, where);
+          }
+        }
+        if (!st && id != null) st = stitches.get(id);
       }
-      if (id == null) {
-        let placed;
-        const slot = plan.get(cell.wale);
-        if (slot && !slot.used) {
-          slot.used = true;
-          placed = { bed: slot.bed, phys: slot.phys, base: true };
-        } else if (fresh.has(cell.wale)) {
-          const { left, right } = neighbors(live, stitches, cell.wale);
-          placed = physInHole(left, right, `${where} wale ${cell.wale}`);
-        } else fail(`${where} wale ${cell.wale} is neither a base stitch nor this increase`);
-        const st = birth(placed, cell.wale, placed.base);
-        id = st.id;
-        assertNoShare(stitches, where);
-      }
-      const st = stitches.get(id);
+      if (!st || !stitches.has(st.id)) fail(`${where}: wale ${cell.wale} has no stitch`);
+      if (used.has(st.id)) fail(`${where}: stitch ${st.id} is knitted twice`);
+      used.add(st.id);
       prevKnit = st;
       const painted = paint(st.bed, cell.label, cell.kind);
       knitCells.push({
@@ -1009,7 +1060,6 @@ export function seatRing(courses, planInfo, carried = null) {
         tIdx: cell.tIdx,
       });
     }
-    const dirSign = course.dir === 0 ? 1 : -1;
     const seenNeedle = new Set();
     for (const cell of knitCells) {
       const key = `${cell.bed}:${cell.phys}`;
@@ -1019,9 +1069,6 @@ export function seatRing(courses, planInfo, carried = null) {
     settleColumns(knitCells, dirSign, where);
     const start = knitCells[0];
     const end = knitCells.at(-1);
-    // A fold-return starts on the previous end stitch, on the needle it
-    // occupies after transfers and the whole-bed shift. Never one needle
-    // further in the old direction. The course after this ring is not filled.
     if (prevEnd && isFoldReturn(course)) {
       const endSt = stitches.get(prevEnd.id);
       if (!endSt) fail(`${where}: fold-return lost the previous end stitch`);
@@ -1030,18 +1077,17 @@ export function seatRing(courses, planInfo, carried = null) {
           `${where}: fold-return starts at ${start.bed}${start.phys}, not the end stitch ${endSt.bed}${endSt.phys}`,
         );
       }
-    } else if (prevEnd && !incs.length && !decs.length) {
+    } else if (prevEnd) {
       const endSt = stitches.get(prevEnd.id);
-      if (endSt && start.id !== prevEnd.id) {
-        const travel = course.dir === 0 ? 1 : -1;
-        const outward = endSt.bed === "F" ? travel : -travel;
-        const seat = endSt.phys;
-        const expected = seat + outward;
-        if (start.bed === endSt.bed && start.phys !== seat && start.phys !== expected) {
-          fail(
-            `${where}: start ${start.bed}${start.phys} is neither the previous end ${endSt.bed}${seat} nor the next stitch (${endSt.bed}${expected})`,
-          );
-        }
+      if (!endSt) fail(`${where}: previous end stitch left the bed`);
+      if (start.id === endSt.id) {
+        fail(`${where}: a course that is not a fold-return stays on the end stitch ${endSt.bed}${endSt.phys}`);
+      }
+      const further = stepCircle(endSt, dirSign, stitches);
+      if (start.id !== further.id) {
+        fail(
+          `${where}: start ${start.bed}${start.phys} is not one needle further than ${endSt.bed}${endSt.phys} (${further.bed}${further.phys})`,
+        );
       }
     }
     sheet.push({
@@ -1079,7 +1125,7 @@ export function seatRing(courses, planInfo, carried = null) {
 
   if (!carried) {
     for (const slot of plan.values()) {
-      if (!slot.used) fail("a base stitch was never knitted");
+      if (!slot.used) fail(`a base stitch was never knitted (${slot.bed}${slot.phys})`);
     }
   }
   const seated = windowText(stitches, plan, "seated");
@@ -1152,14 +1198,17 @@ export function seatContinuation(courses, seeds) {
       const placed = [];
       let at = cursor;
       course.cells.forEach((cell, index) => {
-        const known = waleToId.get(cell.wale);
-        const still = known != null ? stitches.get(known) : null;
         if (index === 0 && isFoldReturn(course)) {
           if (!cursor || !stitches.has(cursor.id)) fail(`${where}: fold-return has no end stitch`);
           at = cursor;
-        } else if (index === 0 && still) at = still;
-        else if (index === 0 && waleToId.size === 0) at = cursor;
-        else {
+        } else if (index === 0 && waleToId.size === 0) at = cursor;
+        else if (index === 0) {
+          // Not a fold-return. One needle further in this course's direction.
+          // Do not stay on the end stitch the wale still names.
+          const endSt = cursor && stitches.get(cursor.id);
+          if (!endSt) fail(`${where}: previous end stitch left the bed`);
+          at = stepCircle(endSt, dirSign, stitches);
+        } else {
           if (!at) fail(`${where}: walk has no cursor`);
           if (fresh.has(cell.wale) && waleToId.has(cell.wale) && stitches.get(waleToId.get(cell.wale))?.base === false) {
             at = stitches.get(waleToId.get(cell.wale));
@@ -1202,6 +1251,7 @@ export function seatContinuation(courses, seeds) {
       let at = cursor;
       let spanLeft = 0;
       let spanHang = 0;
+      let spanSide = "";
       let spanBed = "";
       let pastSpan = false;
       let firstId = null;
@@ -1209,14 +1259,15 @@ export function seatContinuation(courses, seeds) {
       let recvPhys = null;
       course.cells.forEach((cell, index) => {
         if (index === 0) {
-          const known = waleToId.get(cell.wale);
-          const still = known != null ? stitches.get(known) : null;
           if (isFoldReturn(course)) {
             if (!cursor || !stitches.has(cursor.id)) fail(`${where}: fold-return has no end stitch`);
             at = cursor;
-          } else if (still) at = still;
-          else if (waleToId.size === 0) at = cursor;
-          else at = stepCircle(cursor, dirSign, stitches);
+          } else if (waleToId.size === 0) at = cursor;
+          else {
+            const endSt = cursor && stitches.get(cursor.id);
+            if (!endSt) fail(`${where}: previous end stitch left the bed`);
+            at = stepCircle(endSt, dirSign, stitches);
+          }
         }
         const st = at;
         if (!st || !stitches.has(st.id)) fail(`${where}: walk has no cursor`);
@@ -1224,7 +1275,19 @@ export function seatContinuation(courses, seeds) {
         waleToId.set(cell.wale, st.id);
         st.wale = cell.wale;
         if (!knitBeds) knitBeds = liveWindow(stitches);
-        const painted = paint(st.bed, cell.label, cell.kind);
+        const nDec = decAdded(cell.label);
+        const isHeader = nDec && (cell.kind === "dec" || cell.kind === "wrapDec");
+        // R removes the high physical end, L the low end. On the front the
+        // carriage moves toward higher needles when the course goes right;
+        // on the back it moves toward lower needles. The letter follows
+        // that end, so a right-going decrease on the back is L.
+        let label = cell.label;
+        if (isHeader) {
+          const towardHigh = (st.bed === "F" ? dirSign : -dirSign) > 0;
+          spanSide = towardHigh ? "R" : "L";
+          label = `-${spanSide}${nDec}`;
+        }
+        const painted = paint(st.bed, label, cell.kind);
         if (pastSpan) {
           pending.push({ cell, id: st.id });
         } else {
@@ -1236,12 +1299,10 @@ export function seatContinuation(courses, seeds) {
             bed: st.bed,
             id: st.id,
             role: "knit",
-            label: cell.label,
+            label,
             tIdx: cell.tIdx,
           });
         }
-        const nDec = decAdded(cell.label);
-        const isHeader = nDec && (cell.kind === "dec" || cell.kind === "wrapDec");
         if (isHeader) {
           if (pastSpan) fail(`${where}: a later decrease on this course is not split around its own transfer`);
           if (spanLeft) fail(`${where}: a decrease span started inside another`);
@@ -1272,7 +1333,7 @@ export function seatContinuation(courses, seeds) {
             const beds = liveWindow(stitches);
             const source = [...stitches.values()].find((item) => item.bed === recvBed && item.phys === recvPhys);
             if (!source) fail(`${where}: ${recvName} has no loop for decrease pass ${k + 1}`);
-            const moved = shiftFollowingLoops(stitches, source, dirSign, `${where} decrease ${k + 1}`);
+            const moved = shiftFollowingLoops(stitches, source, spanSide, `${where} decrease ${k + 1}`);
             if (moved.landingId !== first.id) {
               fail(`${where}: pass ${k + 1} stacked onto ${moved.landingId}, not the first needle ${first.bed}${first.phys}`);
             }
@@ -1735,7 +1796,7 @@ export function renderReport(built) {
   lines.push(
     built.ringBreak
       ? "第二环从第一环的下一针 F0 接在这张表里。每一次折返短行单独成课。第三环起不填。"
-      : "每一次折返短行单独成课，从上一针被移圈之后的那一针起。整床平衡把终点针收进一针时，下一课从落座后沿行程方向向外的那一针起。走完这一环的项之后，下一针是下一环的起点，这里不填。",
+      : "每一次折返短行单独成课。折返的第一针是上一行终点针在移圈和整床移动之后所占的那一针。不是折返的下一行，从那一针沿本行方向再走一针。走完这一环的项之后，下一针是下一环的起点，这里不填。",
   );
   const parts = built.ringBreak
     ? [
@@ -1974,7 +2035,7 @@ function selfCheckDecreaseSpan() {
 function selfCheckFollowingLoops() {
   const stitches = new Map();
   for (let phys = 0; phys <= 5; phys++) stitches.set(phys, { id: phys, bed: "F", phys, wale: phys });
-  const moved = shiftFollowingLoops(stitches, stitches.get(2), 1, "transfer starts at the receiving needle");
+  const moved = shiftFollowingLoops(stitches, stitches.get(2), "R", "transfer starts at the receiving needle");
   const phys = [...stitches.values()].map((st) => st.phys).sort((a, b) => a - b);
   if (phys.join(",") !== "0,1,2,3,4") fail(`following loops phys ${phys}`);
   if (stitches.has(2)) fail("the receiving needle should leave the bed");
@@ -1992,7 +2053,7 @@ function selfCheckDoubleDecrease() {
   const recvPhys = 2;
   for (let k = 0; k < 2; k++) {
     const source = [...stitches.values()].find((st) => st.bed === "F" && st.phys === recvPhys);
-    const moved = shiftFollowingLoops(stitches, source, 1, `double decrease ${k + 1}`);
+    const moved = shiftFollowingLoops(stitches, source, "R", `double decrease ${k + 1}`);
     if (moved.moves[0].from !== recvPhys || moved.landingId !== 1 || moved.landingPhys !== 1) {
       fail(`pass ${k + 1} did not start at F2 and stack onto F1`);
     }
@@ -2027,7 +2088,8 @@ function assertRunningDecrease(built) {
       fail(`decrease span at ${dec.bed}${dec.phys} is not all decrease-colored on that bed`);
     }
     if (span.slice(1).some((cell) => cell.label !== "·")) fail(`decrease ${dec.label} dot is not a plain dot`);
-    const forward = dec.bed === "F" ? (row.dir === "R" ? 1 : -1) : row.dir === "R" ? -1 : 1;
+    const side = decSide(dec.label || "");
+    const forward = side === "R" ? 1 : -1;
     for (let i = 1; i < span.length; i++) {
       if (span[i].phys !== span[0].phys + forward * i) fail(`decrease span is not consecutive at ${dec.bed}${dec.phys}`);
     }

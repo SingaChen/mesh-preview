@@ -237,21 +237,22 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
       joined[joined.indexOf(frontDec) + 2].beds.includes("后18[1…18]"),
     "the next course starts at F14 after balance leaves that end needle",
   );
-  const backDec = joined.find((row) => row.cells.some((cell) => cell.token === "B-R1"));
+  const backDec = joined.find((row) => row.cells.some((cell) => cell.token === "B-L1"));
   const backKnit = marked(backDec);
-  const backDecCell = backKnit.find((cell) => cell.token === "B-R1");
+  const backDecCell = backKnit.find((cell) => cell.token === "B-L1");
   const backDot = backKnit[backKnit.indexOf(backDecCell) + 1];
   const backAt = facesMap.rows.indexOf(backDec);
   const backShift = marked(facesMap.rows[backAt + 1]);
   assert(
-    backDecCell?.phys === 17 &&
+    backDecCell?.token === "B-L1" &&
+      backDecCell?.phys === 17 &&
       backDecCell?.fill === "rgb(255,153,204)" &&
       backDot?.token === "B·" &&
       backDot?.phys === 16 &&
       backDot?.fill === "rgb(255,153,204)" &&
       backKnit.at(-1) === backDot &&
       !backKnit.some((cell) => cell.token === "BvR"),
-    "the back decrease knits through B-R1 at B17 and B· at B16, and stops on that last decrease cell",
+    "the back decrease is L, knits through B-L1 at B17 and B· at B16, and stops on that last decrease cell",
   );
   assert(
     facesMap.rows[backAt + 1]?.dir === "X" &&
@@ -273,15 +274,15 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   assert(
     facesMap.rows[ring0IncAt - 1]?.dir === "X+" &&
       facesMap.rows[ring0IncAt + 1]?.dir === "X" &&
-      ring0IncCells.some((cell) => cell.token === "B+R1" && cell.phys === 17) &&
-      ring0IncCells.some((cell) => cell.token === "B^R" && cell.phys === 18) &&
-      ring0IncCells.some((cell) => cell.token === "BvL" && cell.phys === 19),
-    "course 1 knits the increase on B17…B19, then racks",
+      ring0IncCells.some((cell) => cell.token === "B+R1" && cell.phys === 18) &&
+      ring0IncCells.some((cell) => cell.token === "B^R" && cell.phys === 19) &&
+      ring0IncCells.some((cell) => cell.token === "FvL" && cell.phys === 18),
+    "course 1 is not a fold-return, so it starts one needle further, on B18, and ends on F18",
   );
   const ring0Return = marked(facesMap.rows[ring0IncAt + 2]);
   assert(
-    facesMap.rows[ring0IncAt + 2]?.dir === "R" && ring0Return[0]?.token === "B^L" && ring0Return[0]?.phys === 18,
-    "the fold-return after the ring-0 rack starts on the end stitch at B18",
+    facesMap.rows[ring0IncAt + 2]?.dir === "R" && ring0Return[0]?.token === "F^L" && ring0Return[0]?.phys === 18,
+    "the fold-return after the ring-0 rack starts on the end stitch at F18",
   );
   const ring1Inc = facesMap.rows.find((row) => row.cells.some((cell) => cell.token === "F+R1"));
   const ring1IncAt = facesMap.rows.indexOf(ring1Inc);
