@@ -271,20 +271,23 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   const ring0IncAt = facesMap.rows.indexOf(ring0Inc);
   const ring0IncCells = marked(ring0Inc);
   assert(
-    facesMap.rows[ring0IncAt - 1]?.dir === "X" &&
-      ring0IncCells.some((cell) => cell.token === "B+R1" && cell.phys === 16) &&
-      ring0IncCells.some((cell) => cell.token === "B^R" && cell.phys === 17) &&
-      ring0IncCells.some((cell) => cell.token === "BvL" && cell.phys === 18),
-    "ring 0 balances the increase before knitting it, so the row sits on B16…B18",
+    facesMap.rows[ring0IncAt - 1]?.dir === "X+" &&
+      facesMap.rows[ring0IncAt + 1]?.dir === "X" &&
+      ring0IncCells.some((cell) => cell.token === "B+R1" && cell.phys === 17) &&
+      ring0IncCells.some((cell) => cell.token === "B^R" && cell.phys === 18) &&
+      ring0IncCells.some((cell) => cell.token === "BvL" && cell.phys === 19),
+    "course 1 knits the increase on B17…B19, then racks",
   );
   const ring1Inc = facesMap.rows.find((row) => row.cells.some((cell) => cell.token === "F+R1"));
   const ring1IncAt = facesMap.rows.indexOf(ring1Inc);
   assert(
-    facesMap.rows[ring1IncAt - 2]?.dir === "Flip" &&
-      marked(facesMap.rows[ring1IncAt - 2]).some((cell) => cell.token === "⬆" && cell.bed === "F" && cell.phys === 19) &&
-      facesMap.rows[ring1IncAt - 1]?.dir === "X" &&
-      marked(ring1Inc).some((cell) => cell.token === "B^L" && cell.phys === 3),
-    "the course 7 increase balances before the knit, so that row starts at B3",
+    facesMap.rows[ring1IncAt + 1]?.dir === "Flip" &&
+      marked(facesMap.rows[ring1IncAt + 1]).some((cell) => cell.token === "⬆" && cell.bed === "F" && cell.phys === 19) &&
+      facesMap.rows[ring1IncAt + 2]?.dir === "X" &&
+      marked(ring1Inc).some((cell) => cell.token === "B^L" && cell.phys === 4) &&
+      marked(ring1Inc).some((cell) => cell.token === "BvR" && cell.phys === 18) &&
+      marked(ring1Inc).some((cell) => cell.token === "F+R1"),
+    "course 7 knits the increase from B4 through B18, then flips and racks",
   );
   const face51 = highlightKeysForStitch({ index: 51 }, { map: facesMap, bind });
   const face123 = highlightKeysForStitch({ index: 123 }, { map: facesMap, bind });

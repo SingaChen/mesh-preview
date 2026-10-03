@@ -25,9 +25,10 @@
  * whole-bed balance since that end. Count from the needle after the
  * shift. Nothing moved → the next course starts on that same needle.
  * Increase: if a row has n increase sites, do those transfers first
- * to open every site. Do not transfer-and-knit at each site. As soon
- * as the shaping transfers are finished, balance the beds, then knit
- * the row once on the post-balance needles. A stitch that would sit
+ * to open every site, then knit the whole row once. Do not
+ * transfer-and-knit at each site. The increase is finished when that
+ * knit reaches its end; balance after the knit. The next course is
+ * counted from the post-balance needles. A stitch that would sit
  * below 0 (F−1) is kept and balanced onto F0.
  * Decrease, on a bed that is already seated: a hang of n occupies
  * n+1 cells, all in the decrease color. The first is -Rn. The rest
@@ -934,28 +935,7 @@ export function seatRing(courses, planInfo, carried = null) {
             role: "increase",
           })),
           beds,
-          note: `${where}: partial increase move on ${shapeBed}, then the increase, balance before the knit.`,
-        });
-      }
-    }
-
-    if (incs.length) {
-      for (const cell of course.cells) {
-        if (!fresh.has(cell.wale) || live.get(cell.wale) != null) continue;
-        const { left, right } = neighbors(live, stitches, cell.wale);
-        const placed = physInHole(left, right, `${where} wale ${cell.wale}`);
-        birth(placed, cell.wale, false);
-        assertNoShare(stitches, where);
-      }
-      const fixes = balanceBeds(stitches, plan, where);
-      for (const fix of fixes) {
-        sheet.push({
-          dir: fix.dir,
-          kind: fix.kind,
-          course: ci,
-          cells: fix.cells,
-          beds: fix.beds,
-          note: fix.note,
+          note: `${where}: partial increase move on ${shapeBed}, then the increase, balance after the knit.`,
         });
       }
     }
@@ -1058,6 +1038,22 @@ export function seatRing(courses, planInfo, carried = null) {
       n: knitCells.length,
     });
     prevEnd = { id: end.id, bed: end.bed, phys: end.phys };
+
+    if (incs.length) {
+      const fixes = balanceBeds(stitches, plan, where);
+      for (const fix of fixes) {
+        sheet.push({
+          dir: fix.dir,
+          kind: fix.kind,
+          course: ci,
+          cells: fix.cells,
+          beds: fix.beds,
+          note: fix.note,
+        });
+      }
+      const endSt = stitches.get(prevEnd.id);
+      if (endSt) prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
+    }
   }
 
   if (!carried) {
@@ -1086,13 +1082,14 @@ export function seatRing(courses, planInfo, carried = null) {
  * Ring 1 continues on the bed ring 0 left behind.
  * Seeds are the live needles in right-going order, starting at F0.
  * A new wale steps one needle along that circle. Increase transfers
- * open every site first, then balance, then the whole row is knitted
- * once on the post-balance needles.
- * A decrease of hang n is n+1 cells. Knit through the last of them.
- * The transfer starts at the first dot and repeats from that same
- * needle n times, stacking onto the first cell. Balance runs as soon
- * as those transfers finish. The remaining stitches are the next
- * course, counted on the post-balance window.
+ * open every site first, then the whole row is knitted once. Balance
+ * runs after that knit, and the next course uses the post-balance
+ * needles. A decrease of hang n is n+1 cells. Knit through the last
+ * of them. The transfer starts at the first dot and repeats from that
+ * same needle n times, stacking onto the first cell. A decrease is
+ * finished when that transfer is done, so balance runs before the
+ * remaining stitches. Those stitches are the next course, counted on
+ * the post-balance window.
  */
 export function seatContinuation(courses, seeds) {
   const stitches = new Map();
@@ -1410,7 +1407,7 @@ export function seatContinuation(courses, seeds) {
             role: "increase",
           })),
           beds,
-          note: `${where}: partial increase move on ${marker.bed}, then the increase, balance before the knit.`,
+          note: `${where}: partial increase move on ${marker.bed}, then the increase, balance after the knit.`,
         });
       }
       const hole = orderedCircle(stitches);
@@ -1453,26 +1450,12 @@ export function seatContinuation(courses, seeds) {
       }
     }
 
-    if (incs.length) {
-      const fixes = balanceBeds(stitches, new Map(), where);
-      for (const fix of fixes) {
-        sheet.push({
-          dir: fix.dir,
-          kind: fix.kind,
-          course: ci,
-          cells: fix.cells,
-          beds: fix.beds,
-          note: fix.note,
-        });
-      }
-    }
-
     if (knitPlan) {
       const knitBeds = liveWindow(stitches);
       const knitCells = [];
       for (const item of knitPlan) {
         const st = stitches.get(item.id);
-        if (!st) fail(`${where}: knit stitch ${item.id} left the bed during balance`);
+        if (!st) fail(`${where}: knit stitch ${item.id} left the bed`);
         const painted = paint(st.bed, item.cell.label, item.cell.kind);
         knitCells.push({
           col: columnForPhys(st.bed, st.phys),
@@ -1499,6 +1482,25 @@ export function seatContinuation(courses, seeds) {
       });
       cursor = stitches.get(end.id);
       prevEnd = { id: end.id, bed: end.bed, phys: end.phys };
+    }
+
+    if (incs.length) {
+      const fixes = balanceBeds(stitches, new Map(), where);
+      for (const fix of fixes) {
+        sheet.push({
+          dir: fix.dir,
+          kind: fix.kind,
+          course: ci,
+          cells: fix.cells,
+          beds: fix.beds,
+          note: fix.note,
+        });
+      }
+      const endSt = stitches.get(prevEnd.id);
+      if (endSt) {
+        cursor = endSt;
+        prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
+      }
     }
   }
 
