@@ -8,10 +8,15 @@
  *
  * faces_ring_layout stores one Term.Type per stitch, in chain order.
  * Direction is the path chain: a Type 2/5/6 pair flips a right-going
- * course, a Type 1 pair flips a left-going course. A shaping type is
- * one event. The layout has no point list, so hang is 1 — the unit
- * event that creates Type 3/4/5/6/7/8 (n_extra >= 1). An optional
- * rings[i].hangs[] overrides that, still from the faces_ring record.
+ * course, a Type 1 pair flips a left-going course. That flip is a
+ * fold-return during the walk, not the end of the ring. Once the walk
+ * has resumed the direction it started in, later apex pairs stay in
+ * the same course. The ring is finished when its terms are finished;
+ * the next stitch would be the next ring, and it is not a fold-return.
+ * A shaping type is one event. The layout has no point list, so hang
+ * is 1 — the unit event that creates Type 3/4/5/6/7/8 (n_extra >= 1).
+ * An optional rings[i].hangs[] overrides that, still from the faces_ring
+ * record.
  *
  * Seating, after the ring is on the machine:
  *   F = ceil(N/2), B = floor(N/2), front low end is physical F0.
@@ -123,6 +128,13 @@ export function coursesFromTypes(types, hangs = null) {
   const rows = [];
   let col = 0;
   let direction = dir[0];
+  const primary = direction;
+  // Furthest wale the primary direction has knitted. The resumed walk
+  // continues there, instead of folding back onto the short-row needle.
+  let highWater = 0;
+  // True after a fold-return has brought the walk back onto primary.
+  // Further apex pairs are stitches in this course. They do not close the ring.
+  let resumed = false;
   let pending = false;
 
   const ensure = (d) => {
@@ -140,6 +152,8 @@ export function coursesFromTypes(types, hangs = null) {
   const emit = (label, kind, tIdx, ttype, adv = 1) => {
     ensure(direction);
     rows.at(-1).cells.push({ label, kind, wale: col, tIdx, ttype });
+    if (primary === 0) highWater = Math.max(highWater, col);
+    else highWater = Math.min(highWater, col);
     if (adv) col = advance(col, direction, adv);
   };
   const close = (wrapCol, nextDir) => {
@@ -147,6 +161,25 @@ export function coursesFromTypes(types, hangs = null) {
     direction = nextDir;
     col = wrapCol;
     pending = true;
+  };
+  // A fold-return turns during the walk and the next course starts on
+  // that needle. Returning to the primary direction does not close the
+  // ring: the next stitch is the unknit frontier, and the course runs
+  // to the end of this ring. The stitch after that would start the next
+  // ring. Later rings are not filled.
+  const foldReturn = (wrapCol, nextDir) => {
+    if (resumed) return false;
+    if (nextDir === primary) {
+      const frontier = primary === 0 ? highWater + 1 : highWater - 1;
+      rows.push({ dir: nextDir, cells: [], resumed: true });
+      direction = nextDir;
+      col = frontier;
+      pending = false;
+      resumed = true;
+      return true;
+    }
+    close(wrapCol, nextDir);
+    return true;
   };
   const stackStart = (tIdx, ttype) => {
     if (!pending) return;
@@ -202,7 +235,7 @@ export function coursesFromTypes(types, hangs = null) {
         }
         emit(label, kind, i, t, 1);
       }
-      if (asEnd) close(advance(first, direction, n - 1), i + 1 < types.length ? nxt : direction);
+      if (asEnd) foldReturn(advance(first, direction, n - 1), i + 1 < types.length ? nxt : direction);
       continue;
     }
 
@@ -234,7 +267,7 @@ export function coursesFromTypes(types, hangs = null) {
       }
       const wrapCol = col;
       emit(`v${side}${mark}`, kind, i, t, 1);
-      close(wrapCol, i + 1 < types.length ? nxt : direction);
+      foldReturn(wrapCol, i + 1 < types.length ? nxt : direction);
       continue;
     }
 
@@ -390,7 +423,19 @@ function windowText(stitches, plan, where) {
 
 function rackBed(stitches, plan, bed, delta, where) {
   const movers = [...stitches.values()].filter((st) => st.bed === bed).sort((a, b) => a.phys - b.phys);
-  if (!movers.length) fail(`${where}: ${bed} has no live stitch to rack`);
+  if (!movers.length) {
+    // The other bed is not knitted yet. The ring is still walking, so the
+    // planned needles slide and the coils are seated when that course knits.
+    let moved = false;
+    for (const slot of plan.values()) {
+      if (slot.used || slot.bed !== bed) continue;
+      if (slot.phys + delta < 0) fail(`${where}: rack would drop a planned ${bed} needle below 0`);
+      slot.phys += delta;
+      moved = true;
+    }
+    if (!moved) fail(`${where}: ${bed} has no needle to rack`);
+    return [];
+  }
   for (const st of movers) {
     if (st.phys + delta < 0) fail(`${where}: rack would drop ${bed}${st.phys} below 0`);
   }
@@ -551,7 +596,7 @@ export function balanceBeds(stitches, plan, where) {
   if (win.tF === win.tB) {
     const offset = win.back[0] - win.front[0];
     const same = win.back.at(-1) - win.front.at(-1) === offset;
-    if (offset === 0 && same) return fixes;
+    if (offset === 0 && same) return fixes.filter((fix) => fix.cells.length);
     if (Math.abs(offset) !== 1 || !same) {
       fail(`${where}: equal counts are not one needle apart (${win.text})`);
     }
@@ -567,13 +612,13 @@ export function balanceBeds(stitches, plan, where) {
       beds: before,
       note: `${where}: counts match and the beds are one needle apart. Rack ${bed} ${delta > 0 ? "+" : ""}${delta} (${before} → ${win.text}).`,
     });
-    return fixes;
+    return fixes.filter((fix) => fix.cells.length);
   }
 
   if (win.tF === win.tB + 1) {
     const frontFull = win.front[0] === 0 && win.front.at(-1) === win.tF - 1 && win.front.length === win.tF;
     const spareAtLeft = frontFull && win.back[0] === 1 && win.back.at(-1) === win.front.at(-1) && win.back.length === win.tB;
-    if (spareAtLeft) return fixes;
+    if (spareAtLeft) return fixes.filter((fix) => fix.cells.length);
     const packed = frontFull && win.back[0] === 0 && win.back.at(-1) === win.tB - 1 && win.back.length === win.tB;
     if (!packed) fail(`${where}: the one-stitch gap is not a right-fold empty (${win.text})`);
     const before = win.text;
@@ -588,7 +633,7 @@ export function balanceBeds(stitches, plan, where) {
       beds: before,
       note: `${where}: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (${win.text}).`,
     });
-    return fixes;
+    return fixes.filter((fix) => fix.cells.length);
   }
   fail(`${where}: F${win.tF}/B${win.tB} is not F≥B and |F−B|≤1`);
 }
@@ -833,11 +878,36 @@ export function seatRing(courses, planInfo) {
         label: cell.label,
       });
     }
+    const seenNeedle = new Set();
+    for (const cell of knitCells) {
+      const key = `${cell.bed}:${cell.phys}`;
+      if (seenNeedle.has(key)) fail(`${where}: ${cell.bed}${cell.phys} is knitted twice in one course`);
+      seenNeedle.add(key);
+    }
     const cols = knitCells.map((c) => c.col);
-    if (new Set(cols).size !== cols.length) fail(`${where}: two stitches share a chart column [${cols}]`);
+    if (new Set(cols).size !== cols.length) {
+      // The course left the front and continued onto the facing back needles.
+      // Mirror columns would stack those two beds. Draw the rest in visit order.
+      const step = course.dir === 0 ? 1 : -1;
+      let col = knitCells[0].col;
+      const taken = new Set();
+      for (const cell of knitCells) {
+        let guard = 0;
+        while (taken.has(col)) {
+          if (++guard > knitCells.length + 2) fail(`${where}: visit-order columns do not fit`);
+          col += step;
+        }
+        cell.col = col;
+        taken.add(col);
+        col += step;
+      }
+    }
     const start = knitCells[0];
     const end = knitCells.at(-1);
-    if (prevEnd && !incs.length && !decs.length) {
+    // A fold-return starts on the previous end. The course that resumes
+    // the ring does not: it starts at the unknit frontier. The stitch
+    // after this ring would be the next ring.
+    if (prevEnd && !course.resumed && !incs.length && !decs.length) {
       const endSt = stitches.get(prevEnd.id);
       if (endSt && start.id !== prevEnd.id) {
         const travel = course.dir === 0 ? 1 : -1;
@@ -1077,7 +1147,7 @@ export function renderReport(built) {
     if (row.note) lines.push(`    ${row.note}`);
   });
   lines.push("");
-  lines.push("折返：上一行程的终点针如果还在，下一行程就从它被移圈之后的那一针起。整床平衡把它从 B19 收到 B18 时，course 2 从 B18 起，沿行程再往下才是 B17。减针把终点针收掉之后，下一行程才从落点沿行程方向向外的那一针起；这一环没有减针。");
+  lines.push("折返只发生在走这一环的途中：短行从上一针被移圈之后的那一针起。环不是靠折返收口的。走完这一环之后，下一针是下一环的起点，这里不填。");
   return `${lines.join("\n")}\n`;
 }
 

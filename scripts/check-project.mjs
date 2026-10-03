@@ -155,19 +155,32 @@ const entries = [
 
 const index = indexFiles(entries);
 const fromManifest = projectFromManifest(manifest, index, "sample/manifest.json");
-if (fromManifest.outputs.length !== 1) throw new Error("expected 1 cylinder output");
-if (!fromManifest.outputs[0].stitchFile) throw new Error("expected stitch file");
-if (!fromManifest.outputs[0].readableMapFile) throw new Error("expected readable_map");
-if (!/step4_ring0\.xls$/i.test(fromManifest.outputs[0].readableMapFile.name)) {
-  throw new Error("2D map must prefer the step4-ring0 xls, not the txt");
+if (fromManifest.outputs.length !== 2) throw new Error("expected the faces-ring0 sheet plus the live step4 sample");
+const facesOut = fromManifest.outputs[0];
+const liveOut = fromManifest.outputs[1];
+if (!/faces_ring0_step4_bed\.xls$/i.test(facesOut.readableMapFile?.name || "")) {
+  throw new Error("first sample output must open faces_ring0_step4_bed.xls");
 }
-if (!fromManifest.outputs[0].readableMapTxtFile) throw new Error("expected readable_map txt companion");
-if (!fromManifest.outputs[0].colsResampleFile) throw new Error("expected cols_resample field");
-if (!fromManifest.outputs[0].colsResampleXlsFile) throw new Error("expected cols_resample xls");
-if (fromManifest.outputs[0].colsResampleJsonFile) throw new Error("sample should not ship a cols_resample sidecar");
-if (!fromManifest.outputs[0].firstRowsFile) throw new Error("expected first_rows xls");
-if (!fromManifest.outputs[0].facesRingLayoutFile) throw new Error("expected faces_ring_layout.json");
-if (!fromManifest.outputs[0].stitchMapBindFile) throw new Error("expected stitch_map_bind.json");
+if (!/faces_ring0_step4_bed\.txt$/i.test(facesOut.readableMapTxtFile?.name || "")) {
+  throw new Error("faces-ring0 output must keep its own txt");
+}
+if (!liveOut.stitchFile) throw new Error("expected stitch file");
+if (!liveOut.readableMapFile) throw new Error("expected readable_map");
+if (!/step4_ring0\.xls$/i.test(liveOut.readableMapFile.name)) {
+  throw new Error("live sample must stay on the step4-ring0 xls");
+}
+if (!liveOut.readableMapTxtFile) throw new Error("expected readable_map txt companion");
+if (!liveOut.colsResampleFile) throw new Error("expected cols_resample field");
+if (!liveOut.colsResampleXlsFile) throw new Error("expected cols_resample xls");
+if (liveOut.colsResampleJsonFile) throw new Error("sample should not ship a cols_resample sidecar");
+if (!liveOut.firstRowsFile) throw new Error("expected first_rows xls");
+if (!liveOut.facesRingLayoutFile) throw new Error("expected faces_ring_layout.json");
+if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json");
+{
+  const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
+  assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");
+  assert(facesMap.rows.some((row) => row.cells.some((cell) => cell.token.startsWith("F"))), "faces-ring0 chart has front-bed tokens");
+}
 
 const fromDiscovery = projectFromDiscovery(index);
 if (fromDiscovery.outputs.length !== 1) {
@@ -1153,6 +1166,7 @@ assert(html.includes('id="base-menu-btn"') && html.includes('id="toggle-warp"') 
 assert(/grid-template-columns:\s*1fr 1fr 1fr/.test(readFileSync(join(root, "src", "style.css"), "utf8")), "Base button shares the same 3-column size as Warp and Stitch");
 assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "top bar uses one Open menu");
 assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') && html.includes('id="open-files"'), "Sample / Folder / Files stay as menu items");
+assert(html.includes('id="load-faces-ring0"') && mainSrc.includes("faces-ring0") && mainSrc.includes("isFacesRing0BedChart"), "Open menu can load the faces-ring0 bed chart");
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");

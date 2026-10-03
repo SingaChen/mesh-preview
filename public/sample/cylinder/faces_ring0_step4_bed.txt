@@ -1,34 +1,28 @@
 faces_ring0 step4 床图（只含第一环）
 输入只有 faces_ring_layout.json 的 ring 0（types，以及可选 hangs）。
 Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。
-底圈 N=37，拆成 F=19、B=18。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
-落座之后 N=38，窗 F19[0…18] / B19[0…18]。目标 F=19 / B=19。
+底圈 N=44，拆成 F=22、B=22。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
+落座之后 N=45，窗 F23[0…22] / B22[1…22]。目标 F=23 / B=22。
 针号是 F# / B#。合图时后床列 = 37 − 物理针，这只是画法，不是从 Step3 抄来的列。
 后面的环没有填。
 
 行程（织行）起点针、终点针：
-  course 0 R  start F0  end B17  （21 针）
-  course 1 L  start B17  end B19  （3 针）
-  course 2 R  start B18  end B14  （5 针）
-  course 3 L  start B14  end B15  （2 针）
-  course 4 R  start B15  end B0  （16 针）
+  course 0 R  start F0  end F20  （21 针）
+  course 1 L  start F20  end F18  （3 针）
+  course 2 R  start F22  end B1  （23 针）
 
 表行（格子按织的顺序，不是按表列从左到右）：
   row 0 R  开始窗 N0 F— / B—
-    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 B·@B18 BvR@B17
-  row 1 X+  开始窗 N21 F19[0…18] / B2[17…18]
-    B→@B18
-    course 1: partial increase move on B, then the increase, balance after the knit.
-  row 2 L  开始窗 N21 F19[0…18] / B2[17…19]
-    B+R1@B17 B^R@B18 BvL@B19
-  row 3 X  开始窗 F19[0…18] / B19[1…19]
-    B←@B19 B←@B18 B←@B17
-    course 1: counts match and the beds are one needle apart. Rack B -1 (F19[0…18] / B19[1…19] → F19[0…18] / B19[0…18]).
-  row 4 R  开始窗 N22 F19[0…18] / B3[16…18]
-    B^L@B18 B·@B17 B·@B16 B·@B15 BvR@B14
-  row 5 L  开始窗 N24 F19[0…18] / B5[14…18]
-    B^R@B14 BvL@B15
-  row 6 R  开始窗 N24 F19[0…18] / B5[14…18]
-    B^L@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 FvR@F20
+  row 1 X+  开始窗 N21 F21[0…20] / B—
+    F←@F0 F←@F1 F←@F2 F←@F3 F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19
+    course 1: partial increase move on F, then the increase, balance after the knit.
+  row 2 L  开始窗 N21 F21[-1…20] / B—
+    F+R1@F20 F^R@F19 FvL@F18
+  row 3 X  开始窗 F23[-1…21] / B22[0…21]
+    F→@F-1 F→@F0 F→@F1 F→@F2 F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18 F→@F19 F→@F20
+    course 1: front seats toward F0 by +1 (F23[-1…21] / B22[0…21] → F23[0…22] / B22[0…21]).
+  row 4 R  开始窗 N22 F22[0…21] / B—
+    F^L@F22 B·@B22 B·@B21 B·@B20 BvR@B19 BvR@B18 BvL@B17 BvL@B16 B·@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
 
-折返：上一行程的终点针如果还在，下一行程就从它被移圈之后的那一针起。整床平衡把它从 B19 收到 B18 时，course 2 从 B18 起，沿行程再往下才是 B17。减针把终点针收掉之后，下一行程才从落点沿行程方向向外的那一针起；这一环没有减针。
+折返只发生在走这一环的途中：短行从上一针被移圈之后的那一针起。环不是靠折返收口的。走完这一环之后，下一针是下一环的起点，这里不填。
