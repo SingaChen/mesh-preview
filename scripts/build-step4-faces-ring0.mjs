@@ -1405,11 +1405,14 @@ export function renderReport(built) {
   lines.push(built.inputLine || "输入只有 faces_ring_layout.json 的 ring 0（types 和 hangs）。加减针数是该项的 n_extra，不是缺省 1。");
   lines.push("Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。");
   lines.push(`底圈 N=${built.baseN}，拆成 F=${built.baseFront}、B=${built.baseBack}。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。`);
+  if (built.afterFirst) {
+    lines.push(`第一环落座之后 N=${built.afterFirst.N}，窗 ${built.afterFirst.text}。`);
+  }
   lines.push(
-    `落座之后 N=${built.seated.N}，窗 ${built.seated.text}。目标 F=${built.seated.tF} / B=${built.seated.tB}。`,
+    `${built.afterFirst ? "两环结束" : "落座之后"} N=${built.seated.N}，窗 ${built.seated.text}。目标 F=${built.seated.tF} / B=${built.seated.tB}。`,
   );
   lines.push("针号是 F# / B#。合图时后床列 = 37 − 物理针，这只是画法，不是从 Step3 抄来的列。");
-  lines.push(built.sheetName === "ring1" ? "再后面的环没有填。" : "后面的环没有填。");
+  lines.push(built.ringBreak ? "第三环起没有填。" : "后面的环没有填。");
   lines.push("");
   lines.push("行程（织行）起点针、终点针：");
   for (const course of built.courses) {
@@ -1424,19 +1427,29 @@ export function renderReport(built) {
     if (row.note) lines.push(`    ${row.note}`);
   });
   lines.push("");
-  lines.push("每一次折返短行单独成课，从上一针被移圈之后的那一针起。整床平衡把终点针收进一针时，下一课从落座后沿行程方向向外的那一针起。走完这一环的项之后，下一针是下一环的起点，这里不填。");
-  const shaping = built.termTypes
-    .map((t, i) => ({ i, t, h: built.hangs[i] }))
-    .filter((x) => x.t === 3 || x.t === 4 || x.t === 5 || x.t === 6 || x.t === 7 || x.t === 8);
-  const shapingText = shaping.map((x) => `term ${x.i} Type ${x.t} hang ${x.h}`).join("，");
-  lines.push(`加减针 hang（n_extra）：${shapingText || "无"}。`);
-  const shapingOther = shaping.filter((x) => x.h !== 1);
-  if (shapingOther.length) {
-    lines.push(
-      `其中 hang 不是 1 的：${shapingOther.map((x) => `term ${x.i} hang ${x.h}`).join("，")}。`,
-    );
-  } else {
-    lines.push("加减针里没有 hang 不是 1 的项。");
+  lines.push(
+    built.ringBreak
+      ? "第二环从第一环的下一针 F0 接在这张表里。每一次折返短行单独成课。第三环起不填。"
+      : "每一次折返短行单独成课，从上一针被移圈之后的那一针起。整床平衡把终点针收进一针时，下一课从落座后沿行程方向向外的那一针起。走完这一环的项之后，下一针是下一环的起点，这里不填。",
+  );
+  const parts = built.ringBreak
+    ? [
+        { name: "第一环", types: built.termTypes.slice(0, built.ringBreak), hangs: built.hangs.slice(0, built.ringBreak), at: 0 },
+        { name: "第二环", types: built.termTypes.slice(built.ringBreak), hangs: built.hangs.slice(built.ringBreak), at: built.ringBreak },
+      ]
+    : [{ name: "", types: built.termTypes, hangs: built.hangs, at: 0 }];
+  for (const part of parts) {
+    const shaping = part.types
+      .map((t, i) => ({ i: i + part.at, t, h: part.hangs[i] }))
+      .filter((x) => x.t === 3 || x.t === 4 || x.t === 5 || x.t === 6 || x.t === 7 || x.t === 8);
+    const shapingText = shaping.map((x) => `term ${x.i} Type ${x.t} hang ${x.h}`).join("，");
+    lines.push(`${part.name ? part.name + " " : ""}加减针 hang（n_extra）：${shapingText || "无"}。`);
+    const shapingOther = shaping.filter((x) => x.h !== 1);
+    if (shapingOther.length) {
+      lines.push(`其中 hang 不是 1 的：${shapingOther.map((x) => `term ${x.i} hang ${x.h}`).join("，")}。`);
+    } else {
+      lines.push(part.name ? `${part.name}里没有 hang 不是 1 的项。` : "加减针里没有 hang 不是 1 的项。");
+    }
   }
   const other = built.hangs
     .map((h, i) => ({ i, h, t: built.termTypes[i] }))
@@ -1485,6 +1498,56 @@ export function buildFromFacesRing(path = DEFAULT_PATHS.facesRing) {
   };
 }
 
+function shiftTerm(cell, offset) {
+  const next = { ...cell };
+  if (Number.isInteger(next.tIdx)) next.tIdx += offset;
+  if (Array.isArray(next.extraIdx)) next.extraIdx = next.extraIdx.map((term) => term + offset);
+  return next;
+}
+
+/** Ring 0, then ring 1 on the same bed, one chart. */
+export function buildJoinedChart(path = DEFAULT_PATHS.facesRing) {
+  const first = buildFromFacesRing(path);
+  const layout = JSON.parse(readFileSync(path, "utf8"));
+  const ring = layout.rings[1];
+  const types = ring.types.map((t) => Number(t));
+  const hangs = ring.hangs.map((n) => Number(n));
+  if (types.length !== ring.n_terms || hangs.length !== types.length) {
+    fail("ring 1 types and hangs do not match");
+  }
+  const seeds = [];
+  for (let p = 0; p <= 18; p++) seeds.push({ bed: "F", phys: p });
+  for (let p = 18; p >= 0; p--) seeds.push({ bed: "B", phys: p });
+  const second = seatContinuation(coursesFromTypes(types, hangs), seeds);
+  const n0 = first.courses.length;
+  const sheet = [
+    ...first.sheet,
+    ...second.sheet.map((row) => ({
+      ...row,
+      course: row.course + n0,
+      note: row.note ? row.note.replace(/course (\d+)/g, (_, n) => `course ${Number(n) + n0}`) : row.note,
+      cells: row.cells.map((cell) => shiftTerm(cell, first.types)),
+    })),
+  ];
+  return {
+    sheet,
+    courses: [...first.courses, ...second.courses.map((course) => ({ ...course, course: course.course + n0 }))],
+    seated: second.seated,
+    afterFirst: first.seated,
+    baseN: first.baseN,
+    baseFront: first.baseFront,
+    baseBack: first.baseBack,
+    types: first.types + types.length,
+    termTypes: [...first.termTypes, ...types],
+    hangs: [...first.hangs, ...hangs],
+    ringBreak: first.types,
+    sheetName: "ring0",
+    title: "faces_ring step4 床图（第一环和第二环接在一起）",
+    inputLine:
+      "输入只有 faces_ring_layout.json 的 ring 0 和 ring 1（types 和 hangs）。第二环从第一环结束的下一针 F0 接着织。加减针数是该项的 n_extra。",
+  };
+}
+
 export function workbookBytes(built) {
   const cols = built.sheet.flatMap((row) => row.cells.map((c) => c.col));
   const lo = Math.min(...cols);
@@ -1503,12 +1566,12 @@ export function workbookBytes(built) {
   courseRows.push([]);
   courseRows.push(["baseN", String(built.baseN), `F${built.baseFront}`, `B${built.baseBack}`]);
   courseRows.push(["seatedN", String(built.seated.N), `F${built.seated.tF}`, `B${built.seated.tB}`, built.seated.text]);
-  courseRows.push(["input", "faces_ring ring 0 only"]);
+  courseRows.push(["input", built.ringBreak ? "faces_ring ring 0 then ring 1" : "faces_ring ring 0 only"]);
   courseRows.push(["not_input", "Step1 Step2 Step3 xls txt maps"]);
   const legendRows = [
-    ["input", "faces_ring_layout.json rings[0].types and hangs[] (Term.remain / n_extra). Hang is not defaulted to 1."],
+    ["input", built.inputLine || "faces_ring_layout.json rings[0].types and hangs[] (Term.remain / n_extra). Hang is not defaulted to 1."],
     ["not_input", "Step1, Step2, and Step3 xls/txt/maps were not read, joined, or used as column hints."],
-    ["scope", "First faces_ring only. Later rings are not filled."],
+    ["scope", built.ringBreak ? "Ring 0 and ring 1 on one sheet. Later rings are not filled." : "First faces_ring only. Later rings are not filled."],
     ["N", `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
     ["draw", "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
     ["此刻活针", "Last column is how many stitches are already seated when the row starts. 0针 means the beds are still empty. It is not a needle number."],
@@ -1606,7 +1669,7 @@ function main(argv = process.argv.slice(2)) {
   const check = argv.includes("--check");
   selfCheckDecrease();
   selfCheckNegativeSeat();
-  const built = buildFromFacesRing();
+  const built = buildJoinedChart();
   const text = renderReport(built);
   const bytes = workbookBytes(built);
   if (check) {

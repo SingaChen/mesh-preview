@@ -34,7 +34,6 @@ import {
   formatPhysicalNeedle,
   formatPhysicalNeedles,
   isFacesRing0BedChart,
-  isFacesRing1BedChart,
   isFlipDir,
   isTransferDir,
   parseExcelReadableMap,
@@ -68,7 +67,6 @@ const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
 const sampleBtn = document.querySelector("#load-sample");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
-const facesRing1Btn = document.querySelector("#load-faces-ring1");
 const fitBtn = document.querySelector("#fit-view");
 const slider = document.querySelector("#mesh-slider");
 const meshRow = document.querySelector("#mesh-row");
@@ -326,7 +324,7 @@ async function loadBuffer(entry) {
 function isMapXlsEntry(entry) {
   if (!entry) return false;
   const name = entry.name || entry.path || "";
-  return isExcelReadableMapName(name) || isFacesRing0BedChart(name) || isFacesRing1BedChart(name) || (isXlsName(name) && /readable_map|step3/i.test(name));
+  return isExcelReadableMapName(name) || isFacesRing0BedChart(name) || (isXlsName(name) && /readable_map|step3/i.test(name));
 }
 
 function sheetQuery() {
@@ -348,12 +346,8 @@ function outputIndexForSheet(next, sheet) {
   const outputs = next?.outputs || [];
   if (!outputs.length) return 0;
   const want = String(sheet || "").toLowerCase();
-  if (want === "faces-ring0" || want === "faces_ring0") {
+  if (want === "faces-ring0" || want === "faces_ring0" || want === "faces-ring1" || want === "faces_ring1") {
     const hit = outputs.findIndex((out) => isFacesRing0BedChart(out.readableMapFile?.name || out.readableMapFile?.path || ""));
-    if (hit >= 0) return hit;
-  }
-  if (want === "faces-ring1" || want === "faces_ring1") {
-    const hit = outputs.findIndex((out) => isFacesRing1BedChart(out.readableMapFile?.name || out.readableMapFile?.path || ""));
     if (hit >= 0) return hit;
   }
   return outputs.length - 1;
@@ -731,13 +725,10 @@ async function loadSample(sheet = sheetQuery()) {
     await openEntries(entries, { sheet });
     if (!statusEl.classList.contains("error")) {
       const faces0 = isFacesRing0BedChart(currentOutput()?.readableMapFile?.name || "");
-      const faces1 = isFacesRing1BedChart(currentOutput()?.readableMapFile?.name || "");
       setStatus(
         faces0
-          ? "faces_ring0 第一环床图 · 网格滑条最后一项仍是原来的 step4-ring0"
-          : faces1
-            ? "faces_ring1 第二环床图 · 从第一环的 F0 接着织"
-            : "左 3D · 右 step4-ring0（第二圈继承第一圈床位，织行与移圈同一物理列）· 窄屏切 3D/图",
+          ? "faces_ring 前两环接在一张床图上 · 网格滑条最后一项仍是原来的 step4-ring0"
+          : "左 3D · 右 step4-ring0（第二圈继承第一圈床位，织行与移圈同一物理列）· 窄屏切 3D/图",
       );
     }
   } catch (err) {
@@ -794,11 +785,6 @@ facesRing0Btn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("faces-ring0");
   loadSample("faces-ring0");
-});
-facesRing1Btn?.addEventListener("click", () => {
-  setOpenMenu(false);
-  setSheetQuery("faces-ring1");
-  loadSample("faces-ring1");
 });
 
 folderInput.addEventListener("change", async () => {
@@ -861,7 +847,7 @@ function paintReadableMap() {
   if (mapMeta) {
     mapMeta.textContent =
       map.source === "excel"
-        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring0" : map.sheet === "ring1" ? "faces-ring1" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环，只来自 faces_ring" : map.sheet === "ring1" ? " · 第二环，从第一环的 F0 接着织" : ""}`
+        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}`
         : h
           ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
           : `${map.rows.length} rows · ${map.cells.length} cells`;

@@ -155,18 +155,14 @@ const entries = [
 
 const index = indexFiles(entries);
 const fromManifest = projectFromManifest(manifest, index, "sample/manifest.json");
-if (fromManifest.outputs.length !== 3) throw new Error("expected the two faces-ring sheets plus the live step4 sample");
+if (fromManifest.outputs.length !== 2) throw new Error("expected the joined faces-ring sheet plus the live step4 sample");
 const facesOut = fromManifest.outputs[0];
-const faces1Out = fromManifest.outputs[1];
-const liveOut = fromManifest.outputs[2];
+const liveOut = fromManifest.outputs[1];
 if (!/faces_ring0_step4_bed\.xls$/i.test(facesOut.readableMapFile?.name || "")) {
   throw new Error("first sample output must open faces_ring0_step4_bed.xls");
 }
 if (!/faces_ring0_step4_bed\.txt$/i.test(facesOut.readableMapTxtFile?.name || "")) {
   throw new Error("faces-ring0 output must keep its own txt");
-}
-if (!/faces_ring1_step4_bed\.xls$/i.test(faces1Out.readableMapFile?.name || "")) {
-  throw new Error("second sample output must open faces_ring1_step4_bed.xls");
 }
 if (!liveOut.stitchFile) throw new Error("expected stitch file");
 if (!liveOut.readableMapFile) throw new Error("expected readable_map");
@@ -188,23 +184,20 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   assert(facesMap.rows[0].beds.startsWith("0针"), "first row starts with no seated stitches");
   const front0 = facesMap.rows[0].cells.find((cell) => cell.col === 0 && cell.token);
   assert(physicalNeedleGlyph(front0) === "F0" && front0.faceIndex === 0, "first knit cell is physical F0 and stitch face 0");
-  const faceIds = new Set(facesMap.faceByCell.values());
-  assert(faceIds.size === 46 && [...faceIds].every((id) => id >= 0 && id < 46), "every ring-0 stitch face is on a knit cell");
+  const faceIds = new Set();
+  for (const value of facesMap.faceByCell.values()) {
+    for (const face of Array.isArray(value) ? value : [value]) faceIds.add(face);
+  }
+  assert(faceIds.has(0) && faceIds.has(46) && faceIds.size === 182, "the one sheet maps ring 0 and ring 1 stitch faces");
   const bind = parseStitchMapBind(readFileSync(join(cylDir, "stitch_map_bind.json"), "utf8"));
   const face0 = stitchForMapCell(0, 0, bind, null, facesMap);
   assert(face0?.index === 0, "clicking the first cell selects stitch face 0, not a step3 column");
   const term21 = highlightKeysForStitch({ index: 21 }, { map: facesMap, bind });
   assert(term21.size === 2, "the hang-1 increase term lights both of its knit cells");
-  const ring1 = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring1_step4_bed.xls")));
-  assert(ring1.sheet === "ring1" && ring1.rows.length > 0, "faces_ring1 bed chart opens as sheet ring1");
-  const ring1Start = ring1.rows.find((row) => row.dir === "R");
-  const ring1F0 = ring1Start?.cells.find((cell) => cell.token && cell.bed === "F" && cell.phys === 0);
-  assert(ring1F0, "second ring knits F0");
-  const ring1Faces = new Set();
-  for (const value of ring1.faceByCell.values()) {
-    for (const face of Array.isArray(value) ? value : [value]) ring1Faces.add(face);
-  }
-  assert(ring1Faces.has(46) && ring1Faces.size === 136, "second ring maps all 136 terms onto stitch faces 46 onward");
+  const joined = facesMap.rows.filter((row) => row.dir === "R" || row.dir === "L");
+  assert(joined.length === 5 + 17, "ring 0's five courses and ring 1's seventeen courses are on one sheet");
+  assert(joined[0].cells.some((cell) => cell.bed === "F" && cell.phys === 0), "the sheet still starts at F0");
+  assert(joined[5].cells.some((cell) => cell.bed === "F" && cell.phys === 0), "ring 1 continues at F0 on the same sheet");
 }
 
 const fromDiscovery = projectFromDiscovery(index);
@@ -1191,7 +1184,7 @@ assert(html.includes('id="base-menu-btn"') && html.includes('id="toggle-warp"') 
 assert(/grid-template-columns:\s*1fr 1fr 1fr/.test(readFileSync(join(root, "src", "style.css"), "utf8")), "Base button shares the same 3-column size as Warp and Stitch");
 assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "top bar uses one Open menu");
 assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') && html.includes('id="open-files"'), "Sample / Folder / Files stay as menu items");
-assert(html.includes('id="load-faces-ring0"') && html.includes('id="load-faces-ring1"') && mainSrc.includes("faces-ring1") && mainSrc.includes("isFacesRing1BedChart"), "Open menu can load both faces-ring bed charts");
+assert(html.includes('id="load-faces-ring0"') && !html.includes('id="load-faces-ring1"') && mainSrc.includes("faces-ring0") && mainSrc.includes("isFacesRing0BedChart"), "Open menu loads the joined faces-ring bed chart");
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");

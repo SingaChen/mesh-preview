@@ -2,26 +2,12 @@
   "name": "Single_Cylinder_Test",
   "outputs": [
     {
-      "label": "faces ring0 · first ring bed",
+      "label": "faces ring 0–1 · one bed chart",
       "mesh": "cylinder/cut_iteration_0.obj",
       "overlay": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "readableMap": "cylinder/faces_ring0_step4_bed.xls",
       "readableMapTxt": "cylinder/faces_ring0_step4_bed.txt",
-      "field": "cylinder/iteration_0_cut_cols_resample_field.obj",
-      "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
-      "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
-      "firstRows": "cylinder/iteration_0_cut_first_rows.xls",
-      "facesRingLayout": "cylinder/faces_ring_layout.json",
-      "stitchMapBind": "cylinder/stitch_map_bind.json"
-    },
-    {
-      "label": "faces ring1 · second ring bed",
-      "mesh": "cylinder/cut_iteration_0.obj",
-      "overlay": "cylinder/iteration_0_cut_KnittingStitches.obj",
-      "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
-      "readableMap": "cylinder/faces_ring1_step4_bed.xls",
-      "readableMapTxt": "cylinder/faces_ring1_step4_bed.txt",
       "field": "cylinder/iteration_0_cut_cols_resample_field.obj",
       "colsResample": "cylinder/iteration_0_cut_cols_resample_field.obj",
       "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
