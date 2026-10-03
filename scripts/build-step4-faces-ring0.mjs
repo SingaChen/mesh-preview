@@ -463,9 +463,10 @@ function rackBed(stitches, plan, bed, delta, where) {
   return cells;
 }
 
+/** The arrow points at the bed the stitch lands on. The cell stays on the source needle. */
 function flipToken(fromBed, toBed) {
-  if (fromBed === "F" && toBed === "B") return "⬇";
-  if (fromBed === "B" && toBed === "F") return "⬆";
+  if (fromBed === "B" && toBed === "F") return "⬇";
+  if (fromBed === "F" && toBed === "B") return "⬆";
   fail(`flip ${fromBed}→${toBed} is not a bed change`);
 }
 
@@ -1700,7 +1701,7 @@ function assertChart(built) {
     for (const cell of row.cells) {
       if (/^[FB][←→]1$/.test(cell.token)) fail(`1-needle transfer must omit the number: ${cell.token}`);
       if (cell.role === "flip") {
-        const target = cell.token === "⬇" ? "B" : "F";
+        const target = cell.token === "⬇" ? "F" : "B";
         if (cell.bed === target) fail("flip did not change bed");
       }
     }
