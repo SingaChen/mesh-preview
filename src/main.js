@@ -326,3 +326,716 @@ function isMapXlsEntry(entry) {
   const name = entry.name || entry.path || "";
   return isExcelReadableMapName(name) || isFacesRing0BedChart(name) || (isXlsName(name) && /readable_map|step3/i.test(name));
 }
+
+function sheetQuery() {
+  try {
+    return new URLSearchParams(location.search).get("sheet") || "";
+  } catch {
+    return "";
+  }
+}
+
+function setSheetQuery(sheet) {
+  const url = new URL(location.href);
+  if (sheet) url.searchParams.set("sheet", sheet);
+  else url.searchParams.delete("sheet");
+  history.replaceState(null, "", url);
+}
+
+function outputIndexForSheet(next, sheet) {
+  const outputs = next?.outputs || [];
+  if (!outputs.length) return 0;
+  const want = String(sheet || "").toLowerCase();
+  if (want === "faces-ring0" || want === "faces_ring0") {
+    const hit = outputs.findIndex((out) => isFacesRing0BedChart(out.readableMapFile?.name || out.readableMapFile?.path || ""));
+    if (hit >= 0) return hit;
+  }
+  return outputs.length - 1;
+}
+
+async function loadExcelOrTxtMap(entry) {
+  if (!entry) return null;
+  if (isMapXlsEntry(entry)) {
+    const buf = await loadBuffer(entry);
+    if (!buf) return null;
+    const map = parseExcelReadableMap(buf);
+    return map?.rows?.length ? map : null;
+  }
+  const mapText = await loadText(entry);
+  const map = parseReadableMap(mapText);
+  return map?.cells?.length ? map : null;
+}
+
+async function loadReadableMap(output) {
+  const excel = await loadExcelOrTxtMap(output.readableMapFile);
+  if (excel) return excel;
+  return loadExcelOrTxtMap(output.readableMapTxtFile);
+}
+
+async function loadStitches(output) {
+  const stitchEntry = output.stitchFile || output.overlayFile;
+  const mapEntry = output.readableMapFile;
+  if (!stitchEntry) return null;
+  const stitchText = await loadText(stitchEntry);
+  if (!stitchText) return null;
+  const parsed = parseColoredObj(stitchText);
+  if (!parsed.faces.length) return null;
+  let bound = null;
+  let parsedMap = null;
+  const displayMap = await loadReadableMap(output);
+  const txtEntry =
+    output.readableMapTxtFile || (mapEntry && !isMapXlsEntry(mapEntry) ? mapEntry : null);
+  let bindMap = null;
+  if (txtEntry) {
+    const mapText = await loadText(txtEntry);
+    bindMap = parseReadableMap(mapText);
+  }
+  parsedMap = displayMap || bindMap;
+  if (bindMap?.cells?.length) bound = bindStitchesToMap(parsed.faces, bindMap);
+  if (!bound) {
+    bound = {
+      stitches: parsed.faces.map((face, index) => ({
+        index,
+        verts: face.verts,
+        row: index,
+        col: 0,
+        token: null,
+        dir: null,
+        path_index: null,
+        term_index: null,
+        mapCells: [],
+      })),
+      columns: [0],
+      rowMin: 0,
+      rowMax: parsed.faces.length ? parsed.faces.length - 1 : 0,
+      unboundFaces: 0,
+      leftoverCells: 0,
+    };
+  }
+  let stitchBind = null;
+  if (output.stitchMapBindFile) {
+    const bindText = await loadText(output.stitchMapBindFile);
+    if (bindText) stitchBind = parseStitchMapBind(bindText);
+  }
+  if (stitchBind) applyStitchMapBind(bound.stitches, stitchBind);
+  let firstRows = null;
+  if (output.firstRowsFile) {
+    const buf = await loadBuffer(output.firstRowsFile);
+    if (buf) firstRows = parseFirstRows({ xls: buf });
+  }
+  let layout = null;
+  if (output.facesRingLayoutFile) {
+    const text = await loadText(output.facesRingLayoutFile);
+    if (text) layout = parseFacesRingLayout(text);
+  }
+  const nRings = layout?.nFacesRing || firstRows?.nRings || 0;
+  const faceChunks = faceChunksFromFaces(parsed.faces);
+  const rowChunks = facesRingChunksFromStitches(bound.stitches, {
+    nRings,
+    termCounts: layout?.termCounts,
+    ringTypes: layout?.ringTypes,
+    colors: layout?.colors,
+  });
+  bound.edgeColor = layout?.edgeColor || { r: 0, g: 0, b: 0 };
+  return { bound, faceChunks, rowChunks, firstRows, layout, stitchBind, stitchEntry, mapEntry, map: parsedMap };
+}
+
+async function loadCols(output) {
+  if (!output.colsResampleXlsFile && !output.colsResampleFile) {
+    return null;
+  }
+  const [fieldText, xls] = await Promise.all([
+    output.colsResampleFile ? loadText(output.colsResampleFile) : Promise.resolve(""),
+    output.colsResampleXlsFile ? loadBuffer(output.colsResampleXlsFile) : Promise.resolve(null),
+  ]);
+  const columns = parseColsResample({ xls, fieldText });
+  return columns.length
+    ? { columns, entry: output.colsResampleXlsFile || output.colsResampleFile }
+    : null;
+}
+
+function activeRingFromSlider() {
+  const [a, b] = facesRange.value;
+  return activeRingIndex(a, b);
+}
+
+function activeRingChunk() {
+  const active = activeRingFromSlider();
+  if (active == null || !scene?.stitches?.rowChunks) return null;
+  return scene.stitches.rowChunks[active] || null;
+}
+
+function paintTermChrome() {
+  if (!termsLabel) return;
+  const chunk = activeRingChunk();
+  const n = chunk?.faces.length ?? 0;
+  const active = activeRingFromSlider();
+  if (termsSub) termsSub.textContent = active == null ? "term" : `ring ${active}`;
+  if (!n || active == null) {
+    termsLabel.textContent = "term: -";
+    termsRange.setEnabled(false);
+    return;
+  }
+  const [t0, t1] = termsRange.value;
+  termsLabel.textContent = formatHalfOpenRangeLabel("term", t0, t1, n);
+  termsRange.setEnabled(true);
+}
+
+function applyColsRange() {
+  if (!scene?.columns?.length) return;
+  const [start, end] = colsRange.value;
+  viewer.setColsResampleRange(start, end);
+  colsLabel.textContent = formatHalfOpenRangeLabel("cols_resample", start, end, scene.columns.length);
+}
+
+function syncTermSlider({ reset = false } = {}) {
+  const chunk = activeRingChunk();
+  const n = chunk?.faces.length ?? 0;
+  const active = activeRingFromSlider();
+  if (!n || active == null) {
+    termsRange.configure(0, [0, 0]);
+    termsRange.setEnabled(false);
+    scene.prevActiveRing = null;
+    return;
+  }
+  if (reset || scene.prevActiveRing !== active) {
+    termsRange.configure(n, [0, n]);
+    scene.prevActiveRing = active;
+  } else if (termsRange.n !== n) {
+    termsRange.configure(n, [0, n]);
+  }
+  termsRange.setEnabled(true);
+}
+
+function applyFacesRange({ resetTerms } = {}) {
+  if (!scene?.stitches?.rowChunks?.length) return;
+  const [start, end] = facesRange.value;
+  const active = activeRingIndex(start, end);
+  const shouldReset = resetTerms ?? scene.prevActiveRing !== active;
+  syncTermSlider({ reset: shouldReset });
+  applyTermsRange();
+  facesLabel.textContent = formatHalfOpenRangeLabel("row", start, end, scene.stitches.rowChunks.length);
+}
+
+function applyTermsRange() {
+  if (!scene?.stitches?.rowChunks?.length) return;
+  const [r0, r1] = facesRange.value;
+  if (r1 <= r0) {
+    viewer.setKnitRange(r0, r1, 0, 0);
+    paintTermChrome();
+    paintMapHighlight();
+    return;
+  }
+  const [t0, t1] = termsRange.value;
+  viewer.setKnitRange(r0, r1, t0, t1);
+  paintTermChrome();
+  paintMapHighlight();
+}
+
+function applyModelsRange() {
+  if (!scene?.models?.length || scene?.stitches?.rowChunks?.length) return;
+  const [start, end] = modelsRange.value;
+  const result = applyDisplayModelsRange(scene.models, start, end, scene.prevFacesItem);
+  for (let i = 0; i < scene.models.length; i++) {
+    const model = scene.models[i];
+    viewer.setModelVisible(model.name, result.visibility[i]);
+  }
+  modelsLabel.textContent = formatDisplayModelsLabel(result.start, result.end, scene.models);
+}
+
+function applyAllFilters() {
+  applyColsRange();
+  if (scene?.stitches?.rowChunks?.length) applyFacesRange({ resetTerms: true });
+  else applyModelsRange();
+  updateChrome();
+}
+
+colsRange.setOnChange(() => {
+  applyColsRange();
+  updateChrome();
+});
+facesRange.setOnChange(() => {
+  applyFacesRange();
+  updateChrome();
+});
+termsRange.setOnChange(() => {
+  applyTermsRange();
+  updateChrome();
+});
+modelsRange.setOnChange(() => {
+  applyModelsRange();
+  updateChrome();
+});
+
+async function showOutput(index, { fit = false } = {}) {
+  if (!project) return;
+  outputIndex = Math.min(Math.max(0, index), project.outputs.length - 1);
+  const output = project.outputs[outputIndex];
+  scene = null;
+  paintStitchPick(null);
+  setStatus("加载中 / Loading…");
+  try {
+    const meshGeom = await loadGeometry(output.meshFile);
+    const stitches = await loadStitches(output);
+    const cols = await loadCols(output);
+    viewer.setBaseLayers(baseLayers);
+    viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
+    viewer.setShowWarp(warpBtn.getAttribute("aria-pressed") === "true");
+
+    const models = [];
+    const cutName = modelNameFromFile(output.meshFile, "cut_iteration_0");
+    registerDisplayModel(models, {
+      kind: "mesh",
+      name: cutName,
+      item: cutName,
+    });
+    if (cols) {
+      registerDisplayModel(models, {
+        kind: "cols_resample",
+        name: "cols_resample",
+        item: "cols_resample",
+      });
+    }
+    if (stitches) {
+      registerDisplayModel(models, {
+        kind: "faces_ring",
+        name: "KnittingStitches",
+        item: "KnittingStitches",
+        faceChunks: stitches.faceChunks,
+        rowChunks: stitches.rowChunks,
+      });
+    }
+
+    const readableMap = stitches?.map || (await loadReadableMap(output));
+    scene = {
+      models,
+      columns: cols?.columns || null,
+      stitches,
+      facesBound: stitches,
+      prevFacesItem: stitches ? "KnittingStitches" : null,
+      prevActiveRing: null,
+      cutName,
+      readableMap,
+    };
+    paintReadableMap();
+
+    if (stitches || cols) {
+      viewer.setDisplayScene({
+        bodyGeom: meshGeom,
+        bodyName: cutName,
+        colsColumns: cols?.columns || null,
+        bound: stitches?.bound || null,
+      });
+    } else {
+      const overlayGeom = output.overlayFile ? await loadGeometry(output.overlayFile) : null;
+      viewer.setGeometries(meshGeom, overlayGeom);
+    }
+
+    if (cols) colsRange.configure(cols.columns.length, [0, cols.columns.length]);
+    else colsRange.configure(0, [0, 0]);
+    if (stitches?.rowChunks?.length) {
+      facesRange.configure(stitches.rowChunks.length, [0, stitches.rowChunks.length]);
+      modelsRange.configure(0, [0, 0]);
+    } else {
+      facesRange.configure(0, [0, 0]);
+      termsRange.configure(0, [0, 0]);
+      modelsRange.configure(models.length, models.length ? [0, models.length] : [0, 0]);
+    }
+
+    applyAllFilters();
+
+    const bits = [];
+    if (meshGeom) {
+      const pos = meshGeom.getAttribute("position");
+      bits.push(`${pos?.count ?? 0} vtx`);
+    }
+    if (cols) bits.push(`${cols.columns.length} cols_resample`);
+    if (stitches) bits.push(`${stitches.rowChunks.length} faces_ring`);
+    if (stitches?.layout?.termTotal) bits.push(`${stitches.layout.termTotal} terms`);
+    else bits.push(`${models.length} models`);
+    statsEl.textContent = bits.join(" · ");
+    setStatus("三滑块半开区间 [start,end) · dual-range like SingaLab");
+    syncViewportAfterLayout(fit ? () => viewer.fitToView() : undefined);
+  } catch (err) {
+    statsEl.textContent = "";
+    scene = null;
+    paintReadableMap();
+    updateChrome();
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function openEntries(entries, { sheet } = {}) {
+  if (!entries?.length) return;
+  geomCache.clear();
+  textCache.clear();
+  scene = null;
+  const index = indexFiles(entries);
+  let next;
+  const preferred =
+    index.byName.get("manifest.json") ||
+    index.jsons.find((j) => j.name.toLowerCase().endsWith("manifest.json")) ||
+    index.jsons[0];
+
+  if (preferred) {
+    try {
+      const data = JSON.parse(await readEntryText(preferred));
+      if (isManifestShape(data)) {
+        next = projectFromManifest(data, index, preferred.path);
+      }
+    } catch (err) {
+      if (index.jsons.includes(preferred) && !index.objs.length) {
+        setStatus(err.message || String(err), true);
+        return;
+      }
+    }
+  }
+
+  if (!next) next = projectFromDiscovery(index);
+  project = next;
+  outputIndex = sheet ? outputIndexForSheet(project, sheet) : project.outputs.length - 1;
+  const warn = project.warnings[0];
+  if (warn) setStatus(warn, true);
+  await showOutput(outputIndex, { fit: true });
+}
+
+async function loadSample(sheet = sheetQuery()) {
+  setStatus("加载示例 / Loading sample…");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
+    if (!res.ok) throw new Error("示例清单不可用 / Sample manifest missing");
+    const data = await res.json();
+    const paths = collectManifestRefs(data);
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`缺少示例 / Missing sample ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
+      }),
+    );
+    await openEntries(entries, { sheet });
+    if (!statusEl.classList.contains("error")) {
+      const faces = isFacesRing0BedChart(currentOutput()?.readableMapFile?.name || "");
+      setStatus(
+        faces
+          ? "faces_ring0 第一环床图 · 网格滑条最后一项仍是原来的 step4-ring0"
+          : "左 3D · 右 step4-ring0（第二圈继承第一圈床位，织行与移圈同一物理列）· 窄屏切 3D/图",
+      );
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+function setOpenMenu(open) {
+  if (!openMenuBtn || !openMenuList) return;
+  openMenuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  openMenuList.hidden = !open;
+}
+
+openMenuBtn?.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  setOpenMenu(openMenuBtn.getAttribute("aria-expanded") !== "true");
+});
+
+document.addEventListener("pointerdown", (ev) => {
+  if (openMenu && !openMenu.contains(ev.target)) setOpenMenu(false);
+});
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") {
+    setOpenMenu(false);
+    setBaseMenuOpen(false);
+  }
+});
+
+openFolderBtn.addEventListener("click", async () => {
+  setOpenMenu(false);
+  try {
+    if (hasDirectoryPicker()) {
+      const entries = await pickDirectoryEntries();
+      await openEntries(entries);
+      return;
+    }
+  } catch (err) {
+    if (err?.name === "AbortError") return;
+  }
+  clickInput(folderInput);
+});
+
+openFilesBtn.addEventListener("click", () => {
+  setOpenMenu(false);
+  clickInput(filesInput);
+});
+sampleBtn.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("");
+  loadSample("");
+});
+facesRing0Btn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("faces-ring0");
+  loadSample("faces-ring0");
+});
+
+folderInput.addEventListener("change", async () => {
+  const entries = entriesFromFileList(folderInput.files);
+  folderInput.value = "";
+  await openEntries(entries);
+});
+
+filesInput.addEventListener("change", async () => {
+  const entries = entriesFromFileList(filesInput.files);
+  filesInput.value = "";
+  await openEntries(entries);
+});
+
+slider.addEventListener("input", () => {
+  showOutput(Number(slider.value));
+});
+
+function setChromeCollapsed(collapsed) {
+  document.body.classList.toggle("chrome-collapsed", collapsed);
+  if (hideChromeBtn) {
+    hideChromeBtn.hidden = collapsed;
+    hideChromeBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+  if (showChromeBtn) {
+    showChromeBtn.hidden = !collapsed;
+    showChromeBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+  syncViewportAfterLayout();
+}
+
+function syncViewportAfterLayout(after) {
+  viewer.resize();
+  mapView?.resize();
+  requestAnimationFrame(() => {
+    viewer.resize();
+    mapView?.resize();
+    after?.();
+  });
+}
+
+function paintReadableMap() {
+  const map = scene?.readableMap;
+  const hasMap = Boolean(map?.rows?.length || map?.cells?.length);
+  if (mapPane) {
+    mapPane.hidden = !hasMap;
+    mapPane.classList.toggle("excel-map", map?.source === "excel");
+  }
+  if (mapEmpty) mapEmpty.hidden = hasMap;
+  if (!hasMap) {
+    mapView?.clear();
+    if (mapMeta) mapMeta.textContent = "readable_map";
+    syncPaneLayout();
+    return;
+  }
+  const stitches = scene?.stitches?.bound?.stitches || [];
+  const grid = buildReadableMapGrid(map, stitches);
+  mapView?.setGrid(grid);
+  const h = map.header;
+  if (mapMeta) {
+    mapMeta.textContent =
+      map.source === "excel"
+        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring0" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环，只来自 faces_ring" : ""}`
+        : h
+          ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
+          : `${map.rows.length} rows · ${map.cells.length} cells`;
+  }
+  paintMapHighlight();
+  syncPaneLayout();
+  requestAnimationFrame(() => {
+    mapView?.resize();
+    if (pickedStitch) {
+      mapView.ensureVisible(mapKeysForStitch(pickedStitch));
+    } else {
+      mapView?.fit();
+    }
+  });
+}
+
+function paintMapHighlight() {
+  if (!mapView) return;
+  if (physPickKeys) {
+    mapView.setHighlight(new Set());
+    mapView.setPickHighlight(physPickKeys);
+    mapView.ensureVisible(physPickKeys);
+    return;
+  }
+  if (pickedStitch) {
+    const keys = mapKeysForStitch(pickedStitch);
+    mapView.setHighlight(new Set());
+    mapView.setPickHighlight(keys);
+    mapView.ensureVisible(keys);
+    return;
+  }
+  mapView.setPickHighlight(new Set());
+  mapView.ensureVisible(new Set());
+  if (!scene?.stitches?.bound?.stitches?.length) {
+    mapView.setHighlight(new Set());
+    return;
+  }
+  const [r0, r1] = facesRange.value;
+  const [t0, t1] = termsRange.value;
+  const visible = stitchesVisibleForSliders(scene.stitches.bound.stitches, r0, r1, t0, t1);
+  mapView.setHighlight(
+    highlightKeysFromStitches(visible, {
+      map: scene?.readableMap,
+      grid: mapView.grid,
+      bind: stitchMapBind(),
+    }),
+  );
+}
+
+function syncPaneLayout() {
+  const hasMap = Boolean(scene?.readableMap?.cells?.length) && mapPane && !mapPane.hidden;
+  const narrow = narrowSplitMq.matches;
+  document.body.classList.toggle("narrow-split", narrow && hasMap);
+  if (paneSwitch) paneSwitch.hidden = !(narrow && hasMap);
+  if (!hasMap) {
+    document.body.classList.remove("show-map", "show-3d");
+    return;
+  }
+  if (narrow) {
+    document.body.classList.toggle("show-map", mobilePane === "map");
+    document.body.classList.toggle("show-3d", mobilePane === "3d");
+    if (pane3dBtn) pane3dBtn.setAttribute("aria-pressed", mobilePane === "3d" ? "true" : "false");
+    if (paneMapBtn) paneMapBtn.setAttribute("aria-pressed", mobilePane === "map" ? "true" : "false");
+  } else {
+    document.body.classList.remove("show-map", "show-3d");
+  }
+  syncViewportAfterLayout();
+}
+
+function setMobilePane(pane) {
+  mobilePane = pane === "map" ? "map" : "3d";
+  syncPaneLayout();
+  if (mobilePane === "map") {
+    requestAnimationFrame(() => {
+      mapView?.resize();
+      if (pickedStitch) {
+        mapView.ensureVisible(mapKeysForStitch(pickedStitch));
+      } else {
+        mapView?.fit();
+      }
+    });
+  }
+}
+
+fitBtn.addEventListener("click", () => {
+  viewer.resize();
+  viewer.fitToView();
+});
+
+mapZoomIn?.addEventListener("click", () => {
+  mapView?.zoomBy(1.2, (mapView._cssW || 1) / 2, (mapView._cssH || 1) / 2);
+});
+mapZoomOut?.addEventListener("click", () => {
+  mapView?.zoomBy(1 / 1.2, (mapView._cssW || 1) / 2, (mapView._cssH || 1) / 2);
+});
+mapFitBtn?.addEventListener("click", () => {
+  mapView?.resize();
+  mapView?.fit({ overview: true });
+});
+mapPhysBtn?.addEventListener("click", () => {
+  showPhysNeedle = mapPhysBtn.getAttribute("aria-pressed") !== "true";
+  pressed(mapPhysBtn, showPhysNeedle);
+  mapView?.setShowPhysicalNeedles(showPhysNeedle);
+  if (showPhysNeedle) {
+    if (pickedStitch) paintPhysicalStitch(pickedStitch);
+  } else {
+    paintStitchPick(pickedStitch);
+  }
+});
+pane3dBtn?.addEventListener("click", () => setMobilePane("3d"));
+paneMapBtn?.addEventListener("click", () => setMobilePane("map"));
+narrowSplitMq.addEventListener?.("change", () => syncPaneLayout());
+narrowSplitMq.addListener?.(() => syncPaneLayout());
+
+hideChromeBtn?.addEventListener("click", () => setChromeCollapsed(true));
+showChromeBtn?.addEventListener("click", () => setChromeCollapsed(false));
+
+function setBaseMenuOpen(open) {
+  if (!baseMenuBtn || !baseMenuList) return;
+  baseMenuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  baseMenuList.hidden = !open;
+}
+
+function paintBaseChecks() {
+  if (baseChecks.off) baseChecks.off.checked = Boolean(baseLayers.off);
+  if (baseChecks.wire) baseChecks.wire.checked = Boolean(baseLayers.wire);
+  if (baseChecks.faces) baseChecks.faces.checked = Boolean(baseLayers.faces);
+  if (baseChecks.points) baseChecks.points.checked = Boolean(baseLayers.points);
+  if (baseMenuBtn) {
+    baseMenuBtn.setAttribute("aria-pressed", isBaseHidden(baseLayers) ? "false" : "true");
+  }
+}
+
+function onBaseCheck(layer, checked) {
+  baseLayers = applyBaseChoice(baseLayers, layer, checked);
+  paintBaseChecks();
+  viewer.setBaseLayers(baseLayers);
+}
+
+baseMenuBtn?.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  setBaseMenuOpen(baseMenuBtn.getAttribute("aria-expanded") !== "true");
+});
+
+document.addEventListener("pointerdown", (ev) => {
+  if (baseMenu && !baseMenu.contains(ev.target)) setBaseMenuOpen(false);
+});
+
+for (const [layer, el] of Object.entries(baseChecks)) {
+  el?.addEventListener("change", () => onBaseCheck(layer, el.checked));
+}
+
+paintBaseChecks();
+
+warpBtn.addEventListener("click", () => {
+  const on = warpBtn.getAttribute("aria-pressed") !== "true";
+  pressed(warpBtn, on);
+  viewer.setShowWarp(on);
+});
+
+overlayBtn.addEventListener("click", () => {
+  const on = overlayBtn.getAttribute("aria-pressed") !== "true";
+  pressed(overlayBtn, on);
+  viewer.setShowOverlay(on);
+});
+
+let pointer = { x: 0, y: 0, moved: false };
+canvas.addEventListener("pointerdown", (ev) => {
+  pointer = { x: ev.clientX, y: ev.clientY, moved: false };
+});
+canvas.addEventListener("pointermove", (ev) => {
+  if (Math.hypot(ev.clientX - pointer.x, ev.clientY - pointer.y) > 8) pointer.moved = true;
+});
+canvas.addEventListener("pointerup", (ev) => {
+  if (pointer.moved || !scene?.stitches?.rowChunks?.length) return;
+  const stitch = viewer.pickStitch(ev.clientX, ev.clientY);
+  if (showPhysNeedle) paintPhysicalStitch(stitch);
+  else paintStitchPick(stitch);
+});
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: "none" })
+    .then((reg) => {
+      reg.update();
+    })
+    .catch(() => {});
+}
+
+updateChrome();
+loadSample();
