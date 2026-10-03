@@ -288,13 +288,18 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
       marked(ring1Inc).some((cell) => cell.token === "F+R1"),
     "course 7 knits the increase from B4, then flips and racks",
   );
-  const course7Tail = ["F·@F17", "F·@F18", "F·@F19", "BvR@B18"].map((glyph) => {
-    const [token, needle] = glyph.split("@");
-    return marked(ring1Inc).find((cell) => cell.token === token && `${cell.bed}${cell.phys}` === needle);
-  });
+  const course7Cells = marked(ring1Inc);
+  const course7F17 = course7Cells.find((cell) => cell.token === "F·" && cell.bed === "F" && cell.phys === 17);
+  const course7F18 = course7Cells.find((cell) => cell.token === "F·" && cell.bed === "F" && cell.phys === 18);
+  const course7Turn = course7Cells.find((cell) => cell.token === "FvR" && cell.bed === "F" && cell.phys === 19);
   assert(
-    course7Tail.every(Boolean) && course7Tail.map((cell) => cell.col).join(",") === "17,18,19,20",
-    "course 7 knits occupied F19 between F18 and B18 before the row ends",
+    course7F17?.faceIndex != null &&
+      course7F18?.faceIndex === course7F17.faceIndex + 1 &&
+      course7Turn?.faceIndex === course7F18.faceIndex + 1 &&
+      course7Turn.col === 19 &&
+      course7Cells.filter((cell) => cell.bed === "F" && cell.phys === 19).length === 1 &&
+      !course7Cells.some((cell) => cell.bed === "B" && cell.phys === 18),
+    "course 7 draws the turn stitchmesh on F19 and does not draw B18",
   );
   const face51 = highlightKeysForStitch({ index: 51 }, { map: facesMap, bind });
   const face123 = highlightKeysForStitch({ index: 123 }, { map: facesMap, bind });

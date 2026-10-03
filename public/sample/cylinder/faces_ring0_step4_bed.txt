@@ -15,7 +15,7 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   course 4 R  start B15  end B0  （16 针）
   course 5 R  start F0  end F14  （16 针）
   course 6 L  start F14  end B4  （19 针）
-  course 7 R  start B4  end B18  （25 针）
+  course 7 R  start B4  end F19  （24 针）
   course 8 L  start B17  end F17  （4 针）
   course 9 R  start F17  end B17  （4 针）
   course 10 L  start B17  end F15  （6 针）
@@ -69,8 +69,7 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
     F→@F2 F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18
     course 7: partial increase move on F, then the increase, balance after the knit.
   row 14 R  这一行开始时 38针 · 前20[0…19] · 后18[1…18]
-    B^L@B4 B·@B3 B·@B2 B·@B1 F·@F0 F+R1@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 BvR@B18
-    course 7: 行程经过仍有线圈的 F19，离开这一床之前织上。
+    B^L@B4 B·@B3 B·@B2 B·@B1 F·@F0 F+R1@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 FvR@F19
   row 15 Flip  这一行开始时 F20[0…19] / B18[1…18]
     ⬆@F19
     course 7: right-fold flip F19→B19 (same index).
