@@ -195,17 +195,23 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   const term21 = highlightKeysForStitch({ index: 21 }, { map: facesMap, bind });
   assert(term21.size === 2, "the hang-1 increase term lights both of its knit cells");
   const joined = facesMap.rows.filter((row) => row.dir === "R" || row.dir === "L");
-  assert(joined.length === 24, "each decrease course is split around the tail shift, so the sheet has 24 knit rows");
+  assert(joined.length === 22, "a decrease stays on one knit row, so the sheet has ring 0's five courses plus ring 1's seventeen");
   assert(joined[0].cells.some((cell) => cell.bed === "F" && cell.phys === 0), "the sheet still starts at F0");
   assert(joined[5].cells.some((cell) => cell.bed === "F" && cell.phys === 0), "ring 1 continues at F0 on the same sheet");
   const marked = (row) => (row?.cells || []).filter((cell) => cell.token);
   const frontDec = joined.find((row) => row.cells.some((cell) => cell.token === "F-R1"));
   const frontKnit = marked(frontDec);
   const frontDecAt = facesMap.rows.indexOf(frontDec);
+  const frontDecCell = frontKnit.find((cell) => cell.token === "F-R1");
   const frontShift = marked(facesMap.rows[frontDecAt + 1]);
   assert(
-    frontKnit.at(-1)?.token === "F-R1" && frontKnit.at(-1)?.phys === 5 && frontKnit[0]?.phys === 0,
-    "the front decrease is knitted at F5, after F0",
+    frontKnit[0]?.phys === 0 &&
+      frontDecCell?.phys === 5 &&
+      frontKnit[frontKnit.indexOf(frontDecCell) + 1]?.phys === 6 &&
+      frontKnit.at(-1)?.token === "FvR" &&
+      frontKnit.at(-1)?.phys === 14 &&
+      frontKnit.filter((cell) => cell.phys === 5).length === 1,
+    "the front row knits F0…F5, then continues F6…F14 on that same row",
   );
   assert(
     facesMap.rows[frontDecAt + 1]?.dir === "X" &&
@@ -213,12 +219,24 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
         [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((phys) => `F←/${phys}`).join(","),
     "F6 stacks onto F5 and the rest of the front tail steps back one",
   );
-  const frontRest = marked(facesMap.rows[frontDecAt + 2]);
-  assert(facesMap.rows[frontDecAt + 2]?.dir === "R" && frontRest[0]?.phys === 6, "the front course continues at F6 after the shift");
+  assert(facesMap.rows[frontDecAt + 2]?.dir === "Flip", "balance follows the decrease transfer");
+  const frontNext = marked(joined[joined.indexOf(frontDec) + 1]);
+  assert(
+    frontNext.some((cell) => cell.token === "F^R" && cell.phys === 14) &&
+      frontNext.some((cell) => cell.bed === "B" && cell.phys === 1) &&
+      !frontNext.some((cell) => cell.bed === "B" && cell.phys === 0),
+    "the next row starts at post-balance F14 and the racked back starts at B1",
+  );
   const backDec = joined.find((row) => row.cells.some((cell) => cell.token === "B-R1"));
   const backKnit = marked(backDec);
+  const backDecCell = backKnit.find((cell) => cell.token === "B-R1");
   const backShift = marked(facesMap.rows[facesMap.rows.indexOf(backDec) + 1]);
-  assert(backKnit.at(-1)?.token === "B-R1" && backKnit.at(-1)?.phys === 16, "the back decrease is knitted at B16");
+  assert(
+    backDecCell?.phys === 16 &&
+      backKnit[backKnit.indexOf(backDecCell) + 1]?.token === "BvR" &&
+      backKnit[backKnit.indexOf(backDecCell) + 1]?.phys === 15,
+    "the back row continues at B15 after B16 on the same row",
+  );
   assert(
     facesMap.rows[facesMap.rows.indexOf(backDec) + 1]?.dir === "X" &&
       backShift[0]?.token === "B→" &&
@@ -226,6 +244,8 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
       backShift.map((cell) => cell.phys).join(",") === [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].join(","),
     "B15 stacks onto B16 and the rest of the back tail steps back one",
   );
+  const backNext = marked(joined[joined.indexOf(backDec) + 1]);
+  assert(backNext.some((cell) => cell.token === "B^R" && cell.phys === 15), "the next row starts at post-decrease B15");
 }
 
 const fromDiscovery = projectFromDiscovery(index);
