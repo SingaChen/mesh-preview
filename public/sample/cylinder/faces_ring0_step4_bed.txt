@@ -16,20 +16,20 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   course 5 R  start F0  end F14  （16 针）
   course 6 L  start F14  end B4  （19 针）
   course 7 R  start B4  end F19  （24 针）
-  course 8 L  start B17  end F17  （4 针）
-  course 9 R  start F17  end B17  （4 针）
-  course 10 L  start B17  end F15  （6 针）
-  course 11 R  start F15  end B15  （9 针）
-  course 12 L  start B15  end B16  （2 针）
-  course 13 R  start B16  end B15  （2 针）
-  course 14 L  start B15  end B18  （4 针）
-  course 15 R  start B18  end B11  （8 针）
-  course 16 L  start B11  end B14  （4 针）
-  course 17 R  start B14  end B6  （9 针）
-  course 18 L  start B6  end B14  （9 针）
-  course 19 R  start B14  end B4  （11 针）
-  course 20 L  start B4  end B5  （2 针）
-  course 21 R  start B5  end F0  （6 针）
+  course 8 L  start B18  end F16  （4 针）
+  course 9 R  start F16  end B18  （4 针）
+  course 10 L  start B18  end F14  （6 针）
+  course 11 R  start F14  end B16  （9 针）
+  course 12 L  start B16  end B17  （2 针）
+  course 13 R  start B17  end B16  （2 针）
+  course 14 L  start B16  end F18  （4 针）
+  course 15 R  start F18  end B12  （8 针）
+  course 16 L  start B12  end B15  （4 针）
+  course 17 R  start B15  end B7  （9 针）
+  course 18 L  start B7  end B15  （9 针）
+  course 19 R  start B15  end B5  （11 针）
+  course 20 L  start B5  end B6  （2 针）
+  course 21 R  start B6  end B1  （6 针）
 
 表行（格子按织的顺序，不是按表列从左到右）：
   row 0 R  这一行开始时 0针 · 前空 · 后空
@@ -77,40 +77,40 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
     B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
     course 7: counts match and the beds are one needle apart. Rack B -1 (F19[0…18] / B19[1…19] → F19[0…18] / B19[0…18]).
   row 17 L  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
-    B^R@B17 B·@B18 F·@F18 FvL@F17
+    B^R@B18 F·@F18 F·@F17 FvL@F16
   row 18 R  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
-    F^L@F17 F·@F18 B·@B18 BvR@B17
+    F^L@F16 F·@F17 F·@F18 BvR@B18
   row 19 L  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
-    B^R@B17 B·@B18 F·@F18 F·@F17 F·@F16 FvL@F15
+    B^R@B18 F·@F18 F·@F17 F·@F16 F·@F15 FvL@F14
   row 20 R  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
-    F^L@F15 F·@F16 F·@F17 F·@F18 B·@B18 B·@B17 B-R1@B16 B·@B15
-    course 11: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-R1@B16 B·@B15。然后从 B15 起移 1 次（B15 套到 B16，B14…B0 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+    F^L@F14 F·@F15 F·@F16 F·@F17 F·@F18 B·@B18 B-R1@B17 B·@B16
+    course 11: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-R1@B17 B·@B16。然后从 B16 起移 1 次（B16 套到 B17，B15…B0 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
   row 21 X  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
-    B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
-    course 11: 第 1 次移圈从 B15 起。B15 套到 B16，B14…B0 各退一针。都套上第一格 B16，第一格不是移圈源。
+    B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 11: 第 1 次移圈从 B16 起。B16 套到 B17，B15…B0 各退一针。都套上第一格 B17，第一格不是移圈源。
   row 22 R  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    BvR@B15
-    course 11: 平衡之后的下一课，从 B15 织到 B15。
+    BvR@B16
+    course 11: 平衡之后的下一课，从 B16 织到 B16。
   row 23 L  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^R@B15 BvL@B16
+    B^R@B16 BvL@B17
   row 24 R  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^L@B16 BvR@B15
+    B^L@B17 BvR@B16
   row 25 L  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^R@B15 B·@B16 B·@B17 BvL@B18
+    B^R@B16 B·@B17 B·@B18 FvL@F18
   row 26 R  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^L@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 BvR@B11
+    F^L@F18 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 BvR@B12
   row 27 L  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^R@B11 B·@B12 B·@B13 BvL@B14
+    B^R@B12 B·@B13 B·@B14 BvL@B15
   row 28 R  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^L@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 BvR@B6
+    B^L@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 BvR@B7
   row 29 L  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^R@B6 B·@B7 B·@B8 B·@B9 B·@B10 B·@B11 B·@B12 B·@B13 BvL@B14
+    B^R@B7 B·@B8 B·@B9 B·@B10 B·@B11 B·@B12 B·@B13 B·@B14 BvL@B15
   row 30 R  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^L@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 BvR@B4
+    B^L@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 BvR@B5
   row 31 L  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^R@B4 BvL@B5
+    B^R@B5 BvL@B6
   row 32 R  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
-    B^L@B5 B·@B4 B·@B3 B·@B2 B·@B1 F·@F0
+    B^L@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
 
 第二环从第一环的下一针 F0 接在这张表里。每一次折返短行单独成课。第三环起不填。
 第一环 加减针 hang（n_extra）：term 21 Type 6 hang 1。

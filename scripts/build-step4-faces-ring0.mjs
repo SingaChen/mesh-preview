@@ -22,8 +22,10 @@
  *   The extra stitch when the counts differ by 1 is the fold gap.
  * Identity is F# / B#. A combined chart may draw back = 37 − phys.
  * Course start is the previous course's end, plus transfers and any
- * whole-bed balance since that end. Count from the needle after the
- * shift. Nothing moved → the next course starts on that same needle.
+ * whole-bed balance since that end. A fold-return's first stitch is
+ * that same end stitch, on the needle it occupies after the shift.
+ * Never step one needle outward in the old direction. A course that
+ * is not a fold-return still steps to the next stitch.
  * Increase: if a row has n increase sites, do those transfers first
  * to open every site, then knit the whole row once. Do not
  * transfer-and-knit at each site. While the course travels, every
@@ -299,6 +301,11 @@ function decAdded(label) {
   if (tagged) return Number(tagged[1]);
   const tail = String(label).match(/-(\d+)$/);
   return tail ? Number(tail[1]) : 0;
+}
+
+/** A fold-return course opens on the previous turn. Its first label is ^R or ^L. */
+function isFoldReturn(course) {
+  return /^\^/.test(course?.cells?.[0]?.label || "");
 }
 
 function decSide(label) {
@@ -1012,9 +1019,18 @@ export function seatRing(courses, planInfo, carried = null) {
     settleColumns(knitCells, dirSign, where);
     const start = knitCells[0];
     const end = knitCells.at(-1);
-    // A fold-return starts on the previous end, after whatever transfers
-    // happened since. The course after this ring is not filled.
-    if (prevEnd && !incs.length && !decs.length) {
+    // A fold-return starts on the previous end stitch, on the needle it
+    // occupies after transfers and the whole-bed shift. Never one needle
+    // further in the old direction. The course after this ring is not filled.
+    if (prevEnd && isFoldReturn(course)) {
+      const endSt = stitches.get(prevEnd.id);
+      if (!endSt) fail(`${where}: fold-return lost the previous end stitch`);
+      if (start.id !== endSt.id) {
+        fail(
+          `${where}: fold-return starts at ${start.bed}${start.phys}, not the end stitch ${endSt.bed}${endSt.phys}`,
+        );
+      }
+    } else if (prevEnd && !incs.length && !decs.length) {
       const endSt = stitches.get(prevEnd.id);
       if (endSt && start.id !== prevEnd.id) {
         const travel = course.dir === 0 ? 1 : -1;
@@ -1023,7 +1039,7 @@ export function seatRing(courses, planInfo, carried = null) {
         const expected = seat + outward;
         if (start.bed === endSt.bed && start.phys !== seat && start.phys !== expected) {
           fail(
-            `${where}: start ${start.bed}${start.phys} is neither the fold return ${endSt.bed}${seat} nor one needle outward (${endSt.bed}${expected})`,
+            `${where}: start ${start.bed}${start.phys} is neither the previous end ${endSt.bed}${seat} nor the next stitch (${endSt.bed}${expected})`,
           );
         }
       }
@@ -1138,13 +1154,22 @@ export function seatContinuation(courses, seeds) {
       course.cells.forEach((cell, index) => {
         const known = waleToId.get(cell.wale);
         const still = known != null ? stitches.get(known) : null;
-        if (index === 0 && still) at = still;
+        if (index === 0 && isFoldReturn(course)) {
+          if (!cursor || !stitches.has(cursor.id)) fail(`${where}: fold-return has no end stitch`);
+          at = cursor;
+        } else if (index === 0 && still) at = still;
         else if (index === 0 && waleToId.size === 0) at = cursor;
         else {
           if (!at) fail(`${where}: walk has no cursor`);
           if (fresh.has(cell.wale) && waleToId.has(cell.wale) && stitches.get(waleToId.get(cell.wale))?.base === false) {
             at = stitches.get(waleToId.get(cell.wale));
           } else at = stepCircle(at, dirSign, stitches);
+        }
+        if (at.wale != null && at.wale !== cell.wale && waleToId.get(at.wale) === at.id) waleToId.delete(at.wale);
+        const prior = waleToId.get(cell.wale);
+        if (prior != null && prior !== at.id) {
+          const other = stitches.get(prior);
+          if (other && other.wale === cell.wale) other.wale = null;
         }
         waleToId.set(cell.wale, at.id);
         at.wale = cell.wale;
@@ -1186,7 +1211,10 @@ export function seatContinuation(courses, seeds) {
         if (index === 0) {
           const known = waleToId.get(cell.wale);
           const still = known != null ? stitches.get(known) : null;
-          if (still) at = still;
+          if (isFoldReturn(course)) {
+            if (!cursor || !stitches.has(cursor.id)) fail(`${where}: fold-return has no end stitch`);
+            at = cursor;
+          } else if (still) at = still;
           else if (waleToId.size === 0) at = cursor;
           else at = stepCircle(cursor, dirSign, stitches);
         }

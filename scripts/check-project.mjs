@@ -244,29 +244,29 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
   const backAt = facesMap.rows.indexOf(backDec);
   const backShift = marked(facesMap.rows[backAt + 1]);
   assert(
-    backDecCell?.phys === 16 &&
+    backDecCell?.phys === 17 &&
       backDecCell?.fill === "rgb(255,153,204)" &&
       backDot?.token === "B·" &&
-      backDot?.phys === 15 &&
+      backDot?.phys === 16 &&
       backDot?.fill === "rgb(255,153,204)" &&
       backKnit.at(-1) === backDot &&
       !backKnit.some((cell) => cell.token === "BvR"),
-    "the back decrease knits through B-R1 at B16 and B· at B15, and stops on that last decrease cell",
+    "the back decrease knits through B-R1 at B17 and B· at B16, and stops on that last decrease cell",
   );
   assert(
     facesMap.rows[backAt + 1]?.dir === "X" &&
       backShift.every((cell) => cell.token === "B→") &&
-      backShift.map((cell) => cell.phys).join(",") === [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].join(","),
-    "the back decrease transfers starting at B15, the last decrease cell, through B0",
+      backShift.map((cell) => cell.phys).join(",") === [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].join(","),
+    "the back decrease transfers starting at B16, the last decrease cell, through B0",
   );
   const backCont = marked(facesMap.rows[backAt + 2]);
   assert(
     facesMap.rows[backAt + 2]?.dir === "R" &&
-      backCont.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ") === "BvR@B15",
-    "the back continuation is the remaining BvR at B15 after the transfer",
+      backCont.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ") === "BvR@B16",
+    "the back continuation is the remaining BvR at B16 after the transfer",
   );
   const backNext = marked(joined[joined.indexOf(backDec) + 2]);
-  assert(backNext.some((cell) => cell.token === "B^R" && cell.phys === 15), "the next row starts at B15");
+  assert(backNext.some((cell) => cell.token === "B^R" && cell.phys === 16), "the next fold-return starts on that end stitch at B16");
   const ring0Inc = facesMap.rows.find((row) => row.cells.some((cell) => cell.token === "B+R1"));
   const ring0IncAt = facesMap.rows.indexOf(ring0Inc);
   const ring0IncCells = marked(ring0Inc);
@@ -277,6 +277,11 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
       ring0IncCells.some((cell) => cell.token === "B^R" && cell.phys === 18) &&
       ring0IncCells.some((cell) => cell.token === "BvL" && cell.phys === 19),
     "course 1 knits the increase on B17…B19, then racks",
+  );
+  const ring0Return = marked(facesMap.rows[ring0IncAt + 2]);
+  assert(
+    facesMap.rows[ring0IncAt + 2]?.dir === "R" && ring0Return[0]?.token === "B^L" && ring0Return[0]?.phys === 18,
+    "the fold-return after the ring-0 rack starts on the end stitch at B18",
   );
   const ring1Inc = facesMap.rows.find((row) => row.cells.some((cell) => cell.token === "F+R1"));
   const ring1IncAt = facesMap.rows.indexOf(ring1Inc);
@@ -300,6 +305,14 @@ if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json")
       course7Cells.filter((cell) => cell.bed === "F" && cell.phys === 19).length === 1 &&
       !course7Cells.some((cell) => cell.bed === "B" && cell.phys === 18),
     "course 7 draws the turn stitchmesh on F19 and does not draw B18",
+  );
+  const course8 = marked(facesMap.rows[ring1IncAt + 3]);
+  assert(
+    facesMap.rows[ring1IncAt + 3]?.dir === "L" &&
+      course8.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ") === "FvL@F16 F·@F17 F·@F18 B^R@B18" &&
+      course8.some((cell) => cell.token === "B^R" && cell.phys === 18) &&
+      !course8.some((cell) => cell.phys === 17 && cell.bed === "B"),
+    "row 17L starts on the balanced end stitch B18",
   );
   const face51 = highlightKeysForStitch({ index: 51 }, { map: facesMap, bind });
   const face123 = highlightKeysForStitch({ index: 123 }, { map: facesMap, bind });
