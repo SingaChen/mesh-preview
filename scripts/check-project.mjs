@@ -416,6 +416,10 @@ assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readable
     "folder discovery keeps the iteration 0 stitchmesh",
   );
   assert(/step4_ring0\.xls$/i.test(onDisk.outputs[0].readableMapFile?.name || ""), "folder discovery prefers step4-ring0 when beds and step3 are also present");
+  assert(
+    !/standrad_cylinder_readable_map\.txt$/i.test(onDisk.outputs[0].readableMapTxtFile?.name || ""),
+    "folder discovery does not swap in the Standrad Cylinder readable_map",
+  );
   const noRing0 = projectFromDiscovery(indexFiles(diskEntries.filter((e) => !/ring0/i.test(e.name))));
   assert(/step3_xfer\.xls$/i.test(noRing0.outputs[0].readableMapFile?.name || ""), "discovery falls back to step3 xls when ring0 is missing");
 }
@@ -1394,6 +1398,7 @@ assert(
   assert(
     rels.includes("cylinder/standrad_cylinder_KnittingStitches.obj") &&
       rels.includes("cylinder/standrad_cylinder_rings.json") &&
+      rels.includes("cylinder/standrad_cylinder_readable_map.txt") &&
       !rels.some((rel) => /step4|knitout|\.dat$|faces_ring0_step4_bed/i.test(rel)),
     "Standrad Cylinder does not reference the faces-ring sheet or knitout",
   );
@@ -1410,8 +1415,30 @@ assert(
   const out = proj.outputs[0];
   assert(out.label === "Standrad Cylinder", "output label is Standrad Cylinder");
   assert(
-    !out.readableMapFile && !out.readableMapTxtFile && !out.colsResampleFile && !out.firstRowsFile && !out.stitchMapBindFile,
-    "Standrad Cylinder does not attach the cylinder sheets",
+    /standrad_cylinder_readable_map\.txt$/i.test(out.readableMapFile?.name || "") &&
+      /standrad_cylinder_readable_map\.txt$/i.test(out.readableMapTxtFile?.name || "") &&
+      !out.colsResampleFile &&
+      !out.firstRowsFile &&
+      !out.stitchMapBindFile,
+    "Standrad Cylinder uses its own readable_map, not the cylinder sheets",
+  );
+  const bed = parseReadableMap(readFileSync(join(cylDir, "standrad_cylinder_readable_map.txt"), "utf8"));
+  assert(
+    bed.header?.rows === 7 &&
+      bed.header?.cells === 175 &&
+      bed.header?.circle === 25 &&
+      bed.header?.front === 13 &&
+      bed.header?.back === 12 &&
+      bed.rows.length === 7 &&
+      bed.cells.length === 175 &&
+      bed.colMin === 0 &&
+      bed.colMax === 24,
+    "Standrad Cylinder readable_map is 7 rows and columns 0-24",
+  );
+  assert(
+    bed.rows.every((row) => row.dir === "R" && row.colStart === 0 && row.colEnd === 24 && row.tokens.length === 25) &&
+      bed.cells.every((cell) => cell.token === "·" && cell.dir === "R"),
+    "every Standrad Cylinder bed cell is plain knit on an R row",
   );
   const parsed = parseColoredObj(readFileSync(join(cylDir, "standrad_cylinder_KnittingStitches.obj"), "utf8"));
   assert(parsed.verts.length === 700 && parsed.faces.length === 175, "Standrad Cylinder is 700 vertices and 175 faces");
@@ -1419,6 +1446,18 @@ assert(
   assert(
     parsed.verts.every((v) => v.r === 0.55 && v.g === 0.55 && v.b === 0.55),
     "Standrad Cylinder vertex colors are plain-knit gray",
+  );
+  const boundBed = bindStitchesToMap(parsed.faces, bed);
+  assert(boundBed.unboundFaces === 0 && boundBed.leftoverCells === 0, "each stitch face binds one bed cell");
+  assert(boundBed.stitches[0].row === 0 && boundBed.stitches[0].col === 0, "first stitch is column 0");
+  assert(boundBed.stitches[12].row === 0 && boundBed.stitches[12].col === 12, "front bed ends at column 12");
+  assert(boundBed.stitches[13].row === 0 && boundBed.stitches[13].col === 13, "back bed starts at column 13");
+  assert(boundBed.stitches[24].row === 0 && boundBed.stitches[24].col === 24, "row 0 ends at column 24");
+  assert(boundBed.stitches[174].row === 6 && boundBed.stitches[174].col === 24, "last stitch is row 6 column 24");
+  const bedGrid = buildReadableMapGrid(bed, boundBed.stitches);
+  assert(
+    bedGrid.source === "txt" && bedGrid.nRows === 7 && bedGrid.nCols === 25 && bedGrid.occupied === 175,
+    "the right-hand panel grids this readable_map as 7 by 25",
   );
   const layout = parseFacesRingLayout(readFileSync(join(cylDir, "standrad_cylinder_rings.json"), "utf8"));
   const stitches = parsed.faces.map((face, index) => ({ index, verts: face.verts }));

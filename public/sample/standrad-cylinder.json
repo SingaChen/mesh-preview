@@ -5,6 +5,8 @@
       "label": "Standrad Cylinder",
       "mesh": "cylinder/standrad_cylinder_KnittingStitches.obj",
       "stitches": "cylinder/standrad_cylinder_KnittingStitches.obj",
+      "readableMap": "cylinder/standrad_cylinder_readable_map.txt",
+      "readableMapTxt": "cylinder/standrad_cylinder_readable_map.txt",
       "facesRingLayout": "cylinder/standrad_cylinder_rings.json"
     }
   ]
