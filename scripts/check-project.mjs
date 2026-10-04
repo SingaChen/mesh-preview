@@ -65,6 +65,7 @@ import {
   formatPhysicalNeedle,
   formatPhysicalNeedles,
   isDecreaseCylinderBedChart,
+  isIncreaseCylinderBedChart,
   isStandradCylinderBedChart,
   knitBedsByFace,
   KNIT_BED_RGB,
@@ -1479,11 +1480,147 @@ assert(
       ring0Knit.every((cell) => cell.col === (cell.bed === "F" ? cell.phys : 23 - cell.phys)),
     "ring 0 knits F0–F11 then B11–B0 on an empty bed, and B0 holds the last loop",
   );
-  const decreaseFn = mainSrc.slice(mainSrc.indexOf("async function loadDecreaseCylinder"), mainSrc.indexOf("async function loadSample"));
+  const decreaseFn = mainSrc.slice(mainSrc.indexOf("async function loadDecreaseCylinder"), mainSrc.indexOf("async function loadIncreaseCylinder"));
   assert(decreaseFn.includes("arrayBuffer"), "Decrease Cylinder loads the cols xls as bytes");
   assert(decreaseFn.includes("前床 F0–F11") && decreaseFn.includes("后床 B11–B0") && !decreaseFn.includes(".dat"), "Decrease Cylinder status quotes the seated bed and does not add a dat");
   assert(mainSrc.includes("isDecreaseCylinderBedChart"), "the excel map loader recognizes the Decrease Cylinder bed chart");
   assert(!/root\.rotation|camera\.up/.test(decreaseFn), "Decrease Cylinder does not rotate the viewer");
+}
+{
+  assert(
+    html.includes('id="load-increase-cylinder"') &&
+      html.includes("Increase Cylinder") &&
+      mainSrc.includes("increase-cylinder.json") &&
+      mainSrc.includes("loadIncreaseCylinder"),
+    "Open menu loads Increase Cylinder in the existing chooser",
+  );
+  const data = JSON.parse(readFileSync(join(sampleDir, "increase-cylinder.json"), "utf8"));
+  assert(data.name === "Increase Cylinder" && data.outputs?.length === 1, "Increase Cylinder manifest is one sample");
+  assert(data.outputs[0].label === "Increase Cylinder", "chooser label stays Increase Cylinder");
+  const rels = collectManifestRefs(data).join("\n");
+  assert(
+    rels.includes("increase/increase_cylinder_KnittingStitches.obj") &&
+      rels.includes("increase/increase_cylinder_cols_resample_field.obj") &&
+      rels.includes("increase/increase_cylinder_cols_resample.xls") &&
+      rels.includes("increase/increase_cylinder_faces_ring_layout.json") &&
+      rels.includes("increase/increase_cylinder_bed.xls") &&
+      !/knitout|\.dat$|faces_ring0|standrad_cylinder|decrease_cylinder|readable_map/i.test(rels),
+    "Increase Cylinder binds its own stitchmesh, cols_resample, faces ring, and bed chart",
+  );
+  const incDir = join(sampleDir, "increase");
+  const entries = [
+    { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ...collectManifestRefs(data).map((rel) => {
+      const abs = join(sampleDir, rel);
+      const name = rel.split("/").pop();
+      if (/\.xlsx?$/i.test(rel)) return { name, path: `sample/${rel}`, buffer: readFileSync(abs) };
+      return { name, path: `sample/${rel}`, text: readFileSync(abs, "utf8") };
+    }),
+  ];
+  const proj = projectFromManifest(data, indexFiles(entries), "sample/manifest.json");
+  assert(proj.warnings.length === 0 && proj.outputs.length === 1, "Increase Cylinder resolves without borrowing other samples");
+  const out = proj.outputs[0];
+  assert(out.label === "Increase Cylinder", "output label is Increase Cylinder");
+  assert(
+    isIncreaseCylinderBedChart(out.readableMapFile?.name || "") && !out.readableMapTxtFile,
+    "Increase Cylinder right-hand map is its own bed chart",
+  );
+  assert(
+    /increase_cylinder_cols_resample_field\.obj$/i.test(out.colsResampleFile?.name || "") &&
+      /increase_cylinder_cols_resample\.xls$/i.test(out.colsResampleXlsFile?.name || "") &&
+      /increase_cylinder_faces_ring_layout\.json$/i.test(out.facesRingLayoutFile?.name || ""),
+    "Increase Cylinder uses its own cols_resample field, xls, and faces ring",
+  );
+  const parsed = parseColoredObj(readFileSync(join(incDir, "increase_cylinder_KnittingStitches.obj"), "utf8"));
+  assert(parsed.verts.length === 544 && parsed.faces.length === 140, "Increase Cylinder is the SingaLab stitchmesh");
+  const ySpan = parsed.verts.reduce(
+    (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
+    { min: Infinity, max: -Infinity },
+  );
+  assert(ySpan.min > -0.1 && ySpan.max > 39.9 && ySpan.max < 40.1, "Increase Cylinder stands with its height along Y");
+  const layout = parseFacesRingLayout(readFileSync(join(incDir, "increase_cylinder_faces_ring_layout.json"), "utf8"));
+  const stitches = parsed.faces.map((face, index) => ({ index, verts: face.verts }));
+  const chunks = facesRingChunksFromStitches(stitches, {
+    nRings: layout.nFacesRing,
+    termCounts: layout.termCounts,
+    ringTypes: layout.ringTypes,
+    colors: layout.colors,
+  });
+  assert(
+    chunks.length === 3 && chunks.map((chunk) => chunk.faces.length).join(",") === "15,58,67",
+    "Increase Cylinder faces ring is the exported 3 rings",
+  );
+  const increaseCols = parseColsResample({
+    fieldText: readFileSync(join(incDir, "increase_cylinder_cols_resample_field.obj"), "utf8"),
+    xls: readFileSync(join(incDir, "increase_cylinder_cols_resample.xls")),
+  });
+  assert(
+    increaseCols.length === 23 &&
+      increaseCols.every((col, i) => col.col === i && col.points.length >= 2 && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
+    "cols_resample is 23 side-edge polylines climbing the cone",
+  );
+  const nearestVert = (point) => {
+    let best = Infinity;
+    for (const vert of parsed.verts) {
+      const d = Math.hypot(point.x - vert.x, point.y - vert.y, point.z - vert.z);
+      if (d < best) best = d;
+    }
+    return best;
+  };
+  assert(
+    increaseCols.every((col) => col.points.every((point) => nearestVert(point) < 1e-6)),
+    "Increase Cylinder cols_resample points sit on stitchmesh vertices",
+  );
+  const faceEdges = (face) => {
+    const hit = new Set();
+    for (const vert of face.verts) {
+      increaseCols.forEach((col, index) => {
+        if (col.points.some((point) => Math.hypot(point.x - vert.x, point.y - vert.y, point.z - vert.z) < 1e-6)) hit.add(index);
+      });
+    }
+    return hit;
+  };
+  assert(
+    parsed.faces.every((face) => faceEdges(face).size >= 2),
+    "each Increase Cylinder stitch meets cols_resample side edges",
+  );
+  const increaseBed = parseExcelReadableMap(readFileSync(join(incDir, "increase_cylinder_bed.xls")));
+  assert(
+    increaseBed.source === "excel" && increaseBed.sheet === "bed" && increaseBed.bedsHeader === "此刻活针",
+    "Increase Cylinder right-hand map is the excel bed chart",
+  );
+  assert(
+    increaseBed.needleCols.length === 28 && increaseBed.colMin === -4 && increaseBed.colMax === 23,
+    "Increase Cylinder bed chart width is the widest course (28 columns)",
+  );
+  const increaseTxt = readFileSync(join(incDir, "increase_cylinder_bed.txt"), "utf8");
+  assert(
+    increaseTxt.includes("course 0 R  start F0  end B1  （15 针）") &&
+      increaseTxt.includes("第一环落座之后 N=15，窗 F8[0…7] / B7[1…7]。") &&
+      increaseTxt.includes("第二环结束 N=23，窗 F12[0…11] / B11[1…11]。") &&
+      increaseTxt.includes("第三环结束 N=23，窗 F12[0…11] / B11[1…11]。") &&
+      increaseTxt.includes("表宽 28") &&
+      increaseTxt.includes("第3环从 F2 开始"),
+    "Increase Cylinder courses are the generator report",
+  );
+  const ring0 = increaseBed.rows[0];
+  const ring0Knit = ring0.cells.filter((cell) => cell.token);
+  const ring0Seq = ring0Knit.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ");
+  assert(
+    ring0.dir === "R" &&
+      ring0.beds === "0针 · 前空 · 后空" &&
+      ring0Seq === "F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1" &&
+      ring0Knit.every((cell) => cell.col === (cell.bed === "F" ? cell.phys : 23 - cell.phys)),
+    "ring 0 knits F0–F7 then B7–B1 on an empty bed",
+  );
+  const increaseFn = mainSrc.slice(mainSrc.indexOf("async function loadIncreaseCylinder"), mainSrc.indexOf("async function loadSample"));
+  assert(increaseFn.includes("arrayBuffer"), "Increase Cylinder loads the cols xls as bytes");
+  assert(
+    increaseFn.includes("前床 F0–F7") && increaseFn.includes("后床 B7–B1") && increaseFn.includes("表宽 28") && !increaseFn.includes(".dat"),
+    "Increase Cylinder status quotes the seated bed and does not add a dat",
+  );
+  assert(mainSrc.includes("isIncreaseCylinderBedChart"), "the excel map loader recognizes the Increase Cylinder bed chart");
+  assert(!/root\.rotation|camera\.up/.test(increaseFn), "Increase Cylinder does not rotate the viewer");
 }
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
