@@ -1,0 +1,14 @@
+{
+  "name": "Decrease Cylinder",
+  "outputs": [
+    {
+      "label": "Decrease Cylinder",
+      "mesh": "decrease/decrease_cylinder_KnittingStitches.obj",
+      "stitches": "decrease/decrease_cylinder_KnittingStitches.obj",
+      "field": "decrease/decrease_cylinder_cols_resample_field.obj",
+      "colsResample": "decrease/decrease_cylinder_cols_resample_field.obj",
+      "colsResampleXls": "decrease/decrease_cylinder_cols_resample.xls",
+      "facesRingLayout": "decrease/decrease_cylinder_faces_ring_layout.json"
+    }
+  ]
+}

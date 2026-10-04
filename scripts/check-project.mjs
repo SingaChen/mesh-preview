@@ -1569,7 +1569,7 @@ assert(
     parsed.faces.every((face) => faceEdges(face).size === 2),
     "each stitch column lies between two cols_resample side edges",
   );
-  const standradFn = mainSrc.slice(mainSrc.indexOf("async function loadStandradCylinder"), mainSrc.indexOf("async function loadSample"));
+  const standradFn = mainSrc.slice(mainSrc.indexOf("async function loadStandradCylinder"), mainSrc.indexOf("async function loadDecreaseCylinder"));
   assert(standradFn.includes("arrayBuffer"), "Standrad Cylinder loads the bed xls as bytes");
   assert(mainSrc.includes("isStandradCylinderBedChart"), "the excel map loader recognizes the Standrad Cylinder bed chart");
   const layout = parseFacesRingLayout(readFileSync(join(cylDir, "standrad_cylinder_rings.json"), "utf8"));
@@ -1591,6 +1591,105 @@ assert(
     Math.hypot(seam.x - twin.x, seam.y - twin.y, seam.z - twin.z) < 1e-6,
     "Standrad Cylinder seam vertices coincide",
   );
+}
+{
+  assert(
+    html.includes('id="load-decrease-cylinder"') &&
+      html.includes("Decrease Cylinder") &&
+      mainSrc.includes("decrease-cylinder.json") &&
+      mainSrc.includes("loadDecreaseCylinder"),
+    "Open menu loads Decrease Cylinder in the existing chooser",
+  );
+  const data = JSON.parse(readFileSync(join(sampleDir, "decrease-cylinder.json"), "utf8"));
+  assert(data.name === "Decrease Cylinder" && data.outputs?.length === 1, "Decrease Cylinder manifest is one sample");
+  assert(data.outputs[0].label === "Decrease Cylinder", "chooser label stays Decrease Cylinder");
+  const rels = collectManifestRefs(data).join("\n");
+  assert(
+    rels.includes("decrease/decrease_cylinder_KnittingStitches.obj") &&
+      rels.includes("decrease/decrease_cylinder_cols_resample_field.obj") &&
+      rels.includes("decrease/decrease_cylinder_cols_resample.xls") &&
+      rels.includes("decrease/decrease_cylinder_faces_ring_layout.json") &&
+      !/bed|readable_map|knitout|\.dat$|faces_ring0|standrad_cylinder/i.test(rels),
+    "Decrease Cylinder binds the stitchmesh and cols_resample and does not add a bed map",
+  );
+  const decDir = join(sampleDir, "decrease");
+  const entries = [
+    { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ...collectManifestRefs(data).map((rel) => {
+      const abs = join(sampleDir, rel);
+      const name = rel.split("/").pop();
+      if (/\.xlsx?$/i.test(rel)) return { name, path: `sample/${rel}`, buffer: readFileSync(abs) };
+      return { name, path: `sample/${rel}`, text: readFileSync(abs, "utf8") };
+    }),
+  ];
+  const proj = projectFromManifest(data, indexFiles(entries), "sample/manifest.json");
+  assert(proj.warnings.length === 0 && proj.outputs.length === 1, "Decrease Cylinder resolves without borrowing other samples");
+  const out = proj.outputs[0];
+  assert(out.label === "Decrease Cylinder", "output label is Decrease Cylinder");
+  assert(!out.readableMapFile && !out.readableMapTxtFile, "Decrease Cylinder has no bed map");
+  assert(
+    /decrease_cylinder_cols_resample_field\.obj$/i.test(out.colsResampleFile?.name || "") &&
+      /decrease_cylinder_cols_resample\.xls$/i.test(out.colsResampleXlsFile?.name || "") &&
+      /decrease_cylinder_faces_ring_layout\.json$/i.test(out.facesRingLayoutFile?.name || ""),
+    "Decrease Cylinder uses its own cols_resample field, xls, and faces ring",
+  );
+  const parsed = parseColoredObj(readFileSync(join(decDir, "decrease_cylinder_KnittingStitches.obj"), "utf8"));
+  assert(parsed.verts.length === 527 && parsed.faces.length === 129, "Decrease Cylinder is the SingaLab stitchmesh");
+  const ySpan = parsed.verts.reduce(
+    (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
+    { min: Infinity, max: -Infinity },
+  );
+  assert(ySpan.min > -0.1 && ySpan.max > 39.9 && ySpan.max < 40.1, "Decrease Cylinder stands with its height along Y");
+  const layout = parseFacesRingLayout(readFileSync(join(decDir, "decrease_cylinder_faces_ring_layout.json"), "utf8"));
+  const stitches = parsed.faces.map((face, index) => ({ index, verts: face.verts }));
+  const chunks = facesRingChunksFromStitches(stitches, {
+    nRings: layout.nFacesRing,
+    termCounts: layout.termCounts,
+    ringTypes: layout.ringTypes,
+    colors: layout.colors,
+  });
+  assert(
+    chunks.length === 5 && chunks.map((chunk) => chunk.faces.length).join(",") === "23,23,22,19,42",
+    "Decrease Cylinder faces ring is the exported 5 rings",
+  );
+  const decreaseCols = parseColsResample({
+    fieldText: readFileSync(join(decDir, "decrease_cylinder_cols_resample_field.obj"), "utf8"),
+    xls: readFileSync(join(decDir, "decrease_cylinder_cols_resample.xls")),
+  });
+  assert(
+    decreaseCols.length === 24 &&
+      decreaseCols.every((col, i) => col.col === i && col.points.length >= 2 && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
+    "cols_resample is 24 side-edge polylines climbing the cone",
+  );
+  const nearestVert = (point) => {
+    let best = Infinity;
+    for (const vert of parsed.verts) {
+      const d = Math.hypot(point.x - vert.x, point.y - vert.y, point.z - vert.z);
+      if (d < best) best = d;
+    }
+    return best;
+  };
+  assert(
+    decreaseCols.every((col) => col.points.every((point) => nearestVert(point) < 1e-6)),
+    "Decrease Cylinder cols_resample points sit on stitchmesh vertices",
+  );
+  const faceEdges = (face) => {
+    const hit = new Set();
+    for (const vert of face.verts) {
+      decreaseCols.forEach((col, index) => {
+        if (col.points.some((point) => Math.hypot(point.x - vert.x, point.y - vert.y, point.z - vert.z) < 1e-6)) hit.add(index);
+      });
+    }
+    return hit;
+  };
+  assert(
+    parsed.faces.every((face) => faceEdges(face).size >= 2),
+    "each Decrease Cylinder stitch meets cols_resample side edges",
+  );
+  const decreaseFn = mainSrc.slice(mainSrc.indexOf("async function loadDecreaseCylinder"), mainSrc.indexOf("async function loadSample"));
+  assert(decreaseFn.includes("arrayBuffer"), "Decrease Cylinder loads the cols xls as bytes");
+  assert(!decreaseFn.includes("前床") && !decreaseFn.includes(".dat"), "Decrease Cylinder does not invent a bed map or dat");
+  assert(!mainSrc.includes("decrease") || !/root\.rotation|camera\.up/.test(decreaseFn), "Decrease Cylinder does not rotate the viewer");
 }
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
