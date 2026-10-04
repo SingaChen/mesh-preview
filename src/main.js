@@ -34,6 +34,7 @@ import {
   formatPhysicalNeedle,
   formatPhysicalNeedles,
   isFacesRing0BedChart,
+  isDecreaseCylinderBedChart,
   isStandradCylinderBedChart,
   isFlipDir,
   isTransferDir,
@@ -332,6 +333,7 @@ function isMapXlsEntry(entry) {
   return (
     isExcelReadableMapName(name) ||
     isFacesRing0BedChart(name) ||
+    isDecreaseCylinderBedChart(name) ||
     isStandradCylinderBedChart(name) ||
     (isXlsName(name) && /readable_map|step3/i.test(name))
   );
@@ -780,7 +782,7 @@ async function loadDecreaseCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Decrease Cylinder · cols_resample 24");
+      setStatus("Decrease Cylinder · cols_resample 24 · 表宽 24 · 前床 F0–F11 · 后床 B11–B0");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);

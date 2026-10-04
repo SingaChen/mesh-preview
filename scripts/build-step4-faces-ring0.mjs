@@ -347,7 +347,13 @@ function decSide(label) {
   return wrapped ? wrapped[1] : "";
 }
 
-/** Birth wales of stitches that are not increase holes. */
+/**
+ * Birth wales. On an empty bed the first course's increase is a split:
+ * after stitch n the new loop sits on the next needle and holds a loop,
+ * so that wale is part of the contiguous circumference. A later course
+ * already has stitches, and its increase holes are the ones the transfer
+ * opens; those wales are not a second birth.
+ */
 export function baseWalesOf(courses) {
   let live = new Set();
   const base = [];
@@ -355,24 +361,27 @@ export function baseWalesOf(courses) {
     const step = course.dir === 0 ? 1 : -1;
     const incs = course.cells.filter((c) => incAdded(c.label));
     const fresh = new Set();
-    for (const cell of incs.slice().reverse()) {
-      const added = incAdded(cell.label);
-      const pivot = cell.wale + step;
-      for (let g = 1; g <= added; g++) fresh.add(cell.wale + step * g);
-      for (let k = 0; k < added; k++) {
-        const next = new Set();
-        for (const w of live) {
-          let dest = w;
-          if (step === 1 && w >= pivot) dest = w + 1;
-          if (step === -1 && w <= pivot) dest = w - 1;
-          next.add(dest);
+    const emptyBed = live.size === 0;
+    if (!emptyBed) {
+      for (const cell of incs.slice().reverse()) {
+        const added = incAdded(cell.label);
+        const pivot = cell.wale + step;
+        for (let g = 1; g <= added; g++) fresh.add(cell.wale + step * g);
+        for (let k = 0; k < added; k++) {
+          const next = new Set();
+          for (const w of live) {
+            let dest = w;
+            if (step === 1 && w >= pivot) dest = w + 1;
+            if (step === -1 && w <= pivot) dest = w - 1;
+            next.add(dest);
+          }
+          live = next;
         }
-        live = next;
       }
     }
     for (const cell of course.cells) {
       if (live.has(cell.wale)) continue;
-      if (fresh.has(cell.wale)) {
+      if (!emptyBed && fresh.has(cell.wale)) {
         live.add(cell.wale);
         continue;
       }
@@ -1078,37 +1087,41 @@ export function seatRing(courses, planInfo, carried = null) {
     if (decs.length) fail(`${where}: decrease waits until the course reaches it, on a bed that is already seated`);
 
     const fresh = new Set();
-    for (const cell of incs.slice().reverse()) {
-      const added = incAdded(cell.label);
-      const pivot = cell.wale + step;
-      for (let g = 1; g <= added; g++) fresh.add(cell.wale + step * g);
-      for (let k = 0; k < added; k++) {
-        const shapeBed = shapeBedOf(fresh, live, stitches, where);
-        const beds = liveWindow(stitches);
-        const moved = applyIncrease(live, stitches, pivot, step, shapeBed);
-        live = moved.live;
-        if (!moved.moves.length) fail(`${where}: increase did not move the shaping bed`);
-        const token = moveToken(shapeBed, moved.moves[0].from, moved.moves[0].to);
-        if (moved.moves.some((m) => moveToken(m.bed, m.from, m.to) !== token || m.bed !== shapeBed)) {
-          fail(`${where}: increase moves are not one partial shift of ${shapeBed}`);
+    // Nothing is on the bed yet, so a split has no stitch to transfer.
+    // The new loop is knitted on the next needle in this same course.
+    if (live.size > 0) {
+      for (const cell of incs.slice().reverse()) {
+        const added = incAdded(cell.label);
+        const pivot = cell.wale + step;
+        for (let g = 1; g <= added; g++) fresh.add(cell.wale + step * g);
+        for (let k = 0; k < added; k++) {
+          const shapeBed = shapeBedOf(fresh, live, stitches, where);
+          const beds = liveWindow(stitches);
+          const moved = applyIncrease(live, stitches, pivot, step, shapeBed);
+          live = moved.live;
+          if (!moved.moves.length) fail(`${where}: increase did not move the shaping bed`);
+          const token = moveToken(shapeBed, moved.moves[0].from, moved.moves[0].to);
+          if (moved.moves.some((m) => moveToken(m.bed, m.from, m.to) !== token || m.bed !== shapeBed)) {
+            fail(`${where}: increase moves are not one partial shift of ${shapeBed}`);
+          }
+          assertNoShare(stitches, where);
+          sheet.push({
+            dir: "X+",
+            kind: "increase",
+            course: ci,
+            cells: moved.moves.map((m) => ({
+              col: columnForPhys(m.bed, m.from),
+              token,
+              fill: FILL.xfer,
+              phys: m.from,
+              bed: m.bed,
+              id: m.id,
+              role: "increase",
+            })),
+            beds,
+            note: `${where}: partial increase move on ${shapeBed}, then the increase, balance after the knit.`,
+          });
         }
-        assertNoShare(stitches, where);
-        sheet.push({
-          dir: "X+",
-          kind: "increase",
-          course: ci,
-          cells: moved.moves.map((m) => ({
-            col: columnForPhys(m.bed, m.from),
-            token,
-            fill: FILL.xfer,
-            phys: m.from,
-            bed: m.bed,
-            id: m.id,
-            role: "increase",
-          })),
-          beds,
-          note: `${where}: partial increase move on ${shapeBed}, then the increase, balance after the knit.`,
-        });
       }
     }
 
@@ -1631,15 +1644,26 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
       });
       if (!prefix.length) fail(`${where}: decrease row has no knit cells`);
       finishKnit(prefix);
-      const seenId = new Set();
+      const seenPrefix = new Set();
       for (const cell of prefix) {
-        if (seenId.has(cell.id)) fail(`${where}: stitch ${cell.id} is knitted twice`);
-        seenId.add(cell.id);
+        if (seenPrefix.has(cell.id)) fail(`${where}: stitch ${cell.id} is knitted twice`);
+        seenPrefix.add(cell.id);
       }
+      // Cells after the decrease are the next course. A later lap is its
+      // own row: one row cannot give the same stitch two meanings.
+      const segments = [];
+      let segment = [];
+      const seenSeg = new Set();
       for (const item of pending) {
-        if (seenId.has(item.id)) fail(`${where}: stitch ${item.id} is knitted twice`);
-        seenId.add(item.id);
+        if (seenSeg.has(item.id)) {
+          segments.push(segment);
+          segment = [];
+          seenSeg.clear();
+        }
+        seenSeg.add(item.id);
+        segment.push(item);
       }
+      if (segment.length) segments.push(segment);
       const start = courseStart || prefix[0];
       const dirName = course.dir === 0 ? "R" : "L";
       sheet.push({
@@ -1664,8 +1688,8 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
       }
       let endId = firstId;
       let restCount = pending.length;
-      if (pending.length) {
-        const continuation = pending.map((item) => {
+      segments.forEach((items, segIndex) => {
+        const continuation = items.map((item) => {
           const st = stitches.get(item.id);
           if (!st) fail(`${where}: a remaining stitch left the bed during balance`);
           const painted = paint(st.bed, item.cell.label, item.cell.kind);
@@ -1682,19 +1706,19 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
           };
         });
         finishKnit(continuation);
-        restCount = continuation.length;
         const first = continuation[0];
         const last = continuation.at(-1);
         endId = last.id;
+        const lap = segments.length > 1 ? `第 ${segIndex + 1} 课，` : "";
         sheet.push({
           dir: dirName,
           kind: "knit",
           course: ci,
           cells: continuation,
           beds: liveWindow(stitches),
-          note: `${where}: 平衡之后的下一课，从 ${first.bed}${first.phys} 织到 ${last.bed}${last.phys}。`,
+          note: `${where}: 平衡之后的下一课，${lap}从 ${first.bed}${first.phys} 织到 ${last.bed}${last.phys}。`,
         });
-      }
+      });
       const endSt = stitches.get(endId);
       if (!endSt) fail(`${where}: the row end left the bed`);
       const knitEnd = `${endSt.bed}${endSt.phys}`;
@@ -2301,6 +2325,7 @@ export function buildOwnBedChart(path) {
   const labels = ["第一环落座之后", "第二环结束", "第三环结束", "第四环结束", "第五环结束", "第六环结束", "第七环结束"];
   const sheets = [first.sheet];
   const courses = [...first.courses];
+  const ringCourses = [first.courses];
   const termTypes = [...first.termTypes];
   const hangs = [...first.hangs];
   const ringBreaks = [];
@@ -2317,6 +2342,7 @@ export function buildOwnBedChart(path) {
     if (start !== "F0") fail(`ring ${index} first stitch is ${start}, not F0`);
     ringBreaks.push(termOffset);
     sheets.push(shiftSheet(seated.sheet, courseOffset, termOffset));
+    ringCourses.push(seated.courses);
     for (const course of seated.courses) courses.push({ ...course, course: course.course + courseOffset });
     termTypes.push(...ring.types);
     hangs.push(...ring.hangs);
@@ -2332,6 +2358,7 @@ export function buildOwnBedChart(path) {
   return {
     sheet,
     courses,
+    ringCourses,
     seated: ringSeats.at(-1).seated,
     ringSeats,
     ownBed: true,
@@ -2655,13 +2682,19 @@ function selfCheckDecrease() {
   if (/1$/.test([...tokens][0])) fail("1-needle decrease must omit the number");
 }
 
+const OWN_BED_STEM = {
+  "standrad_cylinder_rings.json": "standrad_cylinder_bed",
+  "decrease_cylinder_faces_ring_layout.json": "decrease_cylinder_bed",
+};
+
 function writeOwnBed(input, check) {
   const built = buildOwnBedChart(input);
   const text = renderReport(built);
   const bytes = workbookBytes(built);
-  if (basename(input) !== "standrad_cylinder_rings.json") fail(`${basename(input)} is not the faces_ring for this run`);
-  const outXls = join(dirname(input), "standrad_cylinder_bed.xls");
-  const outTxt = join(dirname(input), "standrad_cylinder_bed.txt");
+  const stem = OWN_BED_STEM[basename(input)];
+  if (!stem) fail(`${basename(input)} is not the faces_ring for this run`);
+  const outXls = join(dirname(input), `${stem}.xls`);
+  const outTxt = join(dirname(input), `${stem}.txt`);
   if (check) {
     const prevXls = readFileSync(outXls);
     const prevTxt = readFileSync(outTxt, "utf8");

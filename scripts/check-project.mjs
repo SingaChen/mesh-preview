@@ -64,6 +64,7 @@ import {
   excelLegendKind,
   formatPhysicalNeedle,
   formatPhysicalNeedles,
+  isDecreaseCylinderBedChart,
   isStandradCylinderBedChart,
   knitBedsByFace,
   KNIT_BED_RGB,
@@ -1365,8 +1366,9 @@ assert(
       rels.includes("decrease/decrease_cylinder_cols_resample_field.obj") &&
       rels.includes("decrease/decrease_cylinder_cols_resample.xls") &&
       rels.includes("decrease/decrease_cylinder_faces_ring_layout.json") &&
-      !/bed|readable_map|knitout|\.dat$|faces_ring0|standrad_cylinder/i.test(rels),
-    "Decrease Cylinder binds the stitchmesh and cols_resample and does not add a bed map",
+      rels.includes("decrease/decrease_cylinder_bed.xls") &&
+      !/knitout|\.dat$|faces_ring0|standrad_cylinder|readable_map/i.test(rels),
+    "Decrease Cylinder binds its own stitchmesh, cols_resample, faces ring, and bed chart",
   );
   const decDir = join(sampleDir, "decrease");
   const entries = [
@@ -1382,7 +1384,10 @@ assert(
   assert(proj.warnings.length === 0 && proj.outputs.length === 1, "Decrease Cylinder resolves without borrowing other samples");
   const out = proj.outputs[0];
   assert(out.label === "Decrease Cylinder", "output label is Decrease Cylinder");
-  assert(!out.readableMapFile && !out.readableMapTxtFile, "Decrease Cylinder has no bed map");
+  assert(
+    isDecreaseCylinderBedChart(out.readableMapFile?.name || "") && !out.readableMapTxtFile,
+    "Decrease Cylinder right-hand map is its own bed chart",
+  );
   assert(
     /decrease_cylinder_cols_resample_field\.obj$/i.test(out.colsResampleFile?.name || "") &&
       /decrease_cylinder_cols_resample\.xls$/i.test(out.colsResampleXlsFile?.name || "") &&
@@ -1442,10 +1447,43 @@ assert(
     parsed.faces.every((face) => faceEdges(face).size >= 2),
     "each Decrease Cylinder stitch meets cols_resample side edges",
   );
+  const decreaseBed = parseExcelReadableMap(readFileSync(join(decDir, "decrease_cylinder_bed.xls")));
+  assert(
+    decreaseBed.source === "excel" && decreaseBed.sheet === "bed" && decreaseBed.bedsHeader === "此刻活针",
+    "Decrease Cylinder right-hand map is the excel bed chart",
+  );
+  assert(
+    decreaseBed.needleCols.length === 24 && decreaseBed.colMin === 0 && decreaseBed.colMax === 23,
+    "Decrease Cylinder bed chart width is the widest course (24 columns)",
+  );
+  const decreaseTxt = readFileSync(join(decDir, "decrease_cylinder_bed.txt"), "utf8");
+  assert(
+    decreaseTxt.includes("course 0 R  start F0  end B0  （24 针）") &&
+      decreaseTxt.includes("course 1 R  start F0  end B1  （24 针）") &&
+      decreaseTxt.includes("course 2 R  start F0  end B0  （23 针）") &&
+      decreaseTxt.includes("course 3 R  start F0  end B1  （22 针）") &&
+      decreaseTxt.includes("course 4 R  start F0  end B0  （47 针）") &&
+      decreaseTxt.includes("表宽 24") &&
+      decreaseTxt.includes("第一环落座之后 N=24，窗 F12[0…11] / B12[0…11]。") &&
+      decreaseTxt.includes("第五环结束 N=14，窗 F7[0…6] / B7[0…6]。"),
+    "Decrease Cylinder courses are the generator report",
+  );
+  const ring0 = decreaseBed.rows[0];
+  const ring0Knit = ring0.cells.filter((cell) => cell.token);
+  const ring0Seq = ring0Knit.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ");
+  assert(
+    ring0.dir === "R" &&
+      ring0.beds === "0针 · 前空 · 后空" &&
+      ring0Seq ===
+        "F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B+R1@B2 B·@B1 B·@B0" &&
+      ring0Knit.every((cell) => cell.col === (cell.bed === "F" ? cell.phys : 23 - cell.phys)),
+    "ring 0 knits F0–F11 then B11–B0 on an empty bed, and B0 holds the last loop",
+  );
   const decreaseFn = mainSrc.slice(mainSrc.indexOf("async function loadDecreaseCylinder"), mainSrc.indexOf("async function loadSample"));
   assert(decreaseFn.includes("arrayBuffer"), "Decrease Cylinder loads the cols xls as bytes");
-  assert(!decreaseFn.includes("前床") && !decreaseFn.includes(".dat"), "Decrease Cylinder does not invent a bed map or dat");
-  assert(!mainSrc.includes("decrease") || !/root\.rotation|camera\.up/.test(decreaseFn), "Decrease Cylinder does not rotate the viewer");
+  assert(decreaseFn.includes("前床 F0–F11") && decreaseFn.includes("后床 B11–B0") && !decreaseFn.includes(".dat"), "Decrease Cylinder status quotes the seated bed and does not add a dat");
+  assert(mainSrc.includes("isDecreaseCylinderBedChart"), "the excel map loader recognizes the Decrease Cylinder bed chart");
+  assert(!/root\.rotation|camera\.up/.test(decreaseFn), "Decrease Cylinder does not rotate the viewer");
 }
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
