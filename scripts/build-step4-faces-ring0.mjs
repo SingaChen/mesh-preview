@@ -417,6 +417,79 @@ export function columnForPhys(bed, phys) {
   fail(`column needs a bed, got ${bed}`);
 }
 
+/**
+ * Chart width is the widest knit course, not the first ring's n_terms.
+ * A course that uses both beds needs max front phys + max back phys + 1
+ * so those needles do not land on one column. A shorter course keeps
+ * the gaps. The sheet then includes every column that placement uses.
+ */
+function fitChartWidth(sheet) {
+  const knits = sheet.filter((row) => row.dir === "R" || row.dir === "L");
+  let mirror = 0;
+  for (const row of knits) {
+    let maxF = null;
+    let maxB = null;
+    for (const cell of row.cells) {
+      if (!Number.isInteger(cell.phys)) continue;
+      if (cell.bed === "F") maxF = maxF == null ? cell.phys : Math.max(maxF, cell.phys);
+      else if (cell.bed === "B") maxB = maxB == null ? cell.phys : Math.max(maxB, cell.phys);
+    }
+    let need = 0;
+    if (maxF != null && maxB != null) need = maxF + maxB + 1;
+    else if (maxF != null) need = maxF + 1;
+    else if (maxB != null) need = maxB + 1;
+    mirror = Math.max(mirror, need);
+  }
+  if (!mirror) fail("chart has no course to measure");
+  const place = (span) => {
+    for (const row of sheet) {
+      for (const cell of row.cells) {
+        if (!Number.isInteger(cell.phys)) continue;
+        if (cell.bed === "F") cell.col = cell.phys;
+        else if (cell.bed === "B") cell.col = span - cell.phys;
+      }
+    }
+  };
+  for (let guard = 0; ; guard++) {
+    if (guard > knits.length + mirror) fail("chart width did not settle");
+    place(mirror);
+    let shared = false;
+    for (const row of knits) {
+      const seen = new Set();
+      for (const cell of row.cells) {
+        if (!Number.isInteger(cell.col)) continue;
+        if (seen.has(cell.col)) shared = true;
+        seen.add(cell.col);
+      }
+    }
+    if (!shared) break;
+    mirror += 1;
+  }
+  let widest = null;
+  for (const row of knits) {
+    const cols = [];
+    for (const cell of row.cells) if (Number.isInteger(cell.col)) cols.push(cell.col);
+    if (!cols.length) continue;
+    const lo = Math.min(...cols);
+    const hi = Math.max(...cols);
+    const span = hi - lo + 1;
+    const occupied = new Set(cols).size;
+    if (occupied !== cols.length) fail(`course ${row.course} still has two definitions in one column`);
+    if (!widest || span > widest.span || (span === widest.span && occupied > widest.occupied)) {
+      widest = { course: row.course, dir: row.dir, span, occupied, lo, hi };
+    }
+  }
+  const cols = [];
+  for (const row of sheet) {
+    for (const cell of row.cells) if (Number.isInteger(cell.col)) cols.push(cell.col);
+  }
+  const lo = Math.min(...cols);
+  const hi = Math.max(...cols);
+  const width = hi - lo + 1;
+  if (widest && widest.span > width) fail(`course ${widest.course} occupies ${widest.span} columns, chart is ${width}`);
+  return { width, mirror, widest };
+}
+
 function assertNoShare(stitches, where) {
   const seen = new Map();
   for (const st of stitches.values()) {
@@ -1984,7 +2057,7 @@ export function renderReport(built) {
   }
   lines.push(
     built.ownBed
-      ? `针号是 F# / B#。表宽 ${built.chartWidth}，来自 rings[0].n_terms。前床列 = 物理针，后床列 = ${built.chartWidth} − 物理针。`
+      ? `针号是 F# / B#。表宽 ${built.chartWidth}，由占用列最宽的一课决定：course ${built.widestCourse.course} ${built.widestCourse.dir} 占 ${built.widestCourse.occupied} 列，跨度 ${built.widestCourse.span}。前床列 = 物理针，后床列 = ${built.chartMirror} − 物理针。短课中间可以空。`
       : "针号是 F# / B#。合图时后床列 = 37 − 物理针，这只是画法，不是从 Step3 抄来的列。",
   );
   lines.push(
@@ -2181,6 +2254,7 @@ export function buildJoinedChart(path = DEFAULT_PATHS.facesRing) {
     ...shiftSheet(fourth.seated.sheet, n0 + n1 + n2, term2),
     ...shiftSheet(fifth.seated.sheet, n0 + n1 + n2 + n3, term3),
   ];
+  fitChartWidth(sheet);
   const shiftCourses = (courses, offset) => courses.map((course) => ({ ...course, course: course.course + offset }));
   return {
     sheet,
@@ -2253,32 +2327,17 @@ export function buildOwnBedChart(path) {
     ringSeats.push({ label: labels[index] || `第${index + 1}环结束`, seated: seated.seated });
   }
   const file = basename(path);
-  const chartWidth = rings[0].n_terms;
-  if (!Number.isInteger(chartWidth) || chartWidth < 1) fail("ring 0 n_terms is not the chart width");
-  if (chartWidth !== first.baseN) fail(`ring 0 n_terms ${chartWidth} is not the seated circumference ${first.baseN}`);
-  for (const ring of rings) {
-    if (ring.n_terms !== chartWidth) fail(`ring n_terms ${ring.n_terms} is not ring 0 n_terms ${chartWidth}`);
-  }
   const sheet = sheets.flat();
-  for (const row of sheet) {
-    const used = new Set();
-    for (const cell of row.cells) {
-      const col = cell.bed === "F" ? cell.phys : cell.bed === "B" ? chartWidth - cell.phys : null;
-      if (!Number.isInteger(col) || col < 0 || col >= chartWidth) {
-        fail(`column ${col} is outside chart width ${chartWidth} from rings[0].n_terms`);
-      }
-      if (used.has(col)) fail(`column ${col} holds two stitches`);
-      used.add(col);
-      cell.col = col;
-    }
-  }
+  const fitted = fitChartWidth(sheet);
   return {
     sheet,
     courses,
     seated: ringSeats.at(-1).seated,
     ringSeats,
     ownBed: true,
-    chartWidth,
+    chartWidth: fitted.width,
+    chartMirror: fitted.mirror,
+    widestCourse: fitted.widest,
     baseN: first.baseN,
     baseFront: first.baseFront,
     baseBack: first.baseBack,
@@ -2319,7 +2378,7 @@ export function workbookBytes(built) {
     ["not_input", "Step1, Step2, and Step3 xls/txt/maps were not read, joined, or used as column hints."],
     ["scope", built.scopeLine || (built.afterFourth ? "Rings 0 through 4 on one sheet. Each later ring continues the seated bed and starts at F0." : built.afterThird ? "Rings 0 through 3 on one sheet. Each later ring continues the seated bed and starts at F0. Later rings are not filled." : built.afterSecond ? "Rings 0, 1, and 2 on one sheet. Ring 2 continues the seated bed. Later rings are not filled." : built.ringBreak ? "Ring 0 and ring 1 on one sheet. Later rings are not filled." : "First faces_ring only. Later rings are not filled.")],
     ["N", `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
-    ["draw", built.chartWidth ? `Chart width ${built.chartWidth} is rings[0].n_terms. Front column = physical needle. Back column = ${built.chartWidth} - phys.` : "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
+    ["draw", built.widestCourse ? `Chart width ${built.chartWidth} is the widest occupied course (course ${built.widestCourse.course} ${built.widestCourse.dir}, ${built.widestCourse.occupied} columns, span ${built.widestCourse.span}). Front column = physical needle. Back column = ${built.chartMirror} - phys. A shorter course may leave empty cells.` : "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
     ["此刻活针", "Last column is how many stitches are already seated when the row starts. 0针 means the beds are still empty. It is not a needle number."],
     ["phys", "Sheet phys copies the bed and physical needle already tracked on each cell."],
     ["faces", "Sheet faces maps a knit cell to the ring-0 KnittingStitches face. Face index is the term index. Step3 columns are not used."],

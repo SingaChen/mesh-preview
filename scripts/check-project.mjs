@@ -1240,7 +1240,7 @@ assert(
       excel.rows[0].dir === "R" &&
       excel.rows[0].beds === "0针 · 前空 · 后空" &&
       excel.rows.slice(1).every((row) => row.dir === "R" && row.beds === "25针 · 前13[0…12] · 后12[1…12]"),
-    "Standrad Cylinder bed chart width is rings[0].n_terms (25 columns)",
+    "Standrad Cylinder bed chart width is the widest course (25 columns)",
   );
   const knitOf = (row) => row.cells.filter((cell) => cell.token);
   assert(
