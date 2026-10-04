@@ -1234,13 +1234,13 @@ assert(
   );
   assert(
     excel.rows.length === 7 &&
-      excel.needleCols.length === 37 &&
+      excel.needleCols.length === 25 &&
       excel.colMin === 0 &&
-      excel.colMax === 36 &&
+      excel.colMax === 24 &&
       excel.rows[0].dir === "R" &&
       excel.rows[0].beds === "0针 · 前空 · 后空" &&
       excel.rows.slice(1).every((row) => row.dir === "R" && row.beds === "25针 · 前13[0…12] · 后12[1…12]"),
-    "Standrad Cylinder bed chart is the seated 25-stitch circle, back drawn at 37-phys",
+    "Standrad Cylinder bed chart width is rings[0].n_terms (25 columns)",
   );
   const knitOf = (row) => row.cells.filter((cell) => cell.token);
   assert(
@@ -1255,7 +1255,7 @@ assert(
           cell.token === (onFront ? "F·" : "B·") &&
           cell.bed === (onFront ? "F" : "B") &&
           cell.phys === phys &&
-          cell.col === (onFront ? phys : 37 - phys) &&
+          cell.col === (onFront ? phys : 25 - phys) &&
           cell.faceIndex === cell.row * 25 + i &&
           cell.fill === (onFront ? "rgb(255,255,255)" : "rgb(204,255,255)")
         );
@@ -1279,16 +1279,16 @@ assert(
     excelGrid.source === "excel" &&
       excelGrid.theme === "excel" &&
       excelGrid.nRows === 7 &&
-      excelGrid.nCols === 37 &&
+      excelGrid.nCols === 25 &&
       excelGrid.occupied === 175 &&
       excelGrid.bedsHeader === "此刻活针" &&
       excelBedsWidth(excelGrid) === MAP_BEDS_W,
     "the right-hand panel uses the excel renderer and the front/back column",
   );
   assert(
-    highlightKeysForStitch({ index: 13 }, { map: excel }).has("0,25") &&
+    highlightKeysForStitch({ index: 13 }, { map: excel }).has("0,13") &&
       highlightKeysForStitch({ index: 0 }, { map: excel }).has("0,0") &&
-      highlightKeysForStitch({ index: 24 }, { map: excel }).has("0,36"),
+      highlightKeysForStitch({ index: 24 }, { map: excel }).has("0,24"),
     "faces sheet binds a stitch to its front or back cell",
   );
   const standradCols = parseColsResample({

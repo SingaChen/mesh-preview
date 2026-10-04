@@ -1982,7 +1982,11 @@ export function renderReport(built) {
       `${built.afterFourth ? "第五环结束" : built.afterThird ? "第四环结束" : built.afterSecond ? "第三环结束" : built.afterFirst ? "两环结束" : "落座之后"} N=${built.seated.N}，窗 ${built.seated.text}。目标 F=${built.seated.tF} / B=${built.seated.tB}。`,
     );
   }
-  lines.push("针号是 F# / B#。合图时后床列 = 37 − 物理针，这只是画法，不是从 Step3 抄来的列。");
+  lines.push(
+    built.ownBed
+      ? `针号是 F# / B#。表宽 ${built.chartWidth}，来自 rings[0].n_terms。前床列 = 物理针，后床列 = ${built.chartWidth} − 物理针。`
+      : "针号是 F# / B#。合图时后床列 = 37 − 物理针，这只是画法，不是从 Step3 抄来的列。",
+  );
   lines.push(
     built.ownBed
       ? `${built.ringSeats.length} 环都在这一张表上。每一环都用这一份 faces_ring 自己落座的针。`
@@ -2249,12 +2253,32 @@ export function buildOwnBedChart(path) {
     ringSeats.push({ label: labels[index] || `第${index + 1}环结束`, seated: seated.seated });
   }
   const file = basename(path);
+  const chartWidth = rings[0].n_terms;
+  if (!Number.isInteger(chartWidth) || chartWidth < 1) fail("ring 0 n_terms is not the chart width");
+  if (chartWidth !== first.baseN) fail(`ring 0 n_terms ${chartWidth} is not the seated circumference ${first.baseN}`);
+  for (const ring of rings) {
+    if (ring.n_terms !== chartWidth) fail(`ring n_terms ${ring.n_terms} is not ring 0 n_terms ${chartWidth}`);
+  }
+  const sheet = sheets.flat();
+  for (const row of sheet) {
+    const used = new Set();
+    for (const cell of row.cells) {
+      const col = cell.bed === "F" ? cell.phys : cell.bed === "B" ? chartWidth - cell.phys : null;
+      if (!Number.isInteger(col) || col < 0 || col >= chartWidth) {
+        fail(`column ${col} is outside chart width ${chartWidth} from rings[0].n_terms`);
+      }
+      if (used.has(col)) fail(`column ${col} holds two stitches`);
+      used.add(col);
+      cell.col = col;
+    }
+  }
   return {
-    sheet: sheets.flat(),
+    sheet,
     courses,
     seated: ringSeats.at(-1).seated,
     ringSeats,
     ownBed: true,
+    chartWidth,
     baseN: first.baseN,
     baseFront: first.baseFront,
     baseBack: first.baseBack,
@@ -2295,7 +2319,7 @@ export function workbookBytes(built) {
     ["not_input", "Step1, Step2, and Step3 xls/txt/maps were not read, joined, or used as column hints."],
     ["scope", built.scopeLine || (built.afterFourth ? "Rings 0 through 4 on one sheet. Each later ring continues the seated bed and starts at F0." : built.afterThird ? "Rings 0 through 3 on one sheet. Each later ring continues the seated bed and starts at F0. Later rings are not filled." : built.afterSecond ? "Rings 0, 1, and 2 on one sheet. Ring 2 continues the seated bed. Later rings are not filled." : built.ringBreak ? "Ring 0 and ring 1 on one sheet. Later rings are not filled." : "First faces_ring only. Later rings are not filled.")],
     ["N", `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
-    ["draw", "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
+    ["draw", built.chartWidth ? `Chart width ${built.chartWidth} is rings[0].n_terms. Front column = physical needle. Back column = ${built.chartWidth} - phys.` : "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
     ["此刻活针", "Last column is how many stitches are already seated when the row starts. 0针 means the beds are still empty. It is not a needle number."],
     ["phys", "Sheet phys copies the bed and physical needle already tracked on each cell."],
     ["faces", "Sheet faces maps a knit cell to the ring-0 KnittingStitches face. Face index is the term index. Step3 columns are not used."],
