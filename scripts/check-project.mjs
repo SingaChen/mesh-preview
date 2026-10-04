@@ -63,6 +63,7 @@ import {
   excelLegendKind,
   formatPhysicalNeedle,
   formatPhysicalNeedles,
+  isStandradCylinderBedChart,
   knitBedsByFace,
   KNIT_BED_RGB,
   parseExcelReadableMap,
@@ -419,6 +420,15 @@ assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readable
   assert(
     !/standrad_cylinder_readable_map\.txt$/i.test(onDisk.outputs[0].readableMapTxtFile?.name || ""),
     "folder discovery does not swap in the Standrad Cylinder readable_map",
+  );
+  assert(
+    !/standrad_cylinder_bed/i.test(onDisk.outputs[0].readableMapFile?.name || ""),
+    "folder discovery does not swap in the Standrad Cylinder bed chart",
+  );
+  assert(
+    /iteration_0_cut_cols_resample_field\.obj$/i.test(onDisk.outputs[0].colsResampleFile?.name || "") &&
+      /iteration_0_cut_cols_resample\.xls$/i.test(onDisk.outputs[0].colsResampleXlsFile?.name || ""),
+    "folder discovery keeps the cylinder cols_resample field and xls",
   );
   const noRing0 = projectFromDiscovery(indexFiles(diskEntries.filter((e) => !/ring0/i.test(e.name))));
   assert(/step3_xfer\.xls$/i.test(noRing0.outputs[0].readableMapFile?.name || ""), "discovery falls back to step3 xls when ring0 is missing");
@@ -1399,6 +1409,9 @@ assert(
     rels.includes("cylinder/standrad_cylinder_KnittingStitches.obj") &&
       rels.includes("cylinder/standrad_cylinder_rings.json") &&
       rels.includes("cylinder/standrad_cylinder_readable_map.txt") &&
+      rels.includes("cylinder/standrad_cylinder_bed.xls") &&
+      rels.includes("cylinder/standrad_cylinder_cols_resample_field.obj") &&
+      rels.includes("cylinder/standrad_cylinder_cols_resample.xls") &&
       !rels.some((rel) => /step4|knitout|\.dat$|faces_ring0_step4_bed/i.test(rel)),
     "Standrad Cylinder does not reference the faces-ring sheet or knitout",
   );
@@ -1415,12 +1428,13 @@ assert(
   const out = proj.outputs[0];
   assert(out.label === "Standrad Cylinder", "output label is Standrad Cylinder");
   assert(
-    /standrad_cylinder_readable_map\.txt$/i.test(out.readableMapFile?.name || "") &&
+    isStandradCylinderBedChart(out.readableMapFile?.name || "") &&
       /standrad_cylinder_readable_map\.txt$/i.test(out.readableMapTxtFile?.name || "") &&
-      !out.colsResampleFile &&
+      /standrad_cylinder_cols_resample_field\.obj$/i.test(out.colsResampleFile?.name || "") &&
+      /standrad_cylinder_cols_resample\.xls$/i.test(out.colsResampleXlsFile?.name || "") &&
       !out.firstRowsFile &&
       !out.stitchMapBindFile,
-    "Standrad Cylinder uses its own readable_map, not the cylinder sheets",
+    "Standrad Cylinder uses its own bed chart and cols_resample, not the cylinder sheets",
   );
   const bed = parseReadableMap(readFileSync(join(cylDir, "standrad_cylinder_readable_map.txt"), "utf8"));
   assert(
@@ -1457,8 +1471,77 @@ assert(
   const bedGrid = buildReadableMapGrid(bed, boundBed.stitches);
   assert(
     bedGrid.source === "txt" && bedGrid.nRows === 7 && bedGrid.nCols === 25 && bedGrid.occupied === 175,
-    "the right-hand panel grids this readable_map as 7 by 25",
+    "the source readable_map is still the 7 by 25 plain tube",
   );
+  const excel = parseExcelReadableMap(readFileSync(join(cylDir, "standrad_cylinder_bed.xls")));
+  assert(
+    excel.source === "excel" && excel.sheet === "bed" && excel.bedsHeader === "此刻活针",
+    "Standrad Cylinder right-hand map is the excel bed chart with 此刻活针",
+  );
+  assert(
+    excel.rows.length === 7 &&
+      excel.needleCols.length === 25 &&
+      excel.colMin === 0 &&
+      excel.colMax === 24 &&
+      excel.rows.every(
+        (row) => row.dir === "R" && row.beds === "25针 · 前13[0…12] · 后12[13…24]" && row.cells.length === 25,
+      ),
+    "Standrad Cylinder bed chart keeps columns 0-24 and the front/back window",
+  );
+  assert(
+    excel.rows.every((row) =>
+      row.cells.every((cell) => {
+        const onFront = cell.col <= 12;
+        return (
+          cell.kind === "plain" &&
+          cell.token === (onFront ? "F·" : "B·") &&
+          cell.bed === (onFront ? "F" : "B") &&
+          cell.phys === cell.col &&
+          cell.faceIndex === cell.row * 25 + cell.col &&
+          cell.fill === (onFront ? "rgb(255,255,255)" : "rgb(204,255,255)")
+        );
+      }),
+    ),
+    "front columns 0-12 are F· and back columns 13-24 are B·, all plain knit",
+  );
+  const faceBeds = knitBedsByFace(excel);
+  assert(
+    faceBeds.get(0) === "F" &&
+      faceBeds.get(12) === "F" &&
+      faceBeds.get(13) === "B" &&
+      faceBeds.get(24) === "B" &&
+      faceBeds.get(174) === "B" &&
+      faceBeds.size === 175,
+    "each stitch face keeps its front or back bed",
+  );
+  const excelGrid = buildReadableMapGrid(excel);
+  assert(
+    excelGrid.source === "excel" &&
+      excelGrid.theme === "excel" &&
+      excelGrid.nRows === 7 &&
+      excelGrid.nCols === 25 &&
+      excelGrid.occupied === 175 &&
+      excelGrid.bedsHeader === "此刻活针" &&
+      excelBedsWidth(excelGrid) === MAP_BEDS_W,
+    "the right-hand panel uses the excel renderer and the front/back column",
+  );
+  assert(
+    highlightKeysForStitch({ index: 13 }, { map: excel }).has("0,13") &&
+      highlightKeysForStitch({ index: 0 }, { map: excel }).has("0,0"),
+    "faces sheet binds a stitch to its front or back cell",
+  );
+  const standradCols = parseColsResample({
+    fieldText: readFileSync(join(cylDir, "standrad_cylinder_cols_resample_field.obj"), "utf8"),
+    xls: readFileSync(join(cylDir, "standrad_cylinder_cols_resample.xls")),
+  });
+  assert(
+    standradCols.length === 25 &&
+      standradCols.every((col, i) => col.col === i && col.points.length === 7 && col.points.every((p, k) => k === 0 || p.z > col.points[k - 1].z)),
+    "cols_resample is 25 plain wales climbing the tube",
+  );
+  const standradFn = mainSrc.slice(mainSrc.indexOf("async function loadStandradCylinder"), mainSrc.indexOf("async function loadSample"));
+  assert(standradFn.includes("arrayBuffer"), "Standrad Cylinder loads the bed xls as bytes");
+  assert(mainSrc.includes("isStandradCylinderBedChart"), "the excel map loader recognizes the Standrad Cylinder bed chart");
   const layout = parseFacesRingLayout(readFileSync(join(cylDir, "standrad_cylinder_rings.json"), "utf8"));
   const stitches = parsed.faces.map((face, index) => ({ index, verts: face.verts }));
   const chunks = facesRingChunksFromStitches(stitches, {

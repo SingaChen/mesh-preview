@@ -32,6 +32,15 @@ export function isExcelReadableMapName(name) {
   return /readable_map|step3/i.test(base);
 }
 
+/** Standrad Cylinder plain-tube bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isStandradCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^standrad_cylinder_bed\.xlsx?$/i.test(base);
+}
+
 /** faces_ring ring-0 bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
 export function isFacesRing0BedChart(name) {
   const base = String(name || "")

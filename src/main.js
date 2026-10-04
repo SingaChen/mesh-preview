@@ -34,6 +34,7 @@ import {
   formatPhysicalNeedle,
   formatPhysicalNeedles,
   isFacesRing0BedChart,
+  isStandradCylinderBedChart,
   isFlipDir,
   isTransferDir,
   knitBedsByFace,
@@ -327,7 +328,12 @@ async function loadBuffer(entry) {
 function isMapXlsEntry(entry) {
   if (!entry) return false;
   const name = entry.name || entry.path || "";
-  return isExcelReadableMapName(name) || isFacesRing0BedChart(name) || (isXlsName(name) && /readable_map|step3/i.test(name));
+  return (
+    isExcelReadableMapName(name) ||
+    isFacesRing0BedChart(name) ||
+    isStandradCylinderBedChart(name) ||
+    (isXlsName(name) && /readable_map|step3/i.test(name))
+  );
 }
 
 function sheetQuery() {
@@ -727,12 +733,16 @@ async function loadStandradCylinder() {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
         if (!res.ok) throw new Error(`缺少 Standrad Cylinder / Missing ${rel}`);
         const name = rel.split("/").pop();
-        entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
       }),
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Standrad Cylinder · 7 row × 25 col · 平针 PLAIN");
+      setStatus("Standrad Cylinder · cols_resample 25 · 前床 F0–F12 · 后床 B13–B24");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);

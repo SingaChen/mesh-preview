@@ -5,8 +5,11 @@
       "label": "Standrad Cylinder",
       "mesh": "cylinder/standrad_cylinder_KnittingStitches.obj",
       "stitches": "cylinder/standrad_cylinder_KnittingStitches.obj",
-      "readableMap": "cylinder/standrad_cylinder_readable_map.txt",
+      "readableMap": "cylinder/standrad_cylinder_bed.xls",
       "readableMapTxt": "cylinder/standrad_cylinder_readable_map.txt",
+      "field": "cylinder/standrad_cylinder_cols_resample_field.obj",
+      "colsResample": "cylinder/standrad_cylinder_cols_resample_field.obj",
+      "colsResampleXls": "cylinder/standrad_cylinder_cols_resample.xls",
       "facesRingLayout": "cylinder/standrad_cylinder_rings.json"
     }
   ]
