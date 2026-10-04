@@ -607,7 +607,7 @@ function flipToken(fromBed, toBed) {
  * apart rack the offset bed. An |F−B|=1 empty left on the right fold
  * racks the short bed so the gap sits at the left junction.
  */
-export function balanceBeds(stitches, plan, where, options = {}) {
+export function balanceBeds(stitches, plan, where) {
   const fixes = [];
   const measure = () => windowText(stitches, plan, where);
   let win = measure();
@@ -773,9 +773,6 @@ export function balanceBeds(stitches, plan, where, options = {}) {
       return fixes.filter((fix) => fix.cells.length);
     }
     if (!packed) fail(`${where}: the one-stitch gap is not a right-fold empty (${win.text})`);
-    // A cross-bed decrease already removed the edge loop. The empty needle
-    // is that vacated needle. Do not slide the short bed back onto it.
-    if (options.keepRightGap) return fixes.filter((fix) => fix.cells.length);
     const before = win.text;
     const cells = rackBed(stitches, plan, "B", 1, where);
     win = measure();
@@ -1518,7 +1515,6 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
       let firstId = null;
       let recvBed = "";
       let recvPhys = null;
-      let keepRightGap = false;
       course.cells.forEach((cell, index) => {
         if (index === 0) {
           if (fold) {
@@ -1729,7 +1725,7 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
               note: notes.join(" "),
             });
             for (const row of transfers) sheet.push(row);
-            const fixes = balanceBeds(stitches, new Map(), where, { keepRightGap: crossBed });
+            const fixes = balanceBeds(stitches, new Map(), where);
             for (const fix of fixes) {
               sheet.push({
                 dir: fix.dir,
@@ -1762,7 +1758,6 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
               line += ` 减针格后面没有剩下的针。`;
             }
             notes.push(line);
-            keepRightGap = crossBed;
           }
         } else if (index + 1 < course.cells.length) {
           at = stepCircle(st, dirSign, stitches);
@@ -1802,7 +1797,7 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
         note: notes.join(" "),
       });
       for (const row of transfers) sheet.push(row);
-      const fixes = balanceBeds(stitches, new Map(), where, { keepRightGap });
+      const fixes = balanceBeds(stitches, new Map(), where);
       for (const fix of fixes) {
         sheet.push({
           dir: fix.dir,
