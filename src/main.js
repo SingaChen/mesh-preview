@@ -68,6 +68,7 @@ const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
 const sampleBtn = document.querySelector("#load-sample");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
+const standradBtn = document.querySelector("#load-standrad-cylinder");
 const fitBtn = document.querySelector("#fit-view");
 const slider = document.querySelector("#mesh-slider");
 const meshRow = document.querySelector("#mesh-row");
@@ -703,6 +704,41 @@ async function openEntries(entries, { sheet } = {}) {
   await showOutput(outputIndex, { fit: true });
 }
 
+function isStandradSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "standrad-cylinder" || want === "standrad";
+}
+
+async function loadStandradCylinder() {
+  setStatus("加载 Standrad Cylinder…");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const manifestRes = await fetch(`${base}sample/standrad-cylinder.json`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error("缺少 Standrad Cylinder / Missing Standrad Cylinder");
+    const data = await manifestRes.json();
+    const paths = collectManifestRefs(data);
+    // Isolated index: name this manifest.json so the chooser does not
+    // also pull the faces-ring / cylinder sheets.
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`缺少 Standrad Cylinder / Missing ${rel}`);
+        const name = rel.split("/").pop();
+        entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+      }),
+    );
+    await openEntries(entries);
+    if (!statusEl.classList.contains("error")) {
+      setStatus("Standrad Cylinder · 7 row × 25 col · 平针 PLAIN");
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
 async function loadSample(sheet = sheetQuery()) {
   setStatus("加载示例 / Loading sample…");
   const base = import.meta.env.BASE_URL;
@@ -789,6 +825,11 @@ facesRing0Btn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("faces-ring0");
   loadSample("faces-ring0");
+});
+standradBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("standrad-cylinder");
+  loadStandradCylinder();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -1048,4 +1089,5 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 updateChrome();
-loadSample();
+if (isStandradSheet(sheetQuery())) loadStandradCylinder();
+else loadSample();

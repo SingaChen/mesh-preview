@@ -1,0 +1,11 @@
+{
+  "name": "Standrad Cylinder",
+  "outputs": [
+    {
+      "label": "Standrad Cylinder",
+      "mesh": "cylinder/standrad_cylinder_KnittingStitches.obj",
+      "stitches": "cylinder/standrad_cylinder_KnittingStitches.obj",
+      "facesRingLayout": "cylinder/standrad_cylinder_rings.json"
+    }
+  ]
+}

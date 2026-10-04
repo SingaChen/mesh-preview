@@ -410,6 +410,11 @@ assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readable
     .map((name) => ({ name, path: `cylinder/${name}` }))
     .filter((e) => /\.(xls|xlsx|obj|json|txt)$/i.test(e.name));
   const onDisk = projectFromDiscovery(indexFiles(diskEntries));
+  assert(onDisk.outputs.length === 1, "folder discovery still opens the cut body only");
+  assert(
+    /iteration_0_cut_KnittingStitches\.obj$/i.test(onDisk.outputs[0].stitchFile?.name || ""),
+    "folder discovery keeps the iteration 0 stitchmesh",
+  );
   assert(/step4_ring0\.xls$/i.test(onDisk.outputs[0].readableMapFile?.name || ""), "folder discovery prefers step4-ring0 when beds and step3 are also present");
   const noRing0 = projectFromDiscovery(indexFiles(diskEntries.filter((e) => !/ring0/i.test(e.name))));
   assert(/step3_xfer\.xls$/i.test(noRing0.outputs[0].readableMapFile?.name || ""), "discovery falls back to step3 xls when ring0 is missing");
@@ -1374,6 +1379,67 @@ assert(/grid-template-columns:\s*1fr 1fr 1fr/.test(readFileSync(join(root, "src"
 assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "top bar uses one Open menu");
 assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') && html.includes('id="open-files"'), "Sample / Folder / Files stay as menu items");
 assert(html.includes('id="load-faces-ring0"') && !html.includes('id="load-faces-ring1"') && mainSrc.includes("faces-ring0") && mainSrc.includes("isFacesRing0BedChart"), "Open menu loads the joined faces-ring bed chart");
+assert(
+  html.includes('id="load-standrad-cylinder"') &&
+    html.includes("Standrad Cylinder") &&
+    mainSrc.includes("standrad-cylinder.json") &&
+    mainSrc.includes("loadStandradCylinder"),
+  "Open menu loads Standrad Cylinder in the existing chooser",
+);
+{
+  const data = JSON.parse(readFileSync(join(sampleDir, "standrad-cylinder.json"), "utf8"));
+  assert(data.name === "Standrad Cylinder" && data.outputs?.length === 1, "Standrad Cylinder manifest is one sample");
+  assert(data.outputs[0].label === "Standrad Cylinder", "chooser label stays Standrad Cylinder");
+  const rels = collectManifestRefs(data);
+  assert(
+    rels.includes("cylinder/standrad_cylinder_KnittingStitches.obj") &&
+      rels.includes("cylinder/standrad_cylinder_rings.json") &&
+      !rels.some((rel) => /step4|knitout|\.dat$|faces_ring0_step4_bed/i.test(rel)),
+    "Standrad Cylinder does not reference the faces-ring sheet or knitout",
+  );
+  const entries = [
+    { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ...rels.map((rel) => ({
+      name: rel.split("/").pop(),
+      path: `sample/${rel}`,
+      text: readFileSync(join(sampleDir, rel), "utf8"),
+    })),
+  ];
+  const proj = projectFromManifest(data, indexFiles(entries), "sample/manifest.json");
+  assert(proj.warnings.length === 0 && proj.outputs.length === 1, "Standrad Cylinder resolves without borrowing other samples");
+  const out = proj.outputs[0];
+  assert(out.label === "Standrad Cylinder", "output label is Standrad Cylinder");
+  assert(
+    !out.readableMapFile && !out.readableMapTxtFile && !out.colsResampleFile && !out.firstRowsFile && !out.stitchMapBindFile,
+    "Standrad Cylinder does not attach the cylinder sheets",
+  );
+  const parsed = parseColoredObj(readFileSync(join(cylDir, "standrad_cylinder_KnittingStitches.obj"), "utf8"));
+  assert(parsed.verts.length === 700 && parsed.faces.length === 175, "Standrad Cylinder is 700 vertices and 175 faces");
+  assert(parsed.faces.every((face) => face.indices.length === 4), "Standrad Cylinder faces are quads");
+  assert(
+    parsed.verts.every((v) => v.r === 0.55 && v.g === 0.55 && v.b === 0.55),
+    "Standrad Cylinder vertex colors are plain-knit gray",
+  );
+  const layout = parseFacesRingLayout(readFileSync(join(cylDir, "standrad_cylinder_rings.json"), "utf8"));
+  const stitches = parsed.faces.map((face, index) => ({ index, verts: face.verts }));
+  const chunks = facesRingChunksFromStitches(stitches, {
+    nRings: layout.nFacesRing,
+    termCounts: layout.termCounts,
+    ringTypes: layout.ringTypes,
+    colors: layout.colors,
+  });
+  assert(chunks.length === 7 && chunks.every((chunk) => chunk.faces.length === 25), "Standrad Cylinder is 7 rows by 25 columns");
+  assert(
+    chunks.every((chunk) => chunk.faces.every((stitch) => stitch.termType === 0 && stitch.termColor.r === 0.55)),
+    "Standrad Cylinder is all plain knit",
+  );
+  const seam = parsed.verts[0];
+  const twin = parsed.verts[99];
+  assert(
+    Math.hypot(seam.x - twin.x, seam.y - twin.y, seam.z - twin.z) < 1e-6,
+    "Standrad Cylinder seam vertices coincide",
+  );
+}
 assert(!html.includes('class="actions"'), "Folder / Files / Sample are not a row of top-bar buttons");
 assert(mainSrc.includes("setOpenMenu") && mainSrc.includes("open-menu-list"), "main wires the Open dropdown");
 assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "right pane is the readable_map canvas");

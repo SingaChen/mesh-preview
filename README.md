@@ -53,6 +53,8 @@ npm run preview
 | 菜单项 | 作用 |
 | --- | --- |
 | **示例 Sample** | 重新加载内置 `public/sample/cylinder/`。 |
+| **前两环 faces ring 0–1** | 打开同一圆柱上接在一张床图里的前两环。 |
+| **Standrad Cylinder** | 打开平针圆筒针迹 `public/sample/cylinder/standrad_cylinder_KnittingStitches.obj`（7 行 × 25 列，接缝顶点重合，看起来是闭合管）。地址可带 `?sheet=standrad-cylinder`。 |
 | **文件夹 Folder** | 桌面 Chrome：File System Access 选目录。Android Chrome：回退为 `webkitdirectory` 多文件选择。 |
 | **文件 Files** | 多选 `.obj` / 清单 `.json` / `*_readable_map_step3_xfer.xls` / `readable_map.txt` / `*_cols_resample.xls`（Android 上最稳）。 |
 
