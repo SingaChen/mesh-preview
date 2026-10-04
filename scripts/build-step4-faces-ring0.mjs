@@ -607,7 +607,7 @@ function flipToken(fromBed, toBed) {
  * apart rack the offset bed. An |F−B|=1 empty left on the right fold
  * racks the short bed so the gap sits at the left junction.
  */
-export function balanceBeds(stitches, plan, where) {
+export function balanceBeds(stitches, plan, where, options = {}) {
   const fixes = [];
   const measure = () => windowText(stitches, plan, where);
   let win = measure();
@@ -773,6 +773,9 @@ export function balanceBeds(stitches, plan, where) {
       return fixes.filter((fix) => fix.cells.length);
     }
     if (!packed) fail(`${where}: the one-stitch gap is not a right-fold empty (${win.text})`);
+    // A cross-bed decrease already removed the edge loop. The empty needle
+    // is that vacated needle. Do not slide the short bed back onto it.
+    if (options.keepRightGap) return fixes.filter((fix) => fix.cells.length);
     const before = win.text;
     const cells = rackBed(stitches, plan, "B", 1, where);
     win = measure();
@@ -933,6 +936,109 @@ export function decreaseEdge(stitches, live, bed, end, where) {
   }));
   cells.sort((a, b) => a.col - b.col);
   return { cells, consumed, moves, landingPhys, landingId: landing ? landing.id : null };
+}
+
+function forgetStitch(waleToId, id) {
+  if (!waleToId) return;
+  for (const [wale, mapped] of [...waleToId]) {
+    if (mapped === id) waleToId.delete(wale);
+  }
+}
+
+/** Max front and max back from a live-window string. The next loop after the last front needle is that back needle. */
+function rightEdgeFromBeds(beds) {
+  const front = String(beds || "").match(/前\d+\[(-?\d+)…(-?\d+)\]/);
+  const back = String(beds || "").match(/后\d+\[(-?\d+)…(-?\d+)\]/);
+  if (!front || !back) return null;
+  return { frontPhys: Number(front[2]), backPhys: Number(back[2]) };
+}
+
+/** Last front needle and the next loop, which sits on the back bed. */
+function rightFoldPair(stitches) {
+  const fronts = [...stitches.values()].filter((st) => st.bed === "F");
+  if (!fronts.length) return null;
+  const lastFront = fronts.reduce((a, b) => (a.phys >= b.phys ? a : b));
+  const nextBack = stepCircle(lastFront, 1, stitches);
+  if (!nextBack || nextBack.bed !== "B") return null;
+  return { lastFront, nextBack };
+}
+
+/**
+ * Stack a decrease that contains the front/back edge, from the tail back
+ * to the first stitch. A same-bed step moves that one loop onto the
+ * previous needle. A bed change flips onto that needle. No other needle moves.
+ */
+function stackCrossBedGroup(stitches, group, waleToId, course, where) {
+  const transfers = [];
+  const notes = [];
+  for (let i = group.length - 1; i >= 1; i--) {
+    const src = group[i];
+    const dst = group[i - 1];
+    if (!stitches.has(src.id) || !stitches.has(dst.id)) {
+      fail(`${where}: cross-bed decrease lost ${src.bed}${src.phys} or ${dst.bed}${dst.phys}`);
+    }
+    const beds = liveWindow(stitches);
+    if (src.bed !== dst.bed) {
+      if (src.phys !== dst.phys) {
+        fail(`${where}: ${src.bed}${src.phys} and ${dst.bed}${dst.phys} are not one fold needle`);
+      }
+      const fromBed = src.bed;
+      stitches.delete(src.id);
+      forgetStitch(waleToId, src.id);
+      assertNoShare(stitches, where);
+      const onto = dst.bed === "F" ? "前床" : "后床";
+      transfers.push({
+        dir: "Flip",
+        kind: "flip",
+        course,
+        cells: [
+          {
+            col: columnForPhys(fromBed, src.phys),
+            token: flipToken(fromBed, dst.bed),
+            fill: FILL.flip,
+            phys: src.phys,
+            bed: fromBed,
+            id: src.id,
+            role: "decrease",
+            stacked: true,
+          },
+        ],
+        beds,
+        note: `${where}: ${fromBed}${src.phys} 翻到${onto}，套到 ${dst.bed}${dst.phys}。`,
+      });
+      notes.push(`${fromBed}${src.phys} 翻到${onto}，套到 ${dst.bed}${dst.phys}`);
+    } else {
+      if (Math.abs(src.phys - dst.phys) !== 1) {
+        fail(`${where}: ${src.bed}${src.phys} is not one needle from ${dst.bed}${dst.phys}`);
+      }
+      const from = src.phys;
+      const bed = src.bed;
+      stitches.delete(src.id);
+      forgetStitch(waleToId, src.id);
+      assertNoShare(stitches, where);
+      transfers.push({
+        dir: "X",
+        kind: "decrease",
+        course,
+        cells: [
+          {
+            col: columnForPhys(bed, from),
+            token: moveToken(bed, from, dst.phys),
+            fill: FILL.xfer,
+            phys: from,
+            bed,
+            id: src.id,
+            role: "decrease",
+            stacked: true,
+          },
+        ],
+        beds,
+        note: `${where}: ${bed}${from} 套到 ${dst.bed}${dst.phys}。`,
+      });
+      notes.push(`${bed}${from} 套到 ${dst.bed}${dst.phys}`);
+    }
+  }
+  return { transfers, notes };
 }
 
 function shapeBedOf(fresh, live, stitches, where) {
@@ -1412,6 +1518,7 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
       let firstId = null;
       let recvBed = "";
       let recvPhys = null;
+      let keepRightGap = false;
       course.cells.forEach((cell, index) => {
         if (index === 0) {
           if (fold) {
@@ -1474,8 +1581,14 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
           }
           if (st.bed !== spanBed) {
             const prevSpan = prefix.at(-2);
-            if (!prevSpan || prevSpan.phys !== st.phys || prevSpan.bed === st.bed) {
-              fail(`${where}: decrease span left ${spanBed} onto ${st.bed}${st.phys}, which is not the next fold needle`);
+            if (!prevSpan) fail(`${where}: decrease span left ${spanBed} with no previous needle`);
+            const alreadyOff = prevSpan.bed !== spanBed;
+            if (!alreadyOff) {
+              if (prevSpan.phys !== st.phys || prevSpan.bed === st.bed) {
+                fail(`${where}: decrease span left ${spanBed} onto ${st.bed}${st.phys}, which is not the next fold needle`);
+              }
+            } else if (st.bed !== prevSpan.bed || Math.abs(st.phys - prevSpan.phys) !== 1) {
+              fail(`${where}: decrease span left ${prevSpan.bed}${prevSpan.phys} onto ${st.bed}${st.phys}, which is not the next needle`);
             }
           }
           if (recvPhys == null) {
@@ -1491,7 +1604,19 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
           const recvName = `${recvBed}${recvPhys}`;
           const movedNotes = [];
           const passes = spanHang;
-          for (let k = 0; k < passes; k++) {
+          const spanCells = prefix.slice(-passes - 1);
+          const group = spanCells.map((cell) => stitches.get(cell.id));
+          const edge = rightFoldPair(stitches);
+          const crossBed =
+            Boolean(edge) &&
+            group.every(Boolean) &&
+            group.some((st) => st.id === edge.lastFront.id) &&
+            group.some((st) => st.id === edge.nextBack.id);
+          if (crossBed) {
+            const stacked = stackCrossBedGroup(stitches, group, waleToId, ci, where);
+            for (const row of stacked.transfers) transfers.push(row);
+            movedNotes.push(...stacked.notes);
+          } else for (let k = 0; k < passes; k++) {
             const beds = liveWindow(stitches);
             let source = [...stitches.values()].find((item) => item.bed === recvBed && item.phys === recvPhys);
             if (!source) {
@@ -1579,10 +1704,11 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
               note: `${where}: 第 ${k + 1} 次移圈从 ${recvName} 起。${described}。都套上第一格 ${first.bed}${first.phys}，第一格不是移圈源。`,
             });
           }
-          const spanCells = prefix.slice(-passes - 1);
           const drawnSpan = spanCells.map((c) => `${c.token}@${c.bed}${c.phys}`).join(" ");
           const more = course.cells.slice(index + 1).some((item) => decAdded(item.label) && (item.kind === "dec" || item.kind === "wrapDec"));
-          let line = `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。然后从 ${recvName} 起移 ${passes} 次（${movedNotes.join("；")}）。`;
+          let line = crossBed
+            ? `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。跨床减针：${movedNotes.join("；")}。`
+            : `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。然后从 ${recvName} 起移 ${passes} 次（${movedNotes.join("；")}）。`;
           spanHang = 0;
           if (more) {
             // This decrease is finished when its transfer is done.
@@ -1603,7 +1729,7 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
               note: notes.join(" "),
             });
             for (const row of transfers) sheet.push(row);
-            const fixes = balanceBeds(stitches, new Map(), where);
+            const fixes = balanceBeds(stitches, new Map(), where, { keepRightGap: crossBed });
             for (const fix of fixes) {
               sheet.push({
                 dir: fix.dir,
@@ -1636,6 +1762,7 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
               line += ` 减针格后面没有剩下的针。`;
             }
             notes.push(line);
+            keepRightGap = crossBed;
           }
         } else if (index + 1 < course.cells.length) {
           at = stepCircle(st, dirSign, stitches);
@@ -1675,7 +1802,7 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
         note: notes.join(" "),
       });
       for (const row of transfers) sheet.push(row);
-      const fixes = balanceBeds(stitches, new Map(), where);
+      const fixes = balanceBeds(stitches, new Map(), where, { keepRightGap });
       for (const fix of fixes) {
         sheet.push({
           dir: fix.dir,
@@ -2465,6 +2592,51 @@ export function workbookBytes(built) {
   return writeCfb(workbook);
 }
 
+function selfCheckCrossBedGroup() {
+  const place = (specs) => {
+    const stitches = new Map();
+    for (const [id, bed, phys] of specs) stitches.set(id, { id, bed, phys, wale: id });
+    return stitches;
+  };
+  const drawn = (stacked) =>
+    stacked.transfers
+      .map((row) => `${row.dir}:${row.cells.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(",")}`)
+      .join(" | ");
+  const two = place([
+    [0, "F", 10],
+    [1, "B", 10],
+    [2, "F", 9],
+    [3, "B", 9],
+  ]);
+  const twoSeq = drawn(stackCrossBedGroup(two, [two.get(0), two.get(1)], new Map(), 0, "F10 B10"));
+  if (twoSeq !== "Flip:⬇@B10") fail(`F10 then B10 drew ${twoSeq}`);
+  if (two.has(1) || two.get(2).phys !== 9 || two.get(3).phys !== 9) fail("F10 then B10 moved a needle outside the group");
+  const backTail = place([
+    [0, "F", 10],
+    [1, "B", 10],
+    [2, "B", 9],
+    [3, "F", 9],
+    [4, "B", 8],
+  ]);
+  const backSeq = drawn(stackCrossBedGroup(backTail, [backTail.get(0), backTail.get(1), backTail.get(2)], new Map(), 0, "F10 B10 B9"));
+  if (backSeq !== "X:B→@B9 | Flip:⬇@B10") fail(`F10, B10, B9 drew ${backSeq}`);
+  if (backTail.has(1) || backTail.has(2) || backTail.get(3).phys !== 9 || backTail.get(4).phys !== 8) {
+    fail("F10, B10, B9 moved a needle outside the group");
+  }
+  const frontTail = place([
+    [0, "F", 9],
+    [1, "F", 10],
+    [2, "B", 10],
+    [3, "B", 9],
+    [4, "F", 8],
+  ]);
+  const frontSeq = drawn(stackCrossBedGroup(frontTail, [frontTail.get(0), frontTail.get(1), frontTail.get(2)], new Map(), 0, "F9 F10 B10"));
+  if (frontSeq !== "Flip:⬇@B10 | X:F←@F10") fail(`F9, F10, B10 drew ${frontSeq}`);
+  if (frontTail.has(1) || frontTail.has(2) || frontTail.get(0).phys !== 9 || frontTail.get(3).phys !== 9 || frontTail.get(4).phys !== 8) {
+    fail("F9, F10, B10 moved a needle outside the group");
+  }
+}
+
 function selfCheckNegativeSeat() {
   const stitches = new Map([[0, { id: 0, bed: "F", phys: 0, wale: 0 }]]);
   const live = new Map([[0, 0]]);
@@ -2572,9 +2744,21 @@ function assertRunningDecrease(built) {
     }
     const side = decSide(dec.label || "");
     const forward = side === "R" ? 1 : -1;
+    const edge = rightEdgeFromBeds(row.beds);
+    const crossBed =
+      Boolean(edge) &&
+      span.some((cell) => cell.bed === "F" && cell.phys === edge.frontPhys) &&
+      span.some((cell) => cell.bed === "B" && cell.phys === edge.backPhys);
     for (let i = 1; i < span.length; i++) {
       const cell = span[i];
-      if (cell.bed === span[0].bed) {
+      const prev = span[i - 1];
+      if (crossBed) {
+        if (cell.bed !== prev.bed) {
+          if (cell.phys !== prev.phys) fail(`decrease span left ${prev.bed}${prev.phys} onto ${cell.bed}${cell.phys}, which is not the fold`);
+        } else if (Math.abs(cell.phys - prev.phys) !== 1) {
+          fail(`decrease span is not one needle at ${cell.bed}${cell.phys}`);
+        }
+      } else if (cell.bed === span[0].bed) {
         if (cell.phys !== span[0].phys + forward * i) fail(`decrease span is not consecutive at ${dec.bed}${dec.phys}`);
       } else if (cell.phys !== span[i - 1].phys) {
         fail(`decrease span left ${span[0].bed} onto ${cell.bed}${cell.phys}, which is not the fold`);
@@ -2584,7 +2768,47 @@ function assertRunningDecrease(built) {
     const recv = span[1];
     const arrow = forward > 0 ? "←" : "→";
     let passAt = index + 1;
-    for (let k = 0; k < hang; k++) {
+    if (crossBed) {
+      for (let i = span.length - 1; i >= 1; i--) {
+        const src = span[i];
+        const dst = span[i - 1];
+        const shift = rows[passAt];
+        if (src.bed !== dst.bed) {
+          const cell = shift && shift.cells[0];
+          if (
+            !shift ||
+            shift.kind !== "flip" ||
+            shift.course !== row.course ||
+            shift.cells.length !== 1 ||
+            !cell ||
+            cell.phys !== src.phys ||
+            cell.bed !== src.bed ||
+            cell.token !== flipToken(src.bed, dst.bed)
+          ) {
+            fail(`cross-bed flip of ${src.bed}${src.phys} onto ${dst.bed}${dst.phys} is missing`);
+          }
+        } else {
+          const cell = shift && shift.cells[0];
+          if (
+            !shift ||
+            shift.kind !== "decrease" ||
+            shift.course !== row.course ||
+            shift.cells.length !== 1 ||
+            !cell ||
+            !cell.stacked ||
+            cell.phys !== src.phys ||
+            cell.bed !== src.bed ||
+            cell.token !== moveToken(src.bed, src.phys, dst.phys)
+          ) {
+            fail(`cross-bed transfer of ${src.bed}${src.phys} onto ${dst.bed}${dst.phys} is missing`);
+          }
+        }
+        if (shift.cells.some((cell) => cell.phys === first.phys && cell.bed === first.bed)) {
+          fail(`the first decrease cell is a transfer source at ${first.bed}${first.phys}`);
+        }
+        passAt += 1;
+      }
+    } else for (let k = 0; k < hang; k++) {
       while (rows[passAt] && rows[passAt].course === row.course && rows[passAt].kind === "flip") {
         const flip = rows[passAt];
         if (flip.cells.length !== 1 || flip.cells[0].phys !== recv.phys) {
@@ -2717,6 +2941,7 @@ function main(argv = process.argv.slice(2)) {
     selfCheckDecreaseSpan();
     selfCheckFollowingLoops();
     selfCheckDoubleDecrease();
+    selfCheckCrossBedGroup();
     selfCheckNegativeSeat();
     return writeOwnBed(input, check);
   }
@@ -2724,6 +2949,7 @@ function main(argv = process.argv.slice(2)) {
   selfCheckDecreaseSpan();
   selfCheckFollowingLoops();
   selfCheckDoubleDecrease();
+  selfCheckCrossBedGroup();
   selfCheckNegativeSeat();
   const built = buildJoinedChart();
   assertRunningDecrease(built);
