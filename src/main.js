@@ -70,6 +70,7 @@ const openFilesBtn = document.querySelector("#open-files");
 const sampleBtn = document.querySelector("#load-sample");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
 const standradBtn = document.querySelector("#load-standrad-cylinder");
+const decreaseBtn = document.querySelector("#load-decrease-cylinder");
 const fitBtn = document.querySelector("#fit-view");
 const slider = document.querySelector("#mesh-slider");
 const meshRow = document.querySelector("#mesh-row");
@@ -715,6 +716,11 @@ function isStandradSheet(sheet) {
   return want === "standrad-cylinder" || want === "standrad";
 }
 
+function isDecreaseSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "decrease-cylinder" || want === "decrease";
+}
+
 async function loadStandradCylinder() {
   setStatus("加载 Standrad Cylinder…");
   const base = import.meta.env.BASE_URL;
@@ -743,6 +749,38 @@ async function loadStandradCylinder() {
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
       setStatus("Standrad Cylinder · cols_resample 25 · 前床 F0–F12 · 后床 B12–B1");
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadDecreaseCylinder() {
+  setStatus("加载 Decrease Cylinder…");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const manifestRes = await fetch(`${base}sample/decrease-cylinder.json`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error("缺少 Decrease Cylinder / Missing Decrease Cylinder");
+    const data = await manifestRes.json();
+    const paths = collectManifestRefs(data);
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`缺少 Decrease Cylinder / Missing ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
+      }),
+    );
+    await openEntries(entries);
+    if (!statusEl.classList.contains("error")) {
+      setStatus("Decrease Cylinder · cols_resample 24");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -840,6 +878,11 @@ standradBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("standrad-cylinder");
   loadStandradCylinder();
+});
+decreaseBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("decrease-cylinder");
+  loadDecreaseCylinder();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -1099,5 +1142,6 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 updateChrome();
-if (isStandradSheet(sheetQuery())) loadStandradCylinder();
+if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
+else if (isStandradSheet(sheetQuery())) loadStandradCylinder();
 else loadSample();
