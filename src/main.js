@@ -35,6 +35,7 @@ import {
   formatPhysicalNeedles,
   isFacesRing0BedChart,
   isDecreaseCylinderBedChart,
+  isIncreaseCylinderBedChart,
   isStandradCylinderBedChart,
   isFlipDir,
   isTransferDir,
@@ -72,6 +73,7 @@ const sampleBtn = document.querySelector("#load-sample");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
 const standradBtn = document.querySelector("#load-standrad-cylinder");
 const decreaseBtn = document.querySelector("#load-decrease-cylinder");
+const increaseBtn = document.querySelector("#load-increase-cylinder");
 const fitBtn = document.querySelector("#fit-view");
 const slider = document.querySelector("#mesh-slider");
 const meshRow = document.querySelector("#mesh-row");
@@ -334,6 +336,7 @@ function isMapXlsEntry(entry) {
     isExcelReadableMapName(name) ||
     isFacesRing0BedChart(name) ||
     isDecreaseCylinderBedChart(name) ||
+    isIncreaseCylinderBedChart(name) ||
     isStandradCylinderBedChart(name) ||
     (isXlsName(name) && /readable_map|step3/i.test(name))
   );
@@ -723,6 +726,11 @@ function isDecreaseSheet(sheet) {
   return want === "decrease-cylinder" || want === "decrease";
 }
 
+function isIncreaseSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "increase-cylinder" || want === "increase";
+}
+
 async function loadStandradCylinder() {
   setStatus("加载 Standrad Cylinder…");
   const base = import.meta.env.BASE_URL;
@@ -783,6 +791,38 @@ async function loadDecreaseCylinder() {
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
       setStatus("Decrease Cylinder · cols_resample 24 · 表宽 24 · 前床 F0–F11 · 后床 B11–B0");
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadIncreaseCylinder() {
+  setStatus("加载 Increase Cylinder…");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const manifestRes = await fetch(`${base}sample/increase-cylinder.json`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error("缺少 Increase Cylinder / Missing Increase Cylinder");
+    const data = await manifestRes.json();
+    const paths = collectManifestRefs(data);
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`缺少 Increase Cylinder / Missing ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
+      }),
+    );
+    await openEntries(entries);
+    if (!statusEl.classList.contains("error")) {
+      setStatus("Increase Cylinder · cols_resample 23 · 表宽 28 · 前床 F0–F7 · 后床 B7–B1");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -885,6 +925,11 @@ decreaseBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("decrease-cylinder");
   loadDecreaseCylinder();
+});
+increaseBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("increase-cylinder");
+  loadIncreaseCylinder();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -1144,6 +1189,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 updateChrome();
-if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
+if (isIncreaseSheet(sheetQuery())) loadIncreaseCylinder();
+else if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
 else if (isStandradSheet(sheetQuery())) loadStandradCylinder();
 else loadSample();

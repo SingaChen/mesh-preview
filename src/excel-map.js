@@ -32,6 +32,15 @@ export function isExcelReadableMapName(name) {
   return /readable_map|step3/i.test(base);
 }
 
+/** Increase Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isIncreaseCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^increase_cylinder_bed\.xlsx?$/i.test(base);
+}
+
 /** Decrease Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
 export function isDecreaseCylinderBedChart(name) {
   const base = String(name || "")

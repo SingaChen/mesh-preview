@@ -1,0 +1,15 @@
+{
+  "name": "Increase Cylinder",
+  "outputs": [
+    {
+      "label": "Increase Cylinder",
+      "mesh": "increase/increase_cylinder_KnittingStitches.obj",
+      "stitches": "increase/increase_cylinder_KnittingStitches.obj",
+      "readableMap": "increase/increase_cylinder_bed.xls",
+      "field": "increase/increase_cylinder_cols_resample_field.obj",
+      "colsResample": "increase/increase_cylinder_cols_resample_field.obj",
+      "colsResampleXls": "increase/increase_cylinder_cols_resample.xls",
+      "facesRingLayout": "increase/increase_cylinder_faces_ring_layout.json"
+    }
+  ]
+}

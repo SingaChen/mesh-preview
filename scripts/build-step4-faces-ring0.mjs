@@ -62,8 +62,9 @@
  * Balance is a whole-bed shift so
  * F≥B and |F−B|≤1, front low end at F0, extra stitch at the fold
  * gap. The next row starts on the end stitch's needle after that
- * shift. Flips only at the right fold, same physical index, one by
- * one. F17→B18 is not a flip.
+ * shift. Flips only at the right fold, same physical index, one
+ * stitch at a time. A short bed that does not yet meet that fold
+ * racks one needle toward it, then the next flip. F17→B18 is not a flip.
  * A 1-needle transfer omits the number (F→, B←).
  * A fold-return short row is its own course. It is not glued into
  * the next long row. Finishing the ring is not a fold-return: the
@@ -551,6 +552,12 @@ function windowText(stitches, plan, where) {
   };
 }
 
+function dropsBelowZero(phys, delta) {
+  // A negative rack must not go below 0. A positive rack is the walk
+  // back onto F0, and it may still be negative after one step.
+  return delta < 0 && phys + delta < 0;
+}
+
 function rackBed(stitches, plan, bed, delta, where) {
   const movers = [...stitches.values()].filter((st) => st.bed === bed).sort((a, b) => a.phys - b.phys);
   if (!movers.length) {
@@ -559,7 +566,7 @@ function rackBed(stitches, plan, bed, delta, where) {
     let moved = false;
     for (const slot of plan.values()) {
       if (slot.used || slot.bed !== bed) continue;
-      if (slot.phys + delta < 0) fail(`${where}: rack would drop a planned ${bed} needle below 0`);
+      if (dropsBelowZero(slot.phys, delta)) fail(`${where}: rack would drop a planned ${bed} needle below 0`);
       slot.phys += delta;
       moved = true;
     }
@@ -567,11 +574,11 @@ function rackBed(stitches, plan, bed, delta, where) {
     return [];
   }
   for (const st of movers) {
-    if (st.phys + delta < 0) fail(`${where}: rack would drop ${bed}${st.phys} below 0`);
+    if (dropsBelowZero(st.phys, delta)) fail(`${where}: rack would drop ${bed}${st.phys} below 0`);
   }
   for (const slot of plan.values()) {
     if (slot.used || slot.bed !== bed) continue;
-    if (slot.phys + delta < 0) fail(`${where}: rack would drop a planned ${bed} needle below 0`);
+    if (dropsBelowZero(slot.phys, delta)) fail(`${where}: rack would drop a planned ${bed} needle below 0`);
   }
   const token = moveToken(bed, 0, delta);
   const cells = movers.map((st) => ({
@@ -602,10 +609,12 @@ function flipToken(fromBed, toBed) {
 
 /**
  * Balance last. Seat the front on F0 (F−1 racks onto F0, it is not
- * dropped). A one-stitch count gap flips at the right fold onto the
- * same physical index. F17→B18 is not a flip. Equal counts one needle
- * apart rack the offset bed. An |F−B|=1 empty left on the right fold
- * racks the short bed so the gap sits at the left junction.
+ * dropped). A count gap flips at the right fold onto the same physical
+ * index, one stitch at a time. If the short bed does not yet meet that
+ * fold, it racks one needle toward the fold first. F17→B18 is not a
+ * flip. Equal counts one needle apart rack the offset bed. An |F−B|=1
+ * empty left on the right fold racks the short bed so the gap sits at
+ * the left junction.
  */
 export function balanceBeds(stitches, plan, where, options = {}) {
   const fixes = [];
@@ -630,16 +639,36 @@ export function balanceBeds(stitches, plan, where, options = {}) {
     }
   }
 
-  if (win.front.length !== win.tF || win.back.length !== win.tB) {
-    const diff = win.front.length - win.tF;
-    if (Math.abs(diff) !== 1) {
-      fail(`${where}: ${win.text} is not F${win.tF}/B${win.tB}, and the gap is not one stitch`);
+  let flipGuard = 0;
+  while (win.front.length !== win.tF || win.back.length !== win.tB) {
+    if (++flipGuard > 8) {
+      fail(`${where}: ${win.text} did not reach F${win.tF}/B${win.tB} one stitch at a time`);
     }
+    const diff = win.front.length - win.tF;
     const longBed = diff > 0 ? "F" : "B";
     const shortBed = longBed === "F" ? "B" : "F";
     let longWin = longBed === "F" ? win.front : win.back;
     let shortWin = longBed === "F" ? win.back : win.front;
     const pair = longWin.at(-1);
+    const shortHiNow = shortWin.at(-1);
+    const sameIndex = shortWin.includes(pair) && shortWin.at(-1) === pair && shortWin[0] >= 1;
+    const adjacentNow = shortHiNow + 1 === pair;
+    const onePastNow = longWin[0] === 0 && pair === shortHiNow + 2 && !shortWin.includes(shortHiNow + 1);
+    if (Math.abs(diff) !== 1 && !sameIndex && !adjacentNow && !onePastNow) {
+      const delta = shortHiNow < pair ? 1 : shortHiNow > pair ? -1 : 0;
+      if (!delta) fail(`${where}: ${win.text} is not F${win.tF}/B${win.tB}, and the gap is not one stitch`);
+      const before = win.text;
+      const cells = rackBed(stitches, plan, shortBed, delta, where);
+      win = measure();
+      fixes.push({
+        dir: "X",
+        kind: "balance",
+        cells,
+        beds: before,
+        note: `${where}: rack ${shortBed} ${delta > 0 ? "+" : "−"}${Math.abs(delta)} so the right fold can flip one stitch (${before} → ${win.text}).`,
+      });
+      continue;
+    }
     if (shortWin.includes(pair)) {
       if (shortWin.at(-1) !== pair || shortWin[0] < 1) {
         fail(`${where}: right-fold pair ${shortBed}${pair} is occupied and a −1 rack cannot clear it`);
@@ -1865,18 +1894,32 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
       const added = incAdded(cell.label);
       const marker = stitches.get(waleToId.get(cell.wale));
       if (!marker) fail(`${where}: increase ${cell.label} has no stitch`);
-      const { list, i } = (() => {
-        const list = orderedCircle(stitches);
-        return { list, i: list.findIndex((st) => st.id === marker.id) };
-      })();
-      const pivotSt = list[(i + dirSign + list.length) % list.length];
-      for (const st of stitches.values()) st.wale = orderedCircle(stitches).findIndex((item) => item.id === st.id);
-      const pivot = pivotSt.wale;
+      const list = orderedCircle(stitches);
+      const i = list.findIndex((st) => st.id === marker.id);
+      const neighborAt = i + dirSign;
+      // The next stitch in travel order can wrap to the other end of the
+      // circle. That end is not this increase. Shift only the shaping bed
+      // on the travel side of the marker, the same partial move as a
+      // neighbor that does not wrap.
+      const wrapped = neighborAt < 0 || neighborAt >= list.length;
+      let pivot;
+      if (wrapped) {
+        const ahead = marker.bed === "F" ? dirSign : -dirSign;
+        for (const st of stitches.values()) st.wale = st.bed === "F" ? st.phys : -st.phys;
+        pivot = marker.wale + ahead;
+      } else {
+        const pivotSt = list[neighborAt];
+        for (const st of stitches.values()) st.wale = list.findIndex((item) => item.id === st.id);
+        pivot = pivotSt.wale;
+      }
       for (let k = 0; k < added; k++) {
         const live = liveFromWales();
         const beds = liveWindow(stitches);
         const moved = applyIncrease(live, stitches, pivot, step, marker.bed);
-        if (!moved.moves.length) fail(`${where}: increase did not move the shaping bed`);
+        if (!moved.moves.length) {
+          if (!wrapped) fail(`${where}: increase did not move the shaping bed`);
+          continue;
+        }
         const token = moveToken(marker.bed, moved.moves[0].from, moved.moves[0].to);
         sheet.push({
           dir: "X+",
@@ -2461,12 +2504,14 @@ export function buildOwnBedChart(path) {
   let prevCourse = first.courses.at(-1);
   let termOffset = first.types;
   let courseOffset = first.courses.length;
+  const ringStarts = [first.courses[0]?.start || ""];
   for (let index = 1; index < rings.length; index++) {
     const ring = loadJoinedRing(layout, index);
     const prevDir = prevCourse ? (prevCourse.dir === "R" ? 0 : 1) : null;
     const seated = seatContinuation(coursesFromTypes(ring.types, ring.hangs), null, prevDir, carried);
     const start = seated.courses[0]?.start;
-    if (start !== "F0") fail(`ring ${index} first stitch is ${start}, not F0`);
+    if (!start) fail(`ring ${index} has no course`);
+    ringStarts.push(start);
     ringBreaks.push(termOffset);
     sheets.push(shiftSheet(seated.sheet, courseOffset, termOffset));
     ringCourses.push(seated.courses);
@@ -2482,6 +2527,10 @@ export function buildOwnBedChart(path) {
   const file = basename(path);
   const sheet = sheets.flat();
   const fitted = fitChartWidth(sheet);
+  const allAtF0 = ringStarts.every((start) => start === "F0");
+  const startNote = allAtF0
+    ? "每一环的第一针都在 F0。"
+    : ringStarts.map((start, index) => `第${index + 1}环从 ${start} 开始`).join("，") + "。";
   return {
     sheet,
     courses,
@@ -2501,9 +2550,11 @@ export function buildOwnBedChart(path) {
     ringBreaks,
     sheetName: "bed",
     title: `${file} step4 床图`,
-    inputLine: `输入只有 ${file} 的 rings（types 和 hangs）。每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。`,
+    inputLine: `输入只有 ${file} 的 rings（types 和 hangs）。${startNote}后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。`,
     courseInput: file,
-    scopeLine: `Rings 0 through ${rings.length - 1} of ${file}. Each later ring stays on the bed this file seated and starts at F0.`,
+    scopeLine: allAtF0
+      ? `Rings 0 through ${rings.length - 1} of ${file}. Each later ring stays on the bed this file seated and starts at F0.`
+      : `Rings 0 through ${rings.length - 1} of ${file}. Each later ring stays on the bed this file seated. Starts: ${ringStarts.join(", ")}.`,
   };
 }
 
@@ -2651,6 +2702,16 @@ function selfCheckNegativeSeat() {
   if (!fixes.some((fix) => fix.cells.some((cell) => cell.token === "F→"))) {
     fail("seating F−1 onto F0 should be a 1-needle F→");
   }
+  const low = new Map([
+    [0, { id: 0, bed: "F", phys: -5, wale: 0 }],
+    [1, { id: 1, bed: "B", phys: 0, wale: 1 }],
+  ]);
+  const walked = balanceBeds(low, new Map(), "F−5 seat");
+  if (low.get(0).phys !== 0 || low.get(0).bed !== "F") {
+    fail(`balance must walk F−5 onto F0, got ${low.get(0).bed}${low.get(0).phys}`);
+  }
+  const racks = walked.filter((fix) => fix.cells.some((cell) => cell.token === "F→"));
+  if (racks.length !== 5) fail(`F−5 should take five 1-needle racks, got ${racks.length}`);
 }
 
 function selfCheckDecreaseSpan() {
@@ -2909,6 +2970,7 @@ function selfCheckDecrease() {
 const OWN_BED_STEM = {
   "standrad_cylinder_rings.json": "standrad_cylinder_bed",
   "decrease_cylinder_faces_ring_layout.json": "decrease_cylinder_bed",
+  "increase_cylinder_faces_ring_layout.json": "increase_cylinder_bed",
 };
 
 function writeOwnBed(input, check) {
