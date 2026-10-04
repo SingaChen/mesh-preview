@@ -1461,6 +1461,11 @@ assert(
     parsed.verts.every((v) => v.r === 0.55 && v.g === 0.55 && v.b === 0.55),
     "Standrad Cylinder vertex colors are plain-knit gray",
   );
+  const ySpan = parsed.verts.reduce(
+    (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
+    { min: Infinity, max: -Infinity },
+  );
+  assert(ySpan.min > -1e-6 && ySpan.max > 39.9 && ySpan.max < 40.1, "Standrad Cylinder stands with its height along Y");
   const boundBed = bindStitchesToMap(parsed.faces, bed);
   assert(boundBed.unboundFaces === 0 && boundBed.leftoverCells === 0, "each stitch face binds one bed cell");
   assert(boundBed.stitches[0].row === 0 && boundBed.stitches[0].col === 0, "first stitch is column 0");
@@ -1536,7 +1541,7 @@ assert(
   });
   assert(
     standradCols.length === 25 &&
-      standradCols.every((col, i) => col.col === i && col.points.length === 8 && col.points.every((p, k) => k === 0 || p.z > col.points[k - 1].z)),
+      standradCols.every((col, i) => col.col === i && col.points.length === 8 && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
     "cols_resample is 25 side-edge polylines climbing the tube",
   );
   const nearestVert = (point) => {

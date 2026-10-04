@@ -10,8 +10,9 @@
  *
  * cols_resample is the SingaLab side-edge field
  * (iteration_0_cut_cols_resample_field.obj): 25 polylines on the
- * stitchmesh vertices, not quad centroids. This script refreshes the
- * matching xls from that field and does not rewrite the field.
+ * stitchmesh vertices, not quad centroids. The regenerated tube stands
+ * with its height along Y. This script refreshes the matching xls from
+ * that field and does not rewrite the field.
  *
  * Does not read or write faces_ring0_step4_bed, the v2 knitout, or any .dat.
  *
@@ -97,7 +98,7 @@ function sideEdgeColumns(fieldText, verts) {
   for (const col of columns) {
     if (col.points.length !== NROWS + 1) fail(`column ${col.col} has ${col.points.length} points, expected ${NROWS + 1}`);
     for (let i = 1; i < col.points.length; i++) {
-      if (!(col.points[i].z > col.points[i - 1].z)) fail(`column ${col.col} does not climb the tube`);
+      if (!(col.points[i].y > col.points[i - 1].y)) fail(`column ${col.col} does not climb the tube`);
     }
     for (const point of col.points) {
       let best = Infinity;
