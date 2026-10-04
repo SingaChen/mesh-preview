@@ -742,7 +742,7 @@ async function loadStandradCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Standrad Cylinder · cols_resample 25 · 前床 F0–F12 · 后床 B13–B24");
+      setStatus("Standrad Cylinder · cols_resample 25 · 前床 F0–F12 · 后床 B12–B1");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);

@@ -54,7 +54,7 @@ npm run preview
 | --- | --- |
 | **示例 Sample** | 重新加载内置 `public/sample/cylinder/`。 |
 | **前两环 faces ring 0–1** | 打开同一圆柱上接在一张床图里的前两环。 |
-| **Standrad Cylinder** | 打开平针圆筒针迹 `public/sample/cylinder/standrad_cylinder_KnittingStitches.obj`（7 行 × 25 列，接缝顶点重合，看起来是闭合管，高度沿 Y，两端开口朝上和下）。右侧用和 faces-ring 同一套表：`standrad_cylinder_bed.xls` 画 `dir`、平针 `F·`/`B·`、`此刻活针` 前床 0–12 / 后床 13–24，底栏是 `cols_resample`（25 条针迹侧边折线，和 faces-ring 一样绑在顶点上）。源床图仍是 `standrad_cylinder_readable_map.txt`（7 行、列 0–24、每格平针、每行 `dir=R`）。没有加减针，也不改 faces-ring 的 step4，预览器本身不旋转网格。地址可带 `?sheet=standrad-cylinder`。 |
+| **Standrad Cylinder** | 打开平针圆筒针迹 `public/sample/cylinder/standrad_cylinder_KnittingStitches.obj`（7 行 × 25 列，接缝顶点重合，看起来是闭合管，高度沿 Y，两端开口朝上和下）。右侧床图是 `standrad_cylinder_bed.xls`，由 `scripts/build-step4-faces-ring0.mjs --input public/sample/cylinder/standrad_cylinder_rings.json` 写出。7 行都是向右的平针，每行从 F0 到 B1；前床 F0–F12，后床 B12–B1，折返空档是 B0。后床列仍是 37−物理针。底栏是 `cols_resample`（25 条针迹侧边折线，绑在顶点上）。预览器本身不旋转网格。地址可带 `?sheet=standrad-cylinder`。 |
 | **文件夹 Folder** | 桌面 Chrome：File System Access 选目录。Android Chrome：回退为 `webkitdirectory` 多文件选择。 |
 | **文件 Files** | 多选 `.obj` / 清单 `.json` / `*_readable_map_step3_xfer.xls` / `readable_map.txt` / `*_cols_resample.xls`（Android 上最稳）。 |
 

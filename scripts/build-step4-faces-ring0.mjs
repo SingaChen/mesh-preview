@@ -79,7 +79,7 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BIFF8_DEFAULT_PALETTE } from "../src/xls.js";
 
@@ -1198,6 +1198,12 @@ export function seatRing(courses, planInfo, carried = null) {
     baseN: carried ? carried.length : planInfo.n,
     baseFront: carried ? carried.filter((seed) => seed.bed === "F").length : planInfo.frontN,
     baseBack: carried ? carried.filter((seed) => seed.bed === "B").length : planInfo.backN,
+    bed: {
+      stitches,
+      waleToId: live,
+      cursor: prevEnd ? stitches.get(prevEnd.id) : null,
+      nextId,
+    },
   };
 }
 
@@ -1957,7 +1963,9 @@ export function renderReport(built) {
   lines.push(built.inputLine || "输入只有 faces_ring_layout.json 的 ring 0（types 和 hangs）。加减针数是该项的 n_extra，不是缺省 1。");
   lines.push("Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。");
   lines.push(`底圈 N=${built.baseN}，拆成 F=${built.baseFront}、B=${built.baseBack}。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。`);
-  if (built.afterFirst) {
+  if (built.ownBed) {
+    for (const seat of built.ringSeats) lines.push(`${seat.label} N=${seat.seated.N}，窗 ${seat.seated.text}。`);
+  } else if (built.afterFirst) {
     lines.push(`第一环落座之后 N=${built.afterFirst.N}，窗 ${built.afterFirst.text}。`);
   }
   if (built.afterSecond) {
@@ -1969,11 +1977,25 @@ export function renderReport(built) {
   if (built.afterFourth) {
     lines.push(`第四环结束 N=${built.afterFourth.N}，窗 ${built.afterFourth.text}。`);
   }
-  lines.push(
-    `${built.afterFourth ? "第五环结束" : built.afterThird ? "第四环结束" : built.afterSecond ? "第三环结束" : built.afterFirst ? "两环结束" : "落座之后"} N=${built.seated.N}，窗 ${built.seated.text}。目标 F=${built.seated.tF} / B=${built.seated.tB}。`,
-  );
+  if (!built.ownBed) {
+    lines.push(
+      `${built.afterFourth ? "第五环结束" : built.afterThird ? "第四环结束" : built.afterSecond ? "第三环结束" : built.afterFirst ? "两环结束" : "落座之后"} N=${built.seated.N}，窗 ${built.seated.text}。目标 F=${built.seated.tF} / B=${built.seated.tB}。`,
+    );
+  }
   lines.push("针号是 F# / B#。合图时后床列 = 37 − 物理针，这只是画法，不是从 Step3 抄来的列。");
-  lines.push(built.afterFourth ? "五环都在这一张表上。" : built.afterThird ? "第五环起没有填。" : built.afterSecond ? "第四环起没有填。" : built.ringBreak ? "第三环起没有填。" : "后面的环没有填。");
+  lines.push(
+    built.ownBed
+      ? `${built.ringSeats.length} 环都在这一张表上。每一环都用这一份 faces_ring 自己落座的针。`
+      : built.afterFourth
+        ? "五环都在这一张表上。"
+        : built.afterThird
+          ? "第五环起没有填。"
+          : built.afterSecond
+            ? "第四环起没有填。"
+            : built.ringBreak
+              ? "第三环起没有填。"
+              : "后面的环没有填。",
+  );
   lines.push("");
   lines.push("行程（织行）起点针、终点针：");
   for (const course of built.courses) {
@@ -1989,7 +2011,9 @@ export function renderReport(built) {
   });
   lines.push("");
   lines.push(
-    built.afterFourth
+    built.ownBed
+      ? "每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。"
+      : built.afterFourth
       ? "每一环的第一针都在 F0。第五环不重新落座，第一针是第四环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。"
       : built.afterThird
       ? "每一环的第一针都在 F0。第四环不重新落座，第一针是第三环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。第五环起不填。"
@@ -2000,7 +2024,7 @@ export function renderReport(built) {
         : "每一次折返短行单独成课。一行相对上一行反向才是折返，第一针停在上一行终点针在移圈和整床移动之后所占的那一针。方向没有反向的下一行，从那一针沿本行方向再走一针。走完这一环的项之后，下一针是下一环的起点，这里不填。",
   );
   const breaks = built.ringBreaks || (built.ringBreak != null ? [built.ringBreak] : []);
-  const names = ["第一环", "第二环", "第三环", "第四环", "第五环"];
+  const names = ["第一环", "第二环", "第三环", "第四环", "第五环", "第六环", "第七环"];
   const parts = breaks.length
     ? breaks.concat(built.types).map((end, i) => {
         const at = i === 0 ? 0 : breaks[i - 1];
@@ -2186,6 +2210,66 @@ export function buildJoinedChart(path = DEFAULT_PATHS.facesRing) {
   };
 }
 
+/**
+ * One faces_ring file. Ring 0 is seated from that file. Every later ring
+ * stays on the bed ring 0 left, and its first stitch is F0.
+ */
+export function buildOwnBedChart(path) {
+  const layout = JSON.parse(readFileSync(path, "utf8"));
+  const rings = layout?.rings;
+  if (!Array.isArray(rings) || rings.length < 2) fail(`${basename(path)} has no later ring`);
+  const first = buildFromFacesRing(path);
+  if (!first.bed?.cursor) fail("ring 0 left no bed");
+  const labels = ["第一环落座之后", "第二环结束", "第三环结束", "第四环结束", "第五环结束", "第六环结束", "第七环结束"];
+  const sheets = [first.sheet];
+  const courses = [...first.courses];
+  const termTypes = [...first.termTypes];
+  const hangs = [...first.hangs];
+  const ringBreaks = [];
+  const ringSeats = [{ label: labels[0], seated: first.seated }];
+  let carried = first.bed;
+  let prevCourse = first.courses.at(-1);
+  let termOffset = first.types;
+  let courseOffset = first.courses.length;
+  for (let index = 1; index < rings.length; index++) {
+    const ring = loadJoinedRing(layout, index);
+    const prevDir = prevCourse ? (prevCourse.dir === "R" ? 0 : 1) : null;
+    const seated = seatContinuation(coursesFromTypes(ring.types, ring.hangs), null, prevDir, carried);
+    const start = seated.courses[0]?.start;
+    if (start !== "F0") fail(`ring ${index} first stitch is ${start}, not F0`);
+    ringBreaks.push(termOffset);
+    sheets.push(shiftSheet(seated.sheet, courseOffset, termOffset));
+    for (const course of seated.courses) courses.push({ ...course, course: course.course + courseOffset });
+    termTypes.push(...ring.types);
+    hangs.push(...ring.hangs);
+    termOffset += ring.types.length;
+    courseOffset += seated.courses.length;
+    carried = seated.bed;
+    prevCourse = seated.courses.at(-1);
+    ringSeats.push({ label: labels[index] || `第${index + 1}环结束`, seated: seated.seated });
+  }
+  const file = basename(path);
+  return {
+    sheet: sheets.flat(),
+    courses,
+    seated: ringSeats.at(-1).seated,
+    ringSeats,
+    ownBed: true,
+    baseN: first.baseN,
+    baseFront: first.baseFront,
+    baseBack: first.baseBack,
+    types: termOffset,
+    termTypes,
+    hangs,
+    ringBreaks,
+    sheetName: "bed",
+    title: `${file} step4 床图`,
+    inputLine: `输入只有 ${file} 的 rings（types 和 hangs）。每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。`,
+    courseInput: file,
+    scopeLine: `Rings 0 through ${rings.length - 1} of ${file}. Each later ring stays on the bed this file seated and starts at F0.`,
+  };
+}
+
 export function workbookBytes(built) {
   const cols = built.sheet.flatMap((row) => row.cells.map((c) => c.col));
   const lo = Math.min(...cols);
@@ -2204,12 +2288,12 @@ export function workbookBytes(built) {
   courseRows.push([]);
   courseRows.push(["baseN", String(built.baseN), `F${built.baseFront}`, `B${built.baseBack}`]);
   courseRows.push(["seatedN", String(built.seated.N), `F${built.seated.tF}`, `B${built.seated.tB}`, built.seated.text]);
-  courseRows.push(["input", built.afterFourth ? "faces_ring rings 0 through 4" : built.afterThird ? "faces_ring rings 0 through 3" : built.afterSecond ? "faces_ring rings 0, 1, and 2" : built.ringBreak ? "faces_ring ring 0 then ring 1" : "faces_ring ring 0 only"]);
+  courseRows.push(["input", built.courseInput || (built.afterFourth ? "faces_ring rings 0 through 4" : built.afterThird ? "faces_ring rings 0 through 3" : built.afterSecond ? "faces_ring rings 0, 1, and 2" : built.ringBreak ? "faces_ring ring 0 then ring 1" : "faces_ring ring 0 only")]);
   courseRows.push(["not_input", "Step1 Step2 Step3 xls txt maps"]);
   const legendRows = [
     ["input", built.inputLine || "faces_ring_layout.json rings[0].types and hangs[] (Term.remain / n_extra). Hang is not defaulted to 1."],
     ["not_input", "Step1, Step2, and Step3 xls/txt/maps were not read, joined, or used as column hints."],
-    ["scope", built.afterFourth ? "Rings 0 through 4 on one sheet. Each later ring continues the seated bed and starts at F0." : built.afterThird ? "Rings 0 through 3 on one sheet. Each later ring continues the seated bed and starts at F0. Later rings are not filled." : built.afterSecond ? "Rings 0, 1, and 2 on one sheet. Ring 2 continues the seated bed. Later rings are not filled." : built.ringBreak ? "Ring 0 and ring 1 on one sheet. Later rings are not filled." : "First faces_ring only. Later rings are not filled."],
+    ["scope", built.scopeLine || (built.afterFourth ? "Rings 0 through 4 on one sheet. Each later ring continues the seated bed and starts at F0." : built.afterThird ? "Rings 0 through 3 on one sheet. Each later ring continues the seated bed and starts at F0. Later rings are not filled." : built.afterSecond ? "Rings 0, 1, and 2 on one sheet. Ring 2 continues the seated bed. Later rings are not filled." : built.ringBreak ? "Ring 0 and ring 1 on one sheet. Later rings are not filled." : "First faces_ring only. Later rings are not filled.")],
     ["N", `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
     ["draw", "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
     ["此刻活针", "Last column is how many stitches are already seated when the row starts. 0针 means the beds are still empty. It is not a needle number."],
@@ -2488,8 +2572,38 @@ function selfCheckDecrease() {
   if (/1$/.test([...tokens][0])) fail("1-needle decrease must omit the number");
 }
 
+function writeOwnBed(input, check) {
+  const built = buildOwnBedChart(input);
+  const text = renderReport(built);
+  const bytes = workbookBytes(built);
+  if (basename(input) !== "standrad_cylinder_rings.json") fail(`${basename(input)} is not the faces_ring for this run`);
+  const outXls = join(dirname(input), "standrad_cylinder_bed.xls");
+  const outTxt = join(dirname(input), "standrad_cylinder_bed.txt");
+  if (check) {
+    const prevXls = readFileSync(outXls);
+    const prevTxt = readFileSync(outTxt, "utf8");
+    if (!prevXls.equals(bytes) || prevTxt !== text) fail("committed bed chart does not match the generator");
+  } else {
+    writeFileSync(outXls, bytes);
+    writeFileSync(outTxt, text);
+  }
+  console.log(text);
+  return built;
+}
+
 function main(argv = process.argv.slice(2)) {
   const check = argv.includes("--check");
+  const inputAt = argv.indexOf("--input");
+  if (inputAt >= 0) {
+    const input = argv[inputAt + 1];
+    if (!input) fail("--input needs the faces_ring file");
+    selfCheckDecrease();
+    selfCheckDecreaseSpan();
+    selfCheckFollowingLoops();
+    selfCheckDoubleDecrease();
+    selfCheckNegativeSeat();
+    return writeOwnBed(input, check);
+  }
   selfCheckDecrease();
   selfCheckDecreaseSpan();
   selfCheckFollowingLoops();

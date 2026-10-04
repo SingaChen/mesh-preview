@@ -1234,29 +1234,34 @@ assert(
   );
   assert(
     excel.rows.length === 7 &&
-      excel.needleCols.length === 25 &&
+      excel.needleCols.length === 37 &&
       excel.colMin === 0 &&
-      excel.colMax === 24 &&
-      excel.rows.every(
-        (row) => row.dir === "R" && row.beds === "25针 · 前13[0…12] · 后12[13…24]" && row.cells.length === 25,
-      ),
-    "Standrad Cylinder bed chart keeps columns 0-24 and the front/back window",
+      excel.colMax === 36 &&
+      excel.rows[0].dir === "R" &&
+      excel.rows[0].beds === "0针 · 前空 · 后空" &&
+      excel.rows.slice(1).every((row) => row.dir === "R" && row.beds === "25针 · 前13[0…12] · 后12[1…12]"),
+    "Standrad Cylinder bed chart is the seated 25-stitch circle, back drawn at 37-phys",
   );
+  const knitOf = (row) => row.cells.filter((cell) => cell.token);
   assert(
-    excel.rows.every((row) =>
-      row.cells.every((cell) => {
-        const onFront = cell.col <= 12;
+    excel.rows.every((row) => {
+      const knit = knitOf(row);
+      if (knit.length !== 25) return false;
+      return knit.every((cell, i) => {
+        const onFront = i < 13;
+        const phys = onFront ? i : 12 - (i - 13);
         return (
           cell.kind === "plain" &&
           cell.token === (onFront ? "F·" : "B·") &&
           cell.bed === (onFront ? "F" : "B") &&
-          cell.phys === cell.col &&
-          cell.faceIndex === cell.row * 25 + cell.col &&
+          cell.phys === phys &&
+          cell.col === (onFront ? phys : 37 - phys) &&
+          cell.faceIndex === cell.row * 25 + i &&
           cell.fill === (onFront ? "rgb(255,255,255)" : "rgb(204,255,255)")
         );
-      }),
-    ),
-    "front columns 0-12 are F· and back columns 13-24 are B·, all plain knit",
+      });
+    }),
+    "each course is F0–F12 then B12–B1, plain knit, starting at F0",
   );
   const faceBeds = knitBedsByFace(excel);
   assert(
@@ -1264,6 +1269,7 @@ assert(
       faceBeds.get(12) === "F" &&
       faceBeds.get(13) === "B" &&
       faceBeds.get(24) === "B" &&
+      faceBeds.get(25) === "F" &&
       faceBeds.get(174) === "B" &&
       faceBeds.size === 175,
     "each stitch face keeps its front or back bed",
@@ -1273,15 +1279,16 @@ assert(
     excelGrid.source === "excel" &&
       excelGrid.theme === "excel" &&
       excelGrid.nRows === 7 &&
-      excelGrid.nCols === 25 &&
+      excelGrid.nCols === 37 &&
       excelGrid.occupied === 175 &&
       excelGrid.bedsHeader === "此刻活针" &&
       excelBedsWidth(excelGrid) === MAP_BEDS_W,
     "the right-hand panel uses the excel renderer and the front/back column",
   );
   assert(
-    highlightKeysForStitch({ index: 13 }, { map: excel }).has("0,13") &&
-      highlightKeysForStitch({ index: 0 }, { map: excel }).has("0,0"),
+    highlightKeysForStitch({ index: 13 }, { map: excel }).has("0,25") &&
+      highlightKeysForStitch({ index: 0 }, { map: excel }).has("0,0") &&
+      highlightKeysForStitch({ index: 24 }, { map: excel }).has("0,36"),
     "faces sheet binds a stitch to its front or back cell",
   );
   const standradCols = parseColsResample({

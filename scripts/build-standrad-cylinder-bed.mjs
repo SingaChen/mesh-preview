@@ -1,12 +1,10 @@
 /**
  * Plain-tube bed chart for Standrad Cylinder.
  *
- * The faces-ring example (?sheet=faces-ring0) draws
- * faces_ring0_step4_bed.xls (dir, F·/B· fills, phys, faces, 此刻活针)
- * and a separate cols_resample field + xls. The bed chart is built
- * from standrad_cylinder_readable_map.txt. Every cell stays plain knit.
- * Front columns 0–12 are F, back columns 13–24 are B. There is no
- * increase, decrease, transfer, flip, or 37−phys mirror.
+ * The bed chart is not built here. It is the step4 sheet from
+ * standrad_cylinder_rings.json:
+ *   node scripts/build-step4-faces-ring0.mjs --input public/sample/cylinder/standrad_cylinder_rings.json
+ * This script only refreshes cols_resample from the side-edge field.
  *
  * cols_resample is the SingaLab side-edge field
  * (iteration_0_cut_cols_resample_field.obj): 25 polylines on the
@@ -23,8 +21,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BIFF8_DEFAULT_PALETTE } from "../src/xls.js";
-import { parseColoredObj, parseColsResample, parseColsResampleField, parseReadableMap } from "../src/stitches.js";
-import { knitBedsByFace, parseExcelReadableMap } from "../src/excel-map.js";
+import { parseColoredObj, parseColsResampleField, parseReadableMap } from "../src/stitches.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cylDir = join(root, "public", "sample", "cylinder");
@@ -32,21 +29,18 @@ const cylDir = join(root, "public", "sample", "cylinder");
 const PATHS = {
   map: join(cylDir, "standrad_cylinder_readable_map.txt"),
   mesh: join(cylDir, "standrad_cylinder_KnittingStitches.obj"),
-  bedXls: join(cylDir, "standrad_cylinder_bed.xls"),
   field: join(cylDir, "standrad_cylinder_cols_resample_field.obj"),
   colsXls: join(cylDir, "standrad_cylinder_cols_resample.xls"),
 };
 
 const FILL = {
   plain: "rgb(255,255,255)",
-  back: "rgb(204,255,255)",
 };
 
 const NCOLS = 25;
 const NROWS = 7;
 const FRONT = 13;
 const BACK = 12;
-const BEDS = "25针 · 前13[0…12] · 后12[13…24]";
 
 function fail(msg) {
   throw new Error(`standrad-cylinder-bed: ${msg}`);
@@ -70,26 +64,6 @@ function loadTube() {
   const parsed = parseColoredObj(readFileSync(PATHS.mesh, "utf8"));
   if (parsed.faces.length !== NROWS * NCOLS) fail(`stitchmesh has ${parsed.faces.length} faces`);
   return { map, faces: parsed.faces };
-}
-
-function bedChart() {
-  const sheet = [];
-  for (let row = 0; row < NROWS; row++) {
-    const cells = [];
-    for (let col = 0; col < NCOLS; col++) {
-      const bed = col < FRONT ? "F" : "B";
-      cells.push({
-        col,
-        bed,
-        phys: col,
-        token: `${bed}·`,
-        fill: bed === "B" ? FILL.back : FILL.plain,
-        face: row * NCOLS + col,
-      });
-    }
-    sheet.push({ dir: "R", beds: BEDS, cells });
-  }
-  return sheet;
 }
 
 function sideEdgeColumns(fieldText, verts) {
@@ -267,45 +241,6 @@ function workbookFromSheets(namedRows) {
   return writeCfb(workbook);
 }
 
-function bedWorkbook(sheet) {
-  const needles = Array.from({ length: NCOLS }, (_, n) => n);
-  const bedRows = [];
-  const head = [{ r: 0, value: "dir\\col", fill: FILL.plain }];
-  for (const n of needles) head.push({ r: 0, value: n, fill: FILL.plain });
-  head.push({ r: 0, value: "此刻活针", fill: FILL.plain });
-  bedRows.push(head);
-  sheet.forEach((row, i) => {
-    const line = [{ r: i + 1, value: row.dir, fill: FILL.plain }];
-    for (const cell of row.cells) line.push({ r: i + 1, value: cell.token, fill: cell.fill });
-    line.push({ r: i + 1, value: row.beds, fill: FILL.plain });
-    bedRows.push(line);
-  });
-  const legend = [
-    ["input", "standrad_cylinder_readable_map.txt. 7 rows, columns 0-24, every cell plain knit, every row dir=R."],
-    ["beds", "Front bed columns 0-12 (13 needles, F0-F12). Back bed columns 13-24 (12 needles, B13-B24)."],
-    ["此刻活针", `Last column is the seated front/back window: ${BEDS}.`],
-    ["pattern", "Plain knit only. No increases, decreases, transfers, or flips."],
-    ["draw", "Front column = physical needle. Back column = physical needle. This tube is not drawn as 37 - phys."],
-    ["phys", "Sheet phys copies the bed and physical needle of each plain cell."],
-    ["faces", "Sheet faces maps each knit cell to the KnittingStitches face. Face index is row * 25 + col."],
-    ["cols_resample", "25 side-edge polylines from the SingaLab cols_resample field, on the stitchmesh vertices."],
-  ];
-  const phys = [["sheetRow", "sheetCol", "bed", "phys"]];
-  const faces = [["sheetRow", "sheetCol", "face"]];
-  sheet.forEach((row, sheetRow) => {
-    for (const cell of row.cells) {
-      phys.push([sheetRow, cell.col, cell.bed, cell.phys]);
-      faces.push([sheetRow, cell.col, cell.face]);
-    }
-  });
-  return workbookFromSheets([
-    { name: "bed", rows: bedRows },
-    { name: "legend", rows: matrixSheet(legend) },
-    { name: "phys", rows: matrixSheet(phys) },
-    { name: "faces", rows: matrixSheet(faces) },
-  ]);
-}
-
 function colsWorkbook(columns) {
   const detail = [["col", "point_index", "x", "y", "z"]];
   const scale = [["col"]];
@@ -319,42 +254,13 @@ function colsWorkbook(columns) {
   ]);
 }
 
-function assertBuilt(bedBytes, field, colsBytes) {
-  const map = parseExcelReadableMap(bedBytes);
-  if (map.sheet !== "bed" || map.bedsHeader !== "此刻活针") fail("bed sheet was not parsed");
-  if (map.rows.length !== NROWS || map.needleCols.length !== NCOLS) fail("bed sheet size");
-  for (const row of map.rows) {
-    if (row.dir !== "R" || row.beds !== BEDS) fail(`row ${row.row} beds ${row.beds}`);
-    for (const cell of row.cells) {
-      const bed = cell.col < FRONT ? "F" : "B";
-      if (cell.token !== `${bed}·` || cell.bed !== bed || cell.phys !== cell.col) {
-        fail(`cell ${cell.row},${cell.col} is ${cell.token} ${cell.bed}${cell.phys}`);
-      }
-      if (cell.faceIndex !== cell.row * NCOLS + cell.col) fail(`face ${cell.faceIndex} at ${cell.row},${cell.col}`);
-      if (cell.kind !== "plain") fail(`cell ${cell.row},${cell.col} kind ${cell.kind}`);
-    }
-  }
-  const beds = knitBedsByFace(map);
-  if (beds.get(0) !== "F" || beds.get(12) !== "F" || beds.get(13) !== "B" || beds.get(174) !== "B") {
-    fail("front/back face beds");
-  }
-  const columns = parseColsResample({ xls: colsBytes, fieldText: field });
-  if (columns.length !== NCOLS || columns.some((col, i) => col.col !== i || col.points.length !== NROWS + 1)) {
-    fail(`cols_resample parsed ${columns.length}`);
-  }
-}
-
 function main() {
   const { faces } = loadTube();
-  const sheet = bedChart();
   const field = readFileSync(PATHS.field, "utf8");
   const columns = sideEdgeColumns(field, faces.flatMap((face) => face.verts));
-  const bedBytes = bedWorkbook(sheet);
   const colsBytes = colsWorkbook(columns);
-  assertBuilt(bedBytes, field, colsBytes);
-  writeFileSync(PATHS.bedXls, bedBytes);
   writeFileSync(PATHS.colsXls, colsBytes);
-  console.log(`standrad-cylinder-bed ok: ${NROWS}×${NCOLS} plain, ${BEDS}, cols_resample ${columns.length} side edges`);
+  console.log(`standrad-cylinder cols_resample ${columns.length} side edges`);
 }
 
 const isCli = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
