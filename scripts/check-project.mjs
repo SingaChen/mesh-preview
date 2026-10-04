@@ -1536,8 +1536,33 @@ assert(
   });
   assert(
     standradCols.length === 25 &&
-      standradCols.every((col, i) => col.col === i && col.points.length === 7 && col.points.every((p, k) => k === 0 || p.z > col.points[k - 1].z)),
-    "cols_resample is 25 plain wales climbing the tube",
+      standradCols.every((col, i) => col.col === i && col.points.length === 8 && col.points.every((p, k) => k === 0 || p.z > col.points[k - 1].z)),
+    "cols_resample is 25 side-edge polylines climbing the tube",
+  );
+  const nearestVert = (point) => {
+    let best = Infinity;
+    for (const vert of parsed.verts) {
+      const d = Math.hypot(point.x - vert.x, point.y - vert.y, point.z - vert.z);
+      if (d < best) best = d;
+    }
+    return best;
+  };
+  assert(
+    standradCols.every((col) => col.points.every((point) => nearestVert(point) < 1e-6)),
+    "cols_resample points sit on stitchmesh vertices",
+  );
+  const faceEdges = (face) => {
+    const hit = new Set();
+    for (const vert of face.verts) {
+      standradCols.forEach((col, index) => {
+        if (col.points.some((point) => Math.hypot(point.x - vert.x, point.y - vert.y, point.z - vert.z) < 1e-6)) hit.add(index);
+      });
+    }
+    return hit;
+  };
+  assert(
+    parsed.faces.every((face) => faceEdges(face).size === 2),
+    "each stitch column lies between two cols_resample side edges",
   );
   const standradFn = mainSrc.slice(mainSrc.indexOf("async function loadStandradCylinder"), mainSrc.indexOf("async function loadSample"));
   assert(standradFn.includes("arrayBuffer"), "Standrad Cylinder loads the bed xls as bytes");

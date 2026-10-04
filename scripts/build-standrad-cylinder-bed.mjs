@@ -3,11 +3,15 @@
  *
  * The faces-ring example (?sheet=faces-ring0) draws
  * faces_ring0_step4_bed.xls (dir, F·/B· fills, phys, faces, 此刻活针)
- * and a separate cols_resample field + xls. This script builds that
- * same pair for the plain 7×25 tube already described by
- * standrad_cylinder_readable_map.txt. Every cell stays plain knit.
+ * and a separate cols_resample field + xls. The bed chart is built
+ * from standrad_cylinder_readable_map.txt. Every cell stays plain knit.
  * Front columns 0–12 are F, back columns 13–24 are B. There is no
  * increase, decrease, transfer, flip, or 37−phys mirror.
+ *
+ * cols_resample is the SingaLab side-edge field
+ * (iteration_0_cut_cols_resample_field.obj): 25 polylines on the
+ * stitchmesh vertices, not quad centroids. This script refreshes the
+ * matching xls from that field and does not rewrite the field.
  *
  * Does not read or write faces_ring0_step4_bed, the v2 knitout, or any .dat.
  *
@@ -18,7 +22,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BIFF8_DEFAULT_PALETTE } from "../src/xls.js";
-import { parseColoredObj, parseColsResample, parseReadableMap } from "../src/stitches.js";
+import { parseColoredObj, parseColsResample, parseColsResampleField, parseReadableMap } from "../src/stitches.js";
 import { knitBedsByFace, parseExcelReadableMap } from "../src/excel-map.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -45,20 +49,6 @@ const BEDS = "25针 · 前13[0…12] · 后12[13…24]";
 
 function fail(msg) {
   throw new Error(`standrad-cylinder-bed: ${msg}`);
-}
-
-function centroid(face) {
-  const verts = face.verts;
-  const n = verts.length;
-  let x = 0;
-  let y = 0;
-  let z = 0;
-  for (const v of verts) {
-    x += v.x;
-    y += v.y;
-    z += v.z;
-  }
-  return { x: x / n, y: y / n, z: z / n };
 }
 
 function loadTube() {
@@ -101,27 +91,23 @@ function bedChart() {
   return sheet;
 }
 
-function waleColumns(faces) {
-  const columns = [];
-  for (let col = 0; col < NCOLS; col++) {
-    const points = [];
-    for (let row = 0; row < NROWS; row++) {
-      const face = faces[row * NCOLS + col];
-      const point = centroid(face);
-      const t = NROWS === 1 ? 0 : row / (NROWS - 1);
-      points.push({
-        ...point,
-        r: t,
-        g: 0.15,
-        b: 1 - t,
-      });
+function sideEdgeColumns(fieldText, verts) {
+  const columns = parseColsResampleField(fieldText);
+  if (columns.length !== NCOLS) fail(`cols_resample field has ${columns.length} polylines, expected ${NCOLS}`);
+  for (const col of columns) {
+    if (col.points.length !== NROWS + 1) fail(`column ${col.col} has ${col.points.length} points, expected ${NROWS + 1}`);
+    for (let i = 1; i < col.points.length; i++) {
+      if (!(col.points[i].z > col.points[i - 1].z)) fail(`column ${col.col} does not climb the tube`);
     }
-    for (let row = 1; row < points.length; row++) {
-      if (!(points[row].z > points[row - 1].z)) {
-        fail(`column ${col} does not climb the tube at row ${row}`);
+    for (const point of col.points) {
+      let best = Infinity;
+      for (const vert of verts) {
+        const d = Math.hypot(point.x - vert.x, point.y - vert.y, point.z - vert.z);
+        if (d < best) best = d;
+        if (best <= 1e-6) break;
       }
+      if (best > 1e-6) fail(`column ${col.col} is ${best} off the stitchmesh`);
     }
-    columns.push(points);
   }
   return columns;
 }
@@ -301,7 +287,7 @@ function bedWorkbook(sheet) {
     ["draw", "Front column = physical needle. Back column = physical needle. This tube is not drawn as 37 - phys."],
     ["phys", "Sheet phys copies the bed and physical needle of each plain cell."],
     ["faces", "Sheet faces maps each knit cell to the KnittingStitches face. Face index is row * 25 + col."],
-    ["cols_resample", "25 wales, one polyline per stitch column, from the stitchmesh centroids."],
+    ["cols_resample", "25 side-edge polylines from the SingaLab cols_resample field, on the stitchmesh vertices."],
   ];
   const phys = [["sheetRow", "sheetCol", "bed", "phys"]];
   const faces = [["sheetRow", "sheetCol", "face"]];
@@ -319,27 +305,12 @@ function bedWorkbook(sheet) {
   ]);
 }
 
-function fieldText(columns) {
-  const lines = ["# Standrad Cylinder cols_resample: 25 wales, plain tube, no shaping"];
-  let base = 1;
-  const edges = [];
-  for (const points of columns) {
-    for (const p of points) {
-      lines.push(`v ${p.x} ${p.y} ${p.z} ${p.r} ${p.g} ${p.b}`);
-    }
-    for (let i = 0; i + 1 < points.length; i++) edges.push(`l ${base + i} ${base + i + 1}`);
-    base += points.length;
-  }
-  lines.push(...edges, "");
-  return lines.join("\n");
-}
-
 function colsWorkbook(columns) {
   const detail = [["col", "point_index", "x", "y", "z"]];
   const scale = [["col"]];
-  columns.forEach((points, col) => {
-    scale.push([col]);
-    points.forEach((p, index) => detail.push([col, index, p.x, p.y, p.z]));
+  columns.forEach((column) => {
+    scale.push([column.col]);
+    column.points.forEach((p, index) => detail.push([column.col, index, p.x, p.y, p.z]));
   });
   return workbookFromSheets([
     { name: "points_detail", rows: matrixSheet(detail) },
@@ -367,7 +338,7 @@ function assertBuilt(bedBytes, field, colsBytes) {
     fail("front/back face beds");
   }
   const columns = parseColsResample({ xls: colsBytes, fieldText: field });
-  if (columns.length !== NCOLS || columns.some((col, i) => col.col !== i || col.points.length !== NROWS)) {
+  if (columns.length !== NCOLS || columns.some((col, i) => col.col !== i || col.points.length !== NROWS + 1)) {
     fail(`cols_resample parsed ${columns.length}`);
   }
 }
@@ -375,15 +346,14 @@ function assertBuilt(bedBytes, field, colsBytes) {
 function main() {
   const { faces } = loadTube();
   const sheet = bedChart();
-  const columns = waleColumns(faces);
+  const field = readFileSync(PATHS.field, "utf8");
+  const columns = sideEdgeColumns(field, faces.flatMap((face) => face.verts));
   const bedBytes = bedWorkbook(sheet);
-  const field = fieldText(columns);
   const colsBytes = colsWorkbook(columns);
   assertBuilt(bedBytes, field, colsBytes);
   writeFileSync(PATHS.bedXls, bedBytes);
-  writeFileSync(PATHS.field, field);
   writeFileSync(PATHS.colsXls, colsBytes);
-  console.log(`standrad-cylinder-bed ok: ${NROWS}×${NCOLS} plain, ${BEDS}, cols_resample ${columns.length}`);
+  console.log(`standrad-cylinder-bed ok: ${NROWS}×${NCOLS} plain, ${BEDS}, cols_resample ${columns.length} side edges`);
 }
 
 const isCli = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
