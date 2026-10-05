@@ -749,11 +749,6 @@ function isFatSheet(sheet) {
   return want === "fat-cylinder" || want === "fat";
 }
 
-const THIN_STOP =
-  "generation stopped at ring 7 course 0 (right-going first increase course drives the back bed below 0; rule pending from Singa)";
-const FAT_STOP =
-  "generation stopped at ring 2 course 0 (right-going first increase course drives the back bed below 0; rule pending from Singa)";
-
 async function loadStandradCylinder() {
   setStatus("加载 Standrad Cylinder…");
   const base = import.meta.env.BASE_URL;
@@ -885,8 +880,7 @@ async function loadThinCylinder() {
     await loadNamedCylinder({
       manifest: "thin-cylinder.json",
       missing: "Thin Cylinder",
-      banner: THIN_STOP,
-      status: `Thin Cylinder · cols_resample 36 · 表宽 26 · 前床 F0–F11 · 后床 B11–B0 · ${THIN_STOP}`,
+      status: "Thin Cylinder · cols_resample 36 · 表宽 28 · 前床 F0–F11 · 后床 B11–B0 · 10 环落座 24、24、24、17、13、13、13、17、24、23",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -898,8 +892,7 @@ async function loadFatCylinder() {
     await loadNamedCylinder({
       manifest: "fat-cylinder.json",
       missing: "Fat Cylinder",
-      banner: FAT_STOP,
-      status: `Fat Cylinder · cols_resample 24 · 表宽 23 · 前床 F0–F6 · 后床 B6–B1 · ${FAT_STOP}`,
+      status: "Fat Cylinder · cols_resample 24 · 表宽 29 · 前床 F0–F6 · 后床 B6–B1 · 9 环落座 13、13、23、24、24、24、24、15、14",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
