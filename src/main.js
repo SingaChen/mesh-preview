@@ -259,11 +259,11 @@ function updateChrome() {
   slider.value = String(outputIndex);
   slider.disabled = n < 2;
   meshRow.classList.toggle("hidden", n < 2);
-  labelEl.textContent = current?.label || "\u2014";
+  labelEl.textContent = current?.label || "—";
   countEl.textContent = n ? `${outputIndex + 1} / ${n}` : "0 / 0";
   projectEl.textContent = project
-    ? `${project.name} \u00b7 ${project.source === "manifest" ? "\u6e05\u5355 manifest" : "\u81ea\u52a8\u53d1\u73b0 auto"}`
-    : "\u672a\u6253\u5f00\u9879\u76ee / No project";
+    ? `${project.name} · ${project.source === "manifest" ? "清单 manifest" : "自动发现 auto"}`
+    : "未打开项目 / No project";
   overlayBtn.disabled = !current?.overlayFile && !current?.stitchFile && !scene?.stitches;
   if (warpBtn) warpBtn.disabled = !scene?.columns?.length;
 
@@ -591,7 +591,7 @@ async function showOutput(index, { fit = false } = {}) {
   const output = project.outputs[outputIndex];
   scene = null;
   paintStitchPick(null);
-  setStatus("\u52a0\u8f7d\u4e2d / Loading\u2026");
+  setStatus("加载中 / Loading…");
   try {
     const meshGeom = await loadGeometry(output.meshFile);
     const stitches = await loadStitches(output);
@@ -673,8 +673,8 @@ async function showOutput(index, { fit = false } = {}) {
     if (stitches) bits.push(`${stitches.rowChunks.length} faces_ring`);
     if (stitches?.layout?.termTotal) bits.push(`${stitches.layout.termTotal} terms`);
     else bits.push(`${models.length} models`);
-    statsEl.textContent = bits.join(" \u00b7 ");
-    setStatus("\u4e09\u6ed1\u5757\u534a\u5f00\u533a\u95f4 [start,end) \u00b7 dual-range like SingaLab");
+    statsEl.textContent = bits.join(" · ");
+    setStatus("三滑块半开区间 [start,end) · dual-range like SingaLab");
     syncViewportAfterLayout(fit ? () => viewer.fitToView() : undefined);
   } catch (err) {
     statsEl.textContent = "";
@@ -740,11 +740,11 @@ function isThinSheet(sheet) {
 }
 
 async function loadStandradCylinder() {
-  setStatus("\u52a0\u8f7d Standrad Cylinder\u2026");
+  setStatus("加载 Standrad Cylinder…");
   const base = import.meta.env.BASE_URL;
   try {
     const manifestRes = await fetch(`${base}sample/standrad-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("\u7f3a\u5c11 Standrad Cylinder / Missing Standrad Cylinder");
+    if (!manifestRes.ok) throw new Error("缺少 Standrad Cylinder / Missing Standrad Cylinder");
     const data = await manifestRes.json();
     const paths = collectManifestRefs(data);
     // Isolated index: name this manifest.json so the chooser does not
@@ -755,7 +755,7 @@ async function loadStandradCylinder() {
     await Promise.all(
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`\u7f3a\u5c11 Standrad Cylinder / Missing ${rel}`);
+        if (!res.ok) throw new Error(`缺少 Standrad Cylinder / Missing ${rel}`);
         const name = rel.split("/").pop();
         if (/\.xlsx?$/i.test(rel)) {
           entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
@@ -766,7 +766,7 @@ async function loadStandradCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Standrad Cylinder \u00b7 cols_resample 25 \u00b7 \u524d\u5e8a F0\u2013F12 \u00b7 \u540e\u5e8a B12\u2013B1");
+      setStatus("Standrad Cylinder · cols_resample 25 · 前床 F0–F12 · 后床 B12–B1");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -774,11 +774,11 @@ async function loadStandradCylinder() {
 }
 
 async function loadDecreaseCylinder() {
-  setStatus("\u52a0\u8f7d Decrease Cylinder\u2026");
+  setStatus("加载 Decrease Cylinder…");
   const base = import.meta.env.BASE_URL;
   try {
     const manifestRes = await fetch(`${base}sample/decrease-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("\u7f3a\u5c11 Decrease Cylinder / Missing Decrease Cylinder");
+    if (!manifestRes.ok) throw new Error("缺少 Decrease Cylinder / Missing Decrease Cylinder");
     const data = await manifestRes.json();
     const paths = collectManifestRefs(data);
     const entries = [
@@ -787,7 +787,7 @@ async function loadDecreaseCylinder() {
     await Promise.all(
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`\u7f3a\u5c11 Decrease Cylinder / Missing ${rel}`);
+        if (!res.ok) throw new Error(`缺少 Decrease Cylinder / Missing ${rel}`);
         const name = rel.split("/").pop();
         if (/\.xlsx?$/i.test(rel)) {
           entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
@@ -798,7 +798,7 @@ async function loadDecreaseCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Decrease Cylinder \u00b7 cols_resample 24 \u00b7 \u8868\u5bbd 24 \u00b7 \u524d\u5e8a F0\u2013F11 \u00b7 \u540e\u5e8a B11\u2013B0");
+      setStatus("Decrease Cylinder · cols_resample 24 · 表宽 24 · 前床 F0–F11 · 后床 B11–B0");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -806,11 +806,11 @@ async function loadDecreaseCylinder() {
 }
 
 async function loadIncreaseCylinder() {
-  setStatus("\u52a0\u8f7d Increase Cylinder\u2026");
+  setStatus("加载 Increase Cylinder…");
   const base = import.meta.env.BASE_URL;
   try {
     const manifestRes = await fetch(`${base}sample/increase-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("\u7f3a\u5c11 Increase Cylinder / Missing Increase Cylinder");
+    if (!manifestRes.ok) throw new Error("缺少 Increase Cylinder / Missing Increase Cylinder");
     const data = await manifestRes.json();
     const paths = collectManifestRefs(data);
     const entries = [
@@ -819,7 +819,7 @@ async function loadIncreaseCylinder() {
     await Promise.all(
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`\u7f3a\u5c11 Increase Cylinder / Missing ${rel}`);
+        if (!res.ok) throw new Error(`缺少 Increase Cylinder / Missing ${rel}`);
         const name = rel.split("/").pop();
         if (/\.xlsx?$/i.test(rel)) {
           entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
@@ -830,7 +830,7 @@ async function loadIncreaseCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Increase Cylinder \u00b7 cols_resample 23 \u00b7 \u8868\u5bbd 28 \u00b7 \u524d\u5e8a F0\u2013F7 \u00b7 \u540e\u5e8a B7\u2013B1");
+      setStatus("Increase Cylinder · cols_resample 23 · 表宽 28 · 前床 F0–F7 · 后床 B7–B1");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -838,11 +838,11 @@ async function loadIncreaseCylinder() {
 }
 
 async function loadThinCylinder() {
-  setStatus("\u52a0\u8f7d Thin Cylinder\u2026");
+  setStatus("加载 Thin Cylinder…");
   const base = import.meta.env.BASE_URL;
   try {
     const manifestRes = await fetch(`${base}sample/thin-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("\u7f3a\u5c11 Thin Cylinder / Missing Thin Cylinder");
+    if (!manifestRes.ok) throw new Error("缺少 Thin Cylinder / Missing Thin Cylinder");
     const data = await manifestRes.json();
     const paths = collectManifestRefs(data);
     const entries = [
@@ -857,7 +857,7 @@ async function loadThinCylinder() {
           const ole = bytes && bytes.length > 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
           if (!ole) {
             const b64 = await fetch(`${base}sample/${rel}.b64`, { cache: "reload" });
-            if (!b64.ok) throw new Error(`\u7f3a\u5c11 Thin Cylinder / Missing ${rel}`);
+            if (!b64.ok) throw new Error(`缺少 Thin Cylinder / Missing ${rel}`);
             const raw = atob((await b64.text()).replace(/\s+/g, ""));
             bytes = new Uint8Array(raw.length);
             for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
@@ -865,14 +865,14 @@ async function loadThinCylinder() {
           entries.push({ name, path: `sample/${rel}`, buffer: bytes.buffer });
           return;
         }
-        if (!res.ok) throw new Error(`\u7f3a\u5c11 Thin Cylinder / Missing ${rel}`);
+        if (!res.ok) throw new Error(`缺少 Thin Cylinder / Missing ${rel}`);
         entries.push({ name, path: `sample/${rel}`, text: await res.text() });
       }),
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
       setStatus(
-        "Thin Cylinder \u00b7 cols_resample 36 \u00b7 \u8868\u5bbd 26 \u00b7 \u524d\u5e8a F0\u2013F11 \u00b7 \u540e\u5e8a B11\u2013B0 \u00b7 generation stopped at ring 7 course 0 (right-going increase drives back bed below 0; rule pending from Singa)",
+        "Thin Cylinder · cols_resample 36 · 表宽 26 · 前床 F0–F11 · 后床 B11–B0 · generation stopped at ring 7 course 0 (right-going increase drives back bed below 0; rule pending from Singa)",
       );
     }
   } catch (err) {
@@ -881,11 +881,11 @@ async function loadThinCylinder() {
 }
 
 async function loadSample(sheet = sheetQuery()) {
-  setStatus("\u52a0\u8f7d\u793a\u4f8b / Loading sample\u2026");
+  setStatus("加载示例 / Loading sample…");
   const base = import.meta.env.BASE_URL;
   try {
     const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
-    if (!res.ok) throw new Error("\u793a\u4f8b\u6e05\u5355\u4e0d\u53ef\u7528 / Sample manifest missing");
+    if (!res.ok) throw new Error("示例清单不可用 / Sample manifest missing");
     const data = await res.json();
     const paths = collectManifestRefs(data);
     const entries = [
@@ -894,7 +894,7 @@ async function loadSample(sheet = sheetQuery()) {
     await Promise.all(
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`\u7f3a\u5c11\u793a\u4f8b / Missing sample ${rel}`);
+        if (!res.ok) throw new Error(`缺少示例 / Missing sample ${rel}`);
         const name = rel.split("/").pop();
         if (/\.xlsx?$/i.test(rel)) {
           entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
@@ -908,8 +908,8 @@ async function loadSample(sheet = sheetQuery()) {
       const faces0 = isFacesRing0BedChart(currentOutput()?.readableMapFile?.name || "");
       setStatus(
         faces0
-          ? "faces_ring \u524d\u4e24\u73af\u63a5\u5728\u4e00\u5f20\u5e8a\u56fe\u4e0a \u00b7 \u7f51\u683c\u6ed1\u6761\u6700\u540e\u4e00\u9879\u4ecd\u662f\u539f\u6765\u7684 step4-ring0"
-          : "\u5de6 3D \u00b7 \u53f3 step4-ring0\uff08\u7b2c\u4e8c\u5708\u7ee7\u627f\u7b2c\u4e00\u5708\u5e8a\u4f4d\uff0c\u7ec7\u884c\u4e0e\u79fb\u5708\u540c\u4e00\u7269\u7406\u5217\uff09\u00b7 \u7a84\u5c4f\u5207 3D/\u56fe",
+          ? "faces_ring 前两环接在一张床图上 · 网格滑条最后一项仍是原来的 step4-ring0"
+          : "左 3D · 右 step4-ring0（第二圈继承第一圈床位，织行与移圈同一物理列）· 窄屏切 3D/图",
       );
     }
   } catch (err) {
@@ -1048,10 +1048,10 @@ function paintReadableMap() {
   if (mapMeta) {
     mapMeta.textContent =
       map.source === "excel"
-        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring" : map.sheet || "step3"} ${map.rows.length}\u00d7${map.needleCols.length} \u00b7 ${map.colMin}\u2026${map.colMax} \u00b7 Excel${map.sheet === "step4-ring0" ? " \u00b7 \u7b2c\u4e8c\u5708\u7ee7\u627f\u5e8a\u4f4d\uff0c\u524d\u5e8a\u7b2c\u4e00\u9488 F0" : map.sheet === "ring0" ? " \u00b7 \u7b2c\u4e00\u73af\u548c\u7b2c\u4e8c\u73af\u63a5\u5728\u4e00\u5f20\u8868\u4e0a" : ""}${map.legend?.some((row) => row.key === "stopped" && String(row.note).includes("ring 7 course 0")) ? " \u00b7 \u505c\u5728 ring 7 course 0\uff08\u540e\u5e8a\u4f4e\u4e8e 0\uff0c\u89c4\u5219\u7b49 Singa\uff09" : ""}`
+        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${map.legend?.some((row) => row.key === "stopped" && String(row.note).includes("ring 7 course 0")) ? " · 停在 ring 7 course 0（后床低于 0，规则等 Singa）" : ""}`
         : h
-          ? `${h.rows} rows \u00b7 ${h.cells} cells \u00b7 circle ${h.circle ?? "\u2014"}`
-          : `${map.rows.length} rows \u00b7 ${map.cells.length} cells`;
+          ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
+          : `${map.rows.length} rows · ${map.cells.length} cells`;
   }
   paintMapHighlight();
   syncPaneLayout();
