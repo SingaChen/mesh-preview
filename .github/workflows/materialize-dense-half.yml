@@ -5,7 +5,7 @@ on:
     branches:
       - cursor/dense-standrad-unit-half-7bf9
     paths:
-      - .github/dense-half.bundle.b64
+      - .github/dense-half.b64.part02
 
 permissions:
   contents: write
@@ -24,8 +24,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          echo "282df7dbe6ae5a9c34fb267958b3ffe6785b8dac8a059b6c4a4116b0613d2406  .github/dense-half.bundle.b64" | sha256sum -c -
-          base64 -d .github/dense-half.bundle.b64 > /tmp/dense.bundle
+          cat .github/dense-half.b64.part00 .github/dense-half.b64.part01 .github/dense-half.b64.part02 > /tmp/dense-half.bundle.b64
+          echo "282df7dbe6ae5a9c34fb267958b3ffe6785b8dac8a059b6c4a4116b0613d2406  /tmp/dense-half.bundle.b64" | sha256sum -c -
+          base64 -d /tmp/dense-half.bundle.b64 > /tmp/dense.bundle
           git fetch origin main
           test "$(git rev-parse origin/main)" = "d4856ab1a06acf712c56f6c171ae4d447f0e3d18"
           git bundle verify /tmp/dense.bundle
