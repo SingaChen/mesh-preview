@@ -75,11 +75,13 @@
  * stitch at a time. A short bed that does not yet meet that fold
  * racks one needle toward it, then the next flip. F17→B18 is not a flip.
  * When the front is already that F0 span and the counts already match,
- * the whole back bed racks once onto the target start, including when
- * the back sits below 0 (Fat's 12/11 seat is one B→5). When a count
- * gap leaves the long bed ending inside the short bed, the whole back
- * racks until the empty needle just past the short bed is the right
- * fold, then the flip. The front stays on F0.
+ * the whole back bed walks onto the target start one needle at a time,
+ * including when the back sits below 0. Fat's 12/11 seat is five
+ * successive B→ racks, not one B→5. A longer distance is the same:
+ * each rack is ±1. When a count gap leaves the long bed ending inside
+ * the short bed, the back walks one needle at a time until the empty
+ * needle just past the short bed is the right fold, then the flip.
+ * The front stays on F0.
  * A 1-needle transfer omits the number (F→, B←).
  * A fold-return short row is its own course. It is not glued into
  * the next long row. Finishing the ring is not a fold-return: the
@@ -622,22 +624,43 @@ function flipToken(fromBed, toBed) {
   fail(`flip ${fromBed}→${toBed} is not a bed change`);
 }
 
+/** A distance of several needles is that many whole-bed racks of ±1. The token stays B→ / B←. */
+function rackOneNeedleSteps(stitches, plan, bed, delta, where, describe) {
+  if (!delta) return [];
+  const step = delta > 0 ? 1 : -1;
+  const fixes = [];
+  for (let left = Math.abs(delta); left > 0; left--) {
+    const before = windowText(stitches, plan, where).text;
+    const cells = rackBed(stitches, plan, bed, step, where);
+    const after = windowText(stitches, plan, where).text;
+    fixes.push({
+      dir: "X",
+      kind: "balance",
+      cells,
+      beds: before,
+      note: describe(step, before, after),
+    });
+  }
+  return fixes;
+}
+
 /**
- * The long bed does not meet the empty right-fold needle. Rack one
- * whole bed so its high end is the needle just past the short bed.
- * Prefer the back. A front that already starts at F0 stays put. A
- * negative rack that would pass below 0 is not used.
- * Returns the balance row, or null when no such rack is legal.
+ * The long bed does not meet the empty right-fold needle. Walk one
+ * whole bed, one needle at a time, until its high end is the needle
+ * just past the short bed. Prefer the back. A front that already
+ * starts at F0 stays put. A negative rack that would pass below 0 is
+ * not used. Returns the balance rows, or an empty list when no such
+ * rack is legal.
  */
 function rackOntoRightFold(stitches, plan, where) {
   const win = windowText(stitches, plan, where);
   const diff = win.front.length - win.tF;
-  if (!diff) return null;
+  if (!diff) return [];
   const longBed = diff > 0 ? "F" : "B";
   const shortBed = longBed === "F" ? "B" : "F";
   const longWin = longBed === "F" ? win.front : win.back;
   const shortWin = longBed === "F" ? win.back : win.front;
-  if (!longWin.length || !shortWin.length) return null;
+  if (!longWin.length || !shortWin.length) return [];
   const pair = longWin.at(-1);
   const shortHi = shortWin.at(-1);
   const options = [
@@ -652,18 +675,11 @@ function rackOntoRightFold(stitches, plan, where) {
     return true;
   };
   const choice = options.find((opt) => opt.bed === "B" && legal(opt)) || options.find(legal);
-  if (!choice) return null;
-  const before = win.text;
-  const cells = rackBed(stitches, plan, choice.bed, choice.delta, where);
-  const next = windowText(stitches, plan, where);
-  const sign = choice.delta > 0 ? "+" : "−";
-  return {
-    dir: "X",
-    kind: "balance",
-    cells,
-    beds: before,
-    note: `${where}: rack the whole ${choice.bed} ${sign}${Math.abs(choice.delta)} so the right fold can flip one stitch (${before} → ${next.text}).`,
-  };
+  if (!choice) return [];
+  const signOf = (step) => (step > 0 ? "+" : "−");
+  return rackOneNeedleSteps(stitches, plan, choice.bed, choice.delta, where, (step, before, after) => {
+    return `${where}: rack ${choice.bed} ${signOf(step)}1 so the right fold can flip one stitch (${before} → ${after}).`;
+  });
 }
 
 /**
@@ -674,12 +690,12 @@ function rackOntoRightFold(stitches, plan, where) {
  * at the right fold onto the same physical index, one stitch at a time.
  * If the short bed does not yet meet that fold, it racks one needle
  * toward the fold first. If the long bed ends inside the short bed, the
- * whole back racks until that fold is empty. F17→B18 is not a flip.
- * Equal counts one needle apart rack the offset bed. A larger offset,
- * including a back bed below 0, racks the whole back onto the target
- * start in one move when the front is already on F0. An |F−B|=1 empty
- * left on the right fold racks the short bed so the gap sits at the
- * left junction.
+ * back walks one needle at a time until that fold is empty. F17→B18 is
+ * not a flip. Equal counts one needle apart rack the offset bed. A
+ * larger offset, including a back bed below 0, is that many successive
+ * ±1 racks of the whole back when the front is already on F0. An
+ * |F−B|=1 empty left on the right fold racks the short bed so the gap
+ * sits at the left junction.
  */
 export function balanceBeds(stitches, plan, where) {
   const fixes = [];
@@ -737,8 +753,8 @@ export function balanceBeds(stitches, plan, where) {
     if (shortWin.includes(pair)) {
       if (shortWin.at(-1) !== pair || shortWin[0] < 1) {
         const folded = rackOntoRightFold(stitches, plan, where);
-        if (!folded) fail(`${where}: right-fold pair ${shortBed}${pair} is occupied and a −1 rack cannot clear it`);
-        fixes.push(folded);
+        if (!folded.length) fail(`${where}: right-fold pair ${shortBed}${pair} is occupied and a −1 rack cannot clear it`);
+        fixes.push(...folded);
         win = measure();
         continue;
       }
@@ -764,8 +780,8 @@ export function balanceBeds(stitches, plan, where) {
     const onePast = longWin[0] === 0 && toPhys === shortHi + 2 && !shortWin.includes(shortHi + 1);
     if (!adjacent && !onePast) {
       const folded = rackOntoRightFold(stitches, plan, where);
-      if (!folded) fail(`${where}: ${longBed}${fromPhys}→${shortBed}${toPhys} is not the empty right-fold pair`);
-      fixes.push(folded);
+      if (!folded.length) fail(`${where}: ${longBed}${fromPhys}→${shortBed}${toPhys} is not the empty right-fold pair`);
+      fixes.push(...folded);
       win = measure();
       continue;
     }
@@ -839,20 +855,15 @@ export function balanceBeds(stitches, plan, where) {
       const delta = -offset;
       const aboveZero = !(delta < 0 && win.back.some((p) => p + delta < 0));
       if (same && win.front[0] === 0 && delta !== 0 && aboveZero) {
-        const before = win.text;
-        const cells = rackBed(stitches, plan, "B", delta, where);
+        const steps = rackOneNeedleSteps(stitches, plan, "B", delta, where, (step, before, after) => {
+          const sign = step > 0 ? "+" : "−";
+          return `${where}: counts match and the front is already on F0. Rack the back ${sign}1 (${before} → ${after}).`;
+        });
+        fixes.push(...steps);
         win = measure();
         if (win.back[0] !== 0 || win.front[0] !== 0 || win.back.at(-1) !== win.front.at(-1)) {
-          fail(`${where}: racking the whole back did not seat both beds on 0 (${win.text})`);
+          fail(`${where}: racking the back one needle at a time did not seat both beds on 0 (${win.text})`);
         }
-        const sign = delta > 0 ? "+" : "−";
-        fixes.push({
-          dir: "X",
-          kind: "balance",
-          cells,
-          beds: before,
-          note: `${where}: counts match and the front is already on F0. Rack the whole back ${sign}${Math.abs(delta)} (${before} → ${win.text}).`,
-        });
         return fixes.filter((fix) => fix.cells.length);
       }
       fail(`${where}: equal counts are not one needle apart (${win.text})`);
@@ -898,19 +909,14 @@ export function balanceBeds(stitches, plan, where) {
       const delta = 1 - win.back[0];
       const aboveZero = !(delta < 0 && win.back.some((p) => p + delta < 0));
       if (frontFull && contiguous && delta !== 0 && aboveZero) {
-        const before = win.text;
-        const cells = rackBed(stitches, plan, "B", delta, where);
+        const steps = rackOneNeedleSteps(stitches, plan, "B", delta, where, (step, before, after) => {
+          const sign = step > 0 ? "+" : "−";
+          return `${where}: counts match and the front is already on F0. Rack the back ${sign}1 (${before} → ${after}).`;
+        });
+        fixes.push(...steps);
         win = measure();
         const seated = win.front[0] === 0 && win.back[0] === 1 && win.back.at(-1) === win.front.at(-1) && win.back.length === win.tB;
-        if (!seated) fail(`${where}: racking the whole back did not reach the count+F0 seat (${win.text})`);
-        const sign = delta > 0 ? "+" : "−";
-        fixes.push({
-          dir: "X",
-          kind: "balance",
-          cells,
-          beds: before,
-          note: `${where}: counts match and the front is already on F0. Rack the whole back ${sign}${Math.abs(delta)} (${before} → ${win.text}).`,
-        });
+        if (!seated) fail(`${where}: racking the back one needle at a time did not reach the count+F0 seat (${win.text})`);
         return fixes.filter((fix) => fix.cells.length);
       }
       fail(`${where}: the one-stitch gap is not a right-fold empty (${win.text})`);
@@ -2951,18 +2957,23 @@ function selfCheckCountSeat() {
   const fatBack = [...fat.values()].filter((st) => st.bed === "B").map((st) => st.phys).sort((a, b) => a - b);
   if (fatFront.join(",") !== "0,1,2,3,4,5,6,7,8,9,10,11") fail(`Fat front seat ${fatFront}`);
   if (fatBack.join(",") !== "1,2,3,4,5,6,7,8,9,10,11") fail(`Fat back seat ${fatBack}`);
-  if (fatFixes.length !== 1) fail(`Fat 10R should be one whole-back rack, got ${fatFixes.length}`);
-  const fatTokens = new Set(fatFixes[0].cells.map((cell) => cell.token));
-  if (fatFixes[0].cells.length !== 11 || fatTokens.size !== 1 || [...fatTokens][0] !== "B→5") {
-    fail(`Fat 10R rack is ${[...fatTokens]} x${fatFixes[0].cells.length}`);
-  }
+  if (fatFixes.length !== 5) fail(`Fat 10R should be five 1-needle back racks, got ${fatFixes.length}`);
+  fatFixes.forEach((fix, i) => {
+    const tokens = [...new Set(fix.cells.map((cell) => cell.token))];
+    if (fix.cells.length !== 11 || tokens.join(",") !== "B→") {
+      fail(`Fat 10R rack ${i + 1} is ${tokens} x${fix.cells.length}`);
+    }
+  });
   const thin = spanStitches("F", 0, 7, 0);
   for (const [id, st] of spanStitches("B", -2, 6, 100)) thin.set(id, st);
-  balanceBeds(thin, new Map(), "Thin ring7");
+  const thinFixes = balanceBeds(thin, new Map(), "Thin ring7");
   const thinFront = [...thin.values()].filter((st) => st.bed === "F").map((st) => st.phys).sort((a, b) => a - b);
   const thinBack = [...thin.values()].filter((st) => st.bed === "B").map((st) => st.phys).sort((a, b) => a - b);
   if (thinFront.join(",") !== "0,1,2,3,4,5,6,7,8") fail(`Thin front seat ${thinFront}`);
   if (thinBack.join(",") !== "1,2,3,4,5,6,7,8") fail(`Thin back seat ${thinBack}`);
+  if (thinFixes.some((fix) => fix.cells.some((cell) => /[→←]\d/.test(cell.token)))) {
+    fail("Thin balance used a multi-needle rack");
+  }
 }
 
 function selfCheckDecreaseSpan() {
