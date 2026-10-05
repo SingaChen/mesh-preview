@@ -1600,7 +1600,10 @@ assert(
       increaseTxt.includes("第二环结束 N=23，窗 F12[0…11] / B11[1…11]。") &&
       increaseTxt.includes("第三环结束 N=23，窗 F12[0…11] / B11[1…11]。") &&
       increaseTxt.includes("表宽 28") &&
-      increaseTxt.includes("第3环从 F2 开始"),
+      increaseTxt.includes("每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。") &&
+      increaseTxt.includes(
+        "B^R@B1 B·@B2 B·@B3 B·@B4 B·@B5 B·@B6 B·@B7 F+L1@F7 F·@F6 F+L1@F5 F·@F4 F+L1@F3 F·@F2 F·@F1 F+L1@F0 F·@F-1 F·@F-2 F·@F-3 FvL@F-4",
+      ),
     "Increase Cylinder courses are the generator report",
   );
   const ring0 = increaseBed.rows[0];

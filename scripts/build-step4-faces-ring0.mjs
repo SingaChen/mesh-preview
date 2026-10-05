@@ -33,7 +33,12 @@
  * reversed row as a normal row.
  * Increase: if a row has n increase sites, do those transfers first
  * to open every site, then knit the whole row once. Do not
- * transfer-and-knit at each site. While the course travels, every
+ * transfer-and-knit at each site. An increase splits after stitch n
+ * onto the next needle in the travel direction, and that needle holds
+ * the new loop. One site opens the next needle. Hang n opens the next
+ * n needles. Several sites on one row each open their own next needle;
+ * they are not a shove that piles every new needle at the low end.
+ * While the course travels, every
  * needle that currently holds a loop is knitted. When a shift moves
  * a stitch onto a new needle, the course cell that owns that
  * stitchmesh is drawn on the new needle. The turn mark moves with
@@ -1078,6 +1083,35 @@ function shapeBedOf(fresh, live, stitches, where) {
   return [...beds][0];
 }
 
+/**
+ * Open one needle after `marker` in the travel direction.
+ * `delta` is +1 or -1 on this bed's physical index. Every loop already
+ * further along that bed steps one needle, which leaves the next needle
+ * empty. The marker stays. A bed end has an empty tail: the new loop
+ * simply sits on the next needle. This is one split, not a shove of
+ * every new loop to the low end.
+ */
+function shiftTravelTail(stitches, marker, delta, where) {
+  if (delta !== 1 && delta !== -1) fail(`${where}: increase step ${delta} is not one needle`);
+  const bed = marker.bed;
+  const tail = [...stitches.values()]
+    .filter((st) => st.bed === bed && st.id !== marker.id && (st.phys - marker.phys) * delta > 0)
+    .sort((a, b) => (b.phys - a.phys) * delta);
+  const moves = [];
+  for (const st of tail) {
+    const from = st.phys;
+    const to = from + delta;
+    if ([...stitches.values()].some((other) => other.bed === bed && other.phys === to)) {
+      fail(`${where}: increase ${bed}${from}→${bed}${to} is occupied`);
+    }
+    moves.push({ id: st.id, bed, from, to });
+    st.phys = to;
+  }
+  assertNoShare(stitches, where);
+  moves.sort((a, b) => (bed === "B" ? b.from - a.from : a.from - b.from));
+  return moves;
+}
+
 function applyIncrease(live, stitches, pivot, step, shapeBed) {
   const delta = step === 1 ? 1 : -1;
   const next = new Map();
@@ -1457,14 +1491,6 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
   let cursor = carried ? carried.cursor : stitches.get(0);
   if (!cursor || !stitches.has(cursor.id)) fail("continuation has no cursor");
 
-  const liveFromWales = () => {
-    const live = new Map();
-    for (const st of stitches.values()) {
-      if (st.wale != null) live.set(st.wale, st.id);
-    }
-    return live;
-  };
-
   for (let ci = 0; ci < courses.length; ci++) {
     const course = courses[ci];
     const step = course.dir === 0 ? 1 : -1;
@@ -1493,11 +1519,15 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
           const endSt = cursor && stitches.get(cursor.id);
           if (!endSt) fail(`${where}: previous end stitch left the bed`);
           at = stepCircle(endSt, dirSign, stitches);
+        } else if (fresh.has(cell.wale)) {
+          // The new loop is not an existing stitch. Leave the cursor on
+          // the increase stitch so the next term is the next loop.
+          if (!at) fail(`${where}: walk has no cursor`);
+          placed.push({ cell, id: at.id });
+          return;
         } else {
           if (!at) fail(`${where}: walk has no cursor`);
-          if (fresh.has(cell.wale) && waleToId.has(cell.wale) && stitches.get(waleToId.get(cell.wale))?.base === false) {
-            at = stitches.get(waleToId.get(cell.wale));
-          } else at = stepCircle(at, dirSign, stitches);
+          at = stepCircle(at, dirSign, stitches);
         }
         if (at.wale != null && at.wale !== cell.wale && waleToId.get(at.wale) === at.id) waleToId.delete(at.wale);
         const prior = waleToId.get(cell.wale);
@@ -1885,42 +1915,26 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
     }
 
     const placed = decs.length ? [] : bindWalk();
+    // Later sites first, so each split stays on the next needle. An earlier
+    // site then carries those new loops along with the rest of its tail.
     for (const cell of incs.slice().reverse()) {
       const added = incAdded(cell.label);
       const marker = stitches.get(waleToId.get(cell.wale));
       if (!marker) fail(`${where}: increase ${cell.label} has no stitch`);
-      const list = orderedCircle(stitches);
-      const i = list.findIndex((st) => st.id === marker.id);
-      const neighborAt = i + dirSign;
-      // The next stitch in travel order can wrap to the other end of the
-      // circle. That end is not this increase. Shift only the shaping bed
-      // on the travel side of the marker, the same partial move as a
-      // neighbor that does not wrap.
-      const wrapped = neighborAt < 0 || neighborAt >= list.length;
-      let pivot;
-      if (wrapped) {
-        const ahead = marker.bed === "F" ? dirSign : -dirSign;
-        for (const st of stitches.values()) st.wale = st.bed === "F" ? st.phys : -st.phys;
-        pivot = marker.wale + ahead;
-      } else {
-        const pivotSt = list[neighborAt];
-        for (const st of stitches.values()) st.wale = list.findIndex((item) => item.id === st.id);
-        pivot = pivotSt.wale;
-      }
+      const delta = marker.bed === "F" ? dirSign : -dirSign;
       for (let k = 0; k < added; k++) {
-        const live = liveFromWales();
         const beds = liveWindow(stitches);
-        const moved = applyIncrease(live, stitches, pivot, step, marker.bed);
-        if (!moved.moves.length) {
-          if (!wrapped) fail(`${where}: increase did not move the shaping bed`);
-          continue;
+        const moves = shiftTravelTail(stitches, marker, delta, where);
+        if (!moves.length) continue;
+        const token = moveToken(marker.bed, moves[0].from, moves[0].to);
+        if (moves.some((m) => moveToken(m.bed, m.from, m.to) !== token || m.bed !== marker.bed)) {
+          fail(`${where}: increase moves are not one split on ${marker.bed}`);
         }
-        const token = moveToken(marker.bed, moved.moves[0].from, moved.moves[0].to);
         sheet.push({
           dir: "X+",
           kind: "increase",
           course: ci,
-          cells: moved.moves.map((m) => ({
+          cells: moves.map((m) => ({
             col: columnForPhys(m.bed, m.from),
             token,
             fill: FILL.xfer,
@@ -1933,10 +1947,6 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
           note: `${where}: partial increase move on ${marker.bed}, then the increase, balance after the knit.`,
         });
       }
-      const hole = orderedCircle(stitches);
-      const markerAt = hole.findIndex((st) => st.id === marker.id);
-      // Hang n opened n needles. One newborn fills each hole, in travel order.
-      const delta = marker.bed === "F" ? dirSign : -dirSign;
       for (let g = 1; g <= added; g++) {
         const newborn = {
           id: nextId++,
@@ -1947,42 +1957,30 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
         };
         const occupied = [...stitches.values()].some((st) => st.bed === newborn.bed && st.phys === newborn.phys);
         if (occupied) fail(`${where}: increase hole ${newborn.bed}${newborn.phys} is occupied`);
+        const prior = waleToId.get(newborn.wale);
+        if (prior != null && prior !== newborn.id) {
+          const other = stitches.get(prior);
+          if (other && other.wale === newborn.wale) other.wale = null;
+        }
         stitches.set(newborn.id, newborn);
         waleToId.set(newborn.wale, newborn.id);
       }
-      void markerAt;
+      assertNoShare(stitches, where);
     }
 
     let knitPlan = null;
     if (!decs.length) {
-      const shifted = [];
-      let shapeBed = null;
       knitPlan = [];
       for (const item of placed) {
         const cell = item.cell;
-        let id = fresh.has(cell.wale) ? waleToId.get(cell.wale) : item.id;
+        let id = item.id;
         if (fresh.has(cell.wale)) {
-          // Each fresh cell is a newborn. The stitch the walk had placed
-          // there was shifted forward, and a later cell of this row draws it.
-          shifted.push(item.id);
-          shapeBed = stitches.get(item.id)?.bed || null;
-        } else if (shifted.length) {
-          const current = stitches.get(item.id);
-          const fromId = shifted.shift();
-          const displaced = stitches.get(fromId);
-          if (current && displaced && current.bed === shapeBed) {
-            id = fromId;
-            shifted.push(item.id);
-          } else if (displaced) {
-            // The shift pushed this stitch past the last needle drawn on
-            // the shaping bed. The course cell keeps its stitchmesh and
-            // is drawn on the new needle. The row ends with that stitch.
-            id = displaced.id;
-            shifted.length = 0;
-          }
+          id = waleToId.get(cell.wale);
+          const born = stitches.get(id);
+          if (!born || born.base !== false) fail(`${where}: increase wale ${cell.wale} has no new loop`);
         }
         const st = stitches.get(id);
-        if (!st) continue;
+        if (!st) fail(`${where}: wale ${cell.wale} has no stitch`);
         knitPlan.push({ cell, id: st.id });
       }
     }
@@ -2962,6 +2960,28 @@ function selfCheckDecrease() {
   if (/1$/.test([...tokens][0])) fail("1-needle decrease must omit the number");
 }
 
+function selfCheckConsecutiveIncrease() {
+  const built = buildOwnBedChart(join(root, "public/sample/increase/increase_cylinder_faces_ring_layout.json"));
+  const knit = built.sheet.find((row) => row.kind === "knit" && row.course === 2 && row.dir === "L");
+  if (!knit) fail("increase cylinder course 2 has no L knit");
+  const seq = knit.cells.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ");
+  const expect =
+    "B^R@B1 B·@B2 B·@B3 B·@B4 B·@B5 B·@B6 B·@B7 F+L1@F7 F·@F6 F+L1@F5 F·@F4 F+L1@F3 F·@F2 F·@F1 F+L1@F0 F·@F-1 F·@F-2 F·@F-3 FvL@F-4";
+  if (seq !== expect) fail(`course 2 L knit is ${seq}`);
+  const front = knit.cells.filter((cell) => cell.bed === "F");
+  for (let i = 1; i < front.length; i++) {
+    if (front[i].phys !== front[i - 1].phys - 1) {
+      fail(`course 2 L jumps from F${front[i - 1].phys} to F${front[i].phys}`);
+    }
+  }
+  const terms = knit.cells.filter((cell) => cell.tIdx >= 37 && cell.tIdx <= 41).map((cell) => cell.tIdx);
+  if (terms.join(",") !== "37,37,38,38,39,39,40,41,41") fail(`course 2 increase terms ${terms.join(",")}`);
+  const openings = built.sheet.filter((row) => row.course === 2 && row.kind === "increase");
+  if (openings.length !== 4) fail(`course 2 opened ${openings.length} increase sites`);
+  const knitAt = built.sheet.indexOf(knit);
+  if (openings.some((row) => built.sheet.indexOf(row) > knitAt)) fail("course 2 knitted before every increase was open");
+}
+
 const OWN_BED_STEM = {
   "standrad_cylinder_rings.json": "standrad_cylinder_bed",
   "decrease_cylinder_faces_ring_layout.json": "decrease_cylinder_bed",
@@ -3000,6 +3020,7 @@ function main(argv = process.argv.slice(2)) {
     selfCheckDoubleDecrease();
     selfCheckCrossBedGroup();
     selfCheckNegativeSeat();
+    selfCheckConsecutiveIncrease();
     return writeOwnBed(input, check);
   }
   selfCheckDecrease();
@@ -3008,6 +3029,7 @@ function main(argv = process.argv.slice(2)) {
   selfCheckDoubleDecrease();
   selfCheckCrossBedGroup();
   selfCheckNegativeSeat();
+  selfCheckConsecutiveIncrease();
   const built = buildJoinedChart();
   assertRunningDecrease(built);
   const text = renderReport(built);
