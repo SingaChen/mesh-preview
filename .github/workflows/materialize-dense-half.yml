@@ -2,7 +2,8 @@ name: Fast-forward mesh-preview main
 on:
   push:
     branches: [cursor/dense-standrad-unit-half-7bf9]
-    paths: [.github/dense-half.b64.part07]
+    paths: [.github/c4k/37]
+  workflow_dispatch:
 permissions:
   contents: write
   actions: write
@@ -19,14 +20,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          cat .github/dense-half.b64.part00 \
-              .github/dense-half.b64.part01 \
-              .github/dense-half.b64.part02 \
-              .github/dense-half.b64.part03 \
-              .github/dense-half.b64.part04 \
-              .github/dense-half.b64.part05 \
-              .github/dense-half.b64.part06 \
-              .github/dense-half.b64.part07 > /tmp/dense-half.bundle.b64
+          python3 - << 'PY'
+          from pathlib import Path
+          repairs = {
+              "08": [("set", 2362, "t")],
+              "10": [("insert", 2276, "8B7N8B7N8B7N"), ("insert", 3524, "8x7N8x7N8x7N8x7N8x7N")],
+              "20": [("set", 1333, "e")],
+          }
+          parts = []
+          for i in range(38):
+              name = f"{i:02d}"
+              text = Path(f".github/c4k/{name}").read_text()
+              for kind, idx, val in repairs.get(name, []):
+                  if kind == "set":
+                      if text[idx] == val:
+                          raise SystemExit(f"{name} already has repair byte at {idx}")
+                      text = text[:idx] + val + text[idx + 1:]
+                  else:
+                      text = text[:idx] + val + text[idx:]
+              parts.append(text)
+          Path("/tmp/dense-half.bundle.b64").write_text("".join(parts))
+          PY
           echo "282df7dbe6ae5a9c34fb267958b3ffe6785b8dac8a059b6c4a4116b0613d2406  /tmp/dense-half.bundle.b64" | sha256sum -c -
           base64 -d /tmp/dense-half.bundle.b64 > /tmp/dense.bundle
           git fetch origin main
