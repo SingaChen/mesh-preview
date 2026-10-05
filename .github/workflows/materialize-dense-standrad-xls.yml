@@ -1,0 +1,34 @@
+name: Materialize Dense Standrad workbooks
+
+on:
+  push:
+    branches:
+      - cursor/dense-standrad-cylinder-0385
+      - main
+    paths:
+      - public/sample/dense-standrad/*.b64
+      - .github/workflows/materialize-dense-standrad-xls.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode workbook sidecars
+        run: |
+          node scripts/materialize-dense-xls.mjs
+          rm -f public/sample/dense-standrad/*.b64
+      - name: Commit the real workbooks
+        run: |
+          git config user.name SingaChen
+          git config user.email "65845804+SingaChen@users.noreply.github.com"
+          git add -A public/sample/dense-standrad
+          if git diff --cached --quiet; then
+            echo "workbooks already match"
+            exit 0
+          fi
+          git commit -m "Add the Dense Standrad Cylinder workbooks."
+          git push
