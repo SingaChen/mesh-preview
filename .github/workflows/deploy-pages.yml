@@ -30,6 +30,19 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Materialize Thin Cylinder workbooks
+        run: |
+          python3 - << 'PY'
+          import base64
+          import pathlib
+          root = pathlib.Path("public/sample/thin")
+          for name in ("thin_cylinder_bed.xls", "thin_cylinder_cols_resample.xls"):
+              dest = root / name
+              if dest.exists():
+                  continue
+              packed = root / f"{name}.b64"
+              dest.write_bytes(base64.b64decode("".join(packed.read_text().split())))
+          PY
       - name: Build
         run: npm run build
       - name: Setup Pages

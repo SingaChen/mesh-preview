@@ -3,3 +3,6 @@ dist
 .DS_Store
 *.local
 .vite
+# BIFF workbooks cannot ride the GitHub file API. The .b64 copies are the
+# committed bytes; the Pages build writes the .xls back before Vite runs.
+public/sample/thin/*.xls
