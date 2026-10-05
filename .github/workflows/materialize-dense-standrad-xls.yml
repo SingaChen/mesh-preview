@@ -1,34 +1,52 @@
-name: Materialize Dense Standrad workbooks
+name: Fast-forward mesh-preview main
 
 on:
   push:
     branches:
       - cursor/dense-standrad-cylinder-0385
-      - main
     paths:
-      - public/sample/dense-standrad/*.b64
+      - .github/dense-standrad.bundle.b64
       - .github/workflows/materialize-dense-standrad-xls.yml
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
-  materialize:
+  ff-main:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Decode workbook sidecars
+        with:
+          fetch-depth: 0
+          ref: cursor/dense-standrad-cylinder-0385
+      - name: Fast-forward main from the bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          node scripts/materialize-dense-xls.mjs
-          rm -f public/sample/dense-standrad/*.b64
-      - name: Commit the real workbooks
-        run: |
-          git config user.name SingaChen
-          git config user.email "65845804+SingaChen@users.noreply.github.com"
-          git add -A public/sample/dense-standrad
-          if git diff --cached --quiet; then
-            echo "workbooks already match"
-            exit 0
-          fi
-          git commit -m "Add the Dense Standrad Cylinder workbooks."
-          git push
+          set -euo pipefail
+          echo "74e2ba7d4b5e3dc6eca6b68482484773dc943648bf600d71f73229061e8ef3a0  .github/dense-standrad.bundle.b64" | sha256sum -c -
+          base64 -d .github/dense-standrad.bundle.b64 > /tmp/dense.bundle
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "8cd8d08371c7ce193628c20221e7ac1c8155158a"
+          git bundle verify /tmp/dense.bundle
+          git fetch /tmp/dense.bundle HEAD:refs/bundle/dense
+          test "$(git rev-parse refs/bundle/dense)" = "d4856ab1a06acf712c56f6c171ae4d447f0e3d18"
+          git checkout -B ffmain origin/main
+          git merge --ff-only refs/bundle/dense
+          test "$(git rev-parse HEAD)" = "d4856ab1a06acf712c56f6c171ae4d447f0e3d18"
+          git push origin HEAD:main
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            sha=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+            if [ "$sha" = "d4856ab1a06acf712c56f6c171ae4d447f0e3d18" ]; then
+              break
+            fi
+            sleep 2
+          done
+          test "$sha" = "d4856ab1a06acf712c56f6c171ae4d447f0e3d18"
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/deploy-pages.yml/dispatches" \
+            -d '{"ref":"main"}'
