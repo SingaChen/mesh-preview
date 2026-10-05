@@ -34,14 +34,51 @@ jobs:
         run: |
           python3 - << 'PY'
           import base64
+          import hashlib
           import pathlib
+
           root = pathlib.Path("public/sample/thin")
-          for name in ("thin_cylinder_bed.xls", "thin_cylinder_cols_resample.xls"):
+          OLE = bytes.fromhex("d0cf11e0a1b11ae1")
+          COLS_HOLE = "310780f3528b848ddec88804f63351053a0378bd65e43c27ca93e84619d1e197"
+          COLS_INSERT = "gABQABgCkAPX/IAAA9AAAAAAAAAAAwCD"
+
+          def assemble(stem: str) -> str:
+              whole = root / stem
+              if whole.exists():
+                  return whole.read_text()
+              parts = sorted(root.glob(stem + ".part*"))
+              if not parts:
+                  raise FileNotFoundError(stem)
+              return "".join(part.read_text() for part in parts)
+
+          cols_path = root / "thin_cylinder_cols_resample.xls.b64"
+          if cols_path.exists():
+              cols_text = cols_path.read_text()
+              if hashlib.sha256(cols_text.encode()).hexdigest() == COLS_HOLE:
+                  cols_text = cols_text[:1375] + COLS_INSERT + cols_text[1375:]
+                  cols_path.write_text(cols_text)
+
+          expected = {
+              "thin_cylinder_bed.xls": 74240,
+              "thin_cylinder_cols_resample.xls": 54784,
+          }
+          for name, size in expected.items():
               dest = root / name
-              if dest.exists():
-                  continue
-              packed = root / f"{name}.b64"
-              dest.write_bytes(base64.b64decode("".join(packed.read_text().split())))
+              if not dest.exists():
+                  packed = assemble(f"{name}.b64")
+                  dest.write_bytes(base64.b64decode("".join(packed.split())))
+              raw = dest.read_bytes()
+              if raw[:8] != OLE or len(raw) != size:
+                  raise SystemExit(f"{name}: got {len(raw)} bytes starting {raw[:8].hex()}")
+
+          obj = root / "thin_cylinder_KnittingStitches.obj"
+          if not obj.exists():
+              obj.write_text(assemble("thin_cylinder_KnittingStitches.obj"))
+          text = obj.read_text()
+          verts = sum(1 for line in text.splitlines() if line.startswith("v "))
+          faces = sum(1 for line in text.splitlines() if line.startswith("f "))
+          if verts != 1209 or faces != 311:
+              raise SystemExit(f"KnittingStitches: {verts} verts, {faces} faces")
           PY
       - name: Build
         run: npm run build
