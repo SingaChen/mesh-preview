@@ -1,16 +1,11 @@
 name: Fast-forward mesh-preview main
-
 on:
   push:
-    branches:
-      - cursor/dense-standrad-unit-half-7bf9
-    paths:
-      - .github/dense-half.b64.part02
-
+    branches: [cursor/dense-standrad-unit-half-7bf9]
+    paths: [.github/dense-half.b64.part07]
 permissions:
   contents: write
   actions: write
-
 jobs:
   ff-main:
     runs-on: ubuntu-latest
@@ -24,7 +19,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          cat .github/dense-half.b64.part00 .github/dense-half.b64.part01 .github/dense-half.b64.part02 > /tmp/dense-half.bundle.b64
+          cat .github/dense-half.b64.part00 \
+              .github/dense-half.b64.part01 \
+              .github/dense-half.b64.part02 \
+              .github/dense-half.b64.part03 \
+              .github/dense-half.b64.part04 \
+              .github/dense-half.b64.part05 \
+              .github/dense-half.b64.part06 \
+              .github/dense-half.b64.part07 > /tmp/dense-half.bundle.b64
           echo "282df7dbe6ae5a9c34fb267958b3ffe6785b8dac8a059b6c4a4116b0613d2406  /tmp/dense-half.bundle.b64" | sha256sum -c -
           base64 -d /tmp/dense-half.bundle.b64 > /tmp/dense.bundle
           git fetch origin main
