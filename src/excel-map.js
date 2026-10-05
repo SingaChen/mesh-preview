@@ -32,6 +32,15 @@ export function isExcelReadableMapName(name) {
   return /readable_map|step3/i.test(base);
 }
 
+/** Thin Cylinder partial bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isThinCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^thin_cylinder_bed\.xlsx?$/i.test(base);
+}
+
 /** Increase Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
 export function isIncreaseCylinderBedChart(name) {
   const base = String(name || "")
