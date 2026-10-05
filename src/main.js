@@ -1,1 +1,1252 @@
-PLACEHOLDER
+import { MeshViewer } from "./viewer.js";
+import {
+  clickInput,
+  entriesFromFileList,
+  hasDirectoryPicker,
+  pickDirectoryEntries,
+} from "./files.js";
+import {
+  basename,
+  indexFiles,
+  isExcelReadableMapName,
+  isManifestShape,
+  isXlsName,
+  projectFromDiscovery,
+  projectFromManifest,
+  readEntryBuffer,
+  readEntryText,
+} from "./project.js";
+import {
+  applyStitchMapBind,
+  bindStitchesToMap,
+  collectManifestRefs,
+  faceChunksFromFaces,
+  facesRingChunksFromStitches,
+  formatStitchPickParts,
+  parseColoredObj,
+  parseColsResample,
+  parseFacesRingLayout,
+  parseFirstRows,
+  parseReadableMap,
+  parseStitchMapBind,
+} from "./stitches.js";
+import {
+  formatPhysicalNeedle,
+  formatPhysicalNeedles,
+  isFacesRing0BedChart,
+  isDecreaseCylinderBedChart,
+  isIncreaseCylinderBedChart,
+  isThinCylinderBedChart,
+  isStandradCylinderBedChart,
+  isFlipDir,
+  isTransferDir,
+  knitBedsByFace,
+  parseExcelReadableMap,
+} from "./excel-map.js";
+import { bindDualRange } from "./dual-range.js";
+import {
+  activeRingIndex,
+  applyDisplayModelsRange,
+  facesRingSliderN,
+  formatDisplayModelsLabel,
+  formatHalfOpenRangeLabel,
+  registerDisplayModel,
+  stitchesVisibleForSliders,
+} from "./range.js";
+import { applyBaseChoice, defaultBaseLayers, isBaseHidden } from "./display.js";
+import {
+  buildReadableMapGrid,
+  highlightKeysForStitch,
+  highlightKeysFromStitches,
+  stitchForMapCell,
+} from "./readable-map.js";
+import { ReadableMapView } from "./map-view.js";
+
+const canvas = document.querySelector("#viewport");
+const folderInput = document.querySelector("#folder-input");
+const filesInput = document.querySelector("#files-input");
+const openMenu = document.querySelector("#open-menu");
+const openMenuBtn = document.querySelector("#open-menu-btn");
+const openMenuList = document.querySelector("#open-menu-list");
+const openFolderBtn = document.querySelector("#open-folder");
+const openFilesBtn = document.querySelector("#open-files");
+const sampleBtn = document.querySelector("#load-sample");
+const facesRing0Btn = document.querySelector("#load-faces-ring0");
+const standradBtn = document.querySelector("#load-standrad-cylinder");
+const decreaseBtn = document.querySelector("#load-decrease-cylinder");
+const increaseBtn = document.querySelector("#load-increase-cylinder");
+const thinBtn = document.querySelector("#load-thin-cylinder");
+const fitBtn = document.querySelector("#fit-view");
+const slider = document.querySelector("#mesh-slider");
+const meshRow = document.querySelector("#mesh-row");
+const colsRow = document.querySelector("#cols-row");
+const facesRow = document.querySelector("#faces-row");
+const modelsRow = document.querySelector("#models-row");
+const termsRow = document.querySelector("#terms-row");
+const colsLabel = document.querySelector("#cols-label");
+const facesLabel = document.querySelector("#faces-label");
+const modelsLabel = document.querySelector("#models-label");
+const termsLabel = document.querySelector("#terms-label");
+const termsSub = document.querySelector("#terms-sub");
+const labelEl = document.querySelector("#mesh-label");
+const countEl = document.querySelector("#mesh-count");
+const projectEl = document.querySelector("#project-name");
+const statsEl = document.querySelector("#mesh-stats");
+const stitchPickEl = document.querySelector("#stitch-pick");
+const stitchPickTitle = document.querySelector("#stitch-pick-title");
+const stitchPickText = document.querySelector("#stitch-pick-text");
+const statusEl = document.querySelector("#status");
+const overlayBtn = document.querySelector("#toggle-overlay");
+const knitBedBtn = document.querySelector("#toggle-knit-bed");
+const warpBtn = document.querySelector("#toggle-warp");
+const baseMenu = document.querySelector("#base-menu");
+const baseMenuBtn = document.querySelector("#base-menu-btn");
+const baseMenuList = document.querySelector("#base-menu-list");
+const baseChecks = {
+  off: document.querySelector("#base-off"),
+  wire: document.querySelector("#base-wire"),
+  faces: document.querySelector("#base-faces"),
+  points: document.querySelector("#base-points"),
+};
+let baseLayers = defaultBaseLayers();
+const hideChromeBtn = document.querySelector("#hide-chrome");
+const showChromeBtn = document.querySelector("#show-chrome");
+const mapPane = document.querySelector("#map-pane");
+const mapCanvas = document.querySelector("#map-canvas");
+const mapMeta = document.querySelector("#map-meta");
+const mapEmpty = document.querySelector("#map-empty");
+const paneSwitch = document.querySelector("#pane-switch");
+const pane3dBtn = document.querySelector("#pane-3d");
+const paneMapBtn = document.querySelector("#pane-map");
+const mapZoomIn = document.querySelector("#map-zoom-in");
+const mapZoomOut = document.querySelector("#map-zoom-out");
+const mapFitBtn = document.querySelector("#map-fit");
+const mapPhysBtn = document.querySelector("#map-phys");
+
+const viewer = new MeshViewer(canvas);
+const mapView = mapCanvas ? new ReadableMapView(mapCanvas) : null;
+const narrowSplitMq = window.matchMedia("(max-width: 719px)");
+let mobilePane = "3d";
+const colsRange = bindDualRange(document.querySelector("#cols-range"));
+const facesRange = bindDualRange(document.querySelector("#faces-range"));
+const modelsRange = bindDualRange(document.querySelector("#models-range"));
+const termsRange = bindDualRange(document.querySelector("#terms-range"));
+
+let project = null;
+let outputIndex = 0;
+let scene = null;
+let pickedStitch = null;
+let showPhysNeedle = false;
+let physPickKeys = null;
+const geomCache = new Map();
+const textCache = new Map();
+
+function setStatus(message, isError = false) {
+  statusEl.textContent = message || "";
+  statusEl.classList.toggle("error", isError);
+}
+
+function stitchMapBind() {
+  return scene?.stitches?.stitchBind || null;
+}
+
+function mapKeysForStitch(stitch) {
+  return highlightKeysForStitch(stitch, {
+    map: scene?.readableMap,
+    grid: mapView?.grid,
+    bind: stitchMapBind(),
+  });
+}
+
+function readableCell(row, col) {
+  return scene?.readableMap?.rows?.[row]?.cells?.find((cell) => cell.col === col) || null;
+}
+
+function showPhysChip(parts, keys) {
+  if (!stitchPickEl) return;
+  stitchPickEl.hidden = false;
+  if (stitchPickTitle) stitchPickTitle.textContent = parts.title;
+  if (stitchPickText) stitchPickText.textContent = parts.detail;
+  stitchPickEl.dataset.mapCells = [...keys].join(" ");
+}
+
+function paintPhysicalCell(row, col, stitch) {
+  const parts = formatPhysicalNeedle(readableCell(row, col));
+  physPickKeys = new Set([`${row},${col}`]);
+  pickedStitch = stitch || null;
+  viewer.setSelectedStitch(stitch || null);
+  showPhysChip(parts, physPickKeys);
+  paintMapHighlight();
+}
+
+function paintPhysicalStitch(stitch) {
+  if (!stitch) {
+    paintStitchPick(null);
+    return;
+  }
+  const keys = mapKeysForStitch(stitch);
+  const records = [...keys].map((key) => {
+    const comma = key.indexOf(",");
+    const row = Number(key.slice(0, comma));
+    const col = Number(key.slice(comma + 1));
+    return readableCell(row, col) || { row, col };
+  });
+  physPickKeys = keys;
+  pickedStitch = stitch;
+  viewer.setSelectedStitch(stitch);
+  showPhysChip(formatPhysicalNeedles(records), keys);
+  paintMapHighlight();
+}
+
+function onMapCellPick(hit) {
+  if (!hit) return;
+  const stitches = scene?.stitches?.bound?.stitches || [];
+  const stitch = stitchForMapCell(hit.row, hit.col, stitchMapBind(), stitches, scene?.readableMap);
+  if (showPhysNeedle) {
+    paintPhysicalCell(hit.row, hit.col, stitch);
+    return;
+  }
+  if (stitch) {
+    paintStitchPick(stitch);
+    return;
+  }
+  if (hit.cell?.isTransfer || isTransferDir(hit.dir) || hit.cell?.isFlip || isFlipDir(hit.dir)) return;
+  paintStitchPick(null);
+}
+
+if (mapView) mapView.onCellPick = onMapCellPick;
+
+function paintStitchPick(stitch) {
+  physPickKeys = null;
+  pickedStitch = stitch || null;
+  const parts = formatStitchPickParts(stitch);
+  viewer.setSelectedStitch(parts ? stitch : null);
+  if (stitchPickEl) {
+    if (!parts) {
+      stitchPickEl.hidden = true;
+      if (stitchPickTitle) stitchPickTitle.textContent = "针迹 Stitch";
+      if (stitchPickText) stitchPickText.textContent = "";
+      delete stitchPickEl.dataset.mapCells;
+    } else {
+      stitchPickEl.hidden = false;
+      if (stitchPickTitle) stitchPickTitle.textContent = parts.title;
+      if (stitchPickText) stitchPickText.textContent = parts.detail;
+    }
+  }
+  paintMapHighlight();
+  if (stitchPickEl && pickedStitch) {
+    stitchPickEl.dataset.mapCells = [...mapKeysForStitch(pickedStitch)].join(" ");
+  }
+}
+
+function pressed(btn, on) {
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+}
+
+function currentOutput() {
+  return project?.outputs[outputIndex] || null;
+}
+
+function modelNameFromFile(entry, fallback) {
+  if (!entry) return fallback;
+  return basename(entry.name || entry.path).replace(/\.obj$/i, "") || fallback;
+}
+
+function updateChrome() {
+  const n = project?.outputs.length || 0;
+  const current = currentOutput();
+  slider.max = String(Math.max(0, n - 1));
+  slider.value = String(outputIndex);
+  slider.disabled = n < 2;
+  meshRow.classList.toggle("hidden", n < 2);
+  labelEl.textContent = current?.label || "\u2014";
+  countEl.textContent = n ? `${outputIndex + 1} / ${n}` : "0 / 0";
+  projectEl.textContent = project
+    ? `${project.name} \u00b7 ${project.source === "manifest" ? "\u6e05\u5355 manifest" : "\u81ea\u52a8\u53d1\u73b0 auto"}`
+    : "\u672a\u6253\u5f00\u9879\u76ee / No project";
+  overlayBtn.disabled = !current?.overlayFile && !current?.stitchFile && !scene?.stitches;
+  if (warpBtn) warpBtn.disabled = !scene?.columns?.length;
+
+  const hasCols = Boolean(scene?.columns?.length);
+  const hasStitches = Boolean(scene?.stitches?.rowChunks?.length);
+  const knitFocus = hasStitches;
+  const hasModels = Boolean(scene?.models?.length) && !knitFocus;
+  colsRow.classList.toggle("hidden", !hasCols);
+  facesRow.classList.toggle("hidden", !hasStitches);
+  termsRow?.classList.toggle("hidden", !hasStitches);
+  modelsRow.classList.toggle("hidden", !hasModels);
+
+  if (hasCols) {
+    const [a, b] = colsRange.value;
+    colsLabel.textContent = formatHalfOpenRangeLabel("cols_resample", a, b, scene.columns.length);
+  } else {
+    colsLabel.textContent = "cols_resample: -";
+  }
+
+  if (hasStitches) {
+    const [a, b] = facesRange.value;
+    facesLabel.textContent = formatHalfOpenRangeLabel("row", a, b, scene.stitches.rowChunks.length);
+    facesRange.setEnabled(true);
+    paintTermChrome();
+  } else {
+    facesLabel.textContent = "row: -";
+    facesRange.setEnabled(false);
+    if (termsLabel) termsLabel.textContent = "term: -";
+    termsRange?.setEnabled(false);
+  }
+
+  if (hasModels) {
+    const [a, b] = modelsRange.value;
+    modelsLabel.textContent = formatDisplayModelsLabel(a, b, scene.models);
+  } else {
+    modelsLabel.textContent = "display_models: -";
+  }
+}
+
+async function loadGeometry(entry) {
+  if (!entry) return null;
+  const key = entry.path || entry.name;
+  if (geomCache.has(key)) return geomCache.get(key);
+  const text = await readEntryText(entry);
+  const geom = viewer.parseObj(text, entry.name);
+  geomCache.set(key, geom);
+  return geom;
+}
+
+async function loadText(entry) {
+  if (!entry) return "";
+  const key = `txt:${entry.path || entry.name}`;
+  if (textCache.has(key)) return textCache.get(key);
+  const text = await readEntryText(entry);
+  textCache.set(key, text);
+  return text;
+}
+
+async function loadBuffer(entry) {
+  if (!entry) return null;
+  const key = `bin:${entry.path || entry.name}`;
+  if (textCache.has(key)) return textCache.get(key);
+  const buffer = await readEntryBuffer(entry);
+  textCache.set(key, buffer);
+  return buffer;
+}
+
+function isMapXlsEntry(entry) {
+  if (!entry) return false;
+  const name = entry.name || entry.path || "";
+  return (
+    isExcelReadableMapName(name) ||
+    isFacesRing0BedChart(name) ||
+    isDecreaseCylinderBedChart(name) ||
+    isIncreaseCylinderBedChart(name) ||
+    isThinCylinderBedChart(name) ||
+    isStandradCylinderBedChart(name) ||
+    (isXlsName(name) && /readable_map|step3/i.test(name))
+  );
+}
+
+function sheetQuery() {
+  try {
+    return new URLSearchParams(location.search).get("sheet") || "";
+  } catch {
+    return "";
+  }
+}
+
+function setSheetQuery(sheet) {
+  const url = new URL(location.href);
+  if (sheet) url.searchParams.set("sheet", sheet);
+  else url.searchParams.delete("sheet");
+  history.replaceState(null, "", url);
+}
+
+function outputIndexForSheet(next, sheet) {
+  const outputs = next?.outputs || [];
+  if (!outputs.length) return 0;
+  const want = String(sheet || "").toLowerCase();
+  if (want === "faces-ring0" || want === "faces_ring0" || want === "faces-ring1" || want === "faces_ring1") {
+    const hit = outputs.findIndex((out) => isFacesRing0BedChart(out.readableMapFile?.name || out.readableMapFile?.path || ""));
+    if (hit >= 0) return hit;
+  }
+  return outputs.length - 1;
+}
+
+async function loadExcelOrTxtMap(entry) {
+  if (!entry) return null;
+  if (isMapXlsEntry(entry)) {
+    const buf = await loadBuffer(entry);
+    if (!buf) return null;
+    const map = parseExcelReadableMap(buf);
+    return map?.rows?.length ? map : null;
+  }
+  const mapText = await loadText(entry);
+  const map = parseReadableMap(mapText);
+  return map?.cells?.length ? map : null;
+}
+
+async function loadReadableMap(output) {
+  const excel = await loadExcelOrTxtMap(output.readableMapFile);
+  if (excel) return excel;
+  return loadExcelOrTxtMap(output.readableMapTxtFile);
+}
+
+async function loadStitches(output) {
+  const stitchEntry = output.stitchFile || output.overlayFile;
+  const mapEntry = output.readableMapFile;
+  if (!stitchEntry) return null;
+  const stitchText = await loadText(stitchEntry);
+  if (!stitchText) return null;
+  const parsed = parseColoredObj(stitchText);
+  if (!parsed.faces.length) return null;
+  let bound = null;
+  let parsedMap = null;
+  const displayMap = await loadReadableMap(output);
+  const txtEntry =
+    output.readableMapTxtFile || (mapEntry && !isMapXlsEntry(mapEntry) ? mapEntry : null);
+  let bindMap = null;
+  if (txtEntry) {
+    const mapText = await loadText(txtEntry);
+    bindMap = parseReadableMap(mapText);
+  }
+  parsedMap = displayMap || bindMap;
+  if (bindMap?.cells?.length) bound = bindStitchesToMap(parsed.faces, bindMap);
+  if (!bound) {
+    bound = {
+      stitches: parsed.faces.map((face, index) => ({
+        index,
+        verts: face.verts,
+        row: index,
+        col: 0,
+        token: null,
+        dir: null,
+        path_index: null,
+        term_index: null,
+        mapCells: [],
+      })),
+      columns: [0],
+      rowMin: 0,
+      rowMax: parsed.faces.length ? parsed.faces.length - 1 : 0,
+      unboundFaces: 0,
+      leftoverCells: 0,
+    };
+  }
+  let stitchBind = null;
+  if (output.stitchMapBindFile) {
+    const bindText = await loadText(output.stitchMapBindFile);
+    if (bindText) stitchBind = parseStitchMapBind(bindText);
+  }
+  if (stitchBind) applyStitchMapBind(bound.stitches, stitchBind);
+  let firstRows = null;
+  if (output.firstRowsFile) {
+    const buf = await loadBuffer(output.firstRowsFile);
+    if (buf) firstRows = parseFirstRows({ xls: buf });
+  }
+  let layout = null;
+  if (output.facesRingLayoutFile) {
+    const text = await loadText(output.facesRingLayoutFile);
+    if (text) layout = parseFacesRingLayout(text);
+  }
+  const nRings = layout?.nFacesRing || firstRows?.nRings || 0;
+  const faceChunks = faceChunksFromFaces(parsed.faces);
+  const rowChunks = facesRingChunksFromStitches(bound.stitches, {
+    nRings,
+    termCounts: layout?.termCounts,
+    ringTypes: layout?.ringTypes,
+    colors: layout?.colors,
+  });
+  bound.edgeColor = layout?.edgeColor || { r: 0, g: 0, b: 0 };
+  return { bound, faceChunks, rowChunks, firstRows, layout, stitchBind, stitchEntry, mapEntry, map: parsedMap };
+}
+
+async function loadCols(output) {
+  if (!output.colsResampleXlsFile && !output.colsResampleFile) {
+    return null;
+  }
+  const [fieldText, xls] = await Promise.all([
+    output.colsResampleFile ? loadText(output.colsResampleFile) : Promise.resolve(""),
+    output.colsResampleXlsFile ? loadBuffer(output.colsResampleXlsFile) : Promise.resolve(null),
+  ]);
+  const columns = parseColsResample({ xls, fieldText });
+  return columns.length
+    ? { columns, entry: output.colsResampleXlsFile || output.colsResampleFile }
+    : null;
+}
+
+function activeRingFromSlider() {
+  const [a, b] = facesRange.value;
+  return activeRingIndex(a, b);
+}
+
+function activeRingChunk() {
+  const active = activeRingFromSlider();
+  if (active == null || !scene?.stitches?.rowChunks) return null;
+  return scene.stitches.rowChunks[active] || null;
+}
+
+function paintTermChrome() {
+  if (!termsLabel) return;
+  const chunk = activeRingChunk();
+  const n = chunk?.faces.length ?? 0;
+  const active = activeRingFromSlider();
+  if (termsSub) termsSub.textContent = active == null ? "term" : `ring ${active}`;
+  if (!n || active == null) {
+    termsLabel.textContent = "term: -";
+    termsRange.setEnabled(false);
+    return;
+  }
+  const [t0, t1] = termsRange.value;
+  termsLabel.textContent = formatHalfOpenRangeLabel("term", t0, t1, n);
+  termsRange.setEnabled(true);
+}
+
+function applyColsRange() {
+  if (!scene?.columns?.length) return;
+  const [start, end] = colsRange.value;
+  viewer.setColsResampleRange(start, end);
+  colsLabel.textContent = formatHalfOpenRangeLabel("cols_resample", start, end, scene.columns.length);
+}
+
+function syncTermSlider({ reset = false } = {}) {
+  const chunk = activeRingChunk();
+  const n = chunk?.faces.length ?? 0;
+  const active = activeRingFromSlider();
+  if (!n || active == null) {
+    termsRange.configure(0, [0, 0]);
+    termsRange.setEnabled(false);
+    scene.prevActiveRing = null;
+    return;
+  }
+  if (reset || scene.prevActiveRing !== active) {
+    termsRange.configure(n, [0, n]);
+    scene.prevActiveRing = active;
+  } else if (termsRange.n !== n) {
+    termsRange.configure(n, [0, n]);
+  }
+  termsRange.setEnabled(true);
+}
+
+function applyFacesRange({ resetTerms } = {}) {
+  if (!scene?.stitches?.rowChunks?.length) return;
+  const [start, end] = facesRange.value;
+  const active = activeRingIndex(start, end);
+  const shouldReset = resetTerms ?? scene.prevActiveRing !== active;
+  syncTermSlider({ reset: shouldReset });
+  applyTermsRange();
+  facesLabel.textContent = formatHalfOpenRangeLabel("row", start, end, scene.stitches.rowChunks.length);
+}
+
+function applyTermsRange() {
+  if (!scene?.stitches?.rowChunks?.length) return;
+  const [r0, r1] = facesRange.value;
+  if (r1 <= r0) {
+    viewer.setKnitRange(r0, r1, 0, 0);
+    paintTermChrome();
+    paintMapHighlight();
+    return;
+  }
+  const [t0, t1] = termsRange.value;
+  viewer.setKnitRange(r0, r1, t0, t1);
+  paintTermChrome();
+  paintMapHighlight();
+}
+
+function applyModelsRange() {
+  if (!scene?.models?.length || scene?.stitches?.rowChunks?.length) return;
+  const [start, end] = modelsRange.value;
+  const result = applyDisplayModelsRange(scene.models, start, end, scene.prevFacesItem);
+  for (let i = 0; i < scene.models.length; i++) {
+    const model = scene.models[i];
+    viewer.setModelVisible(model.name, result.visibility[i]);
+  }
+  modelsLabel.textContent = formatDisplayModelsLabel(result.start, result.end, scene.models);
+}
+
+function applyAllFilters() {
+  applyColsRange();
+  if (scene?.stitches?.rowChunks?.length) applyFacesRange({ resetTerms: true });
+  else applyModelsRange();
+  updateChrome();
+}
+
+colsRange.setOnChange(() => {
+  applyColsRange();
+  updateChrome();
+});
+facesRange.setOnChange(() => {
+  applyFacesRange();
+  updateChrome();
+});
+termsRange.setOnChange(() => {
+  applyTermsRange();
+  updateChrome();
+});
+modelsRange.setOnChange(() => {
+  applyModelsRange();
+  updateChrome();
+});
+
+async function showOutput(index, { fit = false } = {}) {
+  if (!project) return;
+  outputIndex = Math.min(Math.max(0, index), project.outputs.length - 1);
+  const output = project.outputs[outputIndex];
+  scene = null;
+  paintStitchPick(null);
+  setStatus("\u52a0\u8f7d\u4e2d / Loading\u2026");
+  try {
+    const meshGeom = await loadGeometry(output.meshFile);
+    const stitches = await loadStitches(output);
+    const cols = await loadCols(output);
+    viewer.setBaseLayers(baseLayers);
+    viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
+    viewer.setShowKnitBed(knitBedBtn?.getAttribute("aria-pressed") === "true");
+    viewer.setShowWarp(warpBtn.getAttribute("aria-pressed") === "true");
+
+    const models = [];
+    const cutName = modelNameFromFile(output.meshFile, "cut_iteration_0");
+    registerDisplayModel(models, {
+      kind: "mesh",
+      name: cutName,
+      item: cutName,
+    });
+    if (cols) {
+      registerDisplayModel(models, {
+        kind: "cols_resample",
+        name: "cols_resample",
+        item: "cols_resample",
+      });
+    }
+    if (stitches) {
+      registerDisplayModel(models, {
+        kind: "faces_ring",
+        name: "KnittingStitches",
+        item: "KnittingStitches",
+        faceChunks: stitches.faceChunks,
+        rowChunks: stitches.rowChunks,
+      });
+    }
+
+    const readableMap = stitches?.map || (await loadReadableMap(output));
+    viewer.setKnitBeds(knitBedsByFace(readableMap));
+    scene = {
+      models,
+      columns: cols?.columns || null,
+      stitches,
+      facesBound: stitches,
+      prevFacesItem: stitches ? "KnittingStitches" : null,
+      prevActiveRing: null,
+      cutName,
+      readableMap,
+    };
+    paintReadableMap();
+
+    if (stitches || cols) {
+      viewer.setDisplayScene({
+        bodyGeom: meshGeom,
+        bodyName: cutName,
+        colsColumns: cols?.columns || null,
+        bound: stitches?.bound || null,
+      });
+    } else {
+      const overlayGeom = output.overlayFile ? await loadGeometry(output.overlayFile) : null;
+      viewer.setGeometries(meshGeom, overlayGeom);
+    }
+
+    if (cols) colsRange.configure(cols.columns.length, [0, cols.columns.length]);
+    else colsRange.configure(0, [0, 0]);
+    if (stitches?.rowChunks?.length) {
+      facesRange.configure(stitches.rowChunks.length, [0, stitches.rowChunks.length]);
+      modelsRange.configure(0, [0, 0]);
+    } else {
+      facesRange.configure(0, [0, 0]);
+      termsRange.configure(0, [0, 0]);
+      modelsRange.configure(models.length, models.length ? [0, models.length] : [0, 0]);
+    }
+
+    applyAllFilters();
+
+    const bits = [];
+    if (meshGeom) {
+      const pos = meshGeom.getAttribute("position");
+      bits.push(`${pos?.count ?? 0} vtx`);
+    }
+    if (cols) bits.push(`${cols.columns.length} cols_resample`);
+    if (stitches) bits.push(`${stitches.rowChunks.length} faces_ring`);
+    if (stitches?.layout?.termTotal) bits.push(`${stitches.layout.termTotal} terms`);
+    else bits.push(`${models.length} models`);
+    statsEl.textContent = bits.join(" \u00b7 ");
+    setStatus("\u4e09\u6ed1\u5757\u534a\u5f00\u533a\u95f4 [start,end) \u00b7 dual-range like SingaLab");
+    syncViewportAfterLayout(fit ? () => viewer.fitToView() : undefined);
+  } catch (err) {
+    statsEl.textContent = "";
+    scene = null;
+    paintReadableMap();
+    updateChrome();
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function openEntries(entries, { sheet } = {}) {
+  if (!entries?.length) return;
+  geomCache.clear();
+  textCache.clear();
+  scene = null;
+  const index = indexFiles(entries);
+  let next;
+  const preferred =
+    index.byName.get("manifest.json") ||
+    index.jsons.find((j) => j.name.toLowerCase().endsWith("manifest.json")) ||
+    index.jsons[0];
+
+  if (preferred) {
+    try {
+      const data = JSON.parse(await readEntryText(preferred));
+      if (isManifestShape(data)) {
+        next = projectFromManifest(data, index, preferred.path);
+      }
+    } catch (err) {
+      if (index.jsons.includes(preferred) && !index.objs.length) {
+        setStatus(err.message || String(err), true);
+        return;
+      }
+    }
+  }
+
+  if (!next) next = projectFromDiscovery(index);
+  project = next;
+  outputIndex = sheet ? outputIndexForSheet(project, sheet) : project.outputs.length - 1;
+  const warn = project.warnings[0];
+  if (warn) setStatus(warn, true);
+  await showOutput(outputIndex, { fit: true });
+}
+
+function isStandradSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "standrad-cylinder" || want === "standrad";
+}
+
+function isDecreaseSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "decrease-cylinder" || want === "decrease";
+}
+
+function isIncreaseSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "increase-cylinder" || want === "increase";
+}
+
+function isThinSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "thin-cylinder" || want === "thin";
+}
+
+async function loadStandradCylinder() {
+  setStatus("\u52a0\u8f7d Standrad Cylinder\u2026");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const manifestRes = await fetch(`${base}sample/standrad-cylinder.json`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error("\u7f3a\u5c11 Standrad Cylinder / Missing Standrad Cylinder");
+    const data = await manifestRes.json();
+    const paths = collectManifestRefs(data);
+    // Isolated index: name this manifest.json so the chooser does not
+    // also pull the faces-ring / cylinder sheets.
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`\u7f3a\u5c11 Standrad Cylinder / Missing ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
+      }),
+    );
+    await openEntries(entries);
+    if (!statusEl.classList.contains("error")) {
+      setStatus("Standrad Cylinder \u00b7 cols_resample 25 \u00b7 \u524d\u5e8a F0\u2013F12 \u00b7 \u540e\u5e8a B12\u2013B1");
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadDecreaseCylinder() {
+  setStatus("\u52a0\u8f7d Decrease Cylinder\u2026");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const manifestRes = await fetch(`${base}sample/decrease-cylinder.json`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error("\u7f3a\u5c11 Decrease Cylinder / Missing Decrease Cylinder");
+    const data = await manifestRes.json();
+    const paths = collectManifestRefs(data);
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`\u7f3a\u5c11 Decrease Cylinder / Missing ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
+      }),
+    );
+    await openEntries(entries);
+    if (!statusEl.classList.contains("error")) {
+      setStatus("Decrease Cylinder \u00b7 cols_resample 24 \u00b7 \u8868\u5bbd 24 \u00b7 \u524d\u5e8a F0\u2013F11 \u00b7 \u540e\u5e8a B11\u2013B0");
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadIncreaseCylinder() {
+  setStatus("\u52a0\u8f7d Increase Cylinder\u2026");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const manifestRes = await fetch(`${base}sample/increase-cylinder.json`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error("\u7f3a\u5c11 Increase Cylinder / Missing Increase Cylinder");
+    const data = await manifestRes.json();
+    const paths = collectManifestRefs(data);
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`\u7f3a\u5c11 Increase Cylinder / Missing ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
+      }),
+    );
+    await openEntries(entries);
+    if (!statusEl.classList.contains("error")) {
+      setStatus("Increase Cylinder \u00b7 cols_resample 23 \u00b7 \u8868\u5bbd 28 \u00b7 \u524d\u5e8a F0\u2013F7 \u00b7 \u540e\u5e8a B7\u2013B1");
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadThinCylinder() {
+  setStatus("\u52a0\u8f7d Thin Cylinder\u2026");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const manifestRes = await fetch(`${base}sample/thin-cylinder.json`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error("\u7f3a\u5c11 Thin Cylinder / Missing Thin Cylinder");
+    const data = await manifestRes.json();
+    const paths = collectManifestRefs(data);
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const name = rel.split("/").pop();
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (/\.xlsx?$/i.test(rel)) {
+          let bytes = res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+          const ole = bytes && bytes.length > 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
+          if (!ole) {
+            const b64 = await fetch(`${base}sample/${rel}.b64`, { cache: "reload" });
+            if (!b64.ok) throw new Error(`\u7f3a\u5c11 Thin Cylinder / Missing ${rel}`);
+            const raw = atob((await b64.text()).replace(/\s+/g, ""));
+            bytes = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+          }
+          entries.push({ name, path: `sample/${rel}`, buffer: bytes.buffer });
+          return;
+        }
+        if (!res.ok) throw new Error(`\u7f3a\u5c11 Thin Cylinder / Missing ${rel}`);
+        entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+      }),
+    );
+    await openEntries(entries);
+    if (!statusEl.classList.contains("error")) {
+      setStatus(
+        "Thin Cylinder \u00b7 cols_resample 36 \u00b7 \u8868\u5bbd 26 \u00b7 \u524d\u5e8a F0\u2013F11 \u00b7 \u540e\u5e8a B11\u2013B0 \u00b7 generation stopped at ring 7 course 0 (right-going increase drives back bed below 0; rule pending from Singa)",
+      );
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadSample(sheet = sheetQuery()) {
+  setStatus("\u52a0\u8f7d\u793a\u4f8b / Loading sample\u2026");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
+    if (!res.ok) throw new Error("\u793a\u4f8b\u6e05\u5355\u4e0d\u53ef\u7528 / Sample manifest missing");
+    const data = await res.json();
+    const paths = collectManifestRefs(data);
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`\u7f3a\u5c11\u793a\u4f8b / Missing sample ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
+      }),
+    );
+    await openEntries(entries, { sheet });
+    if (!statusEl.classList.contains("error")) {
+      const faces0 = isFacesRing0BedChart(currentOutput()?.readableMapFile?.name || "");
+      setStatus(
+        faces0
+          ? "faces_ring \u524d\u4e24\u73af\u63a5\u5728\u4e00\u5f20\u5e8a\u56fe\u4e0a \u00b7 \u7f51\u683c\u6ed1\u6761\u6700\u540e\u4e00\u9879\u4ecd\u662f\u539f\u6765\u7684 step4-ring0"
+          : "\u5de6 3D \u00b7 \u53f3 step4-ring0\uff08\u7b2c\u4e8c\u5708\u7ee7\u627f\u7b2c\u4e00\u5708\u5e8a\u4f4d\uff0c\u7ec7\u884c\u4e0e\u79fb\u5708\u540c\u4e00\u7269\u7406\u5217\uff09\u00b7 \u7a84\u5c4f\u5207 3D/\u56fe",
+      );
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+function setOpenMenu(open) {
+  if (!openMenuBtn || !openMenuList) return;
+  openMenuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  openMenuList.hidden = !open;
+}
+
+openMenuBtn?.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  setOpenMenu(openMenuBtn.getAttribute("aria-expanded") !== "true");
+});
+
+document.addEventListener("pointerdown", (ev) => {
+  if (openMenu && !openMenu.contains(ev.target)) setOpenMenu(false);
+});
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") {
+    setOpenMenu(false);
+    setBaseMenuOpen(false);
+  }
+});
+
+openFolderBtn.addEventListener("click", async () => {
+  setOpenMenu(false);
+  try {
+    if (hasDirectoryPicker()) {
+      const entries = await pickDirectoryEntries();
+      await openEntries(entries);
+      return;
+    }
+  } catch (err) {
+    if (err?.name === "AbortError") return;
+  }
+  clickInput(folderInput);
+});
+
+openFilesBtn.addEventListener("click", () => {
+  setOpenMenu(false);
+  clickInput(filesInput);
+});
+sampleBtn.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("");
+  loadSample("");
+});
+facesRing0Btn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("faces-ring0");
+  loadSample("faces-ring0");
+});
+standradBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("standrad-cylinder");
+  loadStandradCylinder();
+});
+decreaseBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("decrease-cylinder");
+  loadDecreaseCylinder();
+});
+increaseBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("increase-cylinder");
+  loadIncreaseCylinder();
+});
+thinBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("thin-cylinder");
+  loadThinCylinder();
+});
+
+folderInput.addEventListener("change", async () => {
+  const entries = entriesFromFileList(folderInput.files);
+  folderInput.value = "";
+  await openEntries(entries);
+});
+
+filesInput.addEventListener("change", async () => {
+  const entries = entriesFromFileList(filesInput.files);
+  filesInput.value = "";
+  await openEntries(entries);
+});
+
+slider.addEventListener("input", () => {
+  showOutput(Number(slider.value));
+});
+
+function setChromeCollapsed(collapsed) {
+  document.body.classList.toggle("chrome-collapsed", collapsed);
+  if (hideChromeBtn) {
+    hideChromeBtn.hidden = collapsed;
+    hideChromeBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+  if (showChromeBtn) {
+    showChromeBtn.hidden = !collapsed;
+    showChromeBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+  syncViewportAfterLayout();
+}
+
+function syncViewportAfterLayout(after) {
+  viewer.resize();
+  mapView?.resize();
+  requestAnimationFrame(() => {
+    viewer.resize();
+    mapView?.resize();
+    after?.();
+  });
+}
+
+function paintReadableMap() {
+  const map = scene?.readableMap;
+  const hasMap = Boolean(map?.rows?.length || map?.cells?.length);
+  if (mapPane) {
+    mapPane.hidden = !hasMap;
+    mapPane.classList.toggle("excel-map", map?.source === "excel");
+  }
+  if (mapEmpty) mapEmpty.hidden = hasMap;
+  if (!hasMap) {
+    mapView?.clear();
+    if (mapMeta) mapMeta.textContent = "readable_map";
+    syncPaneLayout();
+    return;
+  }
+  const stitches = scene?.stitches?.bound?.stitches || [];
+  const grid = buildReadableMapGrid(map, stitches);
+  mapView?.setGrid(grid);
+  const h = map.header;
+  if (mapMeta) {
+    mapMeta.textContent =
+      map.source === "excel"
+        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring" : map.sheet || "step3"} ${map.rows.length}\u00d7${map.needleCols.length} \u00b7 ${map.colMin}\u2026${map.colMax} \u00b7 Excel${map.sheet === "step4-ring0" ? " \u00b7 \u7b2c\u4e8c\u5708\u7ee7\u627f\u5e8a\u4f4d\uff0c\u524d\u5e8a\u7b2c\u4e00\u9488 F0" : map.sheet === "ring0" ? " \u00b7 \u7b2c\u4e00\u73af\u548c\u7b2c\u4e8c\u73af\u63a5\u5728\u4e00\u5f20\u8868\u4e0a" : ""}${map.legend?.some((row) => row.key === "stopped" && String(row.note).includes("ring 7 course 0")) ? " \u00b7 \u505c\u5728 ring 7 course 0\uff08\u540e\u5e8a\u4f4e\u4e8e 0\uff0c\u89c4\u5219\u7b49 Singa\uff09" : ""}`
+        : h
+          ? `${h.rows} rows \u00b7 ${h.cells} cells \u00b7 circle ${h.circle ?? "\u2014"}`
+          : `${map.rows.length} rows \u00b7 ${map.cells.length} cells`;
+  }
+  paintMapHighlight();
+  syncPaneLayout();
+  requestAnimationFrame(() => {
+    mapView?.resize();
+    if (pickedStitch) {
+      mapView.ensureVisible(mapKeysForStitch(pickedStitch));
+    } else {
+      mapView?.fit();
+    }
+  });
+}
+
+function paintMapHighlight() {
+  if (!mapView) return;
+  if (physPickKeys) {
+    mapView.setHighlight(new Set());
+    mapView.setPickHighlight(physPickKeys);
+    mapView.ensureVisible(physPickKeys);
+    return;
+  }
+  if (pickedStitch) {
+    const keys = mapKeysForStitch(pickedStitch);
+    mapView.setHighlight(new Set());
+    mapView.setPickHighlight(keys);
+    mapView.ensureVisible(keys);
+    return;
+  }
+  mapView.setPickHighlight(new Set());
+  mapView.ensureVisible(new Set());
+  if (!scene?.stitches?.bound?.stitches?.length) {
+    mapView.setHighlight(new Set());
+    return;
+  }
+  const [r0, r1] = facesRange.value;
+  const [t0, t1] = termsRange.value;
+  const visible = stitchesVisibleForSliders(scene.stitches.bound.stitches, r0, r1, t0, t1);
+  mapView.setHighlight(
+    highlightKeysFromStitches(visible, {
+      map: scene?.readableMap,
+      grid: mapView.grid,
+      bind: stitchMapBind(),
+    }),
+  );
+}
+
+function syncPaneLayout() {
+  const hasMap = Boolean(scene?.readableMap?.cells?.length) && mapPane && !mapPane.hidden;
+  const narrow = narrowSplitMq.matches;
+  document.body.classList.toggle("narrow-split", narrow && hasMap);
+  if (paneSwitch) paneSwitch.hidden = !(narrow && hasMap);
+  if (!hasMap) {
+    document.body.classList.remove("show-map", "show-3d");
+    return;
+  }
+  if (narrow) {
+    document.body.classList.toggle("show-map", mobilePane === "map");
+    document.body.classList.toggle("show-3d", mobilePane === "3d");
+    if (pane3dBtn) pane3dBtn.setAttribute("aria-pressed", mobilePane === "3d" ? "true" : "false");
+    if (paneMapBtn) paneMapBtn.setAttribute("aria-pressed", mobilePane === "map" ? "true" : "false");
+  } else {
+    document.body.classList.remove("show-map", "show-3d");
+  }
+  syncViewportAfterLayout();
+}
+
+function setMobilePane(pane) {
+  mobilePane = pane === "map" ? "map" : "3d";
+  syncPaneLayout();
+  if (mobilePane === "map") {
+    requestAnimationFrame(() => {
+      mapView?.resize();
+      if (pickedStitch) {
+        mapView.ensureVisible(mapKeysForStitch(pickedStitch));
+      } else {
+        mapView?.fit();
+      }
+    });
+  }
+}
+
+fitBtn.addEventListener("click", () => {
+  viewer.resize();
+  viewer.fitToView();
+});
+
+mapZoomIn?.addEventListener("click", () => {
+  mapView?.zoomBy(1.2, (mapView._cssW || 1) / 2, (mapView._cssH || 1) / 2);
+});
+mapZoomOut?.addEventListener("click", () => {
+  mapView?.zoomBy(1 / 1.2, (mapView._cssW || 1) / 2, (mapView._cssH || 1) / 2);
+});
+mapFitBtn?.addEventListener("click", () => {
+  mapView?.resize();
+  mapView?.fit({ overview: true });
+});
+mapPhysBtn?.addEventListener("click", () => {
+  showPhysNeedle = mapPhysBtn.getAttribute("aria-pressed") !== "true";
+  pressed(mapPhysBtn, showPhysNeedle);
+  mapView?.setShowPhysicalNeedles(showPhysNeedle);
+  if (showPhysNeedle) {
+    if (pickedStitch) paintPhysicalStitch(pickedStitch);
+  } else {
+    paintStitchPick(pickedStitch);
+  }
+});
+pane3dBtn?.addEventListener("click", () => setMobilePane("3d"));
+paneMapBtn?.addEventListener("click", () => setMobilePane("map"));
+narrowSplitMq.addEventListener?.("change", () => syncPaneLayout());
+narrowSplitMq.addListener?.(() => syncPaneLayout());
+
+hideChromeBtn?.addEventListener("click", () => setChromeCollapsed(true));
+showChromeBtn?.addEventListener("click", () => setChromeCollapsed(false));
+
+function setBaseMenuOpen(open) {
+  if (!baseMenuBtn || !baseMenuList) return;
+  baseMenuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  baseMenuList.hidden = !open;
+}
+
+function paintBaseChecks() {
+  if (baseChecks.off) baseChecks.off.checked = Boolean(baseLayers.off);
+  if (baseChecks.wire) baseChecks.wire.checked = Boolean(baseLayers.wire);
+  if (baseChecks.faces) baseChecks.faces.checked = Boolean(baseLayers.faces);
+  if (baseChecks.points) baseChecks.points.checked = Boolean(baseLayers.points);
+  if (baseMenuBtn) {
+    baseMenuBtn.setAttribute("aria-pressed", isBaseHidden(baseLayers) ? "false" : "true");
+  }
+}
+
+function onBaseCheck(layer, checked) {
+  baseLayers = applyBaseChoice(baseLayers, layer, checked);
+  paintBaseChecks();
+  viewer.setBaseLayers(baseLayers);
+}
+
+baseMenuBtn?.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  setBaseMenuOpen(baseMenuBtn.getAttribute("aria-expanded") !== "true");
+});
+
+document.addEventListener("pointerdown", (ev) => {
+  if (baseMenu && !baseMenu.contains(ev.target)) setBaseMenuOpen(false);
+});
+
+for (const [layer, el] of Object.entries(baseChecks)) {
+  el?.addEventListener("change", () => onBaseCheck(layer, el.checked));
+}
+
+paintBaseChecks();
+
+warpBtn.addEventListener("click", () => {
+  const on = warpBtn.getAttribute("aria-pressed") !== "true";
+  pressed(warpBtn, on);
+  viewer.setShowWarp(on);
+});
+
+overlayBtn.addEventListener("click", () => {
+  const on = overlayBtn.getAttribute("aria-pressed") !== "true";
+  pressed(overlayBtn, on);
+  viewer.setShowOverlay(on);
+});
+
+knitBedBtn?.addEventListener("click", () => {
+  const on = knitBedBtn.getAttribute("aria-pressed") !== "true";
+  pressed(knitBedBtn, on);
+  viewer.setShowKnitBed(on);
+});
+
+let pointer = { x: 0, y: 0, moved: false };
+canvas.addEventListener("pointerdown", (ev) => {
+  pointer = { x: ev.clientX, y: ev.clientY, moved: false };
+});
+canvas.addEventListener("pointermove", (ev) => {
+  if (Math.hypot(ev.clientX - pointer.x, ev.clientY - pointer.y) > 8) pointer.moved = true;
+});
+canvas.addEventListener("pointerup", (ev) => {
+  if (pointer.moved || !scene?.stitches?.rowChunks?.length) return;
+  const stitch = viewer.pickStitch(ev.clientX, ev.clientY);
+  if (showPhysNeedle) paintPhysicalStitch(stitch);
+  else paintStitchPick(stitch);
+});
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: "none" })
+    .then((reg) => {
+      reg.update();
+    })
+    .catch(() => {});
+}
+
+updateChrome();
+if (isThinSheet(sheetQuery())) loadThinCylinder();
+else if (isIncreaseSheet(sheetQuery())) loadIncreaseCylinder();
+else if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
+else if (isStandradSheet(sheetQuery())) loadStandradCylinder();
+else loadSample();
