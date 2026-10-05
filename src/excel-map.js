@@ -77,6 +77,15 @@ export function isStandradCylinderBedChart(name) {
   return /^standrad_cylinder_bed\.xlsx?$/i.test(base);
 }
 
+/** Dense Standrad Cylinder plain-tube bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isDenseStandradCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^dense_standrad_cylinder_bed\.xlsx?$/i.test(base);
+}
+
 /** faces_ring ring-0 bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
 export function isFacesRing0BedChart(name) {
   const base = String(name || "")

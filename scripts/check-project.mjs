@@ -67,6 +67,7 @@ import {
   isDecreaseCylinderBedChart,
   isIncreaseCylinderBedChart,
   isStandradCylinderBedChart,
+  isDenseStandradCylinderBedChart,
   knitBedsByFace,
   KNIT_BED_RGB,
   parseExcelReadableMap,
@@ -1711,6 +1712,135 @@ assert(
   );
   const ring0 = parseExcelReadableMap(ring0Bytes);
   assert(ring0.sheet === "step4-ring0" && ring0.rows.length === 160, `step4 sheet is 160 rows, got ${ring0.sheet} ${ring0.rows.length}`);
+}
+
+{
+  assert(
+    html.includes('id="load-dense-standrad-cylinder"') &&
+      html.includes("Dense Standrad Cylinder") &&
+      mainSrc.includes("dense-standrad-cylinder.json") &&
+      mainSrc.includes("loadDenseStandradCylinder") &&
+      mainSrc.includes('setSheetQuery("dense-standrad-cylinder")'),
+    "Open menu loads Dense Standrad Cylinder in the existing chooser",
+  );
+  const data = JSON.parse(readFileSync(join(sampleDir, "dense-standrad-cylinder.json"), "utf8"));
+  assert(data.name === "Dense Standrad Cylinder" && data.outputs?.length === 1, "Dense Standrad Cylinder manifest is one sample");
+  assert(data.outputs[0].label === "Dense Standrad Cylinder", "chooser label stays Dense Standrad Cylinder");
+  const rels = collectManifestRefs(data).join("\n");
+  assert(
+    rels.includes("dense-standrad/dense_standrad_cylinder_KnittingStitches.obj") &&
+      rels.includes("dense-standrad/dense_standrad_cylinder_cols_resample_field.obj") &&
+      rels.includes("dense-standrad/dense_standrad_cylinder_cols_resample.xls") &&
+      rels.includes("dense-standrad/dense_standrad_cylinder_faces_ring_layout.json") &&
+      rels.includes("dense-standrad/dense_standrad_cylinder_bed.xls") &&
+      !/knitout|faces_ring0|\/standrad_cylinder|increase_cylinder|decrease_cylinder|thin_cylinder|fat_cylinder|readable_map/i.test(rels),
+    "Dense Standrad Cylinder binds its own stitchmesh, cols_resample, faces ring, and bed chart",
+  );
+  const denseDir = join(sampleDir, "dense-standrad");
+  const entries = [
+    { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ...collectManifestRefs(data).map((rel) => {
+      const abs = join(sampleDir, rel);
+      const name = rel.split("/").pop();
+      if (/\.xlsx?$/i.test(rel)) return { name, path: `sample/${rel}`, buffer: readFileSync(abs) };
+      return { name, path: `sample/${rel}`, text: readFileSync(abs, "utf8") };
+    }),
+  ];
+  const proj = projectFromManifest(data, indexFiles(entries), "sample/manifest.json");
+  assert(proj.warnings.length === 0 && proj.outputs.length === 1, "Dense Standrad Cylinder resolves without borrowing other samples");
+  const out = proj.outputs[0];
+  assert(out.label === "Dense Standrad Cylinder", "output label is Dense Standrad Cylinder");
+  assert(
+    isDenseStandradCylinderBedChart(out.readableMapFile?.name || "") && !out.readableMapTxtFile,
+    "Dense Standrad Cylinder right-hand map is its own bed chart",
+  );
+  assert(
+    /dense_standrad_cylinder_cols_resample_field\.obj$/i.test(out.colsResampleFile?.name || "") &&
+      /dense_standrad_cylinder_cols_resample\.xls$/i.test(out.colsResampleXlsFile?.name || "") &&
+      /dense_standrad_cylinder_faces_ring_layout\.json$/i.test(out.facesRingLayoutFile?.name || ""),
+    "Dense Standrad Cylinder uses its own cols_resample field, xls, and faces ring",
+  );
+  const parsed = parseColoredObj(readFileSync(join(denseDir, "dense_standrad_cylinder_KnittingStitches.obj"), "utf8"));
+  assert(parsed.verts.length === 700 && parsed.faces.length === 175, "Dense Standrad Cylinder is 700 vertices and 175 faces");
+  assert(parsed.faces.every((face) => face.indices.length === 4), "Dense Standrad Cylinder faces are quads");
+  assert(
+    parsed.verts.every((v) => v.r === 0.55 && v.g === 0.55 && v.b === 0.55),
+    "Dense Standrad Cylinder vertex colors are plain-knit gray",
+  );
+  const ySpan = parsed.verts.reduce(
+    (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
+    { min: Infinity, max: -Infinity },
+  );
+  assert(ySpan.min > -1e-6 && ySpan.max > 39.9 && ySpan.max < 40.1, "Dense Standrad Cylinder stands with its height along Y");
+  const layout = parseFacesRingLayout(readFileSync(join(denseDir, "dense_standrad_cylinder_faces_ring_layout.json"), "utf8"));
+  const stitches = parsed.faces.map((face, index) => ({ index, verts: face.verts }));
+  const chunks = facesRingChunksFromStitches(stitches, {
+    nRings: layout.nFacesRing,
+    termCounts: layout.termCounts,
+    ringTypes: layout.ringTypes,
+    colors: layout.colors,
+  });
+  assert(
+    chunks.length === 7 && chunks.every((chunk) => chunk.faces.length === 25),
+    "Dense Standrad Cylinder is 7 rings of 25 terms",
+  );
+  assert(
+    chunks.every((chunk) => chunk.faces.every((stitch) => stitch.termType === 0)),
+    "Dense Standrad Cylinder is all plain knit",
+  );
+  const denseCols = parseColsResample({
+    fieldText: readFileSync(join(denseDir, "dense_standrad_cylinder_cols_resample_field.obj"), "utf8"),
+    xls: readFileSync(join(denseDir, "dense_standrad_cylinder_cols_resample.xls")),
+  });
+  assert(
+    denseCols.length === 25 &&
+      denseCols.every((col, i) => col.col === i && col.points.length === 8 && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
+    "Dense Standrad Cylinder cols_resample is 25 side edges climbing the tube",
+  );
+  const excel = parseExcelReadableMap(readFileSync(join(denseDir, "dense_standrad_cylinder_bed.xls")));
+  assert(
+    excel.source === "excel" && excel.sheet === "bed" && excel.bedsHeader === "此刻活针",
+    "Dense Standrad Cylinder right-hand map is the excel bed chart",
+  );
+  assert(
+    excel.rows.length === 7 &&
+      excel.needleCols.length === 25 &&
+      excel.colMin === 0 &&
+      excel.colMax === 24 &&
+      excel.rows[0].dir === "R" &&
+      excel.rows[0].beds === "0针 · 前空 · 后空" &&
+      excel.rows.slice(1).every((row) => row.dir === "R" && row.beds === "25针 · 前13[0…12] · 后12[1…12]"),
+    "Dense Standrad Cylinder bed chart width is the widest course (25 columns)",
+  );
+  const knitOf = (row) => row.cells.filter((cell) => cell.token);
+  const ring0Seq = knitOf(excel.rows[0]).map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ");
+  assert(
+    ring0Seq ===
+      "F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1",
+    "course 0 knits F0–F12 then B12–B1 on an empty bed",
+  );
+  assert(
+    excel.rows.every((row) => knitOf(row).length === 25 && knitOf(row).every((cell) => cell.kind === "plain")),
+    "every Dense Standrad Cylinder course is 25 plain knits",
+  );
+  const denseTxt = readFileSync(join(denseDir, "dense_standrad_cylinder_bed.txt"), "utf8");
+  assert(
+    denseTxt.includes("course 0 R  start F0  end B1  （25 针）") &&
+      denseTxt.includes("course 6 R  start F0  end B1  （25 针）") &&
+      denseTxt.includes("第一环落座之后 N=25，窗 F13[0…12] / B12[1…12]。") &&
+      denseTxt.includes("第七环结束 N=25，窗 F13[0…12] / B12[1…12]。") &&
+      denseTxt.includes("表宽 25") &&
+      denseTxt.includes("7 环都在这一张表上。"),
+    "Dense Standrad Cylinder courses are the generator report",
+  );
+  const denseFn = mainSrc.slice(mainSrc.indexOf("async function loadDenseStandradCylinder"), mainSrc.indexOf("async function loadDecreaseCylinder"));
+  assert(denseFn.includes("arrayBuffer"), "Dense Standrad Cylinder loads the bed xls as bytes");
+  assert(
+    denseFn.includes("前床 F0–F12") && denseFn.includes("后床 B12–B1") && denseFn.includes("表宽 25"),
+    "Dense Standrad Cylinder status quotes the seated bed",
+  );
+  assert(mainSrc.includes("isDenseStandradCylinderBedChart"), "the excel map loader recognizes the Dense Standrad Cylinder bed chart");
+  assert(!/root\.rotation|camera\.up/.test(denseFn), "Dense Standrad Cylinder does not rotate the viewer");
 }
 
 console.log("project checks ok");

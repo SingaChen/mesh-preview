@@ -39,6 +39,7 @@ import {
   isThinCylinderBedChart,
   isFatCylinderBedChart,
   isStandradCylinderBedChart,
+  isDenseStandradCylinderBedChart,
   isFlipDir,
   isTransferDir,
   knitBedsByFace,
@@ -74,6 +75,7 @@ const openFilesBtn = document.querySelector("#open-files");
 const sampleBtn = document.querySelector("#load-sample");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
 const standradBtn = document.querySelector("#load-standrad-cylinder");
+const denseStandradBtn = document.querySelector("#load-dense-standrad-cylinder");
 const decreaseBtn = document.querySelector("#load-decrease-cylinder");
 const increaseBtn = document.querySelector("#load-increase-cylinder");
 const thinBtn = document.querySelector("#load-thin-cylinder");
@@ -346,6 +348,7 @@ function isMapXlsEntry(entry) {
     isThinCylinderBedChart(name) ||
     isFatCylinderBedChart(name) ||
     isStandradCylinderBedChart(name) ||
+    isDenseStandradCylinderBedChart(name) ||
     (isXlsName(name) && /readable_map|step3/i.test(name))
   );
 }
@@ -729,6 +732,11 @@ function isStandradSheet(sheet) {
   return want === "standrad-cylinder" || want === "standrad";
 }
 
+function isDenseStandradSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "dense-standrad-cylinder" || want === "dense-standrad";
+}
+
 function isDecreaseSheet(sheet) {
   const want = String(sheet || "").toLowerCase();
   return want === "decrease-cylinder" || want === "decrease";
@@ -777,6 +785,38 @@ async function loadStandradCylinder() {
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
       setStatus("Standrad Cylinder · cols_resample 25 · 前床 F0–F12 · 后床 B12–B1");
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadDenseStandradCylinder() {
+  setStatus("加载 Dense Standrad Cylinder…");
+  const base = import.meta.env.BASE_URL;
+  try {
+    const manifestRes = await fetch(`${base}sample/dense-standrad-cylinder.json`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error("缺少 Dense Standrad Cylinder / Missing Dense Standrad Cylinder");
+    const data = await manifestRes.json();
+    const paths = collectManifestRefs(data);
+    const entries = [
+      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!res.ok) throw new Error(`缺少 Dense Standrad Cylinder / Missing ${rel}`);
+        const name = rel.split("/").pop();
+        if (/\.xlsx?$/i.test(rel)) {
+          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+        } else {
+          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
+        }
+      }),
+    );
+    await openEntries(entries);
+    if (!statusEl.classList.contains("error")) {
+      setStatus("Dense Standrad Cylinder · cols_resample 25 · 表宽 25 · 前床 F0–F12 · 后床 B12–B1 · 7 环落座 25");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -990,6 +1030,11 @@ standradBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("standrad-cylinder");
   loadStandradCylinder();
+});
+denseStandradBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("dense-standrad-cylinder");
+  loadDenseStandradCylinder();
 });
 decreaseBtn?.addEventListener("click", () => {
   setOpenMenu(false);
@@ -1280,5 +1325,6 @@ if (isFatSheet(sheetQuery())) loadFatCylinder();
 else if (isThinSheet(sheetQuery())) loadThinCylinder();
 else if (isIncreaseSheet(sheetQuery())) loadIncreaseCylinder();
 else if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
+else if (isDenseStandradSheet(sheetQuery())) loadDenseStandradCylinder();
 else if (isStandradSheet(sheetQuery())) loadStandradCylinder();
 else loadSample();
