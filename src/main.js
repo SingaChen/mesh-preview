@@ -976,7 +976,7 @@ async function loadDenseDecreaseCylinder() {
     await loadNamedCylinder({
       manifest: "dense-decrease-cylinder.json",
       missing: "Dense Decrease Cylinder",
-      status: "Dense Decrease Cylinder · cols_resample 47 · 表宽 48 · 前床 F0–F23 · 后床 B23–B1 · 11 环落座 47、47、47、47、47、45、39、31、27、27、27",
+      status: "Dense Decrease Cylinder · cols_resample 48 · 表宽 48 · 前床 F0–F23 · 后床 B23–B0 · 前三环落座 48、48、48 · 停在 ring 3 course 8",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -988,7 +988,7 @@ async function loadDenseIncreaseCylinder() {
     await loadNamedCylinder({
       manifest: "dense-increase-cylinder.json",
       missing: "Dense Increase Cylinder",
-      status: "Dense Increase Cylinder · cols_resample 49 · 表宽 42 · 前床 F0–F13 · 后床 B13–B1 · 前四环落座 27、27、30、30 · 停在 ring 4 course 8",
+      status: "Dense Increase Cylinder · cols_resample 49 · 表宽 34 · 前床 F0–F13 · 后床 B13–B1 · 前四环落座 27、27、29、33 · 停在 ring 4 course 0",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1000,7 +1000,7 @@ async function loadDenseThinCylinder() {
     await loadNamedCylinder({
       manifest: "dense-thin-cylinder.json",
       missing: "Dense Thin Cylinder",
-      status: "Dense Thin Cylinder · cols_resample 73 · 表宽 49 · 前床 F0–F24 · 后床 B24–B1 · 前四环落座 49、49、49、49 · 停在 ring 4 course 1",
+      status: "Dense Thin Cylinder · cols_resample 76 · 表宽 55 · 前床 F0–F24 · 后床 B24–B1 · 前15环落座 49、49、49、49、49、48、36、28、28、25、25、26、27、28、30 · 停在 ring 15 course 2",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1012,7 +1012,7 @@ async function loadDenseFatCylinder() {
     await loadNamedCylinder({
       manifest: "dense-fat-cylinder.json",
       missing: "Dense Fat Cylinder",
-      status: "Dense Fat Cylinder · cols_resample 51 · 表宽 40 · 前床 F0–F12 · 后床 B12–B0 · 前五环落座 26、26、26、29、31 · 停在 ring 5 course 1",
+      status: "Dense Fat Cylinder · cols_resample 51 · 表宽 48 · 前床 F0–F12 · 后床 B12–B1 · 前五环落座 25、26、26、29、33 · 停在 ring 5 course 17",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
