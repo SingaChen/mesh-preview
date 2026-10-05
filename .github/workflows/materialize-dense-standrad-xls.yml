@@ -25,8 +25,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          echo "74e2ba7d4b5e3dc6eca6b68482484773dc943648bf600d71f73229061e8ef3a0  .github/dense-standrad.bundle.b64" | sha256sum -c -
-          base64 -d .github/dense-standrad.bundle.b64 > /tmp/dense.bundle
+          python3 - << 'PY'
+          from pathlib import Path
+          p = bytearray(Path(".github/dense-standrad.bundle.b64").read_bytes())
+          bad = {6330: 0x2B, 19197: 0x56, 37577: 0x54}
+          good = {6330: 0x2F, 19197: 0x31, 37577: 0x52}
+          for i, b in bad.items():
+              if p[i] != b:
+                  raise SystemExit(f"unexpected byte at {i}: {p[i]:02x}")
+          for i, b in good.items():
+              p[i] = b
+          Path("/tmp/dense-standrad.bundle.b64").write_bytes(bytes(p))
+          PY
+          echo "74e2ba7d4b5e3dc6eca6b68482484773dc943648bf600d71f73229061e8ef3a0  /tmp/dense-standrad.bundle.b64" | sha256sum -c -
+          base64 -d /tmp/dense-standrad.bundle.b64 > /tmp/dense.bundle
           git fetch origin main
           test "$(git rev-parse origin/main)" = "8cd8d08371c7ce193628c20221e7ac1c8155158a"
           git bundle verify /tmp/dense.bundle
