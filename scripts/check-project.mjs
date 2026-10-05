@@ -68,6 +68,10 @@ import {
   isIncreaseCylinderBedChart,
   isStandradCylinderBedChart,
   isDenseStandradCylinderBedChart,
+  isDenseIncreaseCylinderBedChart,
+  isDenseDecreaseCylinderBedChart,
+  isDenseThinCylinderBedChart,
+  isDenseFatCylinderBedChart,
   knitBedsByFace,
   KNIT_BED_RGB,
   parseExcelReadableMap,
@@ -1761,7 +1765,7 @@ assert(
     "Dense Standrad Cylinder uses its own cols_resample field, xls, and faces ring",
   );
   const parsed = parseColoredObj(readFileSync(join(denseDir, "dense_standrad_cylinder_KnittingStitches.obj"), "utf8"));
-  assert(parsed.verts.length === 700 && parsed.faces.length === 175, "Dense Standrad Cylinder is 700 vertices and 175 faces");
+  assert(parsed.verts.length === 3000 && parsed.faces.length === 750, "Dense Standrad Cylinder is 3000 vertices and 750 faces");
   assert(parsed.faces.every((face) => face.indices.length === 4), "Dense Standrad Cylinder faces are quads");
   assert(
     parsed.verts.every((v) => v.r === 0.55 && v.g === 0.55 && v.b === 0.55),
@@ -1781,8 +1785,8 @@ assert(
     colors: layout.colors,
   });
   assert(
-    chunks.length === 7 && chunks.every((chunk) => chunk.faces.length === 25),
-    "Dense Standrad Cylinder is 7 rings of 25 terms",
+    chunks.length === 15 && chunks.every((chunk) => chunk.faces.length === 50),
+    "Dense Standrad Cylinder is 15 rings of 50 terms",
   );
   assert(
     chunks.every((chunk) => chunk.faces.every((stitch) => stitch.termType === 0)),
@@ -1793,9 +1797,9 @@ assert(
     xls: readFileSync(join(denseDir, "dense_standrad_cylinder_cols_resample.xls")),
   });
   assert(
-    denseCols.length === 25 &&
-      denseCols.every((col, i) => col.col === i && col.points.length === 8 && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
-    "Dense Standrad Cylinder cols_resample is 25 side edges climbing the tube",
+    denseCols.length === 50 &&
+      denseCols.every((col, i) => col.col === i && col.points.length === 16 && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
+    "Dense Standrad Cylinder cols_resample is 50 side edges climbing the tube",
   );
   const excel = parseExcelReadableMap(readFileSync(join(denseDir, "dense_standrad_cylinder_bed.xls")));
   assert(
@@ -1803,44 +1807,275 @@ assert(
     "Dense Standrad Cylinder right-hand map is the excel bed chart",
   );
   assert(
-    excel.rows.length === 7 &&
-      excel.needleCols.length === 25 &&
+    excel.rows.length === 15 &&
+      excel.needleCols.length === 50 &&
       excel.colMin === 0 &&
-      excel.colMax === 24 &&
+      excel.colMax === 49 &&
       excel.rows[0].dir === "R" &&
       excel.rows[0].beds === "0针 · 前空 · 后空" &&
-      excel.rows.slice(1).every((row) => row.dir === "R" && row.beds === "25针 · 前13[0…12] · 后12[1…12]"),
-    "Dense Standrad Cylinder bed chart width is the widest course (25 columns)",
+      excel.rows.slice(1).every((row) => row.dir === "R" && row.beds === "50针 · 前25[0…24] · 后25[0…24]"),
+    "Dense Standrad Cylinder bed chart width is the widest course (50 columns)",
   );
   const knitOf = (row) => row.cells.filter((cell) => cell.token);
   const ring0Seq = knitOf(excel.rows[0]).map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ");
+  const expectRing0 = [
+    ...Array.from({ length: 25 }, (_, i) => `F·@F${i}`),
+    ...Array.from({ length: 25 }, (_, i) => `B·@B${24 - i}`),
+  ].join(" ");
+  assert(ring0Seq === expectRing0, "course 0 knits F0–F24 then B24–B0 on an empty bed");
   assert(
-    ring0Seq ===
-      "F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1",
-    "course 0 knits F0–F12 then B12–B1 on an empty bed",
-  );
-  assert(
-    excel.rows.every((row) => knitOf(row).length === 25 && knitOf(row).every((cell) => cell.kind === "plain")),
-    "every Dense Standrad Cylinder course is 25 plain knits",
+    excel.rows.every((row) => knitOf(row).length === 50 && knitOf(row).every((cell) => cell.kind === "plain")),
+    "every Dense Standrad Cylinder course is 50 plain knits",
   );
   const denseTxt = readFileSync(join(denseDir, "dense_standrad_cylinder_bed.txt"), "utf8");
   assert(
-    denseTxt.includes("course 0 R  start F0  end B1  （25 针）") &&
-      denseTxt.includes("course 6 R  start F0  end B1  （25 针）") &&
-      denseTxt.includes("第一环落座之后 N=25，窗 F13[0…12] / B12[1…12]。") &&
-      denseTxt.includes("第七环结束 N=25，窗 F13[0…12] / B12[1…12]。") &&
-      denseTxt.includes("表宽 25") &&
-      denseTxt.includes("7 环都在这一张表上。"),
+    denseTxt.includes("course 0 R  start F0  end B0  （50 针）") &&
+      denseTxt.includes("course 14 R  start F0  end B0  （50 针）") &&
+      denseTxt.includes("第一环落座之后 N=50，窗 F25[0…24] / B25[0…24]。") &&
+      denseTxt.includes("第15环结束 N=50，窗 F25[0…24] / B25[0…24]。") &&
+      denseTxt.includes("表宽 50") &&
+      denseTxt.includes("15 环都在这一张表上。"),
     "Dense Standrad Cylinder courses are the generator report",
   );
   const denseFn = mainSrc.slice(mainSrc.indexOf("async function loadDenseStandradCylinder"), mainSrc.indexOf("async function loadDecreaseCylinder"));
   assert(denseFn.includes("arrayBuffer"), "Dense Standrad Cylinder loads the bed xls as bytes");
   assert(
-    denseFn.includes("前床 F0–F12") && denseFn.includes("后床 B12–B1") && denseFn.includes("表宽 25"),
+    denseFn.includes("前床 F0–F24") && denseFn.includes("后床 B24–B0") && denseFn.includes("表宽 50") && denseFn.includes("15 环落座 50"),
     "Dense Standrad Cylinder status quotes the seated bed",
   );
   assert(mainSrc.includes("isDenseStandradCylinderBedChart"), "the excel map loader recognizes the Dense Standrad Cylinder bed chart");
   assert(!/root\.rotation|camera\.up/.test(denseFn), "Dense Standrad Cylinder does not rotate the viewer");
 }
+
+function plainRightCourse(frontHi, backHi, backLo) {
+  return [
+    ...Array.from({ length: frontHi + 1 }, (_, i) => `F·@F${i}`),
+    ...Array.from({ length: backHi - backLo + 1 }, (_, i) => `B·@B${backHi - i}`),
+  ].join(" ");
+}
+
+function assertDenseCylinderSample(spec) {
+  assert(
+    html.includes(`id="load-${spec.sheet}"`) &&
+      html.includes(spec.title) &&
+      mainSrc.includes(`${spec.sheet}.json`) &&
+      mainSrc.includes(spec.loader) &&
+      mainSrc.includes(`setSheetQuery("${spec.sheet}")`),
+    `Open menu loads ${spec.title} in the existing chooser`,
+  );
+  const data = JSON.parse(readFileSync(join(sampleDir, `${spec.sheet}.json`), "utf8"));
+  assert(data.name === spec.title && data.outputs?.length === 1, `${spec.title} manifest is one sample`);
+  assert(data.outputs[0].label === spec.title, `chooser label stays ${spec.title}`);
+  const rels = collectManifestRefs(data);
+  for (const rel of spec.rels) assert(rels.includes(rel), `${spec.title} binds ${rel}`);
+  assert(!rels.some((rel) => /knitout|faces_ring0|readable_map|\/cylinder\/|\/increase\/|\/decrease\/|\/thin\/|\/fat\/|\/dense-standrad\//.test(rel) && !rel.startsWith(`${spec.dir}/`)), `${spec.title} does not borrow another sample`);
+  const dir = join(sampleDir, spec.dir);
+  const entries = [
+    { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ...rels.map((rel) => {
+      const abs = join(sampleDir, rel);
+      const name = rel.split("/").pop();
+      if (/\.xlsx?$/i.test(rel)) return { name, path: `sample/${rel}`, buffer: readFileSync(abs) };
+      return { name, path: `sample/${rel}`, text: readFileSync(abs, "utf8") };
+    }),
+  ];
+  const proj = projectFromManifest(data, indexFiles(entries), "sample/manifest.json");
+  assert(proj.warnings.length === 0 && proj.outputs.length === 1, `${spec.title} resolves without borrowing other samples`);
+  const out = proj.outputs[0];
+  assert(spec.bedChart(out.readableMapFile?.name || "") && !out.readableMapTxtFile, `${spec.title} right-hand map is its own bed chart`);
+  const parsed = parseColoredObj(readFileSync(join(dir, `${spec.prefix}_KnittingStitches.obj`), "utf8"));
+  assert(parsed.verts.length === spec.verts && parsed.faces.length === spec.faces, `${spec.title} stitchmesh is ${spec.verts} vertices and ${spec.faces} faces`);
+  assert(parsed.faces.every((face) => face.indices.length >= 3), `${spec.title} faces have at least three vertices`);
+  const ySpan = parsed.verts.reduce(
+    (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
+    { min: Infinity, max: -Infinity },
+  );
+  assert(ySpan.max > spec.yMaxLo && ySpan.max < spec.yMaxHi && ySpan.min > -1, `${spec.title} stands with its height along Y`);
+  const layout = parseFacesRingLayout(readFileSync(join(dir, `${spec.prefix}_faces_ring_layout.json`), "utf8"));
+  assert(
+    layout.termCounts.join(",") === spec.terms.join(","),
+    `${spec.title} n_terms are ${spec.terms.join(",")}`,
+  );
+  const stitches = parsed.faces.map((face, index) => ({ index, verts: face.verts }));
+  const chunks = facesRingChunksFromStitches(stitches, {
+    nRings: layout.nFacesRing,
+    termCounts: layout.termCounts,
+    ringTypes: layout.ringTypes,
+    colors: layout.colors,
+  });
+  assert(
+    chunks.length === spec.terms.length && chunks.every((chunk, i) => chunk.faces.length === spec.terms[i]),
+    `${spec.title} rings follow n_terms`,
+  );
+  const cols = parseColsResample({
+    fieldText: readFileSync(join(dir, `${spec.prefix}_cols_resample_field.obj`), "utf8"),
+    xls: readFileSync(join(dir, `${spec.prefix}_cols_resample.xls`)),
+  });
+  assert(
+    cols.length === spec.cols && cols.every((col, i) => col.col === i && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
+    `${spec.title} cols_resample is ${spec.cols} climbing side edges`,
+  );
+  const excel = parseExcelReadableMap(readFileSync(join(dir, `${spec.prefix}_bed.xls`)));
+  assert(excel.source === "excel" && excel.sheet === "bed" && excel.bedsHeader === "此刻活针", `${spec.title} right-hand map is the excel bed chart`);
+  assert(
+    excel.needleCols.length === spec.width && excel.colMin === spec.colMin && excel.colMax === spec.colMax,
+    `${spec.title} bed chart width is ${spec.width}`,
+  );
+  const knitOf = (row) => row.cells.filter((cell) => cell.token);
+  const first = excel.rows.find((row) => row.dir === "R" || row.dir === "L");
+  assert(
+    knitOf(first).map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ") === spec.firstCourse,
+    `${spec.title} first course is the generator's empty-bed knit`,
+  );
+  const txt = readFileSync(join(dir, `${spec.prefix}_bed.txt`), "utf8");
+  for (const phrase of spec.txt) assert(txt.includes(phrase), `${spec.title} report includes ${phrase}`);
+  const fn = mainSrc.slice(mainSrc.indexOf(`async function ${spec.loader}`), mainSrc.indexOf(`async function ${spec.loader}`) + 900);
+  for (const phrase of spec.status) assert(fn.includes(phrase), `${spec.title} status quotes ${phrase}`);
+  assert(mainSrc.includes(spec.recognizer), `the excel map loader recognizes the ${spec.title} bed chart`);
+  assert(!/root\.rotation|camera\.up/.test(fn), `${spec.title} does not rotate the viewer`);
+}
+
+assertDenseCylinderSample({
+  sheet: "dense-decrease-cylinder",
+  title: "Dense Decrease Cylinder",
+  loader: "loadDenseDecreaseCylinder",
+  dir: "dense-decrease",
+  prefix: "dense_decrease_cylinder",
+  recognizer: "isDenseDecreaseCylinderBedChart",
+  bedChart: isDenseDecreaseCylinderBedChart,
+  rels: [
+    "dense-decrease/dense_decrease_cylinder_KnittingStitches.obj",
+    "dense-decrease/dense_decrease_cylinder_cols_resample_field.obj",
+    "dense-decrease/dense_decrease_cylinder_cols_resample.xls",
+    "dense-decrease/dense_decrease_cylinder_faces_ring_layout.json",
+    "dense-decrease/dense_decrease_cylinder_bed.xls",
+  ],
+  verts: 2348,
+  faces: 588,
+  yMaxLo: 39.9,
+  yMaxHi: 40.1,
+  terms: [47, 47, 47, 47, 47, 49, 129, 51, 70, 27, 27],
+  cols: 47,
+  width: 48,
+  colMin: 0,
+  colMax: 47,
+  firstCourse: plainRightCourse(23, 23, 1),
+  txt: [
+    "course 0 R  start F0  end B1  （47 针）",
+    "第一环落座之后 N=47，窗 F24[0…23] / B23[1…23]。",
+    "第11环结束 N=27，窗 F14[0…13] / B13[1…13]。",
+    "表宽 48",
+    "11 环都在这一张表上。",
+  ],
+  status: ["前床 F0–F23", "后床 B23–B1", "表宽 48", "11 环落座 47、47、47、47、47、45、39、31、27、27、27"],
+});
+
+assertDenseCylinderSample({
+  sheet: "dense-increase-cylinder",
+  title: "Dense Increase Cylinder",
+  loader: "loadDenseIncreaseCylinder",
+  dir: "dense-increase",
+  prefix: "dense_increase_cylinder",
+  recognizer: "isDenseIncreaseCylinderBedChart",
+  bedChart: isDenseIncreaseCylinderBedChart,
+  rels: [
+    "dense-increase/dense_increase_cylinder_KnittingStitches.obj",
+    "dense-increase/dense_increase_cylinder_cols_resample_field.obj",
+    "dense-increase/dense_increase_cylinder_cols_resample.xls",
+    "dense-increase/dense_increase_cylinder_faces_ring_layout.json",
+    "dense-increase/dense_increase_cylinder_bed.xls",
+  ],
+  verts: 2280,
+  faces: 595,
+  yMaxLo: 39.9,
+  yMaxHi: 40.2,
+  terms: [27, 27, 27, 30, 104, 181, 139, 60],
+  cols: 49,
+  width: 42,
+  colMin: -2,
+  colMax: 39,
+  firstCourse: plainRightCourse(13, 13, 1),
+  txt: [
+    "床图（未完成）",
+    "generation stopped at ring 4 course 8 R",
+    "第一环落座之后 N=27，窗 F14[0…13] / B13[1…13]。",
+    "第四环结束 N=30，窗 F15[0…14] / B15[0…14]。",
+    "表宽 42",
+    "完整画到 ring 3。ring 4 只画到 course 8 抛出之前的行。",
+  ],
+  status: ["前床 F0–F13", "后床 B13–B1", "表宽 42", "前四环落座 27、27、30、30", "停在 ring 4 course 8"],
+});
+
+assertDenseCylinderSample({
+  sheet: "dense-thin-cylinder",
+  title: "Dense Thin Cylinder",
+  loader: "loadDenseThinCylinder",
+  dir: "dense-thin",
+  prefix: "dense_thin_cylinder",
+  recognizer: "isDenseThinCylinderBedChart",
+  bedChart: isDenseThinCylinderBedChart,
+  rels: [
+    "dense-thin/dense_thin_cylinder_KnittingStitches.obj",
+    "dense-thin/dense_thin_cylinder_cols_resample_field.obj",
+    "dense-thin/dense_thin_cylinder_cols_resample.xls",
+    "dense-thin/dense_thin_cylinder_faces_ring_layout.json",
+    "dense-thin/dense_thin_cylinder_bed.xls",
+  ],
+  verts: 4970,
+  faces: 1292,
+  yMaxLo: 79.9,
+  yMaxHi: 80.2,
+  terms: [49, 49, 57, 147, 84, 99, 81, 30, 30, 78, 38, 26, 33, 103, 194, 145, 49],
+  cols: 73,
+  width: 49,
+  colMin: 0,
+  colMax: 48,
+  firstCourse: plainRightCourse(24, 24, 1),
+  txt: [
+    "床图（未完成）",
+    "generation stopped at ring 4 course 1 L",
+    "第一环落座之后 N=49，窗 F25[0…24] / B24[1…24]。",
+    "第四环结束 N=49，窗 F25[0…24] / B24[1…24]。",
+    "表宽 49",
+    "完整画到 ring 3。ring 4 只画到 course 1 抛出之前的行。",
+  ],
+  status: ["前床 F0–F24", "后床 B24–B1", "表宽 49", "前四环落座 49、49、49、49", "停在 ring 4 course 1"],
+});
+
+assertDenseCylinderSample({
+  sheet: "dense-fat-cylinder",
+  title: "Dense Fat Cylinder",
+  loader: "loadDenseFatCylinder",
+  dir: "dense-fat",
+  prefix: "dense_fat_cylinder",
+  recognizer: "isDenseFatCylinderBedChart",
+  bedChart: isDenseFatCylinderBedChart,
+  rels: [
+    "dense-fat/dense_fat_cylinder_KnittingStitches.obj",
+    "dense-fat/dense_fat_cylinder_cols_resample_field.obj",
+    "dense-fat/dense_fat_cylinder_cols_resample.xls",
+    "dense-fat/dense_fat_cylinder_faces_ring_layout.json",
+    "dense-fat/dense_fat_cylinder_bed.xls",
+  ],
+  verts: 5296,
+  faces: 1409,
+  yMaxLo: 79.9,
+  yMaxHi: 80.2,
+  terms: [26, 26, 26, 26, 29, 104, 183, 143, 89, 141, 103, 143, 95, 117, 43, 81, 34],
+  cols: 51,
+  width: 40,
+  colMin: 0,
+  colMax: 39,
+  firstCourse: plainRightCourse(12, 12, 0),
+  txt: [
+    "床图（未完成）",
+    "generation stopped at ring 5 course 1 L",
+    "第一环落座之后 N=26，窗 F13[0…12] / B13[0…12]。",
+    "第五环结束 N=31，窗 F16[0…15] / B15[1…15]。",
+    "表宽 40",
+    "完整画到 ring 4。ring 5 只画到 course 1 抛出之前的行。",
+  ],
+  status: ["前床 F0–F12", "后床 B12–B0", "表宽 40", "前五环落座 26、26、26、29、31", "停在 ring 5 course 1"],
+});
 
 console.log("project checks ok");

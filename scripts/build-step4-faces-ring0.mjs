@@ -3253,6 +3253,10 @@ function selfCheckConsecutiveIncrease() {
 
 const OWN_BED_STEM = {
   "dense_standrad_cylinder_faces_ring_layout.json": "dense_standrad_cylinder_bed",
+  "dense_increase_cylinder_faces_ring_layout.json": "dense_increase_cylinder_bed",
+  "dense_decrease_cylinder_faces_ring_layout.json": "dense_decrease_cylinder_bed",
+  "dense_thin_cylinder_faces_ring_layout.json": "dense_thin_cylinder_bed",
+  "dense_fat_cylinder_faces_ring_layout.json": "dense_fat_cylinder_bed",
   "standrad_cylinder_rings.json": "standrad_cylinder_bed",
   "decrease_cylinder_faces_ring_layout.json": "decrease_cylinder_bed",
   "increase_cylinder_faces_ring_layout.json": "increase_cylinder_bed",

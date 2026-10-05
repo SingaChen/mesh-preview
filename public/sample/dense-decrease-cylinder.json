@@ -1,0 +1,15 @@
+{
+  "name": "Dense Decrease Cylinder",
+  "outputs": [
+    {
+      "label": "Dense Decrease Cylinder",
+      "mesh": "dense-decrease/dense_decrease_cylinder_KnittingStitches.obj",
+      "stitches": "dense-decrease/dense_decrease_cylinder_KnittingStitches.obj",
+      "readableMap": "dense-decrease/dense_decrease_cylinder_bed.xls",
+      "field": "dense-decrease/dense_decrease_cylinder_cols_resample_field.obj",
+      "colsResample": "dense-decrease/dense_decrease_cylinder_cols_resample_field.obj",
+      "colsResampleXls": "dense-decrease/dense_decrease_cylinder_cols_resample.xls",
+      "facesRingLayout": "dense-decrease/dense_decrease_cylinder_faces_ring_layout.json"
+    }
+  ]
+}

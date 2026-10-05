@@ -1,0 +1,93 @@
+dense_thin_cylinder_faces_ring_layout.json step4 床图（未完成）
+generation stopped at ring 4 course 1 L (faces-ring0-step4: course 1: decrease span left F onto B1, which is not the next fold needle).
+这一张表只含抛出之前已经画出的行。失败之后的平衡和后面的环都没有补。
+输入只有 dense_thin_cylinder_faces_ring_layout.json 的 rings（types 和 hangs）。第1环从 F0 开始，第2环从 F0 开始，第3环从 F0 开始，第4环从 F0 开始，第5环从 F1 开始。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。
+Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。
+底圈 N=49，拆成 F=25、B=24。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
+第一环落座之后 N=49，窗 F25[0…24] / B24[1…24]。
+第二环结束 N=49，窗 F25[0…24] / B24[1…24]。
+第三环结束 N=49，窗 F25[0…24] / B24[1…24]。
+第四环结束 N=49，窗 F25[0…24] / B24[1…24]。
+生成停在 ring 4 course 1，平衡之前 N=49，窗 F25[0…24] / B24[1…24]。
+针号是 F# / B#。表宽 49，由占用列最宽的一课决定：course 0 R 占 49 列，跨度 49。前床列 = 物理针，后床列 = 49 − 物理针。短课中间可以空。
+完整画到 ring 3。ring 4 只画到 course 1 抛出之前的行。
+
+行程（织行）起点针、终点针：
+  course 0 R  start F0  end B1  （49 针）
+  course 1 R  start F0  end B1  （49 针）
+  course 2 R  start F0  end F1  （2 针）
+  course 3 L  start F1  end F0  （2 针）
+  course 4 R  start F0  end B24  （26 针）
+  course 5 L  start B24  end F24  （2 针）
+  course 6 R  start F24  end B1  （25 针）
+  course 7 R  start F0  end F1  （2 针）
+  course 8 L  start F1  end F0  （2 针）
+  course 9 R  start F0  end F13  （14 针）
+  course 10 L  start F13  end F2  （12 针）
+  course 11 R  start F2  end F20  （19 针）
+  course 12 L  start F20  end F14  （7 针）
+  course 13 R  start F14  end F23  （10 针）
+  course 14 L  start F23  end F21  （3 针）
+  course 15 R  start F21  end B24  （5 针）
+  course 16 L  start B24  end F24  （2 针）
+  course 17 R  start F24  end B1  （25 针）
+  course 18 L  start B1  end B23  （23 针）
+  course 19 R  start B23  end F0  （24 针）
+  course 20 R  start F1  end F3  （3 针）
+
+表行（格子按织的顺序，不是按表列从左到右）：
+  row 0 R  这一行开始时 0针 · 前空 · 后空
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 F·@F22 F·@F23 F·@F24 B·@B24 B·@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 1 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 F·@F22 F·@F23 F·@F24 B·@B24 B·@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 2 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F·@F0 FvR@F1
+  row 3 L  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^R@F1 FvL@F0
+  row 4 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^L@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 F·@F22 F·@F23 F·@F24 BvR@B24
+  row 5 L  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    B^R@B24 FvL@F24
+  row 6 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^L@F24 B·@B24 B·@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 7 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^R@F0 FvR@F1
+  row 8 L  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^L@F1 FvL@F0
+  row 9 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^R@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 FvR@F13
+  row 10 L  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^R@F13 F·@F12 F·@F11 F·@F10 F·@F9 F·@F8 F·@F7 F·@F6 F·@F5 F·@F4 F·@F3 FvL@F2
+  row 11 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^L@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 FvR@F20
+  row 12 L  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^R@F20 F·@F19 F·@F18 F·@F17 F·@F16 F·@F15 FvL@F14
+  row 13 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^L@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 F·@F22 FvR@F23
+  row 14 L  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^R@F23 F·@F22 FvL@F21
+  row 15 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^L@F21 F·@F22 F·@F23 F·@F24 BvR@B24
+  row 16 L  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    B^R@B24 FvL@F24
+  row 17 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F^L@F24 B·@B24 B·@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 BvR@B1
+  row 18 L  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    B^R@B1 B·@B2 B·@B3 B·@B4 B·@B5 B·@B6 B·@B7 B·@B8 B·@B9 B·@B10 B·@B11 B·@B12 B·@B13 B·@B14 B·@B15 B·@B16 B·@B17 B·@B18 B·@B19 B·@B20 B·@B21 B·@B22 BvL@B23
+  row 19 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    B^L@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 F·@F0
+  row 20 R  这一行开始时 49针 · 前25[0…24] · 后24[1…24]
+    F·@F1 F·@F2 FvR@F3
+
+每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。
+第一环 加减针 hang（n_extra）：无。
+第一环里没有 hang 不是 1 的项。
+第二环 加减针 hang（n_extra）：无。
+第二环里没有 hang 不是 1 的项。
+第三环 加减针 hang（n_extra）：无。
+第三环里没有 hang 不是 1 的项。
+第四环 加减针 hang（n_extra）：无。
+第四环里没有 hang 不是 1 的项。
+第五环 加减针 hang（n_extra）：无。
+第五环里没有 hang 不是 1 的项。
+其余 305 项不是加减针，hang 为 0。

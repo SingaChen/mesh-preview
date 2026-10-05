@@ -1,0 +1,15 @@
+{
+  "name": "Dense Fat Cylinder",
+  "outputs": [
+    {
+      "label": "Dense Fat Cylinder",
+      "mesh": "dense-fat/dense_fat_cylinder_KnittingStitches.obj",
+      "stitches": "dense-fat/dense_fat_cylinder_KnittingStitches.obj",
+      "readableMap": "dense-fat/dense_fat_cylinder_bed.xls",
+      "field": "dense-fat/dense_fat_cylinder_cols_resample_field.obj",
+      "colsResample": "dense-fat/dense_fat_cylinder_cols_resample_field.obj",
+      "colsResampleXls": "dense-fat/dense_fat_cylinder_cols_resample.xls",
+      "facesRingLayout": "dense-fat/dense_fat_cylinder_faces_ring_layout.json"
+    }
+  ]
+}

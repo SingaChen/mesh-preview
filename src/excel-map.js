@@ -86,6 +86,42 @@ export function isDenseStandradCylinderBedChart(name) {
   return /^dense_standrad_cylinder_bed\.xlsx?$/i.test(base);
 }
 
+/** Dense Increase Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isDenseIncreaseCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^dense_increase_cylinder_bed\.xlsx?$/i.test(base);
+}
+
+/** Dense Decrease Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isDenseDecreaseCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^dense_decrease_cylinder_bed\.xlsx?$/i.test(base);
+}
+
+/** Dense Thin Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isDenseThinCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^dense_thin_cylinder_bed\.xlsx?$/i.test(base);
+}
+
+/** Dense Fat Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isDenseFatCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^dense_fat_cylinder_bed\.xlsx?$/i.test(base);
+}
+
 /** faces_ring ring-0 bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
 export function isFacesRing0BedChart(name) {
   const base = String(name || "")
