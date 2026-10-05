@@ -278,16 +278,19 @@ def convert(rows):
     return e, warnings, front, back
 
 
-def main():
-    text = BED.read_text(encoding="utf-8")
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    bed_path = Path(argv[0]) if len(argv) >= 1 else BED
+    out_path = Path(argv[1]) if len(argv) >= 2 else OUT
+    text = bed_path.read_text(encoding="utf-8")
     rows = parse_rows(text)
     print(f"parsed {len(rows)} rows", file=sys.stderr)
     if [r["idx"] for r in rows] != list(range(len(rows))):
         raise SystemExit("row indices are not contiguous from 0")
     e, warnings, front, back = convert(rows)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(e.lines) + "\n", encoding="utf-8")
-    print(f"wrote {OUT} lines={len(e.lines)}", file=sys.stderr)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(e.lines) + "\n", encoding="utf-8")
+    print(f"wrote {out_path} lines={len(e.lines)}", file=sys.stderr)
     print(f"final F{front} ({len(front)}) B{back} ({len(back)})", file=sys.stderr)
     print(f"warnings={len(warnings)}", file=sys.stderr)
     for w in warnings:
