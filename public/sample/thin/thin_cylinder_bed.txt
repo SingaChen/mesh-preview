@@ -1,1 +1,208 @@
-PLACEHOLDER_BED
+thin_cylinder_faces_ring_layout.json step4 床图（未完成）
+generation stopped at ring 7 course 0 (right-going increase drives back bed below 0; rule pending from Singa).
+这一张表只含抛出之前已经画出的行。失败之后的平衡和后面的环都没有补。
+输入只有 thin_cylinder_faces_ring_layout.json 的 rings（types 和 hangs）。每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。
+Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。
+底圈 N=24，拆成 F=12、B=12。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
+第一环落座之后 N=24，窗 F12[0…11] / B12[0…11]。
+第二环结束 N=24，窗 F12[0…11] / B12[0…11]。
+第三环结束 N=24，窗 F12[0…11] / B12[0…11]。
+第四环结束 N=17，窗 F9[0…8] / B8[1…8]。
+第五环结束 N=13，窗 F7[0…6] / B6[1…6]。
+第六环结束 N=13，窗 F7[0…6] / B6[1…6]。
+第七环结束 N=13，窗 F7[0…6] / B6[1…6]。
+生成停在 ring 7 course 0，平衡之前 N=17，窗 F8[0…7] / B9[-2…6]。
+针号是 F# / B#。表宽 26，由占用列最宽的一课决定：course 15 R 占 17 列，跨度 26。前床列 = 物理针，后床列 = 23 − 物理针。短课中间可以空。
+完整画到 ring 6。ring 7 只画到 course 0 抛出之前的行。
+
+行程（织行）起点针、终点针：
+  course 0 R  start F0  end B0  （24 针）
+  course 1 R  start F0  end B0  （24 针）
+  course 2 R  start F0  end B0  （24 针）
+  course 3 R  start F0  end F2  （4 针）
+  course 4 L  start F2  end B3  （8 针）
+  course 5 R  start B3  end F5  （11 针）
+  course 6 L  start F5  end F3  （3 针）
+  course 7 R  start F3  end F7  （5 针）
+  course 8 L  start F7  end F6  （2 针）
+  course 9 R  start F6  end B5  （10 针）
+  course 10 L  start B5  end F8  （7 针）
+  course 11 R  start F8  end B1  （10 针）
+  course 12 R  start F0  end B1  （17 针）
+  course 13 R  start F0  end B1  （13 针）
+  course 14 R  start F0  end B1  （13 针）
+  course 15 R  start F0  end B-2  （17 针）
+
+表行（格子按织的顺序，不是按表列从左到右）：
+  row 0 R  这一行开始时 0针 · 前空 · 后空
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+  row 1 R  这一行开始时 24针 · 前12[0…11] · 后12[0…11]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+  row 2 R  这一行开始时 24针 · 前12[0…11] · 后12[0…11]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+  row 3 R  这一行开始时 24针 · 前12[0…11] · 后12[0…11]
+    F·@F0 F-R1@F1 F·@F2
+    course 3: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F1 F·@F2。然后从 F2 起移 1 次（F2 套到 F1，F3…F11 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 4 X  这一行开始时 24针 · 前12[0…11] · 后12[0…11]
+    F←@F2 F←@F3 F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11
+    course 3: 第 1 次移圈从 F2 起。F2 套到 F1，F3…F11 各退一针。都套上第一格 F1，第一格不是移圈源。
+  row 5 Flip  这一行开始时 F11[0…10] / B12[0…11]
+    ⬇@B11
+    course 3: right-fold flip B11→F11 (same index).
+  row 6 X  这一行开始时 F12[0…11] / B11[0…10]
+    B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 3: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F12[0…11] / B11[1…11]).
+  row 7 R  这一行开始时 23针 · 前12[0…11] · 后11[1…11]
+    FvR@F2
+    course 3: 平衡之后的下一课，从 F2 织到 F2。
+  row 8 L  这一行开始时 23针 · 前12[0…11] · 后11[1…11]
+    F^R@F2 F·@F1 F·@F0 B-R1@B1 B·@B2
+    course 4: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-R1@B1 B·@B2。然后从 B2 起移 1 次（B2 套到 B1，B3…B11 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 9 X  这一行开始时 23针 · 前12[0…11] · 后11[1…11]
+    B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2
+    course 4: 第 1 次移圈从 B2 起。B2 套到 B1，B3…B11 各退一针。都套上第一格 B1，第一格不是移圈源。
+  row 10 Flip  这一行开始时 F12[0…11] / B10[1…10]
+    ⬆@F11
+    course 4: right-fold flip F11→B11 (same index).
+  row 11 X  这一行开始时 F11[0…10] / B11[1…11]
+    B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 4: counts match and the beds are one needle apart. Rack B -1 (F11[0…10] / B11[1…11] → F11[0…10] / B11[0…10]).
+  row 12 L  这一行开始时 22针 · 前11[0…10] · 后11[0…10]
+    B·@B1 B·@B2 BvL@B3
+    course 4: 平衡之后的下一课，从 B1 织到 B3。
+  row 13 R  这一行开始时 22针 · 前11[0…10] · 后11[0…10]
+    B^L@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F-R1@F4 F·@F5
+    course 5: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F4 F·@F5。然后从 F5 起移 1 次（F5 套到 F4，F6…F10 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 14 X  这一行开始时 22针 · 前11[0…10] · 后11[0…10]
+    F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10
+    course 5: 第 1 次移圈从 F5 起。F5 套到 F4，F6…F10 各退一针。都套上第一格 F4，第一格不是移圈源。
+  row 15 Flip  这一行开始时 F10[0…9] / B11[0…10]
+    ⬇@B10
+    course 5: right-fold flip B10→F10 (same index).
+  row 16 X  这一行开始时 F11[0…10] / B10[0…9]
+    B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 5: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F11[0…10] / B10[1…10]).
+  row 17 R  这一行开始时 21针 · 前11[0…10] · 后10[1…10]
+    FvR@F5
+    course 5: 平衡之后的下一课，从 F5 织到 F5。
+  row 18 L  这一行开始时 21针 · 前11[0…10] · 后10[1…10]
+    F^R@F5 F·@F4 FvL@F3
+  row 19 R  这一行开始时 21针 · 前11[0…10] · 后10[1…10]
+    F^L@F3 F·@F4 F·@F5 F·@F6 FvR@F7
+  row 20 L  这一行开始时 21针 · 前11[0…10] · 后10[1…10]
+    F^R@F7 FvL@F6
+  row 21 R  这一行开始时 21针 · 前11[0…10] · 后10[1…10]
+    F^L@F6 F·@F7 F·@F8 F-R1@F9 F·@F10
+    course 9: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F9 F·@F10。然后从 F10 起移 1 次（F10 套到 F9）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 22 X  这一行开始时 21针 · 前11[0…10] · 后10[1…10]
+    F←@F10
+    course 9: 第 1 次移圈从 F10 起。F10 套到 F9。都套上第一格 F9，第一格不是移圈源。
+  row 23 X  这一行开始时 F10[0…9] / B10[1…10]
+    B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 9: counts match and the beds are one needle apart. Rack B -1 (F10[0…9] / B10[1…10] → F10[0…9] / B10[0…9]).
+  row 24 R  这一行开始时 20针 · 前10[0…9] · 后10[0…9]
+    B·@B9 B·@B8 B·@B7 B·@B6 BvR@B5
+    course 9: 平衡之后的下一课，从 B9 织到 B5。
+  row 25 L  这一行开始时 20针 · 前10[0…9] · 后10[0…9]
+    B^R@B5 B-R1@B6 B·@B7
+    course 10: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-R1@B6 B·@B7。然后从 B7 起移 1 次（B7 套到 B6，B8…B9 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 26 X  这一行开始时 20针 · 前10[0…9] · 后10[0…9]
+    B←@B9 B←@B8 B←@B7
+    course 10: 第 1 次移圈从 B7 起。B7 套到 B6，B8…B9 各退一针。都套上第一格 B6，第一格不是移圈源。
+  row 27 X  这一行开始时 F10[0…9] / B9[0…8]
+    B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 10: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F10[0…9] / B9[1…9]).
+  row 28 L  这一行开始时 19针 · 前10[0…9] · 后9[1…9]
+    B-R1@B8 B·@B9
+    course 10: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-R1@B8 B·@B9。然后从 B9 起移 1 次（B9 套到 B8）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 29 X  这一行开始时 19针 · 前10[0…9] · 后9[1…9]
+    B←@B9
+    course 10: 第 1 次移圈从 B9 起。B9 套到 B8。都套上第一格 B8，第一格不是移圈源。
+  row 30 Flip  这一行开始时 F10[0…9] / B8[1…8]
+    ⬆@F9
+    course 10: right-fold flip F9→B9 (same index).
+  row 31 X  这一行开始时 F9[0…8] / B9[1…9]
+    B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 10: counts match and the beds are one needle apart. Rack B -1 (F9[0…8] / B9[1…9] → F9[0…8] / B9[0…8]).
+  row 32 L  这一行开始时 18针 · 前9[0…8] · 后9[0…8]
+    B·@B8 FvL@F8
+    course 10: 平衡之后的下一课，从 B8 织到 F8。
+  row 33 R  这一行开始时 18针 · 前9[0…8] · 后9[0…8]
+    F^L@F8 B·@B8 B·@B7 B·@B6 B·@B5 B-L1@B4 B·@B3
+    course 11: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-L1@B4 B·@B3。然后从 B3 起移 1 次（B3 套到 B4，B2…B0 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 34 X  这一行开始时 18针 · 前9[0…8] · 后9[0…8]
+    B→@B3 B→@B2 B→@B1 B→@B0
+    course 11: 第 1 次移圈从 B3 起。B3 套到 B4，B2…B0 各退一针。都套上第一格 B4，第一格不是移圈源。
+  row 35 R  这一行开始时 17针 · 前9[0…8] · 后8[1…8]
+    B·@B3 B·@B2 B·@B1
+    course 11: 平衡之后的下一课，从 B3 织到 B1。
+  row 36 R  这一行开始时 17针 · 前9[0…8] · 后8[1…8]
+    F·@F0 F·@F1 F-R1@F2 F·@F3
+    course 12: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F2 F·@F3。然后从 F3 起移 1 次（F3 套到 F2，F4…F8 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 37 X  这一行开始时 17针 · 前9[0…8] · 后8[1…8]
+    F←@F3 F←@F4 F←@F5 F←@F6 F←@F7 F←@F8
+    course 12: 第 1 次移圈从 F3 起。F3 套到 F2，F4…F8 各退一针。都套上第一格 F2，第一格不是移圈源。
+  row 38 X  这一行开始时 F8[0…7] / B8[1…8]
+    B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 12: counts match and the beds are one needle apart. Rack B -1 (F8[0…7] / B8[1…8] → F8[0…7] / B8[0…7]).
+  row 39 R  这一行开始时 16针 · 前8[0…7] · 后8[0…7]
+    F·@F3 F-R1@F4 F·@F5
+    course 12: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F4 F·@F5。然后从 F5 起移 1 次（F5 套到 F4，F6…F7 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 40 X  这一行开始时 16针 · 前8[0…7] · 后8[0…7]
+    F←@F5 F←@F6 F←@F7
+    course 12: 第 1 次移圈从 F5 起。F5 套到 F4，F6…F7 各退一针。都套上第一格 F4，第一格不是移圈源。
+  row 41 Flip  这一行开始时 F7[0…6] / B8[0…7]
+    ⬇@B7
+    course 12: right-fold flip B7→F7 (same index).
+  row 42 X  这一行开始时 F8[0…7] / B7[0…6]
+    B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 12: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F8[0…7] / B7[1…7]).
+  row 43 R  这一行开始时 15针 · 前8[0…7] · 后7[1…7]
+    F-R1@F5 F·@F6
+    course 12: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F5 F·@F6。然后从 F6 起移 1 次（F6 套到 F5，F7…F7 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 44 X  这一行开始时 15针 · 前8[0…7] · 后7[1…7]
+    F←@F6 F←@F7
+    course 12: 第 1 次移圈从 F6 起。F6 套到 F5，F7…F7 各退一针。都套上第一格 F5，第一格不是移圈源。
+  row 45 X  这一行开始时 F7[0…6] / B7[1…7]
+    B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 12: counts match and the beds are one needle apart. Rack B -1 (F7[0…6] / B7[1…7] → F7[0…6] / B7[0…6]).
+  row 46 R  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    F·@F6 B·@B6 B·@B5 B-L1@B4 B·@B3
+    course 12: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-L1@B4 B·@B3。然后从 B3 起移 1 次（B3 套到 B4，B2…B0 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 47 X  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    B→@B3 B→@B2 B→@B1 B→@B0
+    course 12: 第 1 次移圈从 B3 起。B3 套到 B4，B2…B0 各退一针。都套上第一格 B4，第一格不是移圈源。
+  row 48 R  这一行开始时 13针 · 前7[0…6] · 后6[1…6]
+    B·@B3 B·@B2 B·@B1
+    course 12: 平衡之后的下一课，从 B3 织到 B1。
+  row 49 R  这一行开始时 13针 · 前7[0…6] · 后6[1…6]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 50 R  这一行开始时 13针 · 前7[0…6] · 后6[1…6]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 51 X+  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    B←@B3 B←@B2 B←@B1 B←@B0
+    course 15: partial increase move on B, then the increase, balance after the knit.
+  row 52 X+  这一行开始时 15针 · 前7[0…6] · 后8[-1…6]
+    B←@B4 B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1
+    course 15: partial increase move on B, then the increase, balance after the knit.
+  row 53 R  这一行开始时 17针 · 前8[0…7] · 后9[-2…6]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F+R1@F6 F·@F7 B·@B6 B+R1@B5 B·@B4 B+R1@B3 B·@B2 B·@B1 B·@B0 B+R1@B-1 B·@B-2
+
+每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。
+第一环 加减针 hang（n_extra）：无。
+第一环里没有 hang 不是 1 的项。
+第二环 加减针 hang（n_extra）：无。
+第二环里没有 hang 不是 1 的项。
+第三环 加减针 hang（n_extra）：无。
+第三环里没有 hang 不是 1 的项。
+第四环 加减针 hang（n_extra）：term 73 Type 3 hang 1，term 78 Type 3 hang 1，term 90 Type 3 hang 1，term 105 Type 3 hang 1，term 112 Type 3 hang 1，term 113 Type 3 hang 1，term 121 Type 3 hang 1。
+第四环里没有 hang 不是 1 的项。
+第五环 加减针 hang（n_extra）：term 127 Type 3 hang 1，term 129 Type 3 hang 1，term 130 Type 3 hang 1，term 134 Type 3 hang 1。
+第五环里没有 hang 不是 1 的项。
+第六环 加减针 hang（n_extra）：无。
+第六环里没有 hang 不是 1 的项。
+第七环 加减针 hang（n_extra）：无。
+第七环里没有 hang 不是 1 的项。
+第8环 加减针 hang（n_extra）：term 170 Type 4 hang 1，term 172 Type 4 hang 1，term 173 Type 4 hang 1，term 176 Type 4 hang 1。
+第8环里没有 hang 不是 1 的项。
+其余 162 项不是加减针，hang 为 0。
