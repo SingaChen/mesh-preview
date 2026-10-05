@@ -816,7 +816,7 @@ async function loadDenseStandradCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Dense Standrad Cylinder · cols_resample 25 · 表宽 25 · 前床 F0–F12 · 后床 B12–B1 · 7 环落座 25");
+      setStatus("Dense Standrad Cylinder · cols_resample 50 · 表宽 50 · 前床 F0–F24 · 后床 B24–B0 · 15 环落座 50");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
