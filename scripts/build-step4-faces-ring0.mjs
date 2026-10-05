@@ -1474,7 +1474,7 @@ export function seatRing(courses, planInfo, carried = null) {
  * remaining stitches. Those stitches are the next course, counted on
  * the post-balance window.
  */
-export function seatContinuation(courses, seeds, prevDir = null, carried = null) {
+export function seatContinuation(courses, seeds, prevDir = null, carried = null, options = null) {
   const stitches = carried ? carried.stitches : new Map();
   let nextId = carried ? carried.nextId : 0;
   if (!carried) {
@@ -1491,7 +1491,11 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
   let cursor = carried ? carried.cursor : stitches.get(0);
   if (!cursor || !stitches.has(cursor.id)) fail("continuation has no cursor");
 
-  for (let ci = 0; ci < courses.length; ci++) {
+  const partialOnError = options?.partialOnError === true;
+  let stop = null;
+  let ci = 0;
+  try {
+  for (; ci < courses.length; ci++) {
     const course = courses[ci];
     const step = course.dir === 0 ? 1 : -1;
     const dirSign = course.dir === 0 ? 1 : -1;
@@ -2045,6 +2049,45 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null)
     }
     prevDir = course.dir;
   }
+  } catch (err) {
+    if (!partialOnError) throw err;
+    const course = courses[ci];
+    stop = {
+      course: ci,
+      dir: course?.dir === 0 ? "R" : "L",
+      message: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  if (stop) {
+    const front = [...stitches.values()].filter((st) => st.bed === "F");
+    const back = [...stitches.values()].filter((st) => st.bed === "B");
+    let seated;
+    try {
+      seated = windowText(stitches, new Map(), "partial");
+    } catch {
+      seated = {
+        front: front.map((st) => st.phys).sort((a, b) => a - b),
+        back: back.map((st) => st.phys).sort((a, b) => a - b),
+        N: front.length + back.length,
+        tF: front.length,
+        tB: back.length,
+        text: liveWindow(stitches),
+      };
+    }
+    return {
+      sheet,
+      courses: coursesOut,
+      seated,
+      live: listsOf(stitches),
+      baseN: front.length + back.length,
+      baseFront: front.length,
+      baseBack: back.length,
+      bed: { stitches, waleToId, cursor, nextId },
+      partial: true,
+      stop,
+    };
+  }
 
   const seated = windowText(stitches, new Map(), "seated");
   if (seated.front[0] !== 0) fail(`seated front does not start at F0 (${spanText(seated.front)})`);
@@ -2220,6 +2263,10 @@ function collectRows(header, needles, bodyRows, matrixes) {
 export function renderReport(built) {
   const lines = [];
   lines.push(built.title || "faces_ring0 step4 床图（只含第一环）");
+  if (built.partialStop) {
+    lines.push(built.partialStop.sentence);
+    lines.push("这一张表只含抛出之前已经画出的行。失败之后的平衡和后面的环都没有补。");
+  }
   lines.push(built.inputLine || "输入只有 faces_ring_layout.json 的 ring 0（types 和 hangs）。加减针数是该项的 n_extra，不是缺省 1。");
   lines.push("Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。");
   lines.push(`底圈 N=${built.baseN}，拆成 F=${built.baseFront}、B=${built.baseBack}。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。`);
@@ -2249,7 +2296,9 @@ export function renderReport(built) {
   );
   lines.push(
     built.ownBed
-      ? `${built.ringSeats.length} 环都在这一张表上。每一环都用这一份 faces_ring 自己落座的针。`
+      ? built.partialStop
+        ? `完整画到 ring ${built.partialStop.ring - 1}。ring ${built.partialStop.ring} 只画到 course ${built.partialStop.course} 抛出之前的行。`
+        : `${built.ringSeats.length} 环都在这一张表上。每一环都用这一份 faces_ring 自己落座的针。`
       : built.afterFourth
         ? "五环都在这一张表上。"
         : built.afterThird
@@ -2475,11 +2524,31 @@ export function buildJoinedChart(path = DEFAULT_PATHS.facesRing) {
   };
 }
 
+function coveredTermCount(rows) {
+  const knitTerms = new Set();
+  for (const row of rows) {
+    if (row.dir !== "R" && row.dir !== "L") continue;
+    for (const cell of row.cells) {
+      if (Number.isInteger(cell.tIdx)) knitTerms.add(cell.tIdx);
+      if (Array.isArray(cell.extraIdx)) {
+        for (const term of cell.extraIdx) if (Number.isInteger(term)) knitTerms.add(term);
+      }
+    }
+  }
+  let covered = 0;
+  while (knitTerms.has(covered)) covered += 1;
+  if (covered !== knitTerms.size) fail(`partial chart skips term ${covered}`);
+  return covered;
+}
+
 /**
  * One faces_ring file. Ring 0 is seated from that file. Every later ring
  * stays on the bed ring 0 left, and its first stitch is F0.
+ * partialOnError keeps the rows already drawn when a later ring throws.
+ * It does not change the seating rules, and it does not invent the rows
+ * the throw cut off.
  */
-export function buildOwnBedChart(path) {
+export function buildOwnBedChart(path, options = {}) {
   const layout = JSON.parse(readFileSync(path, "utf8"));
   const rings = layout?.rings;
   if (!Array.isArray(rings) || rings.length < 2) fail(`${basename(path)} has no later ring`);
@@ -2498,24 +2567,70 @@ export function buildOwnBedChart(path) {
   let termOffset = first.types;
   let courseOffset = first.courses.length;
   const ringStarts = [first.courses[0]?.start || ""];
+  const partialOnError = options?.partialOnError === true;
+  let partialStop = null;
   for (let index = 1; index < rings.length; index++) {
     const ring = loadJoinedRing(layout, index);
     const prevDir = prevCourse ? (prevCourse.dir === "R" ? 0 : 1) : null;
-    const seated = seatContinuation(coursesFromTypes(ring.types, ring.hangs), null, prevDir, carried);
+    const seated = seatContinuation(
+      coursesFromTypes(ring.types, ring.hangs),
+      null,
+      prevDir,
+      carried,
+      partialOnError ? { partialOnError: true } : null,
+    );
     const start = seated.courses[0]?.start;
-    if (!start) fail(`ring ${index} has no course`);
+    if (!start) {
+      if (seated.partial) {
+        partialStop = {
+          ring: index,
+          course: seated.stop.course,
+          dir: seated.stop.dir,
+          message: seated.stop.message,
+          globalCourse: courseOffset + seated.stop.course,
+        };
+        break;
+      }
+      fail(`ring ${index} has no course`);
+    }
     ringStarts.push(start);
     ringBreaks.push(termOffset);
     sheets.push(shiftSheet(seated.sheet, courseOffset, termOffset));
     ringCourses.push(seated.courses);
     for (const course of seated.courses) courses.push({ ...course, course: course.course + courseOffset });
-    termTypes.push(...ring.types);
-    hangs.push(...ring.hangs);
-    termOffset += ring.types.length;
+    const drawn = seated.partial ? coveredTermCount(seated.sheet) : ring.types.length;
+    if (seated.partial && drawn > ring.types.length) {
+      fail(`ring ${index} partial chart names ${drawn} terms, the ring has ${ring.types.length}`);
+    }
+    termTypes.push(...ring.types.slice(0, drawn));
+    hangs.push(...ring.hangs.slice(0, drawn));
+    termOffset += drawn;
     courseOffset += seated.courses.length;
     carried = seated.bed;
     prevCourse = seated.courses.at(-1);
+    if (seated.partial) {
+      partialStop = {
+        ring: index,
+        course: seated.stop.course,
+        dir: seated.stop.dir,
+        message: seated.stop.message,
+        globalCourse: courseOffset - seated.courses.length + seated.stop.course,
+        window: seated.seated.text,
+      };
+      ringSeats.push({
+        label: `生成停在 ring ${index} course ${seated.stop.course}，平衡之前`,
+        seated: seated.seated,
+        partial: true,
+      });
+      break;
+    }
     ringSeats.push({ label: labels[index] || `第${index + 1}环结束`, seated: seated.seated });
+  }
+  if (partialStop) {
+    const rightGoingBelow = partialStop.course === 0 && partialStop.dir === "R" && (partialStop.ring === 7 || partialStop.ring === 2);
+    partialStop.sentence = rightGoingBelow
+      ? `generation stopped at ring ${partialStop.ring} course 0 (right-going increase drives back bed below 0; rule pending from Singa).`
+      : `generation stopped at ring ${partialStop.ring} course ${partialStop.course} ${partialStop.dir} (${partialStop.message}).`;
   }
   const file = basename(path);
   const sheet = sheets.flat();
@@ -2542,12 +2657,15 @@ export function buildOwnBedChart(path) {
     hangs,
     ringBreaks,
     sheetName: "bed",
-    title: `${file} step4 床图`,
+    title: partialStop ? `${file} step4 床图（未完成）` : `${file} step4 床图`,
     inputLine: `输入只有 ${file} 的 rings（types 和 hangs）。${startNote}后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。`,
     courseInput: file,
-    scopeLine: allAtF0
-      ? `Rings 0 through ${rings.length - 1} of ${file}. Each later ring stays on the bed this file seated and starts at F0.`
-      : `Rings 0 through ${rings.length - 1} of ${file}. Each later ring stays on the bed this file seated. Starts: ${ringStarts.join(", ")}.`,
+    partialStop,
+    scopeLine: partialStop
+      ? `${partialStop.sentence} Rows after the throw are not on this sheet.`
+      : allAtF0
+        ? `Rings 0 through ${rings.length - 1} of ${file}. Each later ring stays on the bed this file seated and starts at F0.`
+        : `Rings 0 through ${rings.length - 1} of ${file}. Each later ring stays on the bed this file seated. Starts: ${ringStarts.join(", ")}.`,
   };
 }
 
@@ -2575,7 +2693,9 @@ export function workbookBytes(built) {
     ["input", built.inputLine || "faces_ring_layout.json rings[0].types and hangs[] (Term.remain / n_extra). Hang is not defaulted to 1."],
     ["not_input", "Step1, Step2, and Step3 xls/txt/maps were not read, joined, or used as column hints."],
     ["scope", built.scopeLine || (built.afterFourth ? "Rings 0 through 4 on one sheet. Each later ring continues the seated bed and starts at F0." : built.afterThird ? "Rings 0 through 3 on one sheet. Each later ring continues the seated bed and starts at F0. Later rings are not filled." : built.afterSecond ? "Rings 0, 1, and 2 on one sheet. Ring 2 continues the seated bed. Later rings are not filled." : built.ringBreak ? "Ring 0 and ring 1 on one sheet. Later rings are not filled." : "First faces_ring only. Later rings are not filled.")],
-    ["N", `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
+    ["N", built.partialStop
+      ? `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. ${built.partialStop.sentence} Window before the throw: N=${built.seated.N}, ${built.seated.text}.`
+      : `Base circumference ${built.baseN} splits F${built.baseFront}/B${built.baseBack}. After the ring is seated, N=${built.seated.N}, ${built.seated.text}. Front low end is F0.`],
     ["draw", built.widestCourse ? `Chart width ${built.chartWidth} is the widest occupied course (course ${built.widestCourse.course} ${built.widestCourse.dir}, ${built.widestCourse.occupied} columns, span ${built.widestCourse.span}). Front column = physical needle. Back column = ${built.chartMirror} - phys. A shorter course may leave empty cells.` : "Front column = physical needle. Back column = 37 - phys. That drawing convention is not a Step3 column."],
     ["此刻活针", "Last column is how many stitches are already seated when the row starts. 0针 means the beds are still empty. It is not a needle number."],
     ["phys", "Sheet phys copies the bed and physical needle already tracked on each cell."],
@@ -2583,6 +2703,7 @@ export function workbookBytes(built) {
     ["move", "1 needle omits the number (F→, B←). A number appears only for 2 or more."],
     ["flip", "Right fold only, same physical index."],
   ];
+  if (built.partialStop) legendRows.push(["stopped", built.partialStop.sentence]);
   const faceOffset = built.faceOffset || 0;
   const physRows = [["sheetRow", "sheetCol", "bed", "phys"]];
   const faceRows = [["sheetRow", "sheetCol", "face"]];
@@ -2986,10 +3107,12 @@ const OWN_BED_STEM = {
   "standrad_cylinder_rings.json": "standrad_cylinder_bed",
   "decrease_cylinder_faces_ring_layout.json": "decrease_cylinder_bed",
   "increase_cylinder_faces_ring_layout.json": "increase_cylinder_bed",
+  "thin_cylinder_faces_ring_layout.json": "thin_cylinder_bed",
+  "fat_cylinder_faces_ring_layout.json": "fat_cylinder_bed",
 };
 
-function writeOwnBed(input, check) {
-  const built = buildOwnBedChart(input);
+function writeOwnBed(input, check, options = {}) {
+  const built = buildOwnBedChart(input, options);
   const text = renderReport(built);
   const bytes = workbookBytes(built);
   const stem = OWN_BED_STEM[basename(input)];
@@ -3010,6 +3133,7 @@ function writeOwnBed(input, check) {
 
 function main(argv = process.argv.slice(2)) {
   const check = argv.includes("--check");
+  const partialOnError = argv.includes("--partial");
   const inputAt = argv.indexOf("--input");
   if (inputAt >= 0) {
     const input = argv[inputAt + 1];
@@ -3021,7 +3145,7 @@ function main(argv = process.argv.slice(2)) {
     selfCheckCrossBedGroup();
     selfCheckNegativeSeat();
     selfCheckConsecutiveIncrease();
-    return writeOwnBed(input, check);
+    return writeOwnBed(input, check, partialOnError ? { partialOnError: true } : {});
   }
   selfCheckDecrease();
   selfCheckDecreaseSpan();

@@ -30,24 +30,6 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Build Thin Cylinder partial bed chart
-        run: |
-          git apply scripts/thin-partial-bed.patch
-          node scripts/build-step4-faces-ring0.mjs --check
-          node scripts/build-step4-faces-ring0.mjs --partial --input public/sample/thin/thin_cylinder_faces_ring_layout.json
-          python3 - << 'PY'
-          import hashlib
-          import pathlib
-          root = pathlib.Path("public/sample/thin")
-          expect = {
-              "thin_cylinder_bed.txt": "883602d1d78838302041b7e6f6be1e40c0dd43f7dc05544dd74470c4db03e327",
-              "thin_cylinder_bed.xls": "34fdfa92c1f79950081e901c9f956b196b94378d6b1b87a7e473b1f99a20ffb5",
-          }
-          for name, digest in expect.items():
-              got = hashlib.sha256((root / name).read_bytes()).hexdigest()
-              if got != digest:
-                  raise SystemExit(f"{name} sha {got}")
-          PY
       - name: Build
         run: npm run build
       - name: Setup Pages

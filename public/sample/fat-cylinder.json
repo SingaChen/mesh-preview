@@ -1,0 +1,15 @@
+{
+  "name": "Fat Cylinder",
+  "outputs": [
+    {
+      "label": "Fat Cylinder",
+      "mesh": "fat/fat_cylinder_KnittingStitches.obj",
+      "stitches": "fat/fat_cylinder_KnittingStitches.obj",
+      "readableMap": "fat/fat_cylinder_bed.xls",
+      "field": "fat/fat_cylinder_cols_resample_field.obj",
+      "colsResample": "fat/fat_cylinder_cols_resample_field.obj",
+      "colsResampleXls": "fat/fat_cylinder_cols_resample.xls",
+      "facesRingLayout": "fat/fat_cylinder_faces_ring_layout.json"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+fat_cylinder_faces_ring_layout.json step4 床图（未完成）
+generation stopped at ring 2 course 0 (right-going increase drives back bed below 0; rule pending from Singa).
+这一张表只含抛出之前已经画出的行。失败之后的平衡和后面的环都没有补。
+输入只有 fat_cylinder_faces_ring_layout.json 的 rings（types 和 hangs）。每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。
+Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。
+底圈 N=13，拆成 F=7、B=6。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
+第一环落座之后 N=13，窗 F7[0…6] / B6[1…6]。
+第二环结束 N=13，窗 F7[0…6] / B6[1…6]。
+生成停在 ring 2 course 0，平衡之前 N=23，窗 F12[0…11] / B11[-4…6]。
+针号是 F# / B#。表宽 23，由占用列最宽的一课决定：course 2 R 占 23 列，跨度 23。前床列 = 物理针，后床列 = 18 − 物理针。短课中间可以空。
+完整画到 ring 1。ring 2 只画到 course 0 抛出之前的行。
+
+行程（织行）起点针、终点针：
+  course 0 R  start F0  end B1  （13 针）
+  course 1 R  start F0  end B1  （13 针）
+  course 2 R  start F0  end B-4  （23 针）
+
+表行（格子按织的顺序，不是按表列从左到右）：
+  row 0 R  这一行开始时 0针 · 前空 · 后空
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 1 R  这一行开始时 13针 · 前7[0…6] · 后6[1…6]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 2 X+  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    B←@B2 B←@B1 B←@B0
+    course 2: partial increase move on B, then the increase, balance after the knit.
+  row 3 X+  这一行开始时 15针 · 前7[0…6] · 后8[-1…6]
+    B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1
+    course 2: partial increase move on B, then the increase, balance after the knit.
+  row 4 X+  这一行开始时 16针 · 前7[0…6] · 后9[-2…6]
+    B←@B4 B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1 B←@B-2
+    course 2: partial increase move on B, then the increase, balance after the knit.
+  row 5 X+  这一行开始时 17针 · 前7[0…6] · 后10[-3…6]
+    B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1 B←@B-2 B←@B-3
+    course 2: partial increase move on B, then the increase, balance after the knit.
+  row 6 X+  这一行开始时 19针 · 前8[0…7] · 后11[-4…6]
+    F→@F6 F→@F7
+    course 2: partial increase move on F, then the increase, balance after the knit.
+  row 7 X+  这一行开始时 19针 · 前8[0…8] · 后11[-4…6]
+    F→@F7 F→@F8
+    course 2: partial increase move on F, then the increase, balance after the knit.
+  row 8 X+  这一行开始时 21针 · 前10[0…9] · 后11[-4…6]
+    F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9
+    course 2: partial increase move on F, then the increase, balance after the knit.
+  row 9 X+  这一行开始时 22针 · 前11[0…10] · 后11[-4…6]
+    F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10
+    course 2: partial increase move on F, then the increase, balance after the knit.
+  row 10 R  这一行开始时 23针 · 前12[0…11] · 后11[-4…6]
+    F·@F0 F·@F1 F+R1@F2 F·@F3 F+R1@F4 F·@F5 F·@F6 F+R2@F7 F·@F8 F·@F9 F+R1@F10 F·@F11 B+R1@B6 B·@B5 B+R1@B4 B·@B3 B+R1@B2 B·@B1 B+R1@B0 B·@B-1 B·@B-2 B+R1@B-3 B·@B-4
+
+每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。
+第一环 加减针 hang（n_extra）：无。
+第一环里没有 hang 不是 1 的项。
+第二环 加减针 hang（n_extra）：无。
+第二环里没有 hang 不是 1 的项。
+第三环 加减针 hang（n_extra）：term 28 Type 4 hang 1，term 29 Type 4 hang 1，term 31 Type 4 hang 2，term 32 Type 4 hang 1，term 33 Type 4 hang 1，term 34 Type 4 hang 1，term 35 Type 4 hang 1，term 36 Type 4 hang 1，term 38 Type 4 hang 1。
+其中 hang 不是 1 的：term 31 hang 2。
+其余 30 项不是加减针，hang 为 0。

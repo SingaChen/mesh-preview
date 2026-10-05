@@ -41,6 +41,15 @@ export function isThinCylinderBedChart(name) {
   return /^thin_cylinder_bed\.xlsx?$/i.test(base);
 }
 
+/** Fat Cylinder partial bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isFatCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^fat_cylinder_bed\.xlsx?$/i.test(base);
+}
+
 /** Increase Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
 export function isIncreaseCylinderBedChart(name) {
   const base = String(name || "")

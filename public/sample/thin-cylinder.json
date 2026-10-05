@@ -9,6 +9,7 @@
       "readableMapTxt": "thin/thin_cylinder_bed.txt",
       "field": "thin/thin_cylinder_cols_resample_field.obj",
       "colsResample": "thin/thin_cylinder_cols_resample_field.obj",
+      "colsResampleXls": "thin/thin_cylinder_cols_resample.xls",
       "facesRingLayout": "thin/thin_cylinder_faces_ring_layout.json"
     }
   ]

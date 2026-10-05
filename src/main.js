@@ -37,6 +37,7 @@ import {
   isDecreaseCylinderBedChart,
   isIncreaseCylinderBedChart,
   isThinCylinderBedChart,
+  isFatCylinderBedChart,
   isStandradCylinderBedChart,
   isFlipDir,
   isTransferDir,
@@ -76,6 +77,7 @@ const standradBtn = document.querySelector("#load-standrad-cylinder");
 const decreaseBtn = document.querySelector("#load-decrease-cylinder");
 const increaseBtn = document.querySelector("#load-increase-cylinder");
 const thinBtn = document.querySelector("#load-thin-cylinder");
+const fatBtn = document.querySelector("#load-fat-cylinder");
 const fitBtn = document.querySelector("#fit-view");
 const slider = document.querySelector("#mesh-slider");
 const meshRow = document.querySelector("#mesh-row");
@@ -262,7 +264,9 @@ function updateChrome() {
   labelEl.textContent = current?.label || "—";
   countEl.textContent = n ? `${outputIndex + 1} / ${n}` : "0 / 0";
   projectEl.textContent = project
-    ? `${project.name} · ${project.source === "manifest" ? "清单 manifest" : "自动发现 auto"}`
+    ? project.banner
+      ? `${project.name} · ${project.banner}`
+      : `${project.name} · ${project.source === "manifest" ? "清单 manifest" : "自动发现 auto"}`
     : "未打开项目 / No project";
   overlayBtn.disabled = !current?.overlayFile && !current?.stitchFile && !scene?.stitches;
   if (warpBtn) warpBtn.disabled = !scene?.columns?.length;
@@ -340,6 +344,7 @@ function isMapXlsEntry(entry) {
     isDecreaseCylinderBedChart(name) ||
     isIncreaseCylinderBedChart(name) ||
     isThinCylinderBedChart(name) ||
+    isFatCylinderBedChart(name) ||
     isStandradCylinderBedChart(name) ||
     (isXlsName(name) && /readable_map|step3/i.test(name))
   );
@@ -739,6 +744,16 @@ function isThinSheet(sheet) {
   return want === "thin-cylinder" || want === "thin";
 }
 
+function isFatSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "fat-cylinder" || want === "fat";
+}
+
+const THIN_STOP =
+  "generation stopped at ring 7 course 0 (right-going first increase course drives the back bed below 0; rule pending from Singa)";
+const FAT_STOP =
+  "generation stopped at ring 2 course 0 (right-going first increase course drives the back bed below 0; rule pending from Singa)";
+
 async function loadStandradCylinder() {
   setStatus("加载 Standrad Cylinder…");
   const base = import.meta.env.BASE_URL;
@@ -837,44 +852,55 @@ async function loadIncreaseCylinder() {
   }
 }
 
-async function loadThinCylinder() {
-  setStatus("加载 Thin Cylinder…");
+async function loadNamedCylinder({ manifest, missing, status, banner }) {
+  setStatus(`加载 ${missing}…`);
   const base = import.meta.env.BASE_URL;
-  try {
-    const manifestRes = await fetch(`${base}sample/thin-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("缺少 Thin Cylinder / Missing Thin Cylinder");
-    const data = await manifestRes.json();
-    const paths = collectManifestRefs(data);
-    const entries = [
-      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
-    ];
-    await Promise.all(
-      paths.map(async (rel) => {
-        const name = rel.split("/").pop();
-        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (/\.xlsx?$/i.test(rel)) {
-          let bytes = res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
-          const ole = bytes && bytes.length > 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
-          if (!ole) {
-            const b64 = await fetch(`${base}sample/${rel}.b64`, { cache: "reload" });
-            if (!b64.ok) throw new Error(`缺少 Thin Cylinder / Missing ${rel}`);
-            const raw = atob((await b64.text()).replace(/\s+/g, ""));
-            bytes = new Uint8Array(raw.length);
-            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-          }
-          entries.push({ name, path: `sample/${rel}`, buffer: bytes.buffer });
-          return;
-        }
-        if (!res.ok) throw new Error(`缺少 Thin Cylinder / Missing ${rel}`);
+  const manifestRes = await fetch(`${base}sample/${manifest}`, { cache: "reload" });
+  if (!manifestRes.ok) throw new Error(`缺少 ${missing} / Missing ${missing}`);
+  const data = await manifestRes.json();
+  const paths = collectManifestRefs(data);
+  const entries = [
+    { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+  ];
+  await Promise.all(
+    paths.map(async (rel) => {
+      const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+      if (!res.ok) throw new Error(`缺少 ${missing} / Missing ${rel}`);
+      const name = rel.split("/").pop();
+      if (/\.xlsx?$/i.test(rel)) {
+        entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
+      } else {
         entries.push({ name, path: `sample/${rel}`, text: await res.text() });
-      }),
-    );
-    await openEntries(entries);
-    if (!statusEl.classList.contains("error")) {
-      setStatus(
-        "Thin Cylinder · cols_resample 36 · 表宽 26 · 前床 F0–F11 · 后床 B11–B0 · generation stopped at ring 7 course 0 (right-going increase drives back bed below 0; rule pending from Singa)",
-      );
-    }
+      }
+    }),
+  );
+  await openEntries(entries);
+  if (project && banner) project.banner = banner;
+  updateChrome();
+  if (!statusEl.classList.contains("error")) setStatus(status);
+}
+
+async function loadThinCylinder() {
+  try {
+    await loadNamedCylinder({
+      manifest: "thin-cylinder.json",
+      missing: "Thin Cylinder",
+      banner: THIN_STOP,
+      status: `Thin Cylinder · cols_resample 36 · 表宽 26 · 前床 F0–F11 · 后床 B11–B0 · ${THIN_STOP}`,
+    });
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadFatCylinder() {
+  try {
+    await loadNamedCylinder({
+      manifest: "fat-cylinder.json",
+      missing: "Fat Cylinder",
+      banner: FAT_STOP,
+      status: `Fat Cylinder · cols_resample 24 · 表宽 23 · 前床 F0–F6 · 后床 B6–B1 · ${FAT_STOP}`,
+    });
   } catch (err) {
     setStatus(err.message || String(err), true);
   }
@@ -987,6 +1013,11 @@ thinBtn?.addEventListener("click", () => {
   setSheetQuery("thin-cylinder");
   loadThinCylinder();
 });
+fatBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("fat-cylinder");
+  loadFatCylinder();
+});
 
 folderInput.addEventListener("change", async () => {
   const entries = entriesFromFileList(folderInput.files);
@@ -1027,6 +1058,13 @@ function syncViewportAfterLayout(after) {
   });
 }
 
+function stoppedMapSuffix(map) {
+  const note = map?.legend?.find((row) => row.key === "stopped")?.note || "";
+  const hit = String(note).match(/ring (\d+) course (\d+)/);
+  if (!hit) return "";
+  return ` · 停在 ring ${hit[1]} course ${hit[2]}（后床低于 0，规则等 Singa）`;
+}
+
 function paintReadableMap() {
   const map = scene?.readableMap;
   const hasMap = Boolean(map?.rows?.length || map?.cells?.length);
@@ -1048,7 +1086,7 @@ function paintReadableMap() {
   if (mapMeta) {
     mapMeta.textContent =
       map.source === "excel"
-        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${map.legend?.some((row) => row.key === "stopped" && String(row.note).includes("ring 7 course 0")) ? " · 停在 ring 7 course 0（后床低于 0，规则等 Singa）" : ""}`
+        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${stoppedMapSuffix(map)}`
         : h
           ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
           : `${map.rows.length} rows · ${map.cells.length} cells`;
@@ -1245,7 +1283,8 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 updateChrome();
-if (isThinSheet(sheetQuery())) loadThinCylinder();
+if (isFatSheet(sheetQuery())) loadFatCylinder();
+else if (isThinSheet(sheetQuery())) loadThinCylinder();
 else if (isIncreaseSheet(sheetQuery())) loadIncreaseCylinder();
 else if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
 else if (isStandradSheet(sheetQuery())) loadStandradCylinder();
