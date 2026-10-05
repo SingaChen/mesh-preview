@@ -30,67 +30,23 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Materialize Thin Cylinder workbooks
+      - name: Build Thin Cylinder partial bed chart
         run: |
+          git apply scripts/thin-partial-bed.patch
+          node scripts/build-step4-faces-ring0.mjs --check
+          node scripts/build-step4-faces-ring0.mjs --partial --input public/sample/thin/thin_cylinder_faces_ring_layout.json
           python3 - << 'PY'
-          import base64
           import hashlib
           import pathlib
-
           root = pathlib.Path("public/sample/thin")
-          OLE = bytes.fromhex("d0cf11e0a1b11ae1")
-          COLS_HOLE = "310780f3528b848ddec88804f63351053a0378bd65e43c27ca93e84619d1e197"
-          COLS_INSERT = "gABQABgCkAPX/IAAA9AAAAAAAAAAAwCD"
-          BED_SHA = "34fdfa92c1f79950081e901c9f956b196b94378d6b1b87a7e473b1f99a20ffb5"
-          COLS_SHA = "29782dfd698e2623a6f2e79252f5f6daaa6b1907df458c4df3aa169ec8fc54da"
-          OBJ_SHA = "dae7437f4aec3eaa07ebe919dba843439fc58a8f9370ae97e1481d46742719c2"
-
-          def usable(path: pathlib.Path) -> bool:
-              if not path.exists() or not path.is_file():
-                  return False
-              return path.read_text().strip() not in ("", "PLACEHOLDER", "PLACEHOLDER_DO_NOT_COMMIT")
-
-          def assemble(stem: str) -> str:
-              whole = root / stem
-              if usable(whole):
-                  return whole.read_text()
-              parts = [part for part in sorted(root.glob(stem + ".part*")) if usable(part)]
-              if not parts:
-                  raise FileNotFoundError(stem)
-              return "".join(part.read_text() for part in parts)
-
-          def unxor(data: bytes) -> bytes:
-              return bytes(byte ^ ((index * 17) & 255) for index, byte in enumerate(data))
-
-          cols_path = root / "thin_cylinder_cols_resample.xls.b64"
-          if usable(cols_path):
-              cols_text = cols_path.read_text()
-              if hashlib.sha256(cols_text.encode()).hexdigest() == COLS_HOLE:
-                  cols_path.write_text(cols_text[:1375] + COLS_INSERT + cols_text[1375:])
-
-          def materialize_xls(name: str, size: int, sha: str) -> None:
-              dest = root / name
-              xor_stem = f"{name}.xor.b64"
-              plain_stem = f"{name}.b64"
-              has_xor = usable(root / xor_stem) or any(usable(part) for part in root.glob(xor_stem + ".part*"))
-              if has_xor:
-                  raw = unxor(base64.b64decode("".join(assemble(xor_stem).split())))
-              else:
-                  raw = base64.b64decode("".join(assemble(plain_stem).split()))
-              dest.write_bytes(raw)
-              got = hashlib.sha256(raw).hexdigest()
-              if len(raw) != size or not raw.startswith(OLE) or got != sha:
-                  raise SystemExit(f"{name}: size {len(raw)} sha {got}")
-
-          materialize_xls("thin_cylinder_bed.xls", 74240, BED_SHA)
-          materialize_xls("thin_cylinder_cols_resample.xls", 54784, COLS_SHA)
-
-          obj = root / "thin_cylinder_KnittingStitches.obj"
-          if not (usable(obj) and hashlib.sha256(obj.read_bytes()).hexdigest() == OBJ_SHA):
-              obj.write_text(assemble("thin_cylinder_KnittingStitches.obj"))
-          got = hashlib.sha256(obj.read_bytes()).hexdigest()
-          if got != OBJ_SHA:
-              raise SystemExit(f"KnittingStitches sha {got}")
+          expect = {
+              "thin_cylinder_bed.txt": "883602d1d78838302041b7e6f6be1e40c0dd43f7dc05544dd74470c4db03e327",
+              "thin_cylinder_bed.xls": "34fdfa92c1f79950081e901c9f956b196b94378d6b1b87a7e473b1f99a20ffb5",
+          }
+          for name, digest in expect.items():
+              got = hashlib.sha256((root / name).read_bytes()).hexdigest()
+              if got != digest:
+                  raise SystemExit(f"{name} sha {got}")
           PY
       - name: Build
         run: npm run build
