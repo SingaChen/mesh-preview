@@ -83,6 +83,26 @@ input {
   text-overflow: ellipsis;
 }
 
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.sheet-actions .btn {
+  white-space: nowrap;
+}
+
+.export-slot {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.export-slot .btn:disabled {
+  pointer-events: none;
+}
+
 .open-menu {
   position: relative;
   flex: 0 0 auto;
@@ -438,9 +458,13 @@ body.narrow-split.show-3d .map-pane:not([hidden]) {
   -webkit-overflow-scrolling: touch;
 }
 
-body.chrome-collapsed .topbar,
+body.chrome-collapsed .topbar .brand,
 body.chrome-collapsed .dock {
   display: none;
+}
+
+body.chrome-collapsed .topbar {
+  justify-content: flex-end;
 }
 
 body.chrome-collapsed .workspace,

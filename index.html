@@ -26,7 +26,13 @@
           <h1>mesh-preview</h1>
           <p id="project-name">未打开项目 / No project</p>
         </div>
-        <div class="open-menu" id="open-menu">
+        <div class="sheet-actions">
+          <span class="export-slot" id="export-slot" title="此 sheet 暂无 .dat">
+            <button class="btn" id="export-dat" type="button" disabled title="此 sheet 暂无 .dat">
+              导出 <span class="en">Export</span>
+            </button>
+          </span>
+          <div class="open-menu" id="open-menu">
           <button class="btn primary" id="open-menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="open-menu-list">
             打开 <span class="en">Open</span>
           </button>
@@ -45,6 +51,7 @@
             <button class="open-item" id="load-dense-fat-cylinder" type="button" role="menuitem">Dense Fat Cylinder</button>
             <button class="open-item" id="open-folder" type="button" role="menuitem">文件夹 <span class="en">Folder</span></button>
             <button class="open-item" id="open-files" type="button" role="menuitem">文件 <span class="en">Files</span></button>
+          </div>
           </div>
         </div>
       </header>

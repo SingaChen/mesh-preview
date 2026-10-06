@@ -67,6 +67,7 @@ import {
   stitchForMapCell,
 } from "./readable-map.js";
 import { ReadableMapView } from "./map-view.js";
+import { NO_DAT_TITLE, datForSheet } from "./sheet-dat.js";
 
 const canvas = document.querySelector("#viewport");
 const folderInput = document.querySelector("#folder-input");
@@ -74,6 +75,8 @@ const filesInput = document.querySelector("#files-input");
 const openMenu = document.querySelector("#open-menu");
 const openMenuBtn = document.querySelector("#open-menu-btn");
 const openMenuList = document.querySelector("#open-menu-list");
+const exportBtn = document.querySelector("#export-dat");
+const exportSlot = document.querySelector("#export-slot");
 const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
 const sampleBtn = document.querySelector("#load-sample");
@@ -378,6 +381,28 @@ function setSheetQuery(sheet) {
   if (sheet) url.searchParams.set("sheet", sheet);
   else url.searchParams.delete("sheet");
   history.replaceState(null, "", url);
+  syncExportButton();
+}
+
+function syncExportButton() {
+  if (!exportBtn) return;
+  const spec = datForSheet(sheetQuery());
+  exportBtn.disabled = !spec;
+  const title = spec ? spec.filename : NO_DAT_TITLE;
+  exportBtn.title = title;
+  if (exportSlot) exportSlot.title = title;
+}
+
+function downloadSheetDat() {
+  const spec = datForSheet(sheetQuery());
+  if (!spec || exportBtn?.disabled) return;
+  const a = document.createElement("a");
+  a.href = `${import.meta.env.BASE_URL}${spec.path}`;
+  a.download = spec.filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 function outputIndexForSheet(next, sheet) {
@@ -1067,6 +1092,10 @@ openMenuBtn?.addEventListener("click", (ev) => {
   setOpenMenu(openMenuBtn.getAttribute("aria-expanded") !== "true");
 });
 
+exportBtn?.addEventListener("click", () => {
+  downloadSheetDat();
+});
+
 document.addEventListener("pointerdown", (ev) => {
   if (openMenu && !openMenu.contains(ev.target)) setOpenMenu(false);
 });
@@ -1421,6 +1450,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 updateChrome();
+syncExportButton();
 if (isDenseFatSheet(sheetQuery())) loadDenseFatCylinder();
 else if (isFatSheet(sheetQuery())) loadFatCylinder();
 else if (isDenseThinSheet(sheetQuery())) loadDenseThinCylinder();

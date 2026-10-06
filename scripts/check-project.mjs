@@ -79,6 +79,7 @@ import {
 } from "../src/excel-map.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
+import { NO_DAT_TITLE, datForSheet } from "../src/sheet-dat.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sampleDir = join(root, "public", "sample");
@@ -1682,7 +1683,14 @@ assert(/--dual-h:\s*36px/.test(css) && /--track-h:\s*4px/.test(css), "mobile dua
 assert(/--thumb:\s*28px/.test(css), "slider handles stay large enough to grab");
 assert(css.includes(".open-menu") && css.includes(".open-menu-list"), "Open control is a dropdown, not a 3-column grid");
 assert(!/\.actions\s*\{/.test(css), "old .actions button row is gone");
-assert(css.includes("chrome-collapsed"), "collapsed chrome hides topbar + dock");
+assert(
+  css.includes("chrome-collapsed") && /body\.chrome-collapsed \.dock\s*\{[^}]*display:\s*none/.test(css),
+  "collapsed chrome hides the dock",
+);
+assert(
+  /body\.chrome-collapsed \.topbar \.brand/.test(css) && css.includes(".sheet-actions"),
+  "collapsed chrome keeps Open and Export together and hides the title",
+);
 assert(css.includes(".stage canvas") && css.includes("width: 100%") && css.includes("height: 100%"), "canvas CSS fills the stage");
 assert(css.includes(".split") && css.includes(".map-pane") && css.includes("narrow-split"), "layout is a left-right split with a narrow fallback");
 assert(css.includes(".stitch-pick") && css.includes(".hud-chips"), "stitch readout is a HUD chip under the mesh label");
@@ -2079,5 +2087,51 @@ assertDenseCylinderSample({
   ],
   status: ["前床 F0–F12", "后床 B12–B1", "表宽 48", "前五环落座 25、26、26、29、33", "停在 ring 5 course 17"],
 });
+
+{
+  const exportAt = html.indexOf('id="export-dat"');
+  const openAt = html.indexOf('id="open-menu-btn"');
+  const headerEnd = html.indexOf("</header>");
+  assert(exportAt > 0 && openAt > exportAt && headerEnd > openAt, "Export sits in the top bar beside Open");
+  assert(html.includes(NO_DAT_TITLE) && /id="export-dat"[^>]*disabled/.test(html), "Export starts disabled with the no-dat tooltip");
+  assert(!/id="export-dat"[^>]*\shidden\b/.test(html), "Export stays in the layout when a sheet has no dat");
+  assert(mainSrc.includes("syncExportButton") && mainSrc.includes("downloadSheetDat") && mainSrc.includes("datForSheet"), "main downloads the dat for the current sheet");
+  assert(/\.btn:disabled\s*\{[^}]*opacity:\s*0\.45/.test(css), "a sheet without a dat greys the Export button");
+  const faces = datForSheet("faces-ring0");
+  const dense = datForSheet("dense-standrad-cylinder");
+  assert(faces?.filename === "faces_ring0_v2.dat" && faces.path === "sample/cylinder/faces_ring0_v2.dat", "faces ring 0–1 exports the committed v2 dat");
+  assert(
+    dense?.filename === "dense_standrad_cylinder.dat" && dense.path === "sample/dense-standrad/dense_standrad_cylinder.dat",
+    "Dense Standrad Cylinder exports dense_standrad_cylinder.dat",
+  );
+  assert(datForSheet("faces_ring0") === faces && datForSheet("faces-ring1") === faces && datForSheet("dense-standrad") === dense, "sheet aliases share the same dat");
+  for (const sheet of [
+    "",
+    "standrad-cylinder",
+    "decrease-cylinder",
+    "increase-cylinder",
+    "thin-cylinder",
+    "fat-cylinder",
+    "dense-decrease-cylinder",
+    "dense-increase-cylinder",
+    "dense-thin-cylinder",
+    "dense-fat-cylinder",
+  ]) {
+    assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
+  }
+  const sha256 = (rel) => createHash("sha256").update(readFileSync(join(sampleDir, rel))).digest("hex");
+  assert(
+    sha256("cylinder/faces_ring0_v2.dat") === "c8a902477e63db902931386067fda9355d293a17304fe046af695e1b180b90e4",
+    "faces_ring0_v2.dat bytes stay",
+  );
+  assert(
+    sha256("dense-standrad/dense_standrad_cylinder.dat") === "53b5b4d804454bc2864f156999c95cca3c13958b0001e45d708c36f6e554278d",
+    "dense_standrad_cylinder.dat bytes stay",
+  );
+  assert(
+    sha256("dense-standrad/dense_standrad_cylinder.k") === "21fac25da6fa79ce0ae21e20c8c04303e25fc1d0d3fd4df445b8af7dd8a575d6",
+    "dense_standrad_cylinder.k bytes stay",
+  );
+}
 
 console.log("project checks ok");
