@@ -23,8 +23,10 @@ knit + b6 1
 knit + b5 1
 knit + b4 1
 knit + b3 1
-knit + b2 1
-knit + b1 1
+split + b2 fs2 1
+rack 1
+xfer fs2 b1
+rack 0
 knit + b0 1
 ; row 1 R
 knit + f0 1

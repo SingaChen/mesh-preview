@@ -2105,18 +2105,25 @@ assertDenseCylinderSample({
     "Dense Standrad Cylinder exports dense_standrad_cylinder.dat",
   );
   assert(datForSheet("faces_ring0") === faces && datForSheet("faces-ring1") === faces && datForSheet("dense-standrad") === dense, "sheet aliases share the same dat");
-  for (const sheet of [
-    "",
-    "standrad-cylinder",
-    "decrease-cylinder",
-    "increase-cylinder",
-    "thin-cylinder",
-    "fat-cylinder",
-    "dense-decrease-cylinder",
-    "dense-increase-cylinder",
-    "dense-thin-cylinder",
-    "dense-fat-cylinder",
-  ]) {
+  const standrad = datForSheet("standrad-cylinder");
+  const decrease = datForSheet("decrease-cylinder");
+  const increase = datForSheet("increase-cylinder");
+  const thin = datForSheet("thin-cylinder");
+  const fat = datForSheet("fat-cylinder");
+  assert(standrad?.filename === "standrad_cylinder.dat" && standrad.path === "sample/cylinder/standrad_cylinder.dat", "Standrad Cylinder exports standrad_cylinder.dat");
+  assert(decrease?.filename === "decrease_cylinder.dat" && decrease.path === "sample/decrease/decrease_cylinder.dat", "Decrease Cylinder exports decrease_cylinder.dat");
+  assert(increase?.filename === "increase_cylinder.dat" && increase.path === "sample/increase/increase_cylinder.dat", "Increase Cylinder exports increase_cylinder.dat");
+  assert(thin?.filename === "thin_cylinder.dat" && thin.path === "sample/thin/thin_cylinder.dat", "Thin Cylinder exports thin_cylinder.dat");
+  assert(fat?.filename === "fat_cylinder.dat" && fat.path === "sample/fat/fat_cylinder.dat", "Fat Cylinder exports fat_cylinder.dat");
+  assert(
+    datForSheet("standrad") === standrad &&
+      datForSheet("decrease") === decrease &&
+      datForSheet("increase") === increase &&
+      datForSheet("thin") === thin &&
+      datForSheet("fat") === fat,
+    "complete cylinder aliases share the same dat",
+  );
+  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
   }
   const sha256 = (rel) => createHash("sha256").update(readFileSync(join(sampleDir, rel))).digest("hex");
@@ -2132,6 +2139,18 @@ assertDenseCylinderSample({
     sha256("dense-standrad/dense_standrad_cylinder.k") === "21fac25da6fa79ce0ae21e20c8c04303e25fc1d0d3fd4df445b8af7dd8a575d6",
     "dense_standrad_cylinder.k bytes stay",
   );
+  assert(sha256("cylinder/standrad_cylinder.dat") === "f6c5914f87ba264d7214c9c3c3988280d42498eae4bda46068f9e90c1f02f35c", "standrad_cylinder.dat bytes stay");
+  assert(sha256("cylinder/standrad_cylinder.k") === "b371531d17e884b4cd2e0576242b4055a9163e82a2d58d4af7ac45739498c489", "standrad_cylinder.k bytes stay");
+  assert(sha256("decrease/decrease_cylinder.dat") === "3e166201139705137ac6d72acb7c5ba34769ebf520eea53902b347178b2325b2", "decrease_cylinder.dat bytes stay");
+  assert(sha256("decrease/decrease_cylinder.k") === "54ee98c44c49bb560d3c6711244a1df1d4869a52bc3fffedd7c464efbcafac71", "decrease_cylinder.k bytes stay");
+  assert(sha256("increase/increase_cylinder.dat") === "2f9361b3f6636ca634ffdc14d42734854004ee4127d03d5c5021efb310923723", "increase_cylinder.dat bytes stay");
+  assert(sha256("increase/increase_cylinder.k") === "ebd9121d42514719dba4d66899873941fa70ebd2a38668da6fd9f5541cb2ede9", "increase_cylinder.k bytes stay");
+  assert(sha256("thin/thin_cylinder.dat") === "06dfb76b5fe20786cda385084fa90a42563114f578d8e81787695ac3522ce5a0", "thin_cylinder.dat bytes stay");
+  assert(sha256("thin/thin_cylinder.k") === "9b88134acd72871563b3809bbed8535a7afb1199bf9fd1f34cb0a43e920b03f0", "thin_cylinder.k bytes stay");
+  assert(sha256("fat/fat_cylinder.dat") === "2a36f8cdd7b61f8c7fbf2deedda75b8c97415bd1ba9873a56d6aaf36cd5e9d83", "fat_cylinder.dat bytes stay");
+  assert(sha256("fat/fat_cylinder.k") === "590263f4f65e24aab3911b3339eb16862090052a27f17a981535b3e0902c118b", "fat_cylinder.k bytes stay");
+  assert(readFileSync(join(sampleDir, "increase/increase_cylinder.k"), "utf8").includes("\nsplit "), "increase knitout uses split");
+  assert(!readFileSync(join(sampleDir, "cylinder/standrad_cylinder.k"), "utf8").includes("\nsplit "), "standrad has no increase split");
 }
 
 console.log("project checks ok");

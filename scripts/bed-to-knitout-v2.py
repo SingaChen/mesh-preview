@@ -11,6 +11,12 @@ This version:
   * every same-bed move (partial increase, decrease stack, whole-bed
     balance, front-bed shift) goes hook -> opposite slider -> new hook,
     then rack 0. Stitches the row does not name stay put.
+  * an increase (+R{n} / +L{n}) is a knitout split: after stitch n,
+    the next n cells in travel order are the new loops. Each is a
+    same-bed split onto that needle (hook -> opposite slider with the
+    carrier, rack, slider -> hook, rack 0), not a plain knit and not
+    a skipped needle. Back-bed knits stay '+' with falling needle
+    numbers, one pass per back stitch.
 """
 import re
 import sys
@@ -24,6 +30,7 @@ CELL_RE = re.compile(
 )
 ARROW_RE = re.compile(r"^([FB])([←→])(\d*)$")
 KNIT_RE = re.compile(r"^([FB])(·|\^[RL]|v[RL]|[+-][RL]\d+)$")
+INC_RE = re.compile(r"^\+([RL])(\d+)$")
 COUNT_RE = re.compile(
     r"(?P<n>\d+)针\s*·\s*前(?P<fc>\d+|空)(?:\[(?P<flo>-?\d+)…(?P<fhi>-?\d+)\])?"
     r"\s*·\s*后(?P<bc>\d+|空)(?:\[(?P<blo>-?\d+)…(?P<bhi>-?\d+)\])?"
@@ -111,6 +118,32 @@ class Emitter:
             raise RuntimeError(f"knit {needle} while rack is {self.racking}")
         self.add(f"knit {direction} {needle} 1")
 
+    def split_same_bed(self, direction: str, bed: str, src: int, dst: int):
+        """Knit stitch src, then split that loop onto dst on the same bed.
+
+        knitout split knits the source and moves the previous loop to the
+        target. Same-bed targets go through the opposite slider, matching
+        same_bed_group: front rack = dst-src, back rack = src-dst.
+        One split is opened and returned before the next instruction.
+        """
+        if bed == "b":
+            slider = "fs"
+            rack = src - dst
+        elif bed == "f":
+            slider = "bs"
+            rack = dst - src
+        else:
+            raise ValueError(bed)
+        if rack == 0:
+            raise ValueError(f"split {bed}{src} onto itself")
+        if abs(rack) > 4:
+            raise ValueError(f"rack {rack} from split {bed}{src}->{bed}{dst}")
+        self.set_rack(0)
+        self.add(f"split {direction} {bed}{src} {slider}{src} 1")
+        self.set_rack(rack)
+        self.xfer(f"{slider}{src}", f"{bed}{dst}")
+        self.set_rack(0)
+
     def same_bed_group(self, moves):
         """moves: list of (bed, src, dst), one bed and one delta.
 
@@ -166,6 +199,51 @@ def occupied_summary(loops):
     return front, back
 
 
+def header_needles(row):
+    """Needles the row header already counts, when each bed is a solid span.
+
+    A gapped span (count shorter than lo..hi) is left unknown: the header
+    does not say which needle inside the span is empty.
+    """
+    m = COUNT_RE.search(row["header"])
+    if not m:
+        return None
+    expected = set()
+    for side, key_c, key_lo, key_hi in (
+        ("f", "fc", "flo", "fhi"),
+        ("b", "bc", "blo", "bhi"),
+    ):
+        raw_c = m.group(key_c)
+        if raw_c is None:
+            return None
+        if raw_c == "空":
+            continue
+        want_c = int(raw_c)
+        lo, hi = m.group(key_lo), m.group(key_hi)
+        if lo is None:
+            return None
+        lo, hi = int(lo), int(hi)
+        if hi - lo + 1 != want_c:
+            return None
+        expected.update((side, n) for n in range(lo, hi + 1))
+    return expected
+
+
+def sync_opened_loops(row, loops):
+    """Count increase loops when the chart counts them: at open, not at knit.
+
+    The header after a partial increase already includes the newborn. When
+    that span is solid and it only adds needles, those needles are the new
+    loops. A later tail shift can then move them. Gapped headers and any
+    header that disagrees by more than a pure addition are left to check.
+    """
+    expected = header_needles(row)
+    if expected is None:
+        return
+    if loops <= expected:
+        loops |= expected - loops
+
+
 def check_header(row, loops, warnings):
     m = COUNT_RE.search(row["header"])
     if not m:
@@ -210,6 +288,7 @@ def convert(rows):
     e.add("in 1")
 
     for row in rows:
+        sync_opened_loops(row, loops)
         check_header(row, loops, warnings)
         e.comment(f"row {row['idx']} {row['dir']}")
         d = row["dir"]
@@ -218,13 +297,39 @@ def convert(rows):
             if e.racking != 0:
                 raise RuntimeError(f"row {row['idx']} knit at rack {e.racking}")
             direction = "+" if d == "R" else "-"
-            for cell in row["cells"]:
+            cells = row["cells"]
+            i = 0
+            while i < len(cells):
+                cell = cells[i]
                 if not KNIT_RE.match(cell["left"]):
                     raise ValueError(f"row {row['idx']}: not a knit cell {cell['raw']}")
                 if cell["left"][0].lower() != cell["bed"]:
                     raise ValueError(f"row {row['idx']}: bed mismatch {cell['raw']}")
+                inc = INC_RE.match(cell["left"][1:])
+                if inc:
+                    added = int(inc.group(2))
+                    targets = cells[i + 1 : i + 1 + added]
+                    if len(targets) != added:
+                        raise ValueError(
+                            f"row {row['idx']}: {cell['raw']} needs {added} following loops"
+                        )
+                    for target in targets:
+                        if not KNIT_RE.match(target["left"]):
+                            raise ValueError(
+                                f"row {row['idx']}: increase target {target['raw']} is not a knit cell"
+                            )
+                        if target["bed"] != cell["bed"]:
+                            raise ValueError(
+                                f"row {row['idx']}: {cell['raw']} splits onto {target['raw']}"
+                            )
+                        e.split_same_bed(direction, cell["bed"], cell["needle"], target["needle"])
+                        loops.add((target["bed"], target["needle"]))
+                    loops.add((cell["bed"], cell["needle"]))
+                    i += 1 + added
+                    continue
                 e.knit(direction, f"{cell['bed']}{cell['needle']}")
                 loops.add((cell["bed"], cell["needle"]))
+                i += 1
 
         elif d == "Flip":
             for cell in row["cells"]:

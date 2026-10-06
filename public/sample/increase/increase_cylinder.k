@@ -107,15 +107,23 @@ knit - b4 1
 knit - b5 1
 knit - b6 1
 knit - b7 1
-knit - f7 1
-knit - f6 1
-knit - f5 1
-knit - f4 1
-knit - f3 1
-knit - f2 1
+split - f7 bs7 1
+rack -1
+xfer bs7 f6
+rack 0
+split - f5 bs5 1
+rack -1
+xfer bs5 f4
+rack 0
+split - f3 bs3 1
+rack -1
+xfer bs3 f2
+rack 0
 knit - f1 1
-knit - f0 1
-knit - f-1 1
+split - f0 bs0 1
+rack -1
+xfer bs0 f-1
+rack 0
 knit - f-2 1
 knit - f-3 1
 knit - f-4 1
@@ -344,8 +352,10 @@ rack 0
 knit + f0 1
 knit + f1 1
 knit + f2 1
-knit + f3 1
-knit + f4 1
+split + f3 bs3 1
+rack 1
+xfer bs3 f4
+rack 0
 knit + f5 1
 knit + f6 1
 knit + f7 1
@@ -354,8 +364,10 @@ knit + f9 1
 knit + f10 1
 knit + b9 1
 knit + b8 1
-knit + b7 1
-knit + b6 1
+split + b7 fs7 1
+rack 1
+xfer fs7 b6
+rack 0
 ; row 21 X
 xfer b9 fs9
 xfer b8 fs8
@@ -397,8 +409,10 @@ rack 0
 knit + b8 1
 knit + b7 1
 knit + b6 1
-knit + b5 1
-knit + b4 1
+split + b5 fs5 1
+rack 1
+xfer fs5 b4
+rack 0
 ; row 25 X+
 xfer b10 fs10
 xfer b9 fs9
@@ -415,8 +429,10 @@ xfer fs6 b7
 xfer fs5 b6
 rack 0
 ; row 26 L
-knit - b4 1
-knit - b5 1
+split - b4 fs4 1
+rack -1
+xfer fs4 b5
+rack 0
 knit - b6 1
 ; row 27 Flip
 xfer b11 f11
