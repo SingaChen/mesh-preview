@@ -1,0 +1,18 @@
+{
+  "name": "Fat Cylinder Propagate",
+  "outputs": [
+    {
+      "label": "Fat Cylinder Propagate",
+      "mesh": "fat-propagate/fat_propagate_KnittingStitches.obj",
+      "stitches": "fat-propagate/fat_propagate_KnittingStitches.obj",
+      "readableMap": "fat-propagate/fat_propagate_bed.xls",
+      "field": "fat-propagate/fat_propagate_cols_resample_field.obj",
+      "colsResample": "fat-propagate/fat_propagate_cols_resample_field.obj",
+      "colsResampleXls": "fat-propagate/fat_propagate_cols_resample.xls",
+      "colsResampleType": "fat-propagate/fat_propagate_cols_resample_type.obj",
+      "overlay": "fat-propagate/fat_propagate_cols_resample_type.obj",
+      "firstRows": "fat-propagate/fat_propagate_first_rows.xls",
+      "facesRingLayout": "fat-propagate/fat_propagate_faces_ring_layout.json"
+    }
+  ]
+}

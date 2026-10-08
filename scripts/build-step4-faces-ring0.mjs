@@ -3262,6 +3262,7 @@ const OWN_BED_STEM = {
   "increase_cylinder_faces_ring_layout.json": "increase_cylinder_bed",
   "thin_cylinder_faces_ring_layout.json": "thin_cylinder_bed",
   "fat_cylinder_faces_ring_layout.json": "fat_cylinder_bed",
+  "fat_propagate_faces_ring_layout.json": "fat_propagate_bed",
 };
 
 function writeOwnBed(input, check, options = {}) {

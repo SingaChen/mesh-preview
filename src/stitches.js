@@ -117,6 +117,8 @@ const MANIFEST_PATH_KEYS = [
   "cols_resample",
   "colsResampleXls",
   "cols_resample_xls",
+  "colsResampleType",
+  "cols_resample_type",
   "colsResampleJson",
   "cols_resample_json",
   "stitches",

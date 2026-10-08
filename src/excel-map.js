@@ -50,6 +50,15 @@ export function isFatCylinderBedChart(name) {
   return /^fat_cylinder_bed\.xlsx?$/i.test(base);
 }
 
+/** Propagate-scale Fat Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
+export function isFatPropagateCylinderBedChart(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^fat_propagate_bed\.xlsx?$/i.test(base);
+}
+
 /** Increase Cylinder bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
 export function isIncreaseCylinderBedChart(name) {
   const base = String(name || "")

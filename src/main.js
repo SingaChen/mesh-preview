@@ -44,6 +44,7 @@ import {
   isDenseDecreaseCylinderBedChart,
   isDenseThinCylinderBedChart,
   isDenseFatCylinderBedChart,
+  isFatPropagateCylinderBedChart,
   isFlipDir,
   isTransferDir,
   knitBedsByFace,
@@ -91,6 +92,7 @@ const thinBtn = document.querySelector("#load-thin-cylinder");
 const denseThinBtn = document.querySelector("#load-dense-thin-cylinder");
 const fatBtn = document.querySelector("#load-fat-cylinder");
 const denseFatBtn = document.querySelector("#load-dense-fat-cylinder");
+const fatPropagateBtn = document.querySelector("#load-fat-cylinder-propagate");
 const fitBtn = document.querySelector("#fit-view");
 const slider = document.querySelector("#mesh-slider");
 const meshRow = document.querySelector("#mesh-row");
@@ -364,6 +366,7 @@ function isMapXlsEntry(entry) {
     isDenseDecreaseCylinderBedChart(name) ||
     isDenseThinCylinderBedChart(name) ||
     isDenseFatCylinderBedChart(name) ||
+    isFatPropagateCylinderBedChart(name) ||
     (isXlsName(name) && /readable_map|step3/i.test(name))
   );
 }
@@ -794,6 +797,11 @@ function isDenseFatSheet(sheet) {
   return want === "dense-fat-cylinder" || want === "dense-fat";
 }
 
+function isFatPropagateSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "fat-cylinder-propagate" || want === "fat-propagate";
+}
+
 function isDecreaseSheet(sheet) {
   const want = String(sheet || "").toLowerCase();
   return want === "decrease-cylinder" || want === "decrease";
@@ -1044,6 +1052,18 @@ async function loadDenseFatCylinder() {
   }
 }
 
+async function loadFatPropagateCylinder() {
+  try {
+    await loadNamedCylinder({
+      manifest: "fat-cylinder-propagate.json",
+      missing: "Fat Cylinder Propagate",
+      status: "Fat Cylinder Propagate · cols_resample 31 · 表宽 16 · 前床 F0–F7 · 后床 B7–B0 · 前三环落座 16、16、16 · 停在 ring 3 course 0",
+    });
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
 async function loadSample(sheet = sheetQuery()) {
   setStatus("加载示例 / Loading sample…");
   const base = import.meta.env.BASE_URL;
@@ -1184,6 +1204,11 @@ denseFatBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("dense-fat-cylinder");
   loadDenseFatCylinder();
+});
+fatPropagateBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("fat-cylinder-propagate");
+  loadFatPropagateCylinder();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -1451,7 +1476,8 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 updateChrome();
 syncExportButton();
-if (isDenseFatSheet(sheetQuery())) loadDenseFatCylinder();
+if (isFatPropagateSheet(sheetQuery())) loadFatPropagateCylinder();
+else if (isDenseFatSheet(sheetQuery())) loadDenseFatCylinder();
 else if (isFatSheet(sheetQuery())) loadFatCylinder();
 else if (isDenseThinSheet(sheetQuery())) loadDenseThinCylinder();
 else if (isThinSheet(sheetQuery())) loadThinCylinder();
