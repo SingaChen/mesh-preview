@@ -1,3 +1,5 @@
+import { heatScalarRelPaths, isCutHeatMeshPath } from "./cut-heat.js";
+
 const OVERLAY_RE = /overlay|field|stitch|knittingstitches|readable_map|cols_resample|_type\.obj/i;
 
 export function isOverlayName(name) {
@@ -192,6 +194,24 @@ export function projectFromManifest(data, index, manifestPath = "") {
     if (bindRef && !stitchMapBindFile) {
       warnings.push(`缺少针迹绑定 / Missing stitch_map_bind: ${bindRef}`);
     }
+    const cutHeatRef = raw.cutHeat || raw.cut_heat;
+    const cutHeatFile = cutHeatRef ? lookup(index, cutHeatRef, fromDir) : findCutHeatObj(index, meshFile);
+    if (cutHeatRef && !cutHeatFile) {
+      warnings.push(`缺少切开热力场 / Missing cut heat: ${cutHeatRef}`);
+    }
+    const scalarRef =
+      raw.cutHeatScalar ||
+      raw.cut_heat_scalar ||
+      raw.cutHeatJson ||
+      raw.cut_heat_json ||
+      raw.cutHeatNpy ||
+      raw.cut_heat_npy;
+    const cutHeatScalarFile = scalarRef
+      ? lookup(index, scalarRef, fromDir)
+      : findCutHeatScalar(index, cutHeatFile);
+    if (scalarRef && !cutHeatScalarFile) {
+      warnings.push(`缺少热力标量 / Missing cut heat scalar: ${scalarRef}`);
+    }
     outputs.push({
       label: raw.label || basename(meshFile.path),
       meshFile,
@@ -205,6 +225,8 @@ export function projectFromManifest(data, index, manifestPath = "") {
       firstRowsFile,
       facesRingLayoutFile,
       stitchMapBindFile,
+      cutHeatFile,
+      cutHeatScalarFile,
     });
   }
 
@@ -221,9 +243,11 @@ export function projectFromManifest(data, index, manifestPath = "") {
 }
 
 export function projectFromDiscovery(index) {
-  const meshes = index.objs.filter((f) => !isOverlayName(f.name));
+  const cutHeats = index.objs.filter((f) => isCutHeatMeshPath(f.path));
+  const bodyObjs = index.objs.filter((f) => !isCutHeatMeshPath(f.path));
+  const meshes = bodyObjs.filter((f) => !isOverlayName(f.name));
   const overlays = index.objs.filter((f) => isOverlayName(f.name));
-  const list = meshes.length ? meshes : index.objs;
+  const list = meshes.length ? meshes : bodyObjs.length ? bodyObjs : cutHeats;
 
   if (!list.length) {
     throw new Error("未找到 OBJ / No .obj files in the selection");
@@ -232,6 +256,7 @@ export function projectFromDiscovery(index) {
   const outputs = list.map((meshFile) => {
     const overlayFile =
       matchOverlay(meshFile, overlays) || (overlays.length === 1 ? overlays[0] : null);
+    const cutHeatFile = findCutHeatObj(index, meshFile);
     return {
       label: prettyLabel(meshFile.name),
       meshFile,
@@ -245,6 +270,8 @@ export function projectFromDiscovery(index) {
       firstRowsFile: findFirstRowsXls(index, meshFile),
       facesRingLayoutFile: findFacesRingLayout(index, meshFile),
       stitchMapBindFile: findStitchMapBind(index, meshFile),
+      cutHeatFile,
+      cutHeatScalarFile: findCutHeatScalar(index, cutHeatFile),
     };
   });
 
@@ -290,6 +317,37 @@ function findStitchMapBind(index, meshFile) {
   const files = (index.jsons || []).filter((f) => isStitchMapBindName(f.name));
   if (!files.length) return null;
   return matchOverlay(meshFile, files) || files[0];
+}
+
+function findCutHeatObj(index, meshFile) {
+  const files = index.objs.filter((f) => isCutHeatMeshPath(f.path));
+  if (!files.length || !meshFile) return null;
+  const iter = meshFile.name.match(/iteration[_\-]?(\d+)/i)?.[1];
+  if (iter != null) {
+    const hit = files.find((f) => new RegExp(`iteration[_\\-]?${iter}(?!\\d)`, "i").test(f.path));
+    if (hit) return hit;
+  }
+  const stem = meshFile.name.replace(/\.obj$/i, "").toLowerCase();
+  const byStem = files.find((f) => f.name.toLowerCase().startsWith(stem));
+  if (byStem) return byStem;
+  const dir = parentDir(meshFile.path);
+  const inFolder = files.filter((f) => parentDir(f.path) === `${dir}/cut_heat`);
+  if (/cut/i.test(meshFile.name) && inFolder.length === 1) return inFolder[0];
+  return null;
+}
+
+function findCutHeatScalar(index, cutHeatFile) {
+  if (!cutHeatFile) return null;
+  for (const rel of heatScalarRelPaths(cutHeatFile.path)) {
+    const hit = index.byPath.get(rel.toLowerCase());
+    if (hit) return hit;
+  }
+  const base = basename(cutHeatFile.path).replace(/\.obj$/i, "");
+  return (
+    index.byName.get(`${base}_phi.json`.toLowerCase()) ||
+    index.byName.get(`${base}_phi.npy`.toLowerCase()) ||
+    null
+  );
 }
 
 function findStitchFile(index, meshFile) {

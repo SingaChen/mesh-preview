@@ -162,6 +162,11 @@
               <label class="base-check"><input type="checkbox" id="base-wire" value="wire" /> 线框 <span class="en">Wire</span></label>
               <label class="base-check"><input type="checkbox" id="base-faces" value="faces" /> 面 <span class="en">Faces</span></label>
               <label class="base-check"><input type="checkbox" id="base-points" value="points" /> 点 <span class="en">Points</span></label>
+              <div class="base-menu-sep" role="separator"></div>
+              <label class="base-check" id="base-cut-heat-row" title="无切开热力场 / No cut heat">
+                <input type="checkbox" id="base-cut-heat" value="cut-heat" disabled />
+                切开热力场 <span class="en">Cut heat</span>
+              </label>
             </div>
           </div>
           <button class="btn toggle" id="toggle-warp" type="button" aria-pressed="true">列 <span class="en">Warp</span></button>
@@ -183,7 +188,7 @@
       id="files-input"
       class="hidden-input"
       type="file"
-      accept=".obj,.json,.txt,.xls,.xlsx,model/obj,application/json,text/plain,application/vnd.ms-excel"
+      accept=".obj,.json,.txt,.xls,.xlsx,.npy,model/obj,application/json,text/plain,application/vnd.ms-excel,application/octet-stream"
       multiple
     />
     <script type="module" src="/src/main.js"></script>
