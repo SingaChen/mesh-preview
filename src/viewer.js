@@ -20,6 +20,8 @@ export class MeshViewer {
     this._knitBeds = null;
     this.showWarp = true;
     this.showBody = true;
+    this.showCutHeat = false;
+    this.cutHeatGeom = null;
     this.bodyGeom = null;
     this.bodyName = "cut_iteration_0";
 
@@ -317,7 +319,7 @@ export class MeshViewer {
       return true;
     });
     const solo = highlightCol != null;
-    const stitchOn = this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
+    const stitchOn = this._stitchesShown();
 
     const positions = [];
     const colors = [];
@@ -405,7 +407,7 @@ export class MeshViewer {
     this._clearSelectedOverlay();
     const s = this._selectedStitch;
     if (!s?.verts?.length) return;
-    const stitchOn = this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
+    const stitchOn = this._stitchesShown();
     const group = new THREE.Group();
     group.userData.modelName = "KnittingStitchesPick";
     group.visible = stitchOn;
@@ -534,14 +536,16 @@ export class MeshViewer {
   _applyWarpVisibility() {
     if (!this.colsGroup) return;
     const modelOn = this._modelVisibility.get("cols_resample");
-    this.colsGroup.visible = this.showWarp && modelOn !== false;
+    this.colsGroup.visible = this.showWarp && modelOn !== false && !this.showCutHeat;
   }
 
   _disposeBaseObject() {
     if (!this.mesh) return;
     this.root.remove(this.mesh);
     this.mesh.traverse((child) => {
-      if (child.material && child.geometry !== this.bodyGeom) child.geometry?.dispose();
+      if (child.material && child.geometry !== this.bodyGeom && child.geometry !== this.cutHeatGeom) {
+        child.geometry?.dispose();
+      }
       const mat = child.material;
       if (!mat) return;
       if (mat.map === this._pointSprite) {
@@ -553,8 +557,47 @@ export class MeshViewer {
     this.mesh = null;
   }
 
+  setCutHeat(data) {
+    this._disposeBaseObject();
+    this.cutHeatGeom?.dispose();
+    this.cutHeatGeom = null;
+    if (data?.positions?.length && data?.colors?.length && data.positions.length === data.colors.length) {
+      const geom = new THREE.BufferGeometry();
+      const positions = data.positions instanceof Float32Array ? data.positions : new Float32Array(data.positions);
+      const colors = data.colors instanceof Float32Array ? data.colors : new Float32Array(data.colors);
+      // Keep every OBJ vertex, including coincident seam duplicates. Do not weld.
+      geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geom.setAttribute("color", new THREE.BufferAttribute(linearizeSrgb(colors), 3));
+      geom.computeBoundingSphere();
+      this.cutHeatGeom = geom;
+    } else {
+      this.showCutHeat = false;
+    }
+    this._rebuildBase();
+  }
+
+  setShowCutHeat(on) {
+    this.showCutHeat = Boolean(on) && Boolean(this.cutHeatGeom);
+    this._rebuildBase();
+    this.setShowOverlay(this.showOverlay);
+    this._applyWarpVisibility();
+  }
+
+  _stitchesShown() {
+    return !this.showCutHeat && this.showOverlay && this._modelVisibility.get("KnittingStitches") !== false;
+  }
+
   _rebuildBase() {
     this._disposeBaseObject();
+    if (this.showCutHeat && this.cutHeatGeom) {
+      const group = new THREE.Group();
+      group.add(new THREE.Mesh(this.cutHeatGeom, this._cutHeatMaterial()));
+      group.userData.modelName = "cut_heat";
+      this.mesh = group;
+      this.root.add(group);
+      this.mesh.visible = true;
+      return;
+    }
     const geom = this.bodyGeom;
     const layers = this.baseLayers;
     if (!geom || isBaseHidden(layers)) return;
@@ -577,8 +620,8 @@ export class MeshViewer {
 
   setShowOverlay(on) {
     this.showOverlay = on;
-    const stitchOn = on && this._modelVisibility.get("KnittingStitches") !== false;
-    if (this.overlay) this.overlay.visible = on;
+    const stitchOn = this._stitchesShown();
+    if (this.overlay) this.overlay.visible = Boolean(on) && !this.showCutHeat;
     if (this.stitchMesh) {
       this.stitchMesh.visible = stitchOn;
       this.stitchMesh.material.opacity = stitchOn ? 0.96 : 0;
@@ -666,6 +709,13 @@ export class MeshViewer {
     });
   }
 
+  _cutHeatMaterial() {
+    return new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+    });
+  }
+
   _bodyMaterial() {
     return new THREE.MeshStandardMaterial({
       color: YARN,
@@ -699,9 +749,14 @@ export class MeshViewer {
     this._selectedStitch = null;
     for (const child of [...this.root.children]) {
       this.root.remove(child);
-      if (child.geometry && child.geometry !== this.bodyGeom) child.geometry.dispose();
+      if (child.geometry && child.geometry !== this.bodyGeom && child.geometry !== this.cutHeatGeom) {
+        child.geometry.dispose();
+      }
       child.material?.dispose();
     }
+    this.cutHeatGeom?.dispose();
+    this.cutHeatGeom = null;
+    this.showCutHeat = false;
     this.bodyGeom = null;
     this.mesh = null;
     this.overlay = null;
@@ -726,6 +781,15 @@ export class MeshViewer {
     this.controls.dispose();
     this.renderer.dispose();
   }
+}
+
+function linearizeSrgb(colors) {
+  const out = new Float32Array(colors.length);
+  for (let i = 0; i < colors.length; i++) {
+    const c = colors[i];
+    out[i] = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }
+  return out;
 }
 
 function paintStitchColor(color, bed, stitch, dim, columns, highlightCol) {

@@ -61,6 +61,7 @@ import {
   stitchesVisibleForSliders,
 } from "./range.js";
 import { applyBaseChoice, defaultBaseLayers, isBaseHidden } from "./display.js";
+import { buildCutHeatMesh, parseNpy, parsePhiJson } from "./cut-heat.js";
 import {
   buildReadableMapGrid,
   highlightKeysForStitch,
@@ -124,8 +125,10 @@ const baseChecks = {
   wire: document.querySelector("#base-wire"),
   faces: document.querySelector("#base-faces"),
   points: document.querySelector("#base-points"),
+  cutHeat: document.querySelector("#base-cut-heat"),
 };
 let baseLayers = defaultBaseLayers();
+let showCutHeat = false;
 const hideChromeBtn = document.querySelector("#hide-chrome");
 const showChromeBtn = document.querySelector("#show-chrome");
 const mapPane = document.querySelector("#map-pane");
@@ -319,6 +322,50 @@ function updateChrome() {
     modelsLabel.textContent = formatDisplayModelsLabel(a, b, scene.models);
   } else {
     modelsLabel.textContent = "display_models: -";
+  }
+}
+
+async function sampleEntry(rel, res) {
+  const name = rel.split("/").pop();
+  const path = `sample/${rel}`;
+  if (/\.(xlsx?|npy)$/i.test(rel)) return { name, path, buffer: await res.arrayBuffer() };
+  return { name, path, text: await res.text() };
+}
+
+async function loadCutHeatMesh(output) {
+  if (!output?.cutHeatFile) return null;
+  try {
+    const text = await readEntryText(output.cutHeatFile);
+    let scalar = null;
+    const scalarFile = output.cutHeatScalarFile;
+    if (scalarFile) {
+      try {
+        const name = scalarFile.name || scalarFile.path || "";
+        if (/\.npy$/i.test(name)) {
+          const phi = parseNpy(await readEntryBuffer(scalarFile));
+          scalar = phi ? { phi } : null;
+        } else {
+          scalar = parsePhiJson(await readEntryText(scalarFile));
+        }
+      } catch {
+        scalar = null;
+      }
+    }
+    const mesh = buildCutHeatMesh(text, scalar);
+    return mesh.ok ? mesh : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCutHeatAvailable(available) {
+  if (baseChecks.cutHeat) baseChecks.cutHeat.dataset.ready = available ? "1" : "0";
+  if (!available) showCutHeat = false;
+  const row = document.querySelector("#base-cut-heat-row");
+  if (row) {
+    row.title = available
+      ? "切开后的网格，按热力场着色 / Cut mesh colored by heat"
+      : "无切开热力场 / No cut heat";
   }
 }
 
@@ -640,6 +687,7 @@ async function showOutput(index, { fit = false } = {}) {
   scene = null;
   paintStitchPick(null);
   setStatus("加载中 / Loading…");
+  viewer.setShowCutHeat(false);
   try {
     const meshGeom = await loadGeometry(output.meshFile);
     const stitches = await loadStitches(output);
@@ -699,6 +747,12 @@ async function showOutput(index, { fit = false } = {}) {
       viewer.setGeometries(meshGeom, overlayGeom);
     }
 
+    const cutHeat = await loadCutHeatMesh(output);
+    viewer.setCutHeat(cutHeat);
+    setCutHeatAvailable(Boolean(cutHeat));
+    viewer.setShowCutHeat(showCutHeat);
+    paintBaseChecks();
+
     if (cols) colsRange.configure(cols.columns.length, [0, cols.columns.length]);
     else colsRange.configure(0, [0, 0]);
     if (stitches?.rowChunks?.length) {
@@ -727,6 +781,10 @@ async function showOutput(index, { fit = false } = {}) {
   } catch (err) {
     statsEl.textContent = "";
     scene = null;
+    showCutHeat = false;
+    viewer.setCutHeat(null);
+    setCutHeatAvailable(false);
+    paintBaseChecks();
     paintReadableMap();
     updateChrome();
     setStatus(err.message || String(err), true);
@@ -839,12 +897,7 @@ async function loadStandradCylinder() {
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
         if (!res.ok) throw new Error(`缺少 Standrad Cylinder / Missing ${rel}`);
-        const name = rel.split("/").pop();
-        if (/\.xlsx?$/i.test(rel)) {
-          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
-        } else {
-          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
-        }
+        entries.push(await sampleEntry(rel, res));
       }),
     );
     await openEntries(entries);
@@ -871,12 +924,7 @@ async function loadDenseStandradCylinder() {
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
         if (!res.ok) throw new Error(`缺少 Dense Standrad Cylinder / Missing ${rel}`);
-        const name = rel.split("/").pop();
-        if (/\.xlsx?$/i.test(rel)) {
-          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
-        } else {
-          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
-        }
+        entries.push(await sampleEntry(rel, res));
       }),
     );
     await openEntries(entries);
@@ -903,12 +951,7 @@ async function loadDecreaseCylinder() {
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
         if (!res.ok) throw new Error(`缺少 Decrease Cylinder / Missing ${rel}`);
-        const name = rel.split("/").pop();
-        if (/\.xlsx?$/i.test(rel)) {
-          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
-        } else {
-          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
-        }
+        entries.push(await sampleEntry(rel, res));
       }),
     );
     await openEntries(entries);
@@ -935,12 +978,7 @@ async function loadIncreaseCylinder() {
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
         if (!res.ok) throw new Error(`缺少 Increase Cylinder / Missing ${rel}`);
-        const name = rel.split("/").pop();
-        if (/\.xlsx?$/i.test(rel)) {
-          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
-        } else {
-          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
-        }
+        entries.push(await sampleEntry(rel, res));
       }),
     );
     await openEntries(entries);
@@ -966,12 +1004,7 @@ async function loadNamedCylinder({ manifest, missing, status, banner }) {
     paths.map(async (rel) => {
       const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
       if (!res.ok) throw new Error(`缺少 ${missing} / Missing ${rel}`);
-      const name = rel.split("/").pop();
-      if (/\.xlsx?$/i.test(rel)) {
-        entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
-      } else {
-        entries.push({ name, path: `sample/${rel}`, text: await res.text() });
-      }
+      entries.push(await sampleEntry(rel, res));
     }),
   );
   await openEntries(entries);
@@ -1079,12 +1112,7 @@ async function loadSample(sheet = sheetQuery()) {
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
         if (!res.ok) throw new Error(`缺少示例 / Missing sample ${rel}`);
-        const name = rel.split("/").pop();
-        if (/\.xlsx?$/i.test(rel)) {
-          entries.push({ name, path: `sample/${rel}`, buffer: await res.arrayBuffer() });
-        } else {
-          entries.push({ name, path: `sample/${rel}`, text: await res.text() });
-        }
+        entries.push(await sampleEntry(rel, res));
       }),
     );
     await openEntries(entries, { sheet });
@@ -1407,8 +1435,14 @@ function paintBaseChecks() {
   if (baseChecks.wire) baseChecks.wire.checked = Boolean(baseLayers.wire);
   if (baseChecks.faces) baseChecks.faces.checked = Boolean(baseLayers.faces);
   if (baseChecks.points) baseChecks.points.checked = Boolean(baseLayers.points);
+  const heatReady = baseChecks.cutHeat?.dataset.ready === "1";
+  if (baseChecks.cutHeat) {
+    baseChecks.cutHeat.disabled = !heatReady;
+    baseChecks.cutHeat.checked = heatReady && showCutHeat;
+  }
   if (baseMenuBtn) {
-    baseMenuBtn.setAttribute("aria-pressed", isBaseHidden(baseLayers) ? "false" : "true");
+    const heatOn = heatReady && showCutHeat;
+    baseMenuBtn.setAttribute("aria-pressed", !isBaseHidden(baseLayers) || heatOn ? "true" : "false");
   }
 }
 
@@ -1428,8 +1462,24 @@ document.addEventListener("pointerdown", (ev) => {
 });
 
 for (const [layer, el] of Object.entries(baseChecks)) {
+  if (layer === "cutHeat") continue;
   el?.addEventListener("change", () => onBaseCheck(layer, el.checked));
 }
+
+baseChecks.cutHeat?.addEventListener("change", () => {
+  if (baseChecks.cutHeat.disabled) {
+    baseChecks.cutHeat.checked = false;
+    showCutHeat = false;
+    return;
+  }
+  showCutHeat = baseChecks.cutHeat.checked;
+  paintBaseChecks();
+  viewer.setShowCutHeat(showCutHeat);
+  if (showCutHeat) {
+    viewer.resize();
+    viewer.fitToView();
+  }
+});
 
 paintBaseChecks();
 

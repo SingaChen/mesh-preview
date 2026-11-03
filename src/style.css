@@ -644,7 +644,8 @@ input[type="range"]:disabled {
   left: 0;
   right: auto;
   bottom: calc(100% + 4px);
-  min-width: 168px;
+  min-width: max-content;
+  max-width: min(280px, 92vw);
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -677,6 +678,12 @@ input[type="range"]:disabled {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.base-check:has(input:disabled) {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .base-check:hover,

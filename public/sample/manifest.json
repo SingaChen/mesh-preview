@@ -13,7 +13,9 @@
       "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
       "firstRows": "cylinder/iteration_0_cut_first_rows.xls",
       "facesRingLayout": "cylinder/faces_ring_layout.json",
-      "stitchMapBind": "cylinder/stitch_map_bind.json"
+      "stitchMapBind": "cylinder/stitch_map_bind.json",
+      "cutHeat": "cylinder/cut_heat/single_cylinder_cut.obj",
+      "cutHeatScalar": "cylinder/cut_heat/single_cylinder_cut_phi.json"
     },
     {
       "label": "iter 0 · cylinder stitches",
@@ -27,7 +29,9 @@
       "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
       "firstRows": "cylinder/iteration_0_cut_first_rows.xls",
       "facesRingLayout": "cylinder/faces_ring_layout.json",
-      "stitchMapBind": "cylinder/stitch_map_bind.json"
+      "stitchMapBind": "cylinder/stitch_map_bind.json",
+      "cutHeat": "cylinder/cut_heat/single_cylinder_cut.obj",
+      "cutHeatScalar": "cylinder/cut_heat/single_cylinder_cut_phi.json"
     }
   ]
 }
