@@ -80,17 +80,6 @@ import {
 } from "../src/excel-map.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
-import {
-  buildCutHeatMesh,
-  colorsFromPhi,
-  encodeNpyFloat64,
-  heatScalarRelPaths,
-  isCutHeatMeshPath,
-  parseCutHeatObj,
-  parsePhiJson,
-  parseNpy,
-  turbo,
-} from "../src/cut-heat.js";
 import { NO_DAT_TITLE, datForSheet } from "../src/sheet-dat.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -407,11 +396,6 @@ if (fromDiscovery.outputs.length !== 1) {
   throw new Error(`discovery should keep cut body only, got ${fromDiscovery.outputs.length}`);
 }
 if (!fromDiscovery.outputs[0].overlayFile) throw new Error("discovery should attach stitches");
-assert(
-  /single_cylinder_cut\.obj$/i.test(fromDiscovery.outputs[0].cutHeatFile?.name || "") &&
-    /single_cylinder_cut_phi\.json$/i.test(fromDiscovery.outputs[0].cutHeatScalarFile?.name || ""),
-  "discovery keeps the cut heat mesh beside the cut body and does not make it another output",
-);
 if (!fromDiscovery.outputs[0].colsResampleFile) throw new Error("discovery should attach cols_resample field");
 if (!fromDiscovery.outputs[0].colsResampleXlsFile) throw new Error("discovery should attach cols_resample xls");
 if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery should not require a cols_resample sidecar");
@@ -429,7 +413,6 @@ assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readable
     .filter((e) => /\.(xls|xlsx|obj|json|txt)$/i.test(e.name));
   const onDisk = projectFromDiscovery(indexFiles(diskEntries));
   assert(onDisk.outputs.length === 1, "folder discovery still opens the cut body only");
-  assert(!onDisk.outputs[0].cutHeatFile, "top-level cylinder discovery does not invent a cut heat mesh");
   assert(
     /iteration_0_cut_KnittingStitches\.obj$/i.test(onDisk.outputs[0].stitchFile?.name || ""),
     "folder discovery keeps the iteration 0 stitchmesh",
@@ -1122,9 +1105,7 @@ assert(/id="base-off"[^>]*checked/.test(html), "Base defaults to Off checked");
 assert(!/id="base-faces"[^>]*checked/.test(html) && !/id="base-wire"[^>]*checked/.test(html) && !/id="base-points"[^>]*checked/.test(html), "Wire / Faces / Points start unchecked");
 assert(/id="base-menu-btn"[^>]*aria-pressed="false"/.test(html), "Base button starts unpressed when Off");
 assert(html.includes("底模") && html.includes("Base"), "Base control is labelled 底模 / Base");
-assert(html.includes('id="base-cut-heat"') && html.includes("切开热力场") && html.includes("Cut heat"), "Base menu offers 切开热力场 / Cut heat");
-assert(/id="base-cut-heat"[^>]*disabled/.test(html), "Cut heat starts disabled when no sample is loaded");
-assert(!/id="base-cut-heat"[^>]*checked/.test(html), "Cut heat starts unchecked");
+assert(!html.includes('id="base-cut-heat"') && !html.includes("base-cut-heat-row") && !html.includes("切开热力场"), "Base menu has no cut heat row");
 assert(html.includes('id="toggle-warp"') && html.includes("列") && html.includes("Warp"), "Warp toggle shows cols_resample");
 assert(/id="toggle-warp"[^>]*aria-pressed="true"/.test(html), "Warp defaults on");
 assert(html.includes('id="toggle-overlay"') && html.includes("针迹") && html.includes("Stitch"), "Stitch toggle stays");
@@ -1136,11 +1117,13 @@ assert(mainSrc.includes("viewer.pickStitch"), "click still raycasts stitch faces
 assert(!/facesRange\.configure\(\s*nRings\s*,\s*\[\s*ring/.test(mainSrc), "click does not collapse faces_ring to the hit ring");
 assert(!/termsRange\.configure\(\s*nTerms\s*,\s*\[\s*term/.test(mainSrc), "click does not collapse term to the hit face");
 assert(mainSrc.includes("setBaseLayers") && mainSrc.includes("applyBaseChoice"), "main wires Base multi-select");
+assert(!mainSrc.includes("loadCutHeatMesh") && !mainSrc.includes("setShowCutHeat") && !mainSrc.includes("cut-heat.js"), "main does not load a cut heat overlay");
 assert(mainSrc.includes("setShowWarp") && mainSrc.includes("#toggle-warp"), "main wires the Warp toggle");
 assert(!mainSrc.includes("setWireframe") && !mainSrc.includes("toggle-wire"), "main no longer has a standalone Wire toggle");
 assert(!mainSrc.includes("setFlat") && !mainSrc.includes("toggle-shade"), "main no longer wires Flat");
 const viewerSrc = readFileSync(join(root, "src", "viewer.js"), "utf8");
 assert(viewerSrc.includes("setBaseLayers") && viewerSrc.includes("setShowWarp"), "viewer has Base layers and Warp visibility");
+assert(!viewerSrc.includes("setCutHeat") && !viewerSrc.includes("showCutHeat") && !viewerSrc.includes("_cutHeatMaterial"), "viewer does not swap in a heat-colored cut");
 assert(viewerSrc.includes("defaultBaseLayers"), "cut body starts from default Base layers");
 assert(viewerSrc.includes("opacity: 0.42"), "Faces mode stays the semi-transparent underlay");
 assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("_pointsMaterial"), "Wire and Points are composable overlays");
@@ -1206,7 +1189,6 @@ assert(
   ];
   const proj = projectFromManifest(data, indexFiles(entries), "sample/manifest.json");
   assert(proj.warnings.length === 0 && proj.outputs.length === 1, "Standrad Cylinder resolves without borrowing other samples");
-  assert(!proj.outputs[0].cutHeatFile, "Standrad Cylinder does not borrow the cylinder cut heat mesh");
   const out = proj.outputs[0];
   assert(out.label === "Standrad Cylinder", "output label is Standrad Cylinder");
   assert(
@@ -2227,122 +2209,13 @@ assertDenseCylinderSample({
   assert(!readFileSync(join(sampleDir, "cylinder/standrad_cylinder.k"), "utf8").includes("\nsplit "), "standrad has no increase split");
 }
 
-assert(fromManifest.warnings.length === 0, `cylinder sample resolves cut heat without warnings: ${fromManifest.warnings.join("; ")}`);
+assert(fromManifest.warnings.length === 0, `cylinder sample resolves without warnings: ${fromManifest.warnings.join("; ")}`);
 assert(
-  fromManifest.outputs.every(
-    (out) =>
-      /single_cylinder_cut\.obj$/i.test(out.cutHeatFile?.path || "") &&
-      /single_cylinder_cut_phi\.json$/i.test(out.cutHeatScalarFile?.path || ""),
-  ),
-  "both cylinder outputs point at the SingaLab cut heat sample",
+  fromManifest.outputs.every((out) => /cut_iteration_0\.obj$/i.test(out.meshFile?.path || "")),
+  "cylinder outputs still use the cut body mesh",
 );
-{
-  const objText = readFileSync(join(cylDir, "cut_heat/single_cylinder_cut.obj"), "utf8");
-  const scalarFile = readFileSync(join(cylDir, "cut_heat/single_cylinder_cut_phi.json"), "utf8");
-  const scalar = parsePhiJson(scalarFile);
-  const parsed = parseCutHeatObj(objText);
-  assert(parsed.vertexCount === 5228 && parsed.faces.length === 10137 && parsed.colors, "sample cut is 5228 verts / 10137 faces with baked rgb");
-  assert(
-    scalar &&
-      scalar.phi.length === 5228 &&
-      scalar.nVertices === 5228 &&
-      scalar.phiMin === 0 &&
-      Math.abs(scalar.phiMax - 91.24680066916642) < 1e-12,
-    "phi json keeps OBJ vertex order and phi_min / phi_max",
-  );
-  const positions = new Map();
-  for (let i = 0; i < parsed.vertexCount; i++) {
-    const key = `${parsed.positions[i * 3]}|${parsed.positions[i * 3 + 1]}|${parsed.positions[i * 3 + 2]}`;
-    positions.set(key, (positions.get(key) || 0) + 1);
-  }
-  let pairs = 0;
-  for (const count of positions.values()) {
-    if (count === 2) pairs += 1;
-    else assert(count === 1, "seam duplicates are pairs, not larger welded clusters");
-  }
-  assert(pairs === 48 && positions.size === 5180, "the cut seam keeps 48 coincident pairs; vertices are not welded");
-  const mesh = buildCutHeatMesh(objText, scalar);
-  assert(
-    mesh.ok && mesh.source === "obj" && mesh.vertexCount === 5228 && mesh.triangleCount === 10137,
-    "baked OBJ colors win even when φ is present",
-  );
-  assert(mesh.positions.length === 10137 * 9, "triangulation keeps every corner, including seam duplicates");
-  const painted = colorsFromPhi(scalar.phi, scalar.phiMin, scalar.phiMax).colors;
-  let maxDelta = 0;
-  for (let i = 0; i < painted.length; i++) maxDelta = Math.max(maxDelta, Math.abs(parsed.colors[i] - painted[i]));
-  assert(maxDelta < 1e-4, `baked OBJ colors match turbo(phi) within 1e-4, got ${maxDelta}`);
-  const objOnly = buildCutHeatMesh(objText, null);
-  assert(objOnly.ok && objOnly.source === "obj" && objOnly.colors[0] === mesh.colors[0], "OBJ vertex colors color the cut when the sidecar is absent");
-  const mismatch = buildCutHeatMesh(objText, new Float64Array(3));
-  assert(mismatch.ok && mismatch.source === "obj", "a short sidecar falls back to OBJ colors");
-  const bare = objText.replace(/^(v\s+\S+\s+\S+\s+\S+).*$/gm, "$1");
-  assert(!parseCutHeatObj(bare).colors, "stripping rgb leaves no baked colors");
-  assert(!buildCutHeatMesh(bare, new Float64Array(3)).ok, "no scalar and no colors stays quiet");
-  const fromPhi = buildCutHeatMesh(bare, scalar);
-  assert(fromPhi.ok && fromPhi.source === "phi", "φ colors an OBJ only when vertex colors are missing");
-  assert(
-    Math.abs(fromPhi.colors[0] - painted[0]) < 1e-6 && Math.abs(fromPhi.colors[1] - painted[1]) < 1e-6,
-    "φ fallback uses phi_min / phi_max turbo",
-  );
-  const flat = colorsFromPhi(new Float64Array([1, 9]), 4, 4);
-  const cool = turbo(0);
-  assert(flat.colors[0] === cool[0] && flat.colors[1] === cool[1] && flat.colors[3] === cool[0], "an empty phi span maps every vertex to t = 0");
-  const npy = parseNpy(readFileSync(join(cylDir, "cut_heat/single_cylinder_cut_phi.npy")));
-  const phiSha = "8f1a84624e3c17af7f8ae12940973f1956632d778931576b82c872e8829724d0";
-  assert(npy && npy.length === 5228, "sample .npy is one float64 per OBJ vertex");
-  assert(createHash("sha256").update(Buffer.from(npy.buffer, npy.byteOffset, npy.byteLength)).digest("hex") === phiSha, "npy payload matches phi_sha256");
-  const fromJson = Float64Array.from(scalar.phi);
-  assert(createHash("sha256").update(Buffer.from(fromJson.buffer)).digest("hex") === phiSha, "json phi numbers round-trip to the npy bytes");
-  const round = parseNpy(encodeNpyFloat64([0.25, -2, 4.5]));
-  assert(round && round.length === 3 && round[0] === 0.25 && round[1] === -2 && round[2] === 4.5, "npy float64 roundtrip");
-  const wrapped = parsePhiJson(JSON.stringify({ values: [1, 2, 3] }));
-  assert(wrapped && wrapped.phi[2] === 3 && wrapped.phiMin === null && wrapped.phiMax === null, "phi json accepts {values:[]} without a range");
-  assert(parsePhiJson("{") === null && parsePhiJson('{"note":"x"}') === null, "bad phi json does not throw");
-  const vc = buildCutHeatMesh("v 0 0 0\nv 1 0 0\nv 0 1 0\nvc 255 0 0\nvc 0 255 0\nvc 0 0 128\nf 1 2 3\n", null);
-  assert(vc.ok && vc.source === "obj" && vc.colors[0] === 1 && vc.colors[4] === 1 && Math.abs(vc.colors[8] - 128 / 255) < 1e-6, "vc lines color vertices in v order");
-  const meta = JSON.parse(scalarFile);
-  const t0 = turbo(0);
-  const t1 = turbo(1);
-  assert(
-    t0.every((c, i) => Math.abs(c - meta.colormap.t0_rgb[i]) < 1e-6) &&
-      t1.every((c, i) => Math.abs(c - meta.colormap.t1_rgb[i]) < 1e-6),
-    "turbo endpoints match the frozen matplotlib LUT",
-  );
-  const mid = turbo(0.5);
-  assert(mid[1] > mid[0] && mid[1] > mid[2] && t0[2] > t1[2], "turbo runs from a cool lip to a warm lip");
-  assert(!isCutHeatMeshPath("cylinder/cut_iteration_0.obj"), "the closed cut body is not the heat mesh");
-  assert(!isCutHeatMeshPath("cylinder/iteration_0_cut_KnittingStitches.obj"), "stitchmesh is not the heat mesh");
-  assert(isCutHeatMeshPath("iteration_0_cut.obj"), "iteration_{k}_cut.obj is the heat mesh");
-  assert(isCutHeatMeshPath("cylinder/cut_heat/single_cylinder_cut.obj"), "single_cylinder_cut.obj is the heat mesh");
-  assert(
-    heatScalarRelPaths("cylinder/cut_heat/single_cylinder_cut.obj").join(",") ===
-      "cylinder/cut_heat/single_cylinder_cut_phi.json,cylinder/cut_heat/single_cylinder_cut_phi.npy",
-    "phi sidecars sit beside the OBJ stem",
-  );
-  const heatIdx = indexFiles([
-    { name: "cut_iteration_0.obj", path: "sample/cylinder/cut_iteration_0.obj" },
-    { name: "single_cylinder_cut.obj", path: "sample/cylinder/cut_heat/single_cylinder_cut.obj" },
-    { name: "single_cylinder_cut_phi.npy", path: "sample/cylinder/cut_heat/single_cylinder_cut_phi.npy" },
-  ]);
-  const heatProj = projectFromDiscovery(heatIdx);
-  assert(heatProj.outputs.length === 1 && /single_cylinder_cut\.obj$/i.test(heatProj.outputs[0].cutHeatFile?.name || ""), "a cut body picks up the only cut_heat mesh");
-  assert(/single_cylinder_cut_phi\.npy$/i.test(heatProj.outputs[0].cutHeatScalarFile?.name || ""), "npy sidecar is found when json is absent");
-  const otherIdx = indexFiles([
-    { name: "standrad_cylinder_KnittingStitches.obj", path: "sample/cylinder/standrad_cylinder_KnittingStitches.obj" },
-    { name: "single_cylinder_cut.obj", path: "sample/cylinder/cut_heat/single_cylinder_cut.obj" },
-  ]);
-  assert(!projectFromDiscovery(otherIdx).outputs[0].cutHeatFile, "a non-cut sheet does not take the cut heat mesh");
-  const missing = projectFromManifest(
-    { name: "x", outputs: [{ mesh: "cylinder/cut_iteration_0.obj", cutHeat: "cylinder/cut_heat/missing.obj" }] },
-    index,
-    "sample/manifest.json",
-  );
-  assert(!missing.outputs[0].cutHeatFile && missing.warnings.some((w) => /cut heat/i.test(w)), "a missing cut heat file warns and leaves the option empty");
-}
-assert(mainSrc.includes("loadCutHeatMesh") && mainSrc.includes("setShowCutHeat") && mainSrc.includes("#base-cut-heat"), "main wires Cut heat from the Base menu");
-assert(viewerSrc.includes("setCutHeat") && viewerSrc.includes("_cutHeatMaterial") && viewerSrc.includes("showCutHeat"), "viewer swaps the left mesh to the heat-colored cut");
-assert(/_cutHeatMaterial\(\)[\s\S]*vertexColors:\s*true/.test(viewerSrc), "Cut heat draws the scalar with vertex colors");
-assert(!viewerSrc.includes("mergeVertices") && !readFileSync(join(root, "src", "cut-heat.js"), "utf8").includes("mergeVertices"), "Cut heat does not weld vertices by position");
-assert(css.includes(".base-check:has(input:disabled)") && /grid-template-columns:\s*1fr 1fr 1fr/.test(css), "a missing cut heat sample greys the row without a fourth dock button");
+assert(!existsSync(join(cylDir, "cut_heat")), "cut heat sample folder is gone");
+assert(!refs.some((rel) => /cutHeat|cut_heat/i.test(rel)), "manifest does not reference a cut heat overlay");
+assert(!css.includes(".base-check:has(input:disabled)"), "the greyed cut heat row style is gone");
 
 console.log("project checks ok");

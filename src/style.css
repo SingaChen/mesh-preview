@@ -681,11 +681,6 @@ input[type="range"]:disabled {
   white-space: nowrap;
 }
 
-.base-check:has(input:disabled) {
-  opacity: 0.45;
-  cursor: default;
-}
-
 .base-check:hover,
 .base-check:focus-within {
   background: var(--panel-2);
