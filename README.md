@@ -76,7 +76,7 @@ npm run preview
 - 双指捏合：缩放；双指拖：平移 pan
 - **适应 Fit**：框住当前网格
 - **cols_resample / row / term**：桌面端同款半开区间双手柄；手机上轨道更瘦，手柄仍可点
-- **底模 Base**（和 Warp / Stitch 同尺寸的多选按钮）：可同时勾选 线框 Wire / 面 Faces / 点 Points。默认 **隐藏 Off**（无线框/面/点）。勾选任一绘制层会取消 Off；再勾选 Off 会清掉其余三项并藏底模。点模式用更大的圆形 sprite，手机上也能看清。菜单末项 **切开热力场 Cut heat** 把左侧网格换成切开后的热力场。样本是 SingaLab `single_cylinder_cut.obj`（`public/sample/cylinder/cut_heat/`），顶点色已经是 turbo。没有 `{name}_cut.obj` 时该项变灰，不报错。勾选时针迹和列先让开，取消后按原来的底模 / 针迹 / 列开关回来。加载时不按位置焊接顶点，切缝上重合的点保持分开。
+- **底模 Base**（和 Warp / Stitch 同尺寸的多选按钮）：可同时勾选 线框 Wire / 面 Faces / 点 Points。默认 **隐藏 Off**（无线框/面/点）。勾选任一绘制层会取消 Off；再勾选 Off 会清掉其余三项并藏底模。点模式用更大的圆形 sprite，手机上也能看清。底模仍是切开后的网格（如 `cut_iteration_0.obj`）。
 - **列 Warp**：显隐 `cols_resample` 列折线。
 - **针迹 Stitch**：显隐 KnittingStitches。
 - **收起 Hide**：收起顶栏和底部控件；左右分栏仍在，3D 与生长图都保留。悬浮 **控件 UI** 再展开。收起/展开会重算 `camera.aspect`，避免画布被 CSS 拉扁。
@@ -152,8 +152,6 @@ npm run preview
 | `outputs[].firstRows` | 否 | `*_first_rows.xls`。种子矩阵；滑条 N = `row_*` 列数 − 1。缺省时用同目录 `*first_rows*.xls` |
 | `outputs[].facesRingLayout` | 否 | `faces_ring_layout.json`。`rings[].n_terms` + `types[]` + `term_face_colors` + `edge_color`。缺省时用同目录 `*faces_ring_layout*.json` |
 | `outputs[].stitchMapBind` | 否 | 桌面 `stitch_map_bind.json`。`faces[]` 的 `path_index` / `term_index` + `display_row,col`。只绑 R/L；X/X+ 是移针。缺省时用同目录 `*stitch_map_bind*.json` |
-| `outputs[].cutHeat` | 否 | SingaLab `{name}_cut.obj`（也接受 `cut_heat`）。`v x y z r g b`，RGB 在 `[0, 1]`。缺省时，若底模文件名含 `cut`，用同目录或 `cut_heat/` 里对得上的 `*_cut.obj`（`iteration_0` 对 `iteration_0_cut.obj`）。这不是 stitchmesh，也不进 `display_models`。不要按位置焊接：切缝两侧是坐标重合的两排顶点。 |
-| `outputs[].cutHeatScalar` | 否 | 可选的 φ（也接受 `cut_heat_scalar` / `cutHeatJson` / `cutHeatNpy`）。缺省时找 `{obj 去掉 .obj}_phi.json`，再找同名 `.npy`。JSON 是 `singalab-heat-cut-phi-v1`（`phi` 数组，外加 `phi_min` / `phi_max`），或一个数值数组。下标 `i` 对第 `i` 条 `v`。顶点色还在时用 OBJ 上的颜色；顶点色丢了才用 φ，按 `phi_min` / `phi_max` 做 turbo（范围为空时 t = 0）。`.npy` 是 little-endian `float64`，形状 `(N,)`。 |
 
 也支持无清单直接打开 cut OBJ + KnittingStitches + readable_map。
 
@@ -161,7 +159,7 @@ npm run preview
 
 ## 范围 / Scope
 
-包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模模式（线框/面/点）、切开热力场（Cut heat）、列 Warp、针迹、点按针迹读数列/面/Type（不隔离）、控件收起、画布宽高比同步、左右分栏生长图（pan/zoom）、可选清单、触摸轨道、适应视野、离线应用壳。
+包含：静态站、GitHub Pages、本地文件、OBJ、cols_resample / faces_ring / term-in-max-ring 双手柄、Type 上色 + 黑边、底模模式（线框/面/点）、列 Warp、针迹、点按针迹读数列/面/Type（不隔离）、控件收起、画布宽高比同步、左右分栏生长图（pan/zoom）、可选清单、触摸轨道、适应视野、离线应用壳。
 
 不做：原生 Android、账号、云同步、完整 `readable_map` 编辑器。
 
