@@ -133,14 +133,6 @@ const MANIFEST_PATH_KEYS = [
   "faces_ring_layout",
   "stitchMapBind",
   "stitch_map_bind",
-  "cutHeat",
-  "cut_heat",
-  "cutHeatScalar",
-  "cut_heat_scalar",
-  "cutHeatJson",
-  "cut_heat_json",
-  "cutHeatNpy",
-  "cut_heat_npy",
 ];
 
 export function collectManifestRefs(data) {

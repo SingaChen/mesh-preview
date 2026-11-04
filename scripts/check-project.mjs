@@ -80,17 +80,6 @@ import {
 } from "../src/excel-map.js";
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
-import {
-  buildCutHeatMesh,
-  colorsFromPhi,
-  encodeNpyFloat64,
-  heatScalarRelPaths,
-  isCutHeatMeshPath,
-  parseCutHeatObj,
-  parsePhiJson,
-  parseNpy,
-  turbo,
-} from "../src/cut-heat.js";
 import { NO_DAT_TITLE, datForSheet } from "../src/sheet-dat.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -407,11 +396,6 @@ if (fromDiscovery.outputs.length !== 1) {
   throw new Error(`discovery should keep cut body only, got ${fromDiscovery.outputs.length}`);
 }
 if (!fromDiscovery.outputs[0].overlayFile) throw new Error("discovery should attach stitches");
-assert(
-  /single_cylinder_cut\.obj$/i.test(fromDiscovery.outputs[0].cutHeatFile?.name || "") &&
-    /single_cylinder_cut_phi\.json$/i.test(fromDiscovery.outputs[0].cutHeatScalarFile?.name || ""),
-  "discovery keeps the cut heat mesh beside the cut body and does not make it another output",
-);
 if (!fromDiscovery.outputs[0].colsResampleFile) throw new Error("discovery should attach cols_resample field");
 if (!fromDiscovery.outputs[0].colsResampleXlsFile) throw new Error("discovery should attach cols_resample xls");
 if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery should not require a cols_resample sidecar");
@@ -429,7 +413,6 @@ assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readable
     .filter((e) => /\.(xls|xlsx|obj|json|txt)$/i.test(e.name));
   const onDisk = projectFromDiscovery(indexFiles(diskEntries));
   assert(onDisk.outputs.length === 1, "folder discovery still opens the cut body only");
-  assert(!onDisk.outputs[0].cutHeatFile, "top-level cylinder discovery does not invent a cut heat mesh");
   assert(
     /iteration_0_cut_KnittingStitches\.obj$/i.test(onDisk.outputs[0].stitchFile?.name || ""),
     "folder discovery keeps the iteration 0 stitchmesh",
@@ -461,8 +444,8 @@ const mapText = readFileSync(join(cylDir, "iteration_0_cut_readable_map.txt"), "
 const fieldText = readFileSync(join(cylDir, "iteration_0_cut_cols_resample_field.obj"), "utf8");
 const xlsBuf = readFileSync(join(cylDir, "iteration_0_cut_cols_resample.xls"));
 const parsed = parseColoredObj(stitchText);
-if (parsed.faces.length !== 475) throw new Error(`expected 475 stitch faces, got ${parsed.faces.length}`);
-if (parsed.verts.length !== 1812) throw new Error(`expected 1812 stitch verts, got ${parsed.verts.length}`);
+if (parsed.faces.length !== 383) throw new Error(`expected 383 stitch faces, got ${parsed.faces.length}`);
+if (parsed.verts.length !== 1452) throw new Error(`expected 1452 stitch verts, got ${parsed.verts.length}`);
 
 const map = parseReadableMap(mapText);
 if (map.rows.length !== 65) throw new Error(`expected 65 readable rows, got ${map.rows.length}`);
@@ -485,12 +468,12 @@ assert(grid.nRows === map.rows.length, "do not invent extra map rows beyond rowN
 assert(rowDirLabel(map.rows[0].row, map.rows[0].dir) === "0 R", "txt map left label uses the same 0-based row + dir");
 
 const bound = bindStitchesToMap(parsed.faces, map);
-if (bound.stitches.length !== 475) throw new Error("bind should keep every face");
+if (bound.stitches.length !== 383) throw new Error("bind should keep every face");
 const row0 = bound.stitches.filter((s) => s.row === 0);
 if (row0.length !== 21) throw new Error(`row000 should bind 21 faces, got ${row0.length}`);
 if (row0.some((s) => s.col < 0 || s.col > 20)) throw new Error("row000 columns should be 0..20");
 if (bound.rowMin !== 0) throw new Error("bound rowMin should be 0");
-if (bound.rowMax < 50) throw new Error("bound rowMax should reach the upper courses");
+if (bound.rowMax !== 46) throw new Error(`383 faces on the frozen map stop at row 46, got ${bound.rowMax}`);
 if (bound.columns.length < 20) throw new Error("expected dozens of needle columns");
 if (bound.leftoverCells < 1) throw new Error("map has extra tail tokens with no faces");
 
@@ -700,7 +683,8 @@ assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 spa
   assert(triple.has("73,10") && triple.has("73,11") && triple.has("73,12") && triple.size === 3, "+R2 span lights 3 in-ring hang-shifted cells");
   const decKeys = highlightKeysForStitch(bound.stitches[51], { map: excelMap, grid: excelGrid });
   assert(decKeys.has("6,5") && decKeys.has("6,6") && decKeys.size === 2, "-R1 decrease span lights hang+1 cells");
-  const decTriple = highlightKeysForStitch(bound.stitches[385], { map: excelMap, grid: excelGrid });
+  const face385 = { index: 385, mapCells: stitchBind.byIndex.get(385)?.cells || [] };
+  const decTriple = highlightKeysForStitch(face385, { map: excelMap, grid: excelGrid });
   assert(
     decTriple.has("75,17") && decTriple.has("75,18") && decTriple.has("75,19") && decTriple.size === 3,
     "-R2 decrease span lights three in-ring hang-shifted knit cells",
@@ -755,9 +739,9 @@ assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 spa
   assert(knitEndCol(stitchBind.display_rows[9]) === -4 && knitStartCol(stitchBind.display_rows[11]) === -4, "bind same-ring later-row chain: end@-4 then next start@-4");
   assert(stitchForMapCell(9, -4, stitchBind, bound.stitches)?.index === 79, "same-ring L knit ends on shifted col -4 (face 79)");
   assert(stitchForMapCell(11, -4, stitchBind, bound.stitches)?.index === 80, "same-ring next R knit after X+ starts on shifted col -4 (face 80)");
-  assert(stitchForMapCell(96, 8, stitchBind, bound.stitches)?.index === 418, "later-ring decrease span starts at 96,8");
-  assert(stitchForMapCell(96, 9, stitchBind, bound.stitches)?.index === 418, "later-ring decrease hang+1 lands on 96,9");
-  assert(stitchForMapCell(98, 9, stitchBind, bound.stitches)?.index === 419, "later-ring row after that X starts at 98,9");
+  assert(stitchForMapCell(96, 8, stitchBind)?.index === 418, "later-ring decrease span starts at 96,8");
+  assert(stitchForMapCell(96, 9, stitchBind)?.index === 418, "later-ring decrease hang+1 lands on 96,9");
+  assert(stitchForMapCell(98, 9, stitchBind)?.index === 419, "later-ring row after that X starts at 98,9");
   assert(stitchForMapCell(1, 0, stitchBind, bound.stitches) == null, "X+ transfer cell has no stitch");
   assert(stitchForMapCell(7, 6, stitchBind, bound.stitches) == null, "mid-row X transfer cell has no stitch");
   assert(stitchForMapCell(7, 36, stitchBind, bound.stitches) == null, "wide decrease X far cell still has no stitch");
@@ -785,23 +769,24 @@ assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 spa
 }
 
 const chunks = faceChunksFromFaces(parsed.faces);
-assert(chunks.length === 475, `faces_ring terms should be 475 faces, got ${chunks.length}`);
-assert(chunks[0].index === 0 && chunks[474].index === 474, "terms stay in generation order");
+assert(chunks.length === 383, `faces_ring terms should be 383 faces, got ${chunks.length}`);
+assert(chunks[0].index === 0 && chunks[382].index === 382, "terms stay in generation order");
 
 const firstRowsBuf = readFileSync(join(cylDir, "iteration_0_cut_first_rows.xls"));
 const firstRows = parseFirstRows({ xls: firstRowsBuf });
-assert(firstRows.nSeed === 6, `first_rows seed columns are row_0..row_5, got ${firstRows.nSeed}`);
-assert(firstRows.nRings === 5, `path_generate skips seed 0 so N_rings is 5, got ${firstRows.nRings}`);
-assert(firstRows.columns.length === 42, `first_rows has one sheet row per needle col, got ${firstRows.columns.length}`);
+assert(firstRows.nSeed === 7, `first_rows seed columns are row_0..row_6, got ${firstRows.nSeed}`);
+assert(firstRows.nRings === 6, `path_generate skips seed 0 so N_rings is 6, got ${firstRows.nRings}`);
+assert(firstRows.columns.length === 39, `first_rows has one sheet row per needle col, got ${firstRows.columns.length}`);
 assert(firstRows.nRings !== map.rows.length, "do not use readable_map 65 rowNNN ids as slider N");
-assert(firstRows.nRings !== firstRows.nSeed, "do not use N_seed=6 as slider N; skip the seed column");
+assert(firstRows.nRings !== firstRows.nSeed, "do not use N_seed=7 as slider N; skip the seed column");
 
 const sidecar = parseFacesRingLayout({
   term_counts: [10, 20, 30, 40, 375],
   n_faces_ring: 5,
 });
 assert(sidecar.nFacesRing === 5 && sidecar.termCounts[0] === 10, "sidecar term_counts slice generation order");
-const fromSidecar = facesRingChunksFromStitches(bound.stitches, {
+const sidecarFaces = Array.from({ length: 475 }, (_, index) => ({ index }));
+const fromSidecar = facesRingChunksFromStitches(sidecarFaces, {
   nRings: sidecar.nFacesRing,
   termCounts: sidecar.termCounts,
 });
@@ -809,38 +794,38 @@ assert(fromSidecar.map((c) => c.faces.length).join(",") === "10,20,30,40,375", "
 assert(fromSidecar[0].faces[0].index === 0 && fromSidecar[1].faces[0].index === 10, "rings stay in OBJ face order");
 
 const evenChunks = facesRingChunksFromStitches(bound.stitches, { nRings: firstRows.nRings });
-assert(evenChunks.length === 5, `row slider N is first_row rings, got ${evenChunks.length}`);
+assert(evenChunks.length === 6, `row slider N is first_row rings, got ${evenChunks.length}`);
 assert(evenChunks.length !== 65, "slider is not readable_map machine rows");
 assert(evenChunks.length !== chunks.length, "slider is not per-term faces_ring");
 assert(
-  evenChunks.reduce((n, c) => n + c.faces.length, 0) === 475,
+  evenChunks.reduce((n, c) => n + c.faces.length, 0) === 383,
   "every stitch face belongs to exactly one first_row ring without sidecar",
 );
 assert(
-  evenChunks.every((c) => c.faces.length === 95),
-  "without sidecar, faces split evenly across 5 rings",
+  evenChunks.map((c) => c.faces.length).join(",") === "64,64,64,64,64,63",
+  "without sidecar, 383 faces split as floor(383/6) with the remainder on the first rings",
 );
 
 const windowed = sliceHalfOpen(evenChunks, 0, 1);
-assert(windowed.length === 1 && windowed[0].faces.length === 95, "half-open [0,1) keeps one even-split ring");
+assert(windowed.length === 1 && windowed[0].faces.length === 64, "half-open [0,1) keeps one even-split ring");
 const twoRows = sliceHalfOpen(evenChunks, 2, 4);
 assert(twoRows.length === 2 && twoRows[0].ring === 2 && twoRows[1].ring === 3, "adjacent handles show two rings");
 const ringFaces = stitchesInRingRange(bound.stitches, 0, 1);
-assert(ringFaces.length === 95 && ringFaces.every((s) => s.ring === 0), "[0,1) shows only ring 0 terms");
-assert(stitchesInRingRange(bound.stitches, 0, 5).length === 475, "even-split [0,N) keeps every face");
-assert(facesRingSliderN({ rowChunks: evenChunks, faceChunks: chunks }) === 5, "bound slider N prefers first_row rings");
+assert(ringFaces.length === 64 && ringFaces.every((s) => s.ring === 0), "[0,1) shows only ring 0 terms");
+assert(stitchesInRingRange(bound.stitches, 0, 6).length === 383, "even-split [0,N) keeps every face");
+assert(facesRingSliderN({ rowChunks: evenChunks, faceChunks: chunks }) === 6, "bound slider N prefers first_row rings");
 
 const layoutText = readFileSync(join(cylDir, "faces_ring_layout.json"), "utf8");
 const layout = parseFacesRingLayout(layoutText);
-assert(layout.nFacesRing === 5, `sidecar n_faces_ring is 5, got ${layout.nFacesRing}`);
-assert(layout.termCounts.join(",") === "46,136,110,106,77", `sidecar n_terms, got ${layout.termCounts}`);
-assert(layout.termTotal === 475, `term_total is 475, got ${layout.termTotal}`);
-assert(layout.edgeColor.r === 0 && layout.edgeColor.g === 0 && layout.edgeColor.b === 0, "edge_color is black");
-assert(layout.ringTypes?.length === 5 && layout.ringTypes[0].length === 46, "each ring carries Term.Type[]");
-assert(layout.ringTypes[4].length === 77, "last ring types cover all 77 faces");
+assert(layout.nFacesRing === 6, `sidecar n_faces_ring is 6, got ${layout.nFacesRing}`);
+assert(layout.termCounts.join(",") === "35,75,81,105,51,36", `sidecar n_terms, got ${layout.termCounts}`);
+assert(layout.termTotal === 383, `term_total is 383, got ${layout.termTotal}`);
+assert(layout.edgeColor.r === 0.15 && layout.edgeColor.g === 0.15 && layout.edgeColor.b === 0.15, "edge_color is 0.15 gray");
+assert(layout.ringTypes?.length === 6 && layout.ringTypes[0].length === 35, "each ring carries Term.Type[]");
+assert(layout.ringTypes[5].length === 36, "last ring types cover all 36 faces");
 assert(
-  termCountsForRings(475, 5, layout.termCounts).join(",") === "46,136,110,106,77",
-  "prefix counts already sum to 475",
+  termCountsForRings(383, 6, layout.termCounts).join(",") === "35,75,81,105,51,36",
+  "prefix counts already sum to 383",
 );
 
 const rowChunks = facesRingChunksFromStitches(bound.stitches, {
@@ -849,20 +834,20 @@ const rowChunks = facesRingChunksFromStitches(bound.stitches, {
   ringTypes: layout.ringTypes,
   colors: layout.colors,
 });
-assert(rowChunks.length === 5, `real layout still has 5 rings, got ${rowChunks.length}`);
-assert(rowChunks.map((c) => c.faces.length).join(",") === "46,136,110,106,77", "rings are 46+136+110+106+77");
+assert(rowChunks.length === 6, `real layout still has 6 rings, got ${rowChunks.length}`);
+assert(rowChunks.map((c) => c.faces.length).join(",") === "35,75,81,105,51,36", "rings are 35+75+81+105+51+36");
 assert(
-  rowChunks.reduce((n, c) => n + c.faces.length, 0) === 475,
+  rowChunks.reduce((n, c) => n + c.faces.length, 0) === 383,
   "every KnittingStitches face belongs to a ring",
 );
 assert(
-  !rowChunks.every((c) => c.faces.length === 95),
-  "real layout must not even-split 475/5",
+  rowChunks.map((c) => c.faces.length).join(",") !== "64,64,64,64,64,63",
+  "real layout must not even-split 383/6",
 );
 assert(rowChunks[0].faces[0].index === 0, "ring 0 starts at OBJ face 0");
-assert(rowChunks[1].faces[0].index === 46, "ring 1 starts after 46 terms");
-assert(rowChunks[4].faces[0].index === 46 + 136 + 110 + 106, "ring 4 starts at face 398");
-assert(rowChunks[4].faces.length === 77 && rowChunks[4].faces[76].index === 474, "last ring width is 77");
+assert(rowChunks[1].faces[0].index === 35, "ring 1 starts after 35 terms");
+assert(rowChunks[5].faces[0].index === 35 + 75 + 81 + 105 + 51, "ring 5 starts at face 347");
+assert(rowChunks[5].faces.length === 36 && rowChunks[5].faces[35].index === 382, "last ring width is 36");
 assert(
   rowChunks.every((c) => c.faces.every((s, i) => s.termType === layout.ringTypes[c.ring][i])),
   "every face Type is exactly rings[].types, no inference",
@@ -873,11 +858,11 @@ for (const s of bound.stitches) {
   if (s.termType == null) throw new Error(`missing Term.Type on face ${s.index}`);
   typeHist[s.termType] = (typeHist[s.termType] || 0) + 1;
 }
-assert(bound.stitches.length === 475, "475 faces");
-assert(Object.values(typeHist).reduce((a, b) => a + b, 0) === 475, "sum of types is 475");
-assert(typeHist[0] === 331, `Type0=331, got ${typeHist[0]}`);
-assert(typeHist[1] === 60, `Type1=60, got ${typeHist[1]}`);
-assert(typeHist[2] === 55 && typeHist[3] === 22 && typeHist[4] === 2 && typeHist[5] === 3 && typeHist[6] === 2, "remaining hist matches dump");
+assert(bound.stitches.length === 383, "383 faces");
+assert(Object.values(typeHist).reduce((a, b) => a + b, 0) === 383, "sum of types is 383");
+assert(typeHist[0] === 251, `Type0=251, got ${typeHist[0]}`);
+assert(typeHist[1] === 56, `Type1=56, got ${typeHist[1]}`);
+assert(typeHist[2] === 49 && typeHist[3] === 17 && typeHist[4] === 3 && typeHist[5] === 5 && typeHist[6] === 2, "remaining hist matches dump");
 assert(bound.stitches.filter((s) => s.termType === 0).every((s) => s.termColor.r === 0.55), "Type 0 is gray only");
 assert(bound.stitches.filter((s) => s.termType === 1).every((s) => s.termColor.r === 1 && s.termColor.g === 1), "Type 1 is white only");
 assert(
@@ -918,9 +903,9 @@ assert(pink.r === 1 && pink.g === 0.35 && pink.b === 0.8, "type 7 LEFT_DOWN pink
 assert(colorForTermType(8).g === 0.35 && colorForTermType(9).g === 0.35, "types 8/9 pink");
 assert(colorForTermType(null) == null && colorForTermType(99) == null, "missing/unknown Type is not invented");
 
-assert(rowChunks[0].faces[20].termType === 2 && rowChunks[0].faces[20].termColor.r === 0, "ring0 term 20 is black apex");
-assert(rowChunks[0].faces[21].termType === 6 && rowChunks[0].faces[21].termColor.b === 1, "ring0 term 21 is blue");
-assert(rowChunks[0].faces[22].termType === 1 && rowChunks[0].faces[22].termColor.r === 1, "ring0 term 22 is white apex");
+assert(rowChunks[0].faces[15].termType === 2 && rowChunks[0].faces[15].termColor.r === 0, "ring0 term 15 is black apex");
+assert(rowChunks[0].faces[14].termType === 6 && rowChunks[0].faces[14].termColor.b === 1, "ring0 term 14 is blue");
+assert(rowChunks[0].faces[18].termType === 1 && rowChunks[0].faces[18].termColor.r === 1, "ring0 term 18 is white apex");
 assert(
   rowChunks.every((c) => c.faces.every((s) => s.termColor && Number.isFinite(s.termColor.r))),
   "every typed term has a Term.Type color",
@@ -931,30 +916,31 @@ assert(activeRingIndex(1, 5) === 4, "second slider 1-5 active ring is 4");
 assert(activeRingIndex(0, 1) === 0, "single first ring is active");
 assert(activeRingIndex(2, 2) == null, "empty range disables the term slider");
 
-const fullTyped = stitchesVisibleForSliders(bound.stitches, 0, 5, 0, 77);
-assert(fullTyped.length === 475, `full rings + full last-ring terms show 475, got ${fullTyped.length}`);
-assert(fullTyped.filter((s) => s.ring === 4).length === 77, "default last ring shows all 77 terms");
+const fullTyped = stitchesVisibleForSliders(bound.stitches, 0, 6, 0, 36);
+assert(fullTyped.length === 383, `full rings + full last-ring terms show 383, got ${fullTyped.length}`);
+assert(fullTyped.filter((s) => s.ring === 5).length === 36, "default last ring shows all 36 terms");
 assert(
-  fullTyped.filter((s) => s.ring === 4 && s.index >= 471).every((s) => s.termType === layout.ringTypes[4][s.termInRing]),
+  fullTyped.filter((s) => s.ring === 5 && s.index >= 380).every((s) => s.termType === layout.ringTypes[5][s.termInRing]),
   "last-ring tail Types come from sidecar types[], not verts",
 );
 
-const lastOne = stitchesVisibleForSliders(bound.stitches, 0, 5, 0, 1);
-assert(lastOne.length === 46 + 136 + 110 + 106 + 1, "earlier rings stay full; only max ring is term-filtered");
-assert(lastOne.filter((s) => s.ring === 4).length === 1, "third slider [0,1) keeps one term in the max ring");
-assert(lastOne.filter((s) => s.ring < 4).every((s) => s.termInRing != null), "rings [0,4) keep every term");
+const lastOne = stitchesVisibleForSliders(bound.stitches, 0, 6, 0, 1);
+assert(lastOne.length === 35 + 75 + 81 + 105 + 51 + 1, "earlier rings stay full; only max ring is term-filtered");
+assert(lastOne.filter((s) => s.ring === 5).length === 1, "third slider [0,1) keeps one term in the max ring");
+assert(lastOne.filter((s) => s.ring < 5).every((s) => s.termInRing != null), "rings [0,5) keep every term");
 
-const clipped = stitchesVisibleForSliders(bound.stitches, 1, 5, 10, 20);
+const clipped = stitchesVisibleForSliders(bound.stitches, 1, 6, 10, 20);
 assert(clipped.filter((s) => s.ring === 0).length === 0, "rings < r0 are hidden");
-assert(clipped.filter((s) => s.ring === 1).length === 136, "ring 1 in [r0, r1-1) is fully visible");
-assert(clipped.filter((s) => s.ring === 2).length === 110, "ring 2 fully visible");
-assert(clipped.filter((s) => s.ring === 3).length === 106, "ring 3 fully visible");
-assert(clipped.filter((s) => s.ring === 4).length === 10, "active ring 4 uses term [10,20)");
-assert(clipped.every((s) => s.ring < 5), "rings >= r1 stay hidden");
+assert(clipped.filter((s) => s.ring === 1).length === 75, "ring 1 in [r0, r1-1) is fully visible");
+assert(clipped.filter((s) => s.ring === 2).length === 81, "ring 2 fully visible");
+assert(clipped.filter((s) => s.ring === 3).length === 105, "ring 3 fully visible");
+assert(clipped.filter((s) => s.ring === 4).length === 51, "ring 4 fully visible");
+assert(clipped.filter((s) => s.ring === 5).length === 10, "active ring 5 uses term [10,20)");
+assert(clipped.every((s) => s.ring < 6), "rings >= r1 stay hidden");
 
 assert(stitchesVisibleForSliders(bound.stitches, 0, 1, 5, 8).length === 3, "single-ring term window");
 assert(stitchesVisibleForSliders(bound.stitches, 2, 2, 0, 10).length === 0, "empty second range hides everything");
-assert(stitchesInRingRange(bound.stitches, 0, 5).length === 475, "ring range helper covers every face");
+assert(stitchesInRingRange(bound.stitches, 0, 6).length === 383, "ring range helper covers every face");
 
 assert(termTypeShortLabel(0) === "平针 PLAIN", "Type 0 is the documented PLAIN / 平针 name");
 assert(termTypeShortLabel(1) === "白" && termTypeShortLabel(6) === "蓝", "other Types use palette colour names only");
@@ -985,39 +971,39 @@ assert(formatStitchPick(pick6).includes("Type 6") && formatStitchPick(pick6).inc
 const workbook = parseXlsWorkbook(xlsBuf);
 const xlsColIds = uniqueColIdsFromXls(workbook);
 const xlsRows = xlsScaleMatrixRowCount(workbook);
-assert(xlsRows === 42, `scale_matrix should have 42 column rows, got ${xlsRows}`);
-assert(xlsColIds.length === 42, `points_detail col ids should be 0..41, got ${xlsColIds.length}`);
-assert(xlsColIds[0] === 0 && xlsColIds[41] === 41, "col ids stay contiguous 0..41");
+assert(xlsRows === 39, `scale_matrix should have 39 column rows, got ${xlsRows}`);
+assert(xlsColIds.length === 39, `points_detail col ids should be 0..38, got ${xlsColIds.length}`);
+assert(xlsColIds[0] === 0 && xlsColIds[38] === 38, "col ids stay contiguous 0..38");
 
 const fieldCols = parseColsResampleField(fieldText);
-assert(fieldCols.length === 42, `field.obj sequential chains should be 42, got ${fieldCols.length}`);
+assert(fieldCols.length === 39, `field.obj sequential chains should be 39, got ${fieldCols.length}`);
 
 const columns = parseColsResample({ xls: xlsBuf, fieldText });
-assert(columns.length === 42, `cylinder cols_resample should be 42, got ${columns.length}`);
+assert(columns.length === 39, `cylinder cols_resample should be 39, got ${columns.length}`);
 assert(columns[0].col === 0 && columns[0].type === "FULL", "idx 0 is the first xls column");
-assert(columns[41].col === 41, "idx 41 is the last xls column");
-assert(columns[0].points.length === 12, "col 0 keeps its 12 export samples");
+assert(columns[38].col === 38, "idx 38 is the last xls column");
+assert(columns[0].points.length === 11, "col 0 keeps its 11 export samples");
 assert(
   columns.every((c, i) => c.points.length === fieldCols[i].points.length),
   "xls point counts must match field.obj chains 1:1",
 );
 assert(
-  columns.reduce((n, c) => n + c.points.length, 0) === 459,
-  "points_detail + field.obj both hold 459 samples",
+  columns.reduce((n, c) => n + c.points.length, 0) === 366,
+  "points_detail + field.obj both hold 366 samples",
 );
 const visCols = sliceHalfOpen(columns, 0, 1);
 assert(visCols.length === 1 && visCols[0].col === 0, "cols_resample [0,1) keeps one column");
-assert(sliceHalfOpen(columns, 0, 42).length === 42, "default [0,N) keeps every export column");
+assert(sliceHalfOpen(columns, 0, 39).length === 39, "default [0,N) keeps every export column");
 
 const fromFieldOnly = parseColsResample({ fieldText });
-assert(fromFieldOnly.length === 42, `field-only sequential parse should be 42, got ${fromFieldOnly.length}`);
+assert(fromFieldOnly.length === 39, `field-only sequential parse should be 39, got ${fromFieldOnly.length}`);
 
 const fromSheet0 = parseColsResample({
   workbook: { sheets: workbook.sheets.filter((s) => s.name !== "points_detail") },
   fieldText,
 });
-assert(fromSheet0.length === 42, `scale_matrix fallback should be 42, got ${fromSheet0.length}`);
-assert(fromSheet0[0].type === "FULL" && fromSheet0[0].points.length === 12, "scale_matrix keeps FULL col 0");
+assert(fromSheet0.length === 39, `scale_matrix fallback should be 39, got ${fromSheet0.length}`);
+assert(fromSheet0[0].type === "FULL" && fromSheet0[0].points.length === 11, "scale_matrix keeps FULL col 0");
 
 const toyField = [
   "v 0 0 0 1 0 0",
@@ -1087,7 +1073,7 @@ const all = applyDisplayModelsRange(models, 0, 3, null);
 assert(all.visibility.every(Boolean), "default [0,3) shows every model");
 assert(all.bind?.name === "KnittingStitches", "rightmost faces_ring binds the row slider");
 assert(all.resetRange === true, "first bind resets row range");
-assert(facesRingSliderN(all.bind) === 5, "right-end binding exposes 5 first_row rings");
+assert(facesRingSliderN(all.bind) === 6, "right-end binding exposes 6 first_row rings");
 assert(
   formatDisplayModelsLabel(0, 3, models) ===
     "display_models: idx 0-2 / 3 | right=KnittingStitches",
@@ -1119,9 +1105,7 @@ assert(/id="base-off"[^>]*checked/.test(html), "Base defaults to Off checked");
 assert(!/id="base-faces"[^>]*checked/.test(html) && !/id="base-wire"[^>]*checked/.test(html) && !/id="base-points"[^>]*checked/.test(html), "Wire / Faces / Points start unchecked");
 assert(/id="base-menu-btn"[^>]*aria-pressed="false"/.test(html), "Base button starts unpressed when Off");
 assert(html.includes("底模") && html.includes("Base"), "Base control is labelled 底模 / Base");
-assert(html.includes('id="base-cut-heat"') && html.includes("切开热力场") && html.includes("Cut heat"), "Base menu offers 切开热力场 / Cut heat");
-assert(/id="base-cut-heat"[^>]*disabled/.test(html), "Cut heat starts disabled when no sample is loaded");
-assert(!/id="base-cut-heat"[^>]*checked/.test(html), "Cut heat starts unchecked");
+assert(!html.includes('id="base-cut-heat"') && !html.includes("base-cut-heat-row") && !html.includes("切开热力场"), "Base menu has no cut heat row");
 assert(html.includes('id="toggle-warp"') && html.includes("列") && html.includes("Warp"), "Warp toggle shows cols_resample");
 assert(/id="toggle-warp"[^>]*aria-pressed="true"/.test(html), "Warp defaults on");
 assert(html.includes('id="toggle-overlay"') && html.includes("针迹") && html.includes("Stitch"), "Stitch toggle stays");
@@ -1133,11 +1117,13 @@ assert(mainSrc.includes("viewer.pickStitch"), "click still raycasts stitch faces
 assert(!/facesRange\.configure\(\s*nRings\s*,\s*\[\s*ring/.test(mainSrc), "click does not collapse faces_ring to the hit ring");
 assert(!/termsRange\.configure\(\s*nTerms\s*,\s*\[\s*term/.test(mainSrc), "click does not collapse term to the hit face");
 assert(mainSrc.includes("setBaseLayers") && mainSrc.includes("applyBaseChoice"), "main wires Base multi-select");
+assert(!mainSrc.includes("loadCutHeatMesh") && !mainSrc.includes("setShowCutHeat") && !mainSrc.includes("cut-heat.js"), "main does not load a cut heat overlay");
 assert(mainSrc.includes("setShowWarp") && mainSrc.includes("#toggle-warp"), "main wires the Warp toggle");
 assert(!mainSrc.includes("setWireframe") && !mainSrc.includes("toggle-wire"), "main no longer has a standalone Wire toggle");
 assert(!mainSrc.includes("setFlat") && !mainSrc.includes("toggle-shade"), "main no longer wires Flat");
 const viewerSrc = readFileSync(join(root, "src", "viewer.js"), "utf8");
 assert(viewerSrc.includes("setBaseLayers") && viewerSrc.includes("setShowWarp"), "viewer has Base layers and Warp visibility");
+assert(!viewerSrc.includes("setCutHeat") && !viewerSrc.includes("showCutHeat") && !viewerSrc.includes("_cutHeatMaterial"), "viewer does not swap in a heat-colored cut");
 assert(viewerSrc.includes("defaultBaseLayers"), "cut body starts from default Base layers");
 assert(viewerSrc.includes("opacity: 0.42"), "Faces mode stays the semi-transparent underlay");
 assert(viewerSrc.includes("_wireMaterial") && viewerSrc.includes("_pointsMaterial"), "Wire and Points are composable overlays");
@@ -1203,7 +1189,6 @@ assert(
   ];
   const proj = projectFromManifest(data, indexFiles(entries), "sample/manifest.json");
   assert(proj.warnings.length === 0 && proj.outputs.length === 1, "Standrad Cylinder resolves without borrowing other samples");
-  assert(!proj.outputs[0].cutHeatFile, "Standrad Cylinder does not borrow the cylinder cut heat mesh");
   const out = proj.outputs[0];
   assert(out.label === "Standrad Cylinder", "output label is Standrad Cylinder");
   assert(
@@ -1439,8 +1424,8 @@ assert(
     colors: layout.colors,
   });
   assert(
-    chunks.length === 5 && chunks.map((chunk) => chunk.faces.length).join(",") === "23,23,22,19,42",
-    "Decrease Cylinder faces ring is the exported 5 rings",
+    chunks.length === 7 && chunks.map((chunk) => chunk.faces.length).join(",") === "23,23,22,19,14,14,14",
+    "Decrease Cylinder faces ring is the exported 7 rings",
   );
   const decreaseCols = parseColsResample({
     fieldText: readFileSync(join(decDir, "decrease_cylinder_cols_resample_field.obj"), "utf8"),
@@ -1448,8 +1433,12 @@ assert(
   });
   assert(
     decreaseCols.length === 24 &&
-      decreaseCols.every((col, i) => col.col === i && col.points.length >= 2 && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
-    "cols_resample is 24 side-edge polylines climbing the cone",
+      decreaseCols.every((col, i) => col.col === i) &&
+      decreaseCols[22].type === "SHORT_INNER" &&
+      decreaseCols[22].points.length === 1 &&
+      decreaseCols.filter((col) => col.points.length < 2).length === 1 &&
+      decreaseCols.every((col) => col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
+    "cols_resample is 24 side edges; col 22 is one SHORT_INNER sample and the rest climb",
   );
   const nearestVert = (point) => {
     let best = Infinity;
@@ -1560,7 +1549,7 @@ assert(
     "Increase Cylinder uses its own cols_resample field, xls, and faces ring",
   );
   const parsed = parseColoredObj(readFileSync(join(incDir, "increase_cylinder_KnittingStitches.obj"), "utf8"));
-  assert(parsed.verts.length === 544 && parsed.faces.length === 140, "Increase Cylinder is the SingaLab stitchmesh");
+  assert(parsed.verts.length === 489 && parsed.faces.length === 128, "Increase Cylinder is the SingaLab stitchmesh");
   const ySpan = parsed.verts.reduce(
     (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
     { min: Infinity, max: -Infinity },
@@ -1575,8 +1564,8 @@ assert(
     colors: layout.colors,
   });
   assert(
-    chunks.length === 3 && chunks.map((chunk) => chunk.faces.length).join(",") === "15,58,67",
-    "Increase Cylinder faces ring is the exported 3 rings",
+    chunks.length === 4 && chunks.map((chunk) => chunk.faces.length).join(",") === "14,14,31,69",
+    "Increase Cylinder faces ring is the exported 4 rings",
   );
   const increaseCols = parseColsResample({
     fieldText: readFileSync(join(incDir, "increase_cylinder_cols_resample_field.obj"), "utf8"),
@@ -1980,11 +1969,11 @@ assertDenseCylinderSample({
     "dense-decrease/dense_decrease_cylinder_faces_ring_layout.json",
     "dense-decrease/dense_decrease_cylinder_bed.xls",
   ],
-  verts: 2513,
-  faces: 646,
+  verts: 2537,
+  faces: 652,
   yMaxLo: 39.9,
   yMaxHi: 40.1,
-  terms: [48, 48, 64, 140, 78, 98, 54, 62, 27, 27],
+  terms: [48, 48, 48, 133, 93, 45, 41, 87, 28, 27, 27, 27],
   cols: 48,
   width: 48,
   colMin: 0,
@@ -2017,12 +2006,12 @@ assertDenseCylinderSample({
     "dense-increase/dense_increase_cylinder_faces_ring_layout.json",
     "dense-increase/dense_increase_cylinder_bed.xls",
   ],
-  verts: 2543,
-  faces: 660,
+  verts: 2385,
+  faces: 604,
   yMaxLo: 39.9,
   yMaxHi: 40.2,
-  terms: [27, 27, 27, 29, 72, 194, 140, 144],
-  cols: 49,
+  terms: [27, 27, 27, 29, 30, 113, 63, 144, 144],
+  cols: 48,
   width: 34,
   colMin: 0,
   colMax: 33,
@@ -2053,11 +2042,11 @@ assertDenseCylinderSample({
     "dense-thin/dense_thin_cylinder_faces_ring_layout.json",
     "dense-thin/dense_thin_cylinder_bed.xls",
   ],
-  verts: 5044,
-  faces: 1310,
+  verts: 4968,
+  faces: 1274,
   yMaxLo: 79.9,
   yMaxHi: 80.2,
-  terms: [49, 49, 49, 49, 49, 102, 104, 71, 54, 39, 69, 25, 26, 27, 28, 88, 85, 147, 85, 115],
+  terms: [49, 49, 49, 49, 49, 48, 125, 46, 28, 27, 27, 25, 25, 25, 25, 25, 27, 27, 29, 109, 70, 145, 65, 131],
   cols: 76,
   width: 55,
   colMin: -3,
@@ -2089,12 +2078,12 @@ assertDenseCylinderSample({
     "dense-fat/dense_fat_cylinder_faces_ring_layout.json",
     "dense-fat/dense_fat_cylinder_bed.xls",
   ],
-  verts: 5232,
+  verts: 5288,
   faces: 1390,
-  yMaxLo: 79.9,
-  yMaxHi: 80.2,
-  terms: [25, 25, 26, 26, 29, 149, 171, 145, 81, 143, 73, 143, 80, 117, 52, 72, 33],
-  cols: 51,
+  yMaxLo: 79.93,
+  yMaxHi: 80.0,
+  terms: [25, 25, 25, 26, 26, 29, 35, 140, 83, 143, 109, 79, 141, 79, 139, 66, 93, 26, 26, 25, 25, 25],
+  cols: 49,
   width: 48,
   colMin: -4,
   colMax: 43,
@@ -2127,11 +2116,11 @@ assertDenseCylinderSample({
     "fat-propagate/fat_propagate_first_rows.xls",
     "fat-propagate/fat_propagate_bed.xls",
   ],
-  verts: 991,
-  faces: 251,
-  yMaxLo: 44.1,
-  yMaxHi: 44.2,
-  terms: [16, 16, 16, 16, 26, 29, 42, 90],
+  verts: 2002,
+  faces: 515,
+  yMaxLo: 79.93,
+  yMaxHi: 80.0,
+  terms: [16, 16, 16, 16, 26, 29, 42, 90, 88, 57, 29, 26, 16, 16, 16, 16],
   cols: 31,
   width: 16,
   colMin: 0,
@@ -2210,132 +2199,23 @@ assertDenseCylinderSample({
   assert(sha256("thin/thin_cylinder.k") === "9b88134acd72871563b3809bbed8535a7afb1199bf9fd1f34cb0a43e920b03f0", "thin_cylinder.k bytes stay");
   assert(sha256("fat/fat_cylinder.dat") === "2a36f8cdd7b61f8c7fbf2deedda75b8c97415bd1ba9873a56d6aaf36cd5e9d83", "fat_cylinder.dat bytes stay");
   assert(sha256("fat/fat_cylinder.k") === "590263f4f65e24aab3911b3339eb16862090052a27f17a981535b3e0902c118b", "fat_cylinder.k bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_KnittingStitches.obj") === "1dbb875333f2d0ac2f3a7a8732a887e98482877e99c2ac58b4e2de82ac1e0a0a", "fat propagate stitchmesh bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample_field.obj") === "8bccd2d905900b89fd2aa8bdc2bbfbebe92e0721b15e99cc8cbe38af2a73a77b", "fat propagate cols field bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample_type.obj") === "8011bdf53e03bfc2f9d2d174036dee738cb2f00807705fcf028149410e664156", "fat propagate cols type bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample.xls") === "e9be0ac07ea13b96cdb647a0143eafac63953dac3576850cde6fc41ceaa9951d", "fat propagate cols xls bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_first_rows.xls") === "8e70889624dbee3ed3b478316d0e22ff3d7279a4eb286fa88c5ce6cb62c4c67b", "fat propagate first_rows bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_faces_ring_layout.json") === "c46a219a18779105ba87688a53e16229bf83a498a383bdd5a31cc96da08ef717", "fat propagate faces_ring bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_KnittingStitches.obj") === "4af344f4f8850f4129a9b25d2a3050ad587ad3cf5afdb1a2d77c55f92a784e72", "fat propagate stitchmesh bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_cols_resample_field.obj") === "14a3cf0ee4e8d6edd1b225abd8fe963bb1c538f9e65f97140613fa5e5e054165", "fat propagate cols field bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_cols_resample_type.obj") === "2b3ba0a932f2387ccd20599bfcf34815ba9467878a3e43a71e1a99f77787bd36", "fat propagate cols type bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_cols_resample.xls") === "8a3e8b7f8746828e2a45e0bd6965ffddf5170236dd4f4d3bd00a7c0552f91dbc", "fat propagate cols xls bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_first_rows.xls") === "e246bab35d1fb6cec3704406dc06286565e5e9dc3684412d198a8dfd29b4fa8c", "fat propagate first_rows bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_faces_ring_layout.json") === "48aca65ebe73f38e767f142ff7fb52f545d87e0485860ad76691dd5b9dab231c", "fat propagate faces_ring bytes stay");
   assert(readFileSync(join(sampleDir, "increase/increase_cylinder.k"), "utf8").includes("\nsplit "), "increase knitout uses split");
   assert(!readFileSync(join(sampleDir, "cylinder/standrad_cylinder.k"), "utf8").includes("\nsplit "), "standrad has no increase split");
 }
 
-assert(fromManifest.warnings.length === 0, `cylinder sample resolves cut heat without warnings: ${fromManifest.warnings.join("; ")}`);
+assert(fromManifest.warnings.length === 0, `cylinder sample resolves without warnings: ${fromManifest.warnings.join("; ")}`);
 assert(
-  fromManifest.outputs.every(
-    (out) =>
-      /single_cylinder_cut\.obj$/i.test(out.cutHeatFile?.path || "") &&
-      /single_cylinder_cut_phi\.json$/i.test(out.cutHeatScalarFile?.path || ""),
-  ),
-  "both cylinder outputs point at the SingaLab cut heat sample",
+  fromManifest.outputs.every((out) => /cut_iteration_0\.obj$/i.test(out.meshFile?.path || "")),
+  "cylinder outputs still use the cut body mesh",
 );
-{
-  const objText = readFileSync(join(cylDir, "cut_heat/single_cylinder_cut.obj"), "utf8");
-  const scalarFile = readFileSync(join(cylDir, "cut_heat/single_cylinder_cut_phi.json"), "utf8");
-  const scalar = parsePhiJson(scalarFile);
-  const parsed = parseCutHeatObj(objText);
-  assert(parsed.vertexCount === 5221 && parsed.faces.length === 10121 && parsed.colors, "sample cut is 5221 verts / 10121 faces with baked rgb");
-  assert(
-    scalar &&
-      scalar.phi.length === 5221 &&
-      scalar.nVertices === 5221 &&
-      scalar.phiMin === 0 &&
-      Math.abs(scalar.phiMax - 91.24680066916642) < 1e-12,
-    "phi json keeps OBJ vertex order and phi_min / phi_max",
-  );
-  const positions = new Map();
-  for (let i = 0; i < parsed.vertexCount; i++) {
-    const key = `${parsed.positions[i * 3]}|${parsed.positions[i * 3 + 1]}|${parsed.positions[i * 3 + 2]}`;
-    positions.set(key, (positions.get(key) || 0) + 1);
-  }
-  let pairs = 0;
-  for (const count of positions.values()) {
-    if (count === 2) pairs += 1;
-    else assert(count === 1, "seam duplicates are pairs, not larger welded clusters");
-  }
-  assert(pairs === 48 && positions.size === 5173, "the cut seam keeps 48 coincident pairs; vertices are not welded");
-  const mesh = buildCutHeatMesh(objText, scalar);
-  assert(
-    mesh.ok && mesh.source === "obj" && mesh.vertexCount === 5221 && mesh.triangleCount === 10121,
-    "baked OBJ colors win even when φ is present",
-  );
-  assert(mesh.positions.length === 10121 * 9, "triangulation keeps every corner, including seam duplicates");
-  const painted = colorsFromPhi(scalar.phi, scalar.phiMin, scalar.phiMax).colors;
-  let maxDelta = 0;
-  for (let i = 0; i < painted.length; i++) maxDelta = Math.max(maxDelta, Math.abs(parsed.colors[i] - painted[i]));
-  assert(maxDelta < 1e-4, `baked OBJ colors match turbo(phi) within 1e-4, got ${maxDelta}`);
-  const objOnly = buildCutHeatMesh(objText, null);
-  assert(objOnly.ok && objOnly.source === "obj" && objOnly.colors[0] === mesh.colors[0], "OBJ vertex colors color the cut when the sidecar is absent");
-  const mismatch = buildCutHeatMesh(objText, new Float64Array(3));
-  assert(mismatch.ok && mismatch.source === "obj", "a short sidecar falls back to OBJ colors");
-  const bare = objText.replace(/^(v\s+\S+\s+\S+\s+\S+).*$/gm, "$1");
-  assert(!parseCutHeatObj(bare).colors, "stripping rgb leaves no baked colors");
-  assert(!buildCutHeatMesh(bare, new Float64Array(3)).ok, "no scalar and no colors stays quiet");
-  const fromPhi = buildCutHeatMesh(bare, scalar);
-  assert(fromPhi.ok && fromPhi.source === "phi", "φ colors an OBJ only when vertex colors are missing");
-  assert(
-    Math.abs(fromPhi.colors[0] - painted[0]) < 1e-6 && Math.abs(fromPhi.colors[1] - painted[1]) < 1e-6,
-    "φ fallback uses phi_min / phi_max turbo",
-  );
-  const flat = colorsFromPhi(new Float64Array([1, 9]), 4, 4);
-  const cool = turbo(0);
-  assert(flat.colors[0] === cool[0] && flat.colors[1] === cool[1] && flat.colors[3] === cool[0], "an empty phi span maps every vertex to t = 0");
-  const npy = parseNpy(readFileSync(join(cylDir, "cut_heat/single_cylinder_cut_phi.npy")));
-  const phiSha = "f45f00b43c53ce77b15ca4fb9b66b0839817bb1aa3432b1a2f9ce186e0f06cdf";
-  assert(npy && npy.length === 5221, "sample .npy is one float64 per OBJ vertex");
-  assert(createHash("sha256").update(Buffer.from(npy.buffer, npy.byteOffset, npy.byteLength)).digest("hex") === phiSha, "npy payload matches phi_sha256");
-  const fromJson = Float64Array.from(scalar.phi);
-  assert(createHash("sha256").update(Buffer.from(fromJson.buffer)).digest("hex") === phiSha, "json phi numbers round-trip to the npy bytes");
-  const round = parseNpy(encodeNpyFloat64([0.25, -2, 4.5]));
-  assert(round && round.length === 3 && round[0] === 0.25 && round[1] === -2 && round[2] === 4.5, "npy float64 roundtrip");
-  const wrapped = parsePhiJson(JSON.stringify({ values: [1, 2, 3] }));
-  assert(wrapped && wrapped.phi[2] === 3 && wrapped.phiMin === null && wrapped.phiMax === null, "phi json accepts {values:[]} without a range");
-  assert(parsePhiJson("{") === null && parsePhiJson('{"note":"x"}') === null, "bad phi json does not throw");
-  const vc = buildCutHeatMesh("v 0 0 0\nv 1 0 0\nv 0 1 0\nvc 255 0 0\nvc 0 255 0\nvc 0 0 128\nf 1 2 3\n", null);
-  assert(vc.ok && vc.source === "obj" && vc.colors[0] === 1 && vc.colors[4] === 1 && Math.abs(vc.colors[8] - 128 / 255) < 1e-6, "vc lines color vertices in v order");
-  const meta = JSON.parse(scalarFile);
-  const t0 = turbo(0);
-  const t1 = turbo(1);
-  assert(
-    t0.every((c, i) => Math.abs(c - meta.colormap.t0_rgb[i]) < 1e-6) &&
-      t1.every((c, i) => Math.abs(c - meta.colormap.t1_rgb[i]) < 1e-6),
-    "turbo endpoints match the frozen matplotlib LUT",
-  );
-  const mid = turbo(0.5);
-  assert(mid[1] > mid[0] && mid[1] > mid[2] && t0[2] > t1[2], "turbo runs from a cool lip to a warm lip");
-  assert(!isCutHeatMeshPath("cylinder/cut_iteration_0.obj"), "the closed cut body is not the heat mesh");
-  assert(!isCutHeatMeshPath("cylinder/iteration_0_cut_KnittingStitches.obj"), "stitchmesh is not the heat mesh");
-  assert(isCutHeatMeshPath("iteration_0_cut.obj"), "iteration_{k}_cut.obj is the heat mesh");
-  assert(isCutHeatMeshPath("cylinder/cut_heat/single_cylinder_cut.obj"), "single_cylinder_cut.obj is the heat mesh");
-  assert(
-    heatScalarRelPaths("cylinder/cut_heat/single_cylinder_cut.obj").join(",") ===
-      "cylinder/cut_heat/single_cylinder_cut_phi.json,cylinder/cut_heat/single_cylinder_cut_phi.npy",
-    "phi sidecars sit beside the OBJ stem",
-  );
-  const heatIdx = indexFiles([
-    { name: "cut_iteration_0.obj", path: "sample/cylinder/cut_iteration_0.obj" },
-    { name: "single_cylinder_cut.obj", path: "sample/cylinder/cut_heat/single_cylinder_cut.obj" },
-    { name: "single_cylinder_cut_phi.npy", path: "sample/cylinder/cut_heat/single_cylinder_cut_phi.npy" },
-  ]);
-  const heatProj = projectFromDiscovery(heatIdx);
-  assert(heatProj.outputs.length === 1 && /single_cylinder_cut\.obj$/i.test(heatProj.outputs[0].cutHeatFile?.name || ""), "a cut body picks up the only cut_heat mesh");
-  assert(/single_cylinder_cut_phi\.npy$/i.test(heatProj.outputs[0].cutHeatScalarFile?.name || ""), "npy sidecar is found when json is absent");
-  const otherIdx = indexFiles([
-    { name: "standrad_cylinder_KnittingStitches.obj", path: "sample/cylinder/standrad_cylinder_KnittingStitches.obj" },
-    { name: "single_cylinder_cut.obj", path: "sample/cylinder/cut_heat/single_cylinder_cut.obj" },
-  ]);
-  assert(!projectFromDiscovery(otherIdx).outputs[0].cutHeatFile, "a non-cut sheet does not take the cut heat mesh");
-  const missing = projectFromManifest(
-    { name: "x", outputs: [{ mesh: "cylinder/cut_iteration_0.obj", cutHeat: "cylinder/cut_heat/missing.obj" }] },
-    index,
-    "sample/manifest.json",
-  );
-  assert(!missing.outputs[0].cutHeatFile && missing.warnings.some((w) => /cut heat/i.test(w)), "a missing cut heat file warns and leaves the option empty");
-}
-assert(mainSrc.includes("loadCutHeatMesh") && mainSrc.includes("setShowCutHeat") && mainSrc.includes("#base-cut-heat"), "main wires Cut heat from the Base menu");
-assert(viewerSrc.includes("setCutHeat") && viewerSrc.includes("_cutHeatMaterial") && viewerSrc.includes("showCutHeat"), "viewer swaps the left mesh to the heat-colored cut");
-assert(/_cutHeatMaterial\(\)[\s\S]*vertexColors:\s*true/.test(viewerSrc), "Cut heat draws the scalar with vertex colors");
-assert(!viewerSrc.includes("mergeVertices") && !readFileSync(join(root, "src", "cut-heat.js"), "utf8").includes("mergeVertices"), "Cut heat does not weld vertices by position");
-assert(css.includes(".base-check:has(input:disabled)") && /grid-template-columns:\s*1fr 1fr 1fr/.test(css), "a missing cut heat sample greys the row without a fourth dock button");
+assert(!existsSync(join(cylDir, "cut_heat")), "cut heat sample folder is gone");
+assert(!refs.some((rel) => /cutHeat|cut_heat/i.test(rel)), "manifest does not reference a cut heat overlay");
+assert(!css.includes(".base-check:has(input:disabled)"), "the greyed cut heat row style is gone");
 
 console.log("project checks ok");
