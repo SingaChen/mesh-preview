@@ -1156,8 +1156,18 @@ assert(/grid-template-columns:\s*1fr 1fr 1fr/.test(readFileSync(join(root, "src"
 assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "top bar uses one Open menu");
 assert(
   html.includes('id="load-faces-ring0"') && html.includes('id="open-folder"') && html.includes('id="open-files"') && !html.includes('id="load-sample"') && !html.includes("示例"),
-  "前两环 / Folder / Files stay as menu items and 示例 is gone",
+  "Bunny / Folder / Files stay as menu items and 示例 is gone",
 );
+assert(
+  /id="load-faces-ring0"[^>]*>Bunny<\/button>/.test(html) &&
+    !html.includes("前两环") &&
+    !mainSrc.includes("前两环") &&
+    mainSrc.includes("加载 Bunny / Loading Bunny…") &&
+    mainSrc.includes("Bunny · faces_ring 接在一张床图上") &&
+    mainSrc.includes('map.sheet === "ring0" ? "Bunny"'),
+  "faces-ring0 is labeled Bunny in the Open menu, status, and sheet header",
+);
+assert(manifest.outputs[0].label === "Bunny", "faces-ring0 output label is Bunny");
 assert(html.includes('id="load-faces-ring0"') && !html.includes('id="load-faces-ring1"') && mainSrc.includes("faces-ring0") && mainSrc.includes("isFacesRing0BedChart"), "Open menu loads the joined faces-ring bed chart");
 assert(!mainSrc.includes("#load-sample") && !mainSrc.includes("load-sample"), "main no longer wires 示例");
 assert(
@@ -2156,7 +2166,7 @@ assertDenseCylinderSample({
   assert(/\.btn:disabled\s*\{[^}]*opacity:\s*0\.45/.test(css), "a sheet without a dat greys the Export button");
   const faces = datForSheet("faces-ring0");
   const dense = datForSheet("dense-standrad-cylinder");
-  assert(faces?.filename === "faces_ring0_v2.dat" && faces.path === "sample/cylinder/faces_ring0_v2.dat", "faces ring 0–1 exports the committed v2 dat");
+  assert(faces?.filename === "faces_ring0_v2.dat" && faces.path === "sample/cylinder/faces_ring0_v2.dat", "Bunny sheet still exports the committed v2 dat");
   assert(
     dense?.filename === "dense_standrad_cylinder.dat" && dense.path === "sample/dense-standrad/dense_standrad_cylinder.dat",
     "Dense Standrad Cylinder exports dense_standrad_cylinder.dat",
