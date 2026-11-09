@@ -80,7 +80,6 @@ const exportBtn = document.querySelector("#export-dat");
 const exportSlot = document.querySelector("#export-slot");
 const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
-const sampleBtn = document.querySelector("#load-sample");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
 const standradBtn = document.querySelector("#load-standrad-cylinder");
 const denseStandradBtn = document.querySelector("#load-dense-standrad-cylinder");
@@ -1050,11 +1049,13 @@ async function loadFatPropagateCylinder() {
 }
 
 async function loadSample(sheet = sheetQuery()) {
-  setStatus("加载示例 / Loading sample…");
+  const want = String(sheet || "").trim() || "faces-ring0";
+  if (!sheetQuery()) setSheetQuery(want);
+  setStatus("加载前两环 / Loading faces ring 0–1…");
   const base = import.meta.env.BASE_URL;
   try {
     const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
-    if (!res.ok) throw new Error("示例清单不可用 / Sample manifest missing");
+    if (!res.ok) throw new Error("前两环清单不可用 / Faces-ring manifest missing");
     const data = await res.json();
     const paths = collectManifestRefs(data);
     const entries = [
@@ -1063,18 +1064,14 @@ async function loadSample(sheet = sheetQuery()) {
     await Promise.all(
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`缺少示例 / Missing sample ${rel}`);
+        if (!res.ok) throw new Error(`缺少前两环 / Missing faces ring ${rel}`);
         entries.push(await sampleEntry(rel, res));
       }),
     );
-    await openEntries(entries, { sheet });
+    await openEntries(entries, { sheet: want });
     if (!statusEl.classList.contains("error")) {
       const faces0 = isFacesRing0BedChart(currentOutput()?.readableMapFile?.name || "");
-      setStatus(
-        faces0
-          ? "faces_ring 前两环接在一张床图上 · 网格滑条最后一项仍是原来的 step4-ring0"
-          : "左 3D · 右 step4-ring0（第二圈继承第一圈床位，织行与移圈同一物理列）· 窄屏切 3D/图",
-      );
+      setStatus(faces0 ? "faces_ring 前两环接在一张床图上" : "已加载圆柱样本 / Cylinder sample loaded");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1124,11 +1121,6 @@ openFolderBtn.addEventListener("click", async () => {
 openFilesBtn.addEventListener("click", () => {
   setOpenMenu(false);
   clickInput(filesInput);
-});
-sampleBtn.addEventListener("click", () => {
-  setOpenMenu(false);
-  setSheetQuery("");
-  loadSample("");
 });
 facesRing0Btn?.addEventListener("click", () => {
   setOpenMenu(false);
@@ -1467,4 +1459,7 @@ else if (isDenseDecreaseSheet(sheetQuery())) loadDenseDecreaseCylinder();
 else if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
 else if (isDenseStandradSheet(sheetQuery())) loadDenseStandradCylinder();
 else if (isStandradSheet(sheetQuery())) loadStandradCylinder();
-else loadSample();
+else {
+  if (!sheetQuery()) setSheetQuery("faces-ring0");
+  loadSample(sheetQuery() || "faces-ring0");
+}
