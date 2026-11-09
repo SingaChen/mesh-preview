@@ -1051,11 +1051,11 @@ async function loadFatPropagateCylinder() {
 async function loadSample(sheet = sheetQuery()) {
   const want = String(sheet || "").trim() || "faces-ring0";
   if (!sheetQuery()) setSheetQuery(want);
-  setStatus("加载前两环 / Loading faces ring 0–1…");
+  setStatus("加载 Bunny / Loading Bunny…");
   const base = import.meta.env.BASE_URL;
   try {
     const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
-    if (!res.ok) throw new Error("前两环清单不可用 / Faces-ring manifest missing");
+    if (!res.ok) throw new Error("Bunny 清单不可用 / Bunny manifest missing");
     const data = await res.json();
     const paths = collectManifestRefs(data);
     const entries = [
@@ -1064,14 +1064,14 @@ async function loadSample(sheet = sheetQuery()) {
     await Promise.all(
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`缺少前两环 / Missing faces ring ${rel}`);
+        if (!res.ok) throw new Error(`缺少 Bunny / Missing Bunny ${rel}`);
         entries.push(await sampleEntry(rel, res));
       }),
     );
     await openEntries(entries, { sheet: want });
     if (!statusEl.classList.contains("error")) {
       const faces0 = isFacesRing0BedChart(currentOutput()?.readableMapFile?.name || "");
-      setStatus(faces0 ? "faces_ring 前两环接在一张床图上" : "已加载圆柱样本 / Cylinder sample loaded");
+      setStatus(faces0 ? "Bunny · faces_ring 接在一张床图上" : "已加载圆柱样本 / Cylinder sample loaded");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1250,7 +1250,7 @@ function paintReadableMap() {
   if (mapMeta) {
     mapMeta.textContent =
       map.source === "excel"
-        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "faces-ring" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${stoppedMapSuffix(map)}`
+        ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "Bunny" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${stoppedMapSuffix(map)}`
         : h
           ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
           : `${map.rows.length} rows · ${map.cells.length} cells`;

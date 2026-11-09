@@ -2,7 +2,7 @@
   "name": "Single_Cylinder_Test",
   "outputs": [
     {
-      "label": "faces ring 0–1 · one bed chart",
+      "label": "Bunny",
       "mesh": "cylinder/cut_iteration_0.obj",
       "overlay": "cylinder/iteration_0_cut_KnittingStitches.obj",
       "stitches": "cylinder/iteration_0_cut_KnittingStitches.obj",
