@@ -119,8 +119,12 @@ assert(
   "manifest must list desktop stitch_map_bind.json",
 );
 assert(
-  refs.some((r) => /readable_map_step4_ring0\.xls$/.test(r)),
-  "manifest must list the step4-ring0 Excel readable_map",
+  refs.some((r) => /faces_ring0_step4_bed\.xls$/.test(r)),
+  "manifest must list the faces-ring0 bed chart",
+);
+assert(
+  !refs.some((r) => /iteration_0_cut_readable_map_step4_ring0\.xls$/.test(r) || /iteration_0_cut_readable_map\.txt$/.test(r)),
+  "manifest must not list the removed 示例 bed",
 );
 assert(
   existsSync(join(cylDir, "iteration_0_cut_readable_map_step3_xfer.xls")),
@@ -137,8 +141,8 @@ assert(
   "npm test checks the faces-ring Step4 generator",
 );
 assert(
-  refs.some((r) => /readable_map\.txt$/.test(r)),
-  "manifest still ships the txt companion for stitch col/row bind",
+  refs.some((r) => /faces_ring0_step4_bed\.txt$/.test(r)),
+  "manifest keeps the faces-ring0 txt companion",
 );
 assert(
   !refs.some((r) => /cols_resample_meta\.json$/.test(r)),
@@ -159,27 +163,22 @@ const entries = [
 
 const index = indexFiles(entries);
 const fromManifest = projectFromManifest(manifest, index, "sample/manifest.json");
-if (fromManifest.outputs.length !== 2) throw new Error("expected the joined faces-ring sheet plus the live step4 sample");
+if (fromManifest.outputs.length !== 1) throw new Error("expected only the faces-ring0 sample output");
 const facesOut = fromManifest.outputs[0];
-const liveOut = fromManifest.outputs[1];
 if (!/faces_ring0_step4_bed\.xls$/i.test(facesOut.readableMapFile?.name || "")) {
-  throw new Error("first sample output must open faces_ring0_step4_bed.xls");
+  throw new Error("sample output must open faces_ring0_step4_bed.xls");
 }
 if (!/faces_ring0_step4_bed\.txt$/i.test(facesOut.readableMapTxtFile?.name || "")) {
   throw new Error("faces-ring0 output must keep its own txt");
 }
-if (!liveOut.stitchFile) throw new Error("expected stitch file");
-if (!liveOut.readableMapFile) throw new Error("expected readable_map");
-if (!/step4_ring0\.xls$/i.test(liveOut.readableMapFile.name)) {
-  throw new Error("live sample must stay on the step4-ring0 xls");
-}
-if (!liveOut.readableMapTxtFile) throw new Error("expected readable_map txt companion");
-if (!liveOut.colsResampleFile) throw new Error("expected cols_resample field");
-if (!liveOut.colsResampleXlsFile) throw new Error("expected cols_resample xls");
-if (liveOut.colsResampleJsonFile) throw new Error("sample should not ship a cols_resample sidecar");
-if (!liveOut.firstRowsFile) throw new Error("expected first_rows xls");
-if (!liveOut.facesRingLayoutFile) throw new Error("expected faces_ring_layout.json");
-if (!liveOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json");
+if (!facesOut.stitchFile) throw new Error("expected stitch file");
+if (!facesOut.readableMapFile) throw new Error("expected readable_map");
+if (!facesOut.colsResampleFile) throw new Error("expected cols_resample field");
+if (!facesOut.colsResampleXlsFile) throw new Error("expected cols_resample xls");
+if (facesOut.colsResampleJsonFile) throw new Error("sample should not ship a cols_resample sidecar");
+if (!facesOut.firstRowsFile) throw new Error("expected first_rows xls");
+if (!facesOut.facesRingLayoutFile) throw new Error("expected faces_ring_layout.json");
+if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json");
 {
   const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
   assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");
@@ -402,9 +401,10 @@ if (fromDiscovery.outputs[0].colsResampleJsonFile) throw new Error("discovery sh
 if (!fromDiscovery.outputs[0].firstRowsFile) throw new Error("discovery should attach first_rows xls");
 if (!fromDiscovery.outputs[0].facesRingLayoutFile) throw new Error("discovery should attach faces_ring_layout.json");
 if (!fromDiscovery.outputs[0].stitchMapBindFile) throw new Error("discovery should attach stitch_map_bind.json");
-if (!/step4_ring0\.xls$/i.test(fromDiscovery.outputs[0].readableMapFile?.name || "")) {
-  throw new Error("discovery should prefer the step4-ring0 xls over readable_map.txt");
-}
+assert(
+  !fromDiscovery.outputs[0].readableMapFile && !fromDiscovery.outputs[0].readableMapTxtFile,
+  "sample manifest refs no longer carry the iter-0 readable_map",
+);
 assert(readableMapRank("iteration_0_cut_readable_map_step4_ring0.xls") > readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls"), "ring0 outranks step3");
 assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readableMapRank("iteration_0_cut_readable_map_step4_beds.xls"), "step3 outranks the full step4 beds source");
 {
@@ -434,7 +434,6 @@ assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readable
   const noRing0 = projectFromDiscovery(indexFiles(diskEntries.filter((e) => !/ring0/i.test(e.name))));
   assert(/step3_xfer\.xls$/i.test(noRing0.outputs[0].readableMapFile?.name || ""), "discovery falls back to step3 xls when ring0 is missing");
 }
-if (!fromDiscovery.outputs[0].readableMapTxtFile) throw new Error("discovery should keep the txt companion");
 if (!isOverlayName("iteration_0_cut_KnittingStitches.obj")) {
   throw new Error("overlay heuristic failed for KnittingStitches");
 }
@@ -1155,8 +1154,16 @@ assert(html.includes('id="show-chrome"') && html.includes("控件"), "collapsed 
 assert(html.includes('id="base-menu-btn"') && html.includes('id="toggle-warp"') && html.includes('id="toggle-overlay"'), "bottom chrome is Base / Warp / Stitch");
 assert(/grid-template-columns:\s*1fr 1fr 1fr/.test(readFileSync(join(root, "src", "style.css"), "utf8")), "Base button shares the same 3-column size as Warp and Stitch");
 assert(html.includes('id="open-menu"') && html.includes('id="open-menu-btn"'), "top bar uses one Open menu");
-assert(html.includes('id="load-sample"') && html.includes('id="open-folder"') && html.includes('id="open-files"'), "Sample / Folder / Files stay as menu items");
+assert(
+  html.includes('id="load-faces-ring0"') && html.includes('id="open-folder"') && html.includes('id="open-files"') && !html.includes('id="load-sample"') && !html.includes("示例"),
+  "前两环 / Folder / Files stay as menu items and 示例 is gone",
+);
 assert(html.includes('id="load-faces-ring0"') && !html.includes('id="load-faces-ring1"') && mainSrc.includes("faces-ring0") && mainSrc.includes("isFacesRing0BedChart"), "Open menu loads the joined faces-ring bed chart");
+assert(!mainSrc.includes("#load-sample") && !mainSrc.includes("load-sample"), "main no longer wires 示例");
+assert(
+  mainSrc.includes('setSheetQuery("faces-ring0")') && mainSrc.includes('loadSample(sheetQuery() || "faces-ring0")'),
+  "default sample load is the faces-ring0 sheet",
+);
 assert(
   html.includes('id="load-standrad-cylinder"') &&
     html.includes("Standrad Cylinder") &&
