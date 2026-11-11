@@ -48,15 +48,18 @@
  * when that knit reaches its end; balance after the knit. The next course is
  * counted from the post-balance needles. A stitch that would sit
  * below 0 (F−1) is kept and balanced onto F0.
- * First ring, before the circumference is fully seated: if a course
- * walks past the already-seated edge, its increases stay empty-bed
- * births. Check the walk before any later-course shift. Needles that
- * course opens join the base circumference. Do not shift stitches
- * already seated. A cell that is already seated stays that stitch and
- * is not born again. Later increases use the shift / hole rule above
- * only after the seated wales are one contiguous span starting at 0
- * and this course stays inside that span. Later rings do not use this
- * switch. An increase is not a skipped wale and does not invent a stitch.
+ * Empty-bed increase is per needle, not per course and not because the
+ * row is still ring 0. Judge the increase needle before this course's
+ * transfers. No stitch on that needle yet: the increase is an empty-bed
+ * birth, and it does not transfer. A stitch is already there: do that
+ * increase's transfers first, then knit the whole course. Already-seated
+ * cells stay those stitches and are not born again. One course may
+ * contain both. While the first ring is not yet one contiguous span
+ * from 0, a needle this ring opens joins the base circumference whether
+ * an empty-bed birth or a transfer opened it. It is not a skipped wale
+ * and it is not a hole. Once that span is seated and the course stays
+ * inside it, a later increase's hole is not a second birth. Later rings
+ * do not use this switch.
  * Decrease, on a bed that is already seated: a hang of n occupies
  * n+1 cells, all in the decrease color. The first is -Rn or -Ln.
  * The rest are plain dots on that bed. Knit through the last of
@@ -374,40 +377,36 @@ function decSide(label) {
   return wrapped ? wrapped[1] : "";
 }
 
+/** The seated wales are exactly 0..N-1. */
+function liveIsContiguousFromZero(live) {
+  if (live.size === 0) return false;
+  for (let i = 0; i < live.size; i++) {
+    if (!live.has(i)) return false;
+  }
+  return true;
+}
+
 /**
- * First-ring empty-bed switch. Locked 2026-11-11.
- *
- * Judge this course before any later-course increase shift. It is still
- * empty-bed seating when the walk reaches a wale that is not already
- * seated, or when the seated wales are not yet 0..N-1. Increases on
- * that course are births: each newly opened needle joins the base
- * circumference, stitches already seated are not shifted, and a cell
- * already on the bed stays that stitch. It is not a second birth.
- *
- * Once the seated wales are one contiguous span starting at 0 and this
- * course stays inside that span, the circumference seated so far is
- * complete. Later increases use the existing later-course rule (shift,
- * then a hole, not a second birth). Later rings do not call this.
+ * The first ring is still seating when the bed is not yet 0..N-1, or
+ * this course walks onto a wale that is not seated yet. Needles opened
+ * while that is true join the base, including needles a transfer opens.
+ * A course that stays inside the finished span uses later-course holes.
  */
-function ring0CourseIsEmptyBed(course, live) {
+function firstRingStillSeating(course, live) {
+  if (!liveIsContiguousFromZero(live)) return true;
   for (const cell of course.cells) {
     if (!live.has(cell.wale)) return true;
-  }
-  if (live.size === 0) return true;
-  for (let i = 0; i < live.size; i++) {
-    if (!live.has(i)) return true;
   }
   return false;
 }
 
 /**
- * Birth wales. On an empty bed an increase is a split: after stitch n
- * the new loop sits on the next needle and holds a loop, so that wale
- * is part of the contiguous circumference. The same birth is used for
- * a later first-ring course that still walks past the seated edge.
- * A course on the finished circumference already has stitches, and its
- * increase holes are the ones the transfer opens; those wales are not
- * a second birth.
+ * Birth wales. An empty-bed increase is a split: after stitch n the new
+ * loop sits on the next needle and holds a loop, so that wale is part of
+ * the contiguous circumference. While the first ring is still seating,
+ * a transfer does not turn the needle it opens into a hole. That wale is
+ * a birth too. After the span is 0..N-1 and the course stays inside it,
+ * a later increase's hole is not a second birth.
  */
 export function baseWalesOf(courses) {
   let live = new Set();
@@ -416,8 +415,8 @@ export function baseWalesOf(courses) {
     const step = course.dir === 0 ? 1 : -1;
     const incs = course.cells.filter((c) => incAdded(c.label));
     const fresh = new Set();
-    const emptyBed = ring0CourseIsEmptyBed(course, live);
-    if (!emptyBed) {
+    const stillSeating = firstRingStillSeating(course, live);
+    if (!stillSeating) {
       for (const cell of incs.slice().reverse()) {
         const added = incAdded(cell.label);
         const pivot = cell.wale + step;
@@ -436,7 +435,7 @@ export function baseWalesOf(courses) {
     }
     for (const cell of course.cells) {
       if (live.has(cell.wale)) continue;
-      if (!emptyBed && fresh.has(cell.wale)) {
+      if (!stillSeating && fresh.has(cell.wale)) {
         live.add(cell.wale);
         continue;
       }
@@ -1404,14 +1403,15 @@ export function seatRing(courses, planInfo, carried = null) {
     if (decs.length) fail(`${where}: decrease waits until the course reaches it, on a bed that is already seated`);
 
     const fresh = new Set();
-    // First ring only. A course that still walks past the seated edge
-    // is empty-bed seating: births, no shift of stitches already on
-    // the bed. A carried later ring keeps the later-course shift.
-    // Once the circumference is 0..N-1 and this course stays on it,
-    // a split transfers the tail, then the new loop is knitted in the hole.
-    const emptyBed = !carried && ring0CourseIsEmptyBed(course, live);
-    if (!emptyBed && live.size > 0) {
-      for (const cell of incs.slice().reverse()) {
+    // Per needle, judged before this course's transfers. An increase
+    // whose needle has no stitch yet is an empty-bed birth: no transfer.
+    // An increase whose needle already has a stitch transfers first.
+    // Both may be in this course. A carried bed keeps transferring every
+    // increase; later rings do not use this split.
+    const seatedAtStart = new Set(live.keys());
+    const transferIncs = incs.filter((cell) => carried || seatedAtStart.has(cell.wale));
+    if (transferIncs.length && live.size > 0) {
+      for (const cell of transferIncs.slice().reverse()) {
         const added = incAdded(cell.label);
         const pivot = cell.wale + step;
         for (let g = 1; g <= added; g++) fresh.add(cell.wale + step * g);
@@ -1506,6 +1506,11 @@ export function seatRing(courses, planInfo, carried = null) {
         if (!st && id != null) st = stitches.get(id);
       }
       if (!st || !stitches.has(st.id)) fail(`${where}: wale ${cell.wale} has no stitch`);
+      // A transfer moves an already-seated stitch onto the next planned
+      // needle. That needle is part of the base while the ring is still
+      // seating, so the placeholder is this stitch, not a second birth.
+      const slotNow = plan.get(cell.wale);
+      if (slotNow && !slotNow.used && st.bed === slotNow.bed && st.phys === slotNow.phys) slotNow.used = true;
       if (used.has(st.id)) fail(`${where}: stitch ${st.id} is knitted twice`);
       used.add(st.id);
       prevKnit = st;
