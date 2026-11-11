@@ -76,17 +76,16 @@
  * those transfers. Balance runs as soon as those transfers finish,
  * before the remaining stitches are knitted. The remaining knit is
  * the next course, counted on the post-balance window.
- * A course with both increases and decreases stays one course
- * (Rule 8). The increase transfers open every site first, and
- * nothing is knitted yet. The course is then knitted once. At each
- * decrease the knit runs through that span, then the transfer starts
- * at the second cell and every repeat starts there again. The
- * stitches after that transfer stay on this course. They are not the
- * next course. More than one decrease: balance after each decrease's
- * transfer, then continue this course from the post-balance needles.
- * One decrease: keep the decrease-only balance timing, and the
- * leftover knit is still this same course. The next course starts on
- * the post-balance end stitch.
+ * A course with both increases and decreases stays one course.
+ * Walk it in travel order and apply each stitch when the course
+ * reaches it. Do not open later increases before knitting earlier
+ * stitches. An increase whose needle already holds a stitch transfers
+ * then, then that stitch is knitted. A decrease still knits through
+ * its span, then transfers from the second cell. What remains stays
+ * on this course. More than one decrease: balance after each
+ * decrease's transfer, then continue from the post-balance needles.
+ * One decrease keeps the decrease-only balance timing, and the
+ * leftover knit is still this same course.
  * Balance is a whole-bed shift so
  * F≥B and |F−B|≤1, front low end at F0, extra stitch at the fold
  * gap. The target seat is only the stitch count N and "front starts
@@ -1643,9 +1642,10 @@ export function seatRing(courses, planInfo, carried = null) {
  * same needle n times, stacking onto the first cell. A decrease is
  * finished when that transfer is done, so balance runs before the
  * remaining stitches. Those stitches are the next course, counted on
- * the post-balance window. A course with both uses Rule 8: open every
- * increase first, knit this course once, and keep the leftover on
- * this course. Several decreases balance after each one.
+ * the post-balance window. A course with both is walked in order:
+ * an increase transfers when that stitch is reached, and a decrease
+ * transfers when its span is knitted. Several decreases balance
+ * after each one. The leftover stays on this course.
  */
 export function seatContinuation(courses, seeds, prevDir = null, carried = null, options = null) {
   const stitches = carried ? carried.stitches : new Map();
@@ -1735,9 +1735,57 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
     // Captured before this course writes wales. A seed bed's first
     // course starts on the cursor. Later courses have wales already.
     const virginBed = waleToId.size === 0;
-    // Rule 8. Increase transfers open every site before the knit.
-    // The decrease path then knits this same course.
+    // A course that also decreases is walked in travel order. An
+    // increase transfers when the walk reaches that stitch.
     const mixed = decs.length > 0 && incs.length > 0;
+    const openReachedIncrease = (marker, cell) => {
+      const added = incAdded(cell.label);
+      const delta = marker.bed === "F" ? dirSign : -dirSign;
+      for (let k = 0; k < added; k++) {
+        const beds = liveWindow(stitches);
+        const moves = shiftTravelTail(stitches, marker, delta, where);
+        if (!moves.length) continue;
+        const token = moveToken(marker.bed, moves[0].from, moves[0].to);
+        if (moves.some((m) => moveToken(m.bed, m.from, m.to) !== token || m.bed !== marker.bed)) {
+          fail(`${where}: increase moves are not one split on ${marker.bed}`);
+        }
+        sheet.push({
+          dir: "X+",
+          kind: "increase",
+          course: ci,
+          cells: moves.map((m) => ({
+            col: columnForPhys(m.bed, m.from),
+            token,
+            fill: FILL.xfer,
+            phys: m.from,
+            bed: m.bed,
+            id: m.id,
+            role: "increase",
+          })),
+          beds,
+          note: `${where}: the course reached ${marker.bed}${marker.phys}. Transfer this increase, then knit it.`,
+        });
+      }
+      for (let g = 1; g <= added; g++) {
+        const newborn = {
+          id: nextId++,
+          bed: marker.bed,
+          phys: marker.phys + delta * g,
+          wale: cell.wale + step * g,
+          base: false,
+        };
+        const occupied = [...stitches.values()].some((st) => st.bed === newborn.bed && st.phys === newborn.phys);
+        if (occupied) fail(`${where}: increase hole ${newborn.bed}${newborn.phys} is occupied`);
+        const prior = waleToId.get(newborn.wale);
+        if (prior != null && prior !== newborn.id) {
+          const other = stitches.get(prior);
+          if (other && other.wale === newborn.wale) other.wale = null;
+        }
+        stitches.set(newborn.id, newborn);
+        waleToId.set(newborn.wale, newborn.id);
+      }
+      assertNoShare(stitches, where);
+    };
     const openIncreaseSites = () => {
       for (const cell of incs.slice().reverse()) {
         const added = incAdded(cell.label);
@@ -1766,9 +1814,7 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
               role: "increase",
             })),
             beds,
-            note: mixed
-              ? `${where}: partial increase move on ${marker.bed}. The knit follows, and balance follows the decrease.`
-              : `${where}: partial increase move on ${marker.bed}, then the increase, balance after the knit.`,
+            note: `${where}: partial increase move on ${marker.bed}, then the increase, balance after the knit.`,
           });
         }
         for (let g = 1; g <= added; g++) {
@@ -1792,10 +1838,6 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
         assertNoShare(stitches, where);
       }
     };
-    if (mixed) {
-      bindWalk();
-      openIncreaseSites();
-    }
 
     if (decs.length) {
       const prefix = [];
@@ -1818,6 +1860,23 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
       let firstId = null;
       let recvBed = "";
       let recvPhys = null;
+      const flushKnitPrefix = () => {
+        if (!prefix.length) return;
+        finishKnit(prefix);
+        if (!courseStart) courseStart = prefix[0];
+        knitted += prefix.length;
+        sheet.push({
+          dir: course.dir === 0 ? "R" : "L",
+          kind: "knit",
+          course: ci,
+          cells: prefix.slice(),
+          beds: knitBeds,
+          note: notes.join(" "),
+        });
+        prefix.length = 0;
+        notes.length = 0;
+        knitBeds = null;
+      };
       course.cells.forEach((cell, index) => {
         if (index === 0) {
           if (fold) {
@@ -1835,6 +1894,14 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
         if (st.wale != null && st.wale !== cell.wale && waleToId.get(st.wale) === st.id) waleToId.delete(st.wale);
         waleToId.set(cell.wale, st.id);
         st.wale = cell.wale;
+        const reachedInc = incAdded(cell.label);
+        if (reachedInc) {
+          if (spanLeft || pastSpan) fail(`${where}: an increase is inside a decrease that has not finished`);
+          // Stitches already walked are knitted before this increase moves the bed.
+          flushKnitPrefix();
+          openReachedIncrease(st, cell);
+          knitBeds = null;
+        }
         if (!knitBeds) knitBeds = liveWindow(stitches);
         const nDec = decAdded(cell.label);
         const isHeader = nDec && (cell.kind === "dec" || cell.kind === "wrapDec");
@@ -2008,7 +2075,9 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
           const more = course.cells.slice(index + 1).some((item) => decAdded(item.label) && (item.kind === "dec" || item.kind === "wrapDec"));
           // Several decreases on a mixed course: balance after this one too,
           // even when it is the last, and keep the leftover on this course.
-          const sameCourseTail = mixed && decs.length > 1 && index + 1 < course.cells.length;
+          // After a decrease on a mixed course, keep walking this course.
+          // A later increase transfers when the walk reaches it.
+          const sameCourseTail = mixed && index + 1 < course.cells.length;
           let line = crossBed
             ? `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。跨床减针：${movedNotes.join("；")}。`
             : `${where}: 先织到减针最后一格。减 ${passes} 针占 ${passes + 1} 格，都是减针色：${drawnSpan}。然后从 ${recvName} 起移 ${passes} 次（${movedNotes.join("；")}）。`;
@@ -2181,12 +2250,33 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
       });
       cursor = endSt;
       prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
+      if (mixed) {
+        // A decrease already balanced when it finished. An increase
+        // reached later can change the count again, so seat the bed
+        // after this course's knit.
+        const fixes = balanceBeds(stitches, new Map(), where);
+        for (const fix of fixes) {
+          sheet.push({
+            dir: fix.dir,
+            kind: fix.kind,
+            course: ci,
+            cells: fix.cells,
+            beds: fix.beds,
+            note: fix.note,
+          });
+        }
+        const seatedEnd = stitches.get(cursor.id);
+        if (seatedEnd) {
+          cursor = seatedEnd;
+          prevEnd = { id: seatedEnd.id, bed: seatedEnd.bed, phys: seatedEnd.phys };
+        }
+      }
     }
 
     const placed = decs.length ? [] : bindWalk();
     // Later sites first, so each split stays on the next needle. An earlier
     // site then carries those new loops along with the rest of its tail.
-    // A mixed course already opened these sites before the knit.
+    // A course with only increases still opens every site, then knits once.
     if (!mixed) openIncreaseSites();
 
     let knitPlan = null;
@@ -3343,14 +3433,19 @@ function selfCheckMixedCourse() {
   const multi = coursesFromTypes([0, 3, 4, 0, 3, 0, 0, 0, 2, 2], [0, 1, 1, 0, 1, 0, 0, 0, 0, 0]);
   const seated = seatContinuation(multi, seeds, 1);
   const sheet = seated.sheet;
-  const incAt = sheet.findIndex((row) => row.kind === "increase");
-  const knitAt = sheet.findIndex((row) => row.kind === "knit");
-  if (incAt < 0 || incAt > knitAt) fail("mixed course knitted before the increase transfer");
   if (sheet.some((row) => /下一课/.test(row.note || ""))) fail("mixed course treated the leftover as the next course");
+  const firstKnit = sheet.find((row) => row.kind === "knit");
+  const firstInc = sheet.find((row) => row.kind === "increase");
+  const firstDecX = sheet.find((row) => row.kind === "decrease");
+  if (!firstKnit || !firstInc || !firstDecX) fail("mixed course is missing a knit, increase, or decrease");
+  if (sheet.indexOf(firstInc) < sheet.indexOf(firstKnit) || sheet.indexOf(firstInc) < sheet.indexOf(firstDecX)) {
+    fail("mixed course transferred an increase before the earlier decrease");
+  }
+  if (firstKnit.cells.some((cell) => incAdded(cell.label || ""))) fail("the early decrease knit includes a later increase");
+  const incKnit = sheet.find((row) => row.kind === "knit" && row.cells.some((cell) => incAdded(cell.label || "")));
+  if (!incKnit || sheet.indexOf(incKnit) < sheet.indexOf(firstInc)) fail("mixed increase was knitted before its transfer");
   const decKnits = sheet.filter((row) => row.kind === "knit" && row.cells.some((cell) => decAdded(cell.label || "")));
   if (decKnits.length !== 2) fail(`mixed course knitted ${decKnits.length} decreases`);
-  const between = sheet.slice(sheet.indexOf(decKnits[0]) + 1, sheet.indexOf(decKnits[1]));
-  if (between.some((row) => row.kind === "knit")) fail("mixed course knitted between decreases before the decrease transfer");
   if (!/仍是这一课/.test(decKnits[1].note || "")) fail("the last mixed decrease did not keep the tail on this course");
   const tail = sheet.find((row) => /接着织这一课/.test(row.note || ""));
   if (!tail || tail.course !== 0) fail("mixed tail is not course 0");
