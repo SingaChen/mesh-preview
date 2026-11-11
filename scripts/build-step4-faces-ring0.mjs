@@ -109,10 +109,10 @@
  * the next long row. Finishing the ring is not a fold-return: the
  * next stitch is the next ring.
  *
- * Rings 0 through 4 are one sheet. Each later ring continues on the bed
- * the previous ring left behind. Its first stitch is the next stitch
- * after that ring, and that stitch is at F0. A new ring is not a
- * fold-return close. Row starts stay on the fold rule.
+ * The official Bunny sheet is every ring in faces_ring_layout.json.
+ * Each later ring continues on the bed the previous ring left behind.
+ * Its first stitch is at F0. A new ring is not a fold-return close.
+ * Row starts stay on the fold rule.
  *
  *   node scripts/build-step4-faces-ring0.mjs
  *   node scripts/build-step4-faces-ring0.mjs --check
@@ -3238,7 +3238,9 @@ function assertRunningDecrease(built) {
     const dec = row.cells.find((cell) => decAdded(cell.label || ""));
     if (dec) hits.push({ index, row, dec });
   });
-  if (hits.length !== 25) fail(`expected twenty-five knitted decreases, got ${hits.length}`);
+  // The old 25 counted a five-ring joined chart. The official file is
+  // the accepted six-ring bed, which knits 26 decreases.
+  if (hits.length !== 26) fail(`expected twenty-six knitted decreases, got ${hits.length}`);
   for (const { index, row, dec } of hits) {
     const prev = rows[index - 1];
     if (prev && prev.kind === "decrease" && prev.course !== row.course) {
@@ -3521,34 +3523,8 @@ function writeOwnBed(input, check, options = {}) {
   return built;
 }
 
-function main(argv = process.argv.slice(2)) {
-  const check = argv.includes("--check");
-  const partialOnError = argv.includes("--partial");
-  const inputAt = argv.indexOf("--input");
-  if (inputAt >= 0) {
-    const input = argv[inputAt + 1];
-    if (!input) fail("--input needs the faces_ring file");
-    selfCheckDecrease();
-    selfCheckDecreaseSpan();
-    selfCheckFollowingLoops();
-    selfCheckDoubleDecrease();
-    selfCheckCrossBedGroup();
-    selfCheckNegativeSeat();
-    selfCheckCountSeat();
-    selfCheckMixedCourse();
-    selfCheckConsecutiveIncrease();
-    return writeOwnBed(input, check, partialOnError ? { partialOnError: true } : {});
-  }
-  selfCheckDecrease();
-  selfCheckDecreaseSpan();
-  selfCheckFollowingLoops();
-  selfCheckDoubleDecrease();
-  selfCheckCrossBedGroup();
-  selfCheckNegativeSeat();
-  selfCheckCountSeat();
-  selfCheckMixedCourse();
-  selfCheckConsecutiveIncrease();
-  const built = buildJoinedChart();
+export function emitOfficialBunnyBed(check = false) {
+  const built = buildOwnBedChart(DEFAULT_PATHS.facesRing);
   assertRunningDecrease(built);
   const text = renderReport(built);
   const bytes = workbookBytes(built);
@@ -3564,6 +3540,29 @@ function main(argv = process.argv.slice(2)) {
   }
   console.log(text);
   return built;
+}
+
+function main(argv = process.argv.slice(2)) {
+  const check = argv.includes("--check");
+  const partialOnError = argv.includes("--partial");
+  const inputAt = argv.indexOf("--input");
+  selfCheckDecrease();
+  selfCheckDecreaseSpan();
+  selfCheckFollowingLoops();
+  selfCheckDoubleDecrease();
+  selfCheckCrossBedGroup();
+  selfCheckNegativeSeat();
+  selfCheckCountSeat();
+  selfCheckMixedCourse();
+  if (inputAt >= 0) {
+    const input = argv[inputAt + 1];
+    if (!input) fail("--input needs the faces_ring file");
+    // Increase Cylinder course 2 is that model's check. It is not a gate
+    // on the official Bunny bed.
+    selfCheckConsecutiveIncrease();
+    return writeOwnBed(input, check, partialOnError ? { partialOnError: true } : {});
+  }
+  return emitOfficialBunnyBed(check);
 }
 
 const isCli = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
