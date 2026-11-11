@@ -49,7 +49,6 @@ import {
   isDenseDecreaseCylinderBedChart,
   isDenseThinCylinderBedChart,
   isDenseFatCylinderBedChart,
-  isFatPropagateCylinderBedChart,
   isFlipDir,
   isTransferDir,
   knitBedsByFace,
@@ -96,7 +95,6 @@ const thinBtn = document.querySelector("#load-thin-cylinder");
 const denseThinBtn = document.querySelector("#load-dense-thin-cylinder");
 const fatBtn = document.querySelector("#load-fat-cylinder");
 const denseFatBtn = document.querySelector("#load-dense-fat-cylinder");
-const fatPropagateBtn = document.querySelector("#load-fat-cylinder-propagate");
 const denseBunny4SplitBtn = document.querySelector("#load-dense-bunny-4split");
 const denseBunnyLeBtn = document.querySelector("#load-dense-bunny-le");
 const fitBtn = document.querySelector("#fit-view");
@@ -390,7 +388,6 @@ function isMapXlsEntry(entry) {
     isDenseDecreaseCylinderBedChart(name) ||
     isDenseThinCylinderBedChart(name) ||
     isDenseFatCylinderBedChart(name) ||
-    isFatPropagateCylinderBedChart(name) ||
     (isXlsName(name) && /readable_map|step3/i.test(name))
   );
 }
@@ -944,11 +941,6 @@ function isDenseFatSheet(sheet) {
   return want === "dense-fat-cylinder" || want === "dense-fat";
 }
 
-function isFatPropagateSheet(sheet) {
-  const want = String(sheet || "").toLowerCase();
-  return want === "fat-cylinder-propagate" || want === "fat-propagate";
-}
-
 function isDenseBunny4SplitSheet(sheet) {
   const want = String(sheet || "").toLowerCase();
   return want === "dense-bunny-4split";
@@ -1206,18 +1198,6 @@ async function loadDenseBunnyLe() {
   }
 }
 
-async function loadFatPropagateCylinder() {
-  try {
-    await loadNamedCylinder({
-      manifest: "fat-cylinder-propagate.json",
-      missing: "Fat Cylinder Propagate",
-      status: "Fat Cylinder Propagate · cols_resample 30 · 表宽 33 · 前床 F0–F7 · 后床 B7–B0 · 前十一环落座 16、16、17、28、30、30、30、30、30、30、26 · 停在 ring 11 course 2",
-    });
-  } catch (err) {
-    setStatus(err.message || String(err), true);
-  }
-}
-
 async function loadSample(sheet = sheetQuery()) {
   const want = String(sheet || "").trim() || "faces-ring0";
   if (!sheetQuery()) setSheetQuery(want);
@@ -1346,11 +1326,6 @@ denseFatBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("dense-fat-cylinder");
   loadDenseFatCylinder();
-});
-fatPropagateBtn?.addEventListener("click", () => {
-  setOpenMenu(false);
-  setSheetQuery("fat-cylinder-propagate");
-  loadFatPropagateCylinder();
 });
 denseBunny4SplitBtn?.addEventListener("click", () => {
   setOpenMenu(false);
@@ -1633,7 +1608,6 @@ updateChrome();
 syncExportButton();
 if (isDenseBunny4SplitSheet(sheetQuery())) loadDenseBunny4Split();
 else if (isDenseBunnyLeSheet(sheetQuery())) loadDenseBunnyLe();
-else if (isFatPropagateSheet(sheetQuery())) loadFatPropagateCylinder();
 else if (isDenseFatSheet(sheetQuery())) loadDenseFatCylinder();
 else if (isFatSheet(sheetQuery())) loadFatCylinder();
 else if (isDenseThinSheet(sheetQuery())) loadDenseThinCylinder();
