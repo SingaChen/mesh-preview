@@ -4,6 +4,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   indexFiles,
+  isColumnFieldObjName,
+  isColumnOrderName,
+  isColumnPolylineName,
+  isColumnTypeObjName,
   isManifestShape,
   isOverlayName,
   projectFromDiscovery,
@@ -30,9 +34,14 @@ import {
   termTypeShortLabel,
   faceChunksFromFaces,
   facesRingChunksFromStitches,
+  applyExtractColumnColors,
+  extractTypeLegend,
+  formatExtractRangeLabel,
+  formatExtractStatus,
   parseColoredObj,
   parseColsResample,
   parseColsResampleField,
+  parseExtractColumns,
   parseFacesRingLayout,
   parseFirstRows,
   parseReadableMap,
@@ -2190,7 +2199,7 @@ assertDenseCylinderSample({
       datForSheet("fat") === fat,
     "complete cylinder aliases share the same dat",
   );
-  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "fat-cylinder-propagate", "fat-propagate"]) {
+  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "fat-cylinder-propagate", "fat-propagate", "dense-bunny-4split", "dense-bunny-le"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
   }
   const sha256 = (rel) => createHash("sha256").update(readFileSync(join(sampleDir, rel))).digest("hex");
@@ -2266,6 +2275,7 @@ assertDenseCylinderSample({
   assert(!readFileSync(join(sampleDir, "cylinder/standrad_cylinder.k"), "utf8").includes("\nsplit "), "standrad has no increase split");
 }
 
+assert(!fromManifest.outputs[0].columnExtract && fromManifest.outputs[0].meshFile, "Bunny stays a cut-mesh sample");
 assert(fromManifest.warnings.length === 0, `cylinder sample resolves without warnings: ${fromManifest.warnings.join("; ")}`);
 assert(
   fromManifest.outputs.every((out) => /cut_iteration_0\.obj$/i.test(out.meshFile?.path || "")),
@@ -2274,5 +2284,182 @@ assert(
 assert(!existsSync(join(cylDir, "cut_heat")), "cut heat sample folder is gone");
 assert(!refs.some((rel) => /cutHeat|cut_heat/i.test(rel)), "manifest does not reference a cut heat overlay");
 assert(!css.includes(".base-check:has(input:disabled)"), "the greyed cut heat row style is gone");
+
+assert(isColumnPolylineName("columns_polyline.obj") && !isColumnPolylineName("iteration_0_cut_cols_resample_field.obj"), "column polyline name stays specific");
+assert(isColumnTypeObjName("columns_type.obj") && !isColumnTypeObjName("iteration_0_cut_cols_resample_type.obj"), "column type name does not swallow cols_resample type");
+assert(isColumnFieldObjName("columns_field.obj") && !isColumnFieldObjName("iteration_0_cut_cols_resample_field.obj"), "column field name does not swallow cols_resample field");
+assert(isColumnOrderName("columns_order.json") && !isColumnOrderName("faces_ring_layout.json"), "column order name stays specific");
+assert(
+  html.includes('id="load-dense-bunny-4split"') &&
+    html.includes("Dense Bunny 4split") &&
+    html.includes('id="load-dense-bunny-le"') &&
+    html.includes("Dense Bunny LE") &&
+    html.indexOf('id="load-dense-bunny-4split"') > html.indexOf('id="load-faces-ring0"') &&
+    html.indexOf('id="load-dense-bunny-le"') > html.indexOf('id="load-dense-bunny-4split"'),
+  "Open menu lists the two Dense Bunny column extracts after Bunny",
+);
+assert(html.includes('id="col-color-type"') && html.includes('id="col-color-field"') && html.includes('id="col-legend"') && html.includes('id="cols-sub"'), "column extracts can switch type and field colors");
+assert(/id="col-color"[^>]*hidden/.test(html) && /id="cols-sub"[^>]*hidden/.test(html), "type/field switch stays hidden until a column extract is open");
+assert(mainSrc.includes("parseExtractColumns") && mainSrc.includes("dense-bunny-4split.json") && mainSrc.includes("dense-bunny-le.json"), "main loads the two column extracts");
+assert(mainSrc.includes('setSheetQuery("dense-bunny-4split")') && mainSrc.includes('setSheetQuery("dense-bunny-le")'), "column extracts have their own sheet ids");
+assert(!mainSrc.includes("loadCutHeatMesh") && !html.includes("切开热力场"), "column extracts do not restore the cut heat row");
+
+{
+  const toyPoly = "v 0 0 0\nv 1 0 0\nv 2 0 0\nv 2 1 0\nl 1 2\nl 3 4\n";
+  const toyType = "v 0 0 0 1 0 0\nv 1 0 0 1 0 0\nv 2 0 0 0 0 1\nv 2 1 0 0 0 1\nl 1 2\nl 3 4\n";
+  const toyField = "v 0 0 0 0.2 0.15 0.8\nv 1 0 0 0.9 0.15 0.1\nv 2 0 0 0.4 0.15 0.6\nv 2 1 0 0.4 0.15 0.6\nl 1 2\nl 3 4\n";
+  const toyOrder = {
+    n_exported: 2,
+    n_full: 1,
+    n_short: 1,
+    type_counts: { FULL: 1, SHORT_BEGIN: 1 },
+    point_source: "smooth_points",
+    field_source: "scale_values_smooth",
+    scale_ran: false,
+    phagocytosis: { n: 2, n_raw: 3, n_in_batch_merges: 1 },
+    columns: [
+      { index_column: 0, type: "FULL", n_points: 2 },
+      { index_column: 1, type: "SHORT_BEGIN", n_points: 2 },
+    ],
+  };
+  const toy = parseExtractColumns({ polylineText: toyPoly, typeText: toyType, fieldText: toyField, order: toyOrder });
+  assert(toy.problems.length === 0 && toy.columns.length === 2 && toy.colors.type && toy.colors.field, "toy extract keeps both color files when positions match");
+  assert(toy.columns[0].type === "FULL" && toy.columns[1].type === "SHORT_BEGIN" && toy.columns[0].col === 0, "toy order attaches index_column and type");
+  assert(toy.columns[0].points[0].x === 0 && toy.columns[0].points[0].y === 0 && toy.columns[0].points[0].z === 0, "toy geometry stays on the polyline");
+  applyExtractColumnColors(toy.columns, "type");
+  assert(toy.columns[0].points[0].r === 1 && toy.columns[0].points[0].g === 0 && toy.columns[1].points[0].b === 1, "type colors come from columns_type");
+  assert(toy.columns[0].points[0].x === 0, "type coloring does not move the polyline");
+  applyExtractColumnColors(toy.columns, "field");
+  assert(toy.columns[0].points[0].r === 0.2 && toy.columns[0].points[1].r === 0.9 && toy.columns[0].points[0].g === 0.15, "field colors come from columns_field");
+  assert(formatExtractRangeLabel(toy.columns, 0, 1) === "index_column: idx 0 / 2 · FULL", "a single column shows its type");
+  assert(formatExtractRangeLabel(toy.columns, 0, 2) === "index_column: idx 0-1 / 2", "a column range stays index_column, not cols_resample");
+  const legend = extractTypeLegend(toy.columns);
+  assert(legend.map((row) => `${row.type}:${row.n}`).join(",") === "FULL:1,SHORT_BEGIN:1" && legend[0].color.r === 1, "legend counts types already on the columns");
+  assert(formatExtractStatus("Toy", toy).includes("scale_ran=false") && formatExtractStatus("Toy", toy).includes("merges=1"), "status reports the order file's scale and phagocytosis");
+  const shifted = parseExtractColumns({
+    polylineText: toyPoly,
+    typeText: "v 5 0 0 0 1 0\nv 6 0 0 0 1 0\nv 2 0 0 0 0 1\nv 2 1 0 0 0 1\nl 1 2\nl 3 4\n",
+    order: toyOrder,
+  });
+  assert(!shifted.colors.type && shifted.problems.some((p) => p.includes("columns_type")) && shifted.columns[0].type === "FULL", "a moved type obj is not used as color and does not invent a new polyline");
+  const badOrder = parseExtractColumns({
+    polylineText: toyPoly,
+    order: { ...toyOrder, columns: [{ index_column: 0, type: "FULL", n_points: 9 }, toyOrder.columns[1]] },
+  });
+  assert(badOrder.columns.every((col) => col.type == null) && badOrder.problems.some((p) => p.includes("columns_order")), "mismatched n_points does not borrow a type");
+}
+
+function assertDenseBunnyColumns(spec) {
+  const data = JSON.parse(readFileSync(join(sampleDir, spec.manifest), "utf8"));
+  assert(data.name === spec.title && data.outputs?.length === 1 && data.outputs[0].label === spec.title, `${spec.title} manifest is one labeled extract`);
+  const rels = collectManifestRefs(data);
+  assert(
+    rels.includes(`${spec.dir}/columns_polyline.obj`) &&
+      rels.includes(`${spec.dir}/columns_type.obj`) &&
+      rels.includes(`${spec.dir}/columns_field.obj`) &&
+      rels.includes(`${spec.dir}/columns_order.json`) &&
+      rels.length === 4,
+    `${spec.title} manifest lists only the four column files`,
+  );
+  assert(
+    !rels.some((rel) => /cols_resample|faces_ring|KnittingStitches|readable_map|stitch_map|\.xls|\.dat$|\.k$|cut_iteration/i.test(rel)),
+    `${spec.title} does not reference a mesh, bed, stitchmesh, or cols_resample`,
+  );
+  const sha256 = (rel) => createHash("sha256").update(readFileSync(join(sampleDir, rel))).digest("hex");
+  assert(sha256(`${spec.dir}/columns_polyline.obj`) === spec.sha.polyline, `${spec.title} polyline bytes stay`);
+  assert(sha256(`${spec.dir}/columns_type.obj`) === spec.sha.type, `${spec.title} type bytes stay`);
+  assert(sha256(`${spec.dir}/columns_field.obj`) === spec.sha.field, `${spec.title} field bytes stay`);
+  assert(sha256(`${spec.dir}/columns_order.json`) === spec.sha.order, `${spec.title} order bytes stay`);
+  const entries = [
+    { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
+    ...rels.map((rel) => ({
+      name: rel.split("/").pop(),
+      path: `sample/${rel}`,
+      text: readFileSync(join(sampleDir, rel), "utf8"),
+    })),
+  ];
+  const proj = projectFromManifest(data, indexFiles(entries), "sample/manifest.json");
+  assert(proj.warnings.length === 0 && proj.outputs.length === 1, `${spec.title} resolves without warnings`);
+  const out = proj.outputs[0];
+  assert(out.columnExtract === true && out.meshFile == null && out.overlayFile == null, `${spec.title} has no mesh`);
+  assert(!out.stitchFile && !out.colsResampleFile && !out.colsResampleXlsFile && !out.facesRingLayoutFile && !out.readableMapFile && !out.readableMapTxtFile && !out.firstRowsFile && !out.stitchMapBindFile, `${spec.title} does not attach knitting files`);
+  const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry.text]));
+  const extract = parseExtractColumns({
+    polylineText: byName["columns_polyline.obj"],
+    typeText: byName["columns_type.obj"],
+    fieldText: byName["columns_field.obj"],
+    order: JSON.parse(byName["columns_order.json"]),
+  });
+  assert(extract.problems.length === 0, `${spec.title} files disagree: ${extract.problems.join("; ")}`);
+  assert(extract.columns.length === spec.n && extract.colors.type && extract.colors.field, `${spec.title} has ${spec.n} colored columns`);
+  assert(extract.columns[0].col === 0 && extract.columns[spec.n - 1].col === spec.n - 1, `${spec.title} index_column is 0..${spec.n - 1}`);
+  assert(extract.columns.every((col, i) => col.col === i), `${spec.title} column order matches index_column`);
+  const counts = {};
+  for (const col of extract.columns) counts[col.type] = (counts[col.type] || 0) + 1;
+  for (const [key, value] of Object.entries(spec.types)) {
+    assert(counts[key] === value, `${spec.title} type ${key} is ${counts[key]}, expected ${value}`);
+  }
+  assert(Object.keys(counts).length === Object.keys(spec.types).length, `${spec.title} type counts match the order file`);
+  assert(extract.order.scale_ran === spec.scaleRan && extract.order.point_source === "smooth_points", `${spec.title} keeps the file's scale and point source`);
+  assert(extract.order.phagocytosis.n === spec.n && extract.order.phagocytosis.n_raw === spec.raw && extract.order.phagocytosis.n_in_batch_merges === spec.merges, `${spec.title} phagocytosis counts stay on the order file`);
+  const typeChains = parseColsResampleField(byName["columns_type.obj"]);
+  const fieldChains = parseColsResampleField(byName["columns_field.obj"]);
+  applyExtractColumnColors(extract.columns, "type");
+  assert(
+    extract.columns[0].points[0].r === typeChains[0].points[0].r &&
+      extract.columns[0].points[0].g === typeChains[0].points[0].g &&
+      extract.columns[0].points[0].b === typeChains[0].points[0].b &&
+      extract.columns[0].points[0].x === typeChains[0].points[0].x,
+    `${spec.title} type view uses columns_type colors on the polyline`,
+  );
+  applyExtractColumnColors(extract.columns, "field");
+  const head = extract.columns[0].points[0];
+  const tail = extract.columns[0].points[extract.columns[0].points.length - 1];
+  assert(head.r === fieldChains[0].points[0].r && head.g === fieldChains[0].points[0].g && head.b === fieldChains[0].points[0].b, `${spec.title} field view uses columns_field colors`);
+  assert(head.x === fieldChains[0].points[0].x && head.y === fieldChains[0].points[0].y && head.z === fieldChains[0].points[0].z, `${spec.title} field coloring does not replace the polyline`);
+  if (spec.fieldChanges) assert(head.r !== tail.r || head.b !== tail.b, `${spec.title} field color varies along the column`);
+  const status = formatExtractStatus(spec.title, extract);
+  for (const bit of spec.status) assert(status.includes(bit), `${spec.title} status missing ${bit}`);
+  assert(!status.includes("cols_resample") && !status.includes("faces_ring"), `${spec.title} status does not invent cols_resample or faces_ring`);
+  const discovered = projectFromDiscovery(indexFiles(entries.filter((entry) => entry.name !== "manifest.json")));
+  assert(discovered.outputs.length === 1 && discovered.outputs[0].columnExtract && discovered.outputs[0].meshFile == null, `${spec.title} folder opens as columns only`);
+}
+
+assertDenseBunnyColumns({
+  manifest: "dense-bunny-4split.json",
+  title: "Dense Bunny 4split",
+  dir: "dense-bunny-4split",
+  n: 126,
+  raw: 126,
+  merges: 0,
+  scaleRan: true,
+  fieldChanges: true,
+  types: { SHORT_END: 13, FULL: 11, SHORT_BEGIN: 65, SHORT_INNER: 37 },
+  sha: {
+    polyline: "c6aae4e5f6f3d9b111be99fb400e7702c09f870be49cd4f34786089eaee9f021",
+    type: "4821815f3ce65fcb49cc25a7a5e49d11bec39b73ad59320de20efc8c93f90b31",
+    field: "33c05a71d1607e0743027595ba45e4595db10efd11a5a008749b2260ce4c0479",
+    order: "45b4c06e1b24cf777811e28ca333ff235828e11de5001e2d0e76480c4f9da85a",
+  },
+  status: ["126 columns", "index 0–125", "FULL=11", "SHORT_BEGIN=65", "SHORT_INNER=37", "SHORT_END=13", "smooth_points", "scale_values_smooth", "scale_ran=true", "merges=0"],
+});
+assertDenseBunnyColumns({
+  manifest: "dense-bunny-le.json",
+  title: "Dense Bunny LE",
+  dir: "dense-bunny-le",
+  n: 985,
+  raw: 1434,
+  merges: 449,
+  scaleRan: false,
+  fieldChanges: true,
+  types: { SHORT_INNER: 877, SHORT_BEGIN: 78, SHORT_END: 25, FULL: 5 },
+  sha: {
+    polyline: "e35ee9329140fe19ca225a8a585534cba2e88daa7fbe029e2167a6e35e5360ab",
+    type: "be6f2212226db1067e18f56024c1980e5b2346bf99bfe14e1a05249c9b32a442",
+    field: "d227a431a86b5774d31862445b49c04968460f7ebc4fb056d2d9942b5098d330",
+    order: "4cb6ed2d3b05cef8e857dc45152d1a980303ab821bf1ed54b9851a998684814e",
+  },
+  status: ["985 columns", "index 0–984", "FULL=5", "SHORT_INNER=877", "SHORT_BEGIN=78", "SHORT_END=25", "smooth_points", "scale_ran=false", "merges=449"],
+});
 
 console.log("project checks ok");

@@ -38,6 +38,8 @@
           </button>
           <div class="open-menu-list" id="open-menu-list" role="menu" hidden>
             <button class="open-item" id="load-faces-ring0" type="button" role="menuitem">Bunny</button>
+            <button class="open-item" id="load-dense-bunny-4split" type="button" role="menuitem">Dense Bunny 4split</button>
+            <button class="open-item" id="load-dense-bunny-le" type="button" role="menuitem">Dense Bunny LE</button>
             <button class="open-item" id="load-standrad-cylinder" type="button" role="menuitem">Standrad Cylinder</button>
             <button class="open-item" id="load-dense-standrad-cylinder" type="button" role="menuitem">Dense Standrad Cylinder</button>
             <button class="open-item" id="load-decrease-cylinder" type="button" role="menuitem">Decrease Cylinder</button>
@@ -112,7 +114,15 @@
         </div>
         <div class="dyn-controls">
           <div class="slider-row hidden" id="cols-row">
-            <label id="cols-label">cols_resample: -</label>
+            <div class="slider-heading">
+              <label id="cols-label">cols_resample: -</label>
+              <span class="slider-sub" id="cols-sub" hidden>抽列</span>
+            </div>
+            <div class="col-color" id="col-color" hidden>
+              <button class="btn toggle" id="col-color-type" type="button" aria-pressed="true">类型 <span class="en">Type</span></button>
+              <button class="btn toggle" id="col-color-field" type="button" aria-pressed="false">场 <span class="en">Field</span></button>
+            </div>
+            <div class="col-legend" id="col-legend" hidden></div>
             <div class="dual-range" id="cols-range" role="group" aria-label="cols_resample">
               <div class="dual-track"><div class="dual-fill"></div></div>
               <input class="dual-start" type="range" min="0" max="1" value="0" step="1" aria-label="cols_resample start" />

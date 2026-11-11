@@ -53,6 +53,8 @@ npm run preview
 | 菜单项 | 作用 |
 | --- | --- |
 | **Bunny** | 打开内置圆柱 `Single_Cylinder_Test`。右侧床图是 `faces_ring0_step4_bed.xls`（表 `ring0`），Bunny 接在一张床图上。地址 `?sheet=faces-ring0`；没有 `sheet` 时也打开这一项。 |
+| **Dense Bunny 4split** | 打开 unitW=unitH=2 的 Dense Bunny 抽列。官方切开后一次中点 4split，再抽列、编号，并跑完 neighbor-scale。没有织行。几何只来自 `public/sample/dense-bunny-4split/columns_polyline.obj`（126 条 `smooth_points`）。默认用 `columns_type.obj` 的顶点色显示类型（FULL=11，SHORT_BEGIN=65，SHORT_INNER=37，SHORT_END=13，`index_column` 0–125）。底栏 **场 Field** 改看 `columns_field.obj`（`scale_values_smooth`，`scale_ran=true`）。没有切开网格、stitchmesh、`faces_ring`、`cols_resample`、床图、`.dat`、`.k`。地址 `?sheet=dense-bunny-4split`。 |
+| **Dense Bunny LE** | 打开同一只 Dense Bunny 的另一份抽列。官方切开后两次 `regular_le`。吞噬后 985 列，`index_column` 0–984，FULL=5，SHORT_INNER=877，SHORT_BEGIN=78，SHORT_END=25。`scale_ran=false`：场色是列上已有的 scale，不是传播后的剖面；折线没有做弧长重采样。同样没有切开网格、stitchmesh、`faces_ring`、`cols_resample`、床图、`.dat`、`.k`。地址 `?sheet=dense-bunny-le`。 |
 | **Standrad Cylinder** | 打开平针圆筒针迹 `public/sample/cylinder/standrad_cylinder_KnittingStitches.obj`（7 行 × 25 列，接缝顶点重合，看起来是闭合管，高度沿 Y，两端开口朝上和下）。右侧床图是 `standrad_cylinder_bed.xls`，由 `scripts/build-step4-faces-ring0.mjs --input public/sample/cylinder/standrad_cylinder_rings.json` 写出。7 行都是向右的平针，每行从 F0 到 B1；前床 F0–F12，后床 B12–B1，折返空档是 B0。表宽是占用列最宽的一课。这根圆筒每一课都占 25 列，所以表宽是 25。前床列是物理针，后床列是 25−物理针。底栏是 `cols_resample`（25 条针迹侧边折线，绑在顶点上）。预览器本身不旋转网格。地址可带 `?sheet=standrad-cylinder`。 |
 | **Dense Standrad Cylinder** | 打开同一根半径 20、高度 40 的开口圆管。输入网格加密到圆周 80 段、高度 40 段，切后平均边长 1.048984，小于 1.25（unitW=unitH=2.5）。`faces_ring` 字节与上一份 64×32 相同。针迹在 `public/sample/dense-standrad/dense_standrad_cylinder_KnittingStitches.obj`（15 环 × 50 针，750 针，高度沿 Y）。右侧床图是 `dense_standrad_cylinder_bed.xls`，由 `scripts/build-step4-faces-ring0.mjs --input public/sample/dense-standrad/dense_standrad_cylinder_faces_ring_layout.json` 写出。15 环都在这一张表上，落座后的活针都是 50。每一课空床向右织 50 针：前床 F0–F24，后床 B24–B0。表宽是占用列最宽的一课，这一份是 50。`cols_resample` 50 条。预览器不旋转网格。地址可带 `?sheet=dense-standrad-cylinder`。 |
 | **Decrease Cylinder** | 打开 SingaLab 的开口圆台针迹 `public/sample/decrease/decrease_cylinder_KnittingStitches.obj`（5 环、129 针，高度沿 Y）。右侧床图是 `decrease_cylinder_bed.xls`，由 `scripts/build-step4-faces-ring0.mjs --input public/sample/decrease/decrease_cylinder_faces_ring_layout.json` 写出。第一课空床向右织 24 针：前床 F0–F11，后床 B11–B0，B0 有线圈。表宽是占用列最宽的一课，这一份是 24。`cols_resample` 仍是同一次导出的侧边场和 xls。同一张床图经 `scripts/bed-to-knitout-v2.py` 写出 `decrease_cylinder.k`。预览器不旋转网格。地址可带 `?sheet=decrease-cylinder`。 |
@@ -141,7 +143,11 @@ npm run preview
 | `name` | 否 | 项目名 |
 | `outputs` | 是 | 滑条上的条目（多迭代时用；打开后默认最后一项） |
 | `outputs[].label` | 否 | 短标签，中英均可 |
-| `outputs[].mesh` | 是 | 相对清单目录的 Wavefront OBJ（也接受 `obj` / `path`） |
+| `outputs[].mesh` | 有网格时必填 | 相对清单目录的 Wavefront OBJ（也接受 `obj` / `path`）。抽列预览改填 `columnsPolyline`，不要拿折线冒充网格。 |
+| `outputs[].columnsPolyline` | 抽列预览必填 | `columns_polyline.obj`。顺序 `(i,i+1)` 链就是抽出的列，不是 `cols_resample`。 |
+| `outputs[].columnsType` | 否 | `columns_type.obj`。顶点色是类型色。位置必须和折线一致才上色。 |
+| `outputs[].columnsField` | 否 | `columns_field.obj`。顶点色是场值。位置必须和折线一致才上色。 |
+| `outputs[].columnsOrder` | 否 | `columns_order.json`。`columns[].index_column` 与 `type` 跟折线逐条对齐才挂上。 |
 | `outputs[].overlay` | 否 | 叠加 OBJ（针迹 / field 等，也接受 `field`） |
 | `outputs[].stitches` | 否 | 针迹 OBJ（带 `v x y z r g b` 的 n 边形）。缺省时用 `*KnittingStitches*.obj` |
 | `outputs[].readableMap` | 否 | 内置圆柱样本指向 `faces_ring0_step4_bed.xls`。省略该字段时，发现顺序是 `*_readable_map_step4_ring0.xls`，然后 step3 xls，再回退 `*readable_map*.txt`。 |
@@ -155,6 +161,8 @@ npm run preview
 也支持无清单直接打开 cut OBJ + KnittingStitches + readable_map。
 
 内置圆柱样本：`public/sample/cylinder/`。打开菜单里的 **Bunny** 加载这一份，默认 `?sheet=faces-ring0`。
+
+抽列预览：`public/sample/dense-bunny-4split/` 与 `public/sample/dense-bunny-le/`。菜单是 **Dense Bunny 4split** 和 **Dense Bunny LE**。这两项只画包里的列折线、类型色和场色。
 
 ## 范围 / Scope
 

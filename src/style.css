@@ -507,6 +507,48 @@ body.chrome-collapsed .stage {
   color: var(--muted);
 }
 
+.slider-sub[hidden],
+.col-color[hidden],
+.col-legend[hidden] {
+  display: none;
+}
+
+.col-color {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 2px 0;
+}
+
+.col-color .btn {
+  min-height: 32px;
+  width: 100%;
+  font-size: 12px;
+}
+
+.col-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0 0 2px;
+  font-size: 10px;
+  font-family: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  color: var(--muted);
+}
+
+.col-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.col-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
 .slider-row .meta {
   color: var(--muted);
   font-size: 12px;
