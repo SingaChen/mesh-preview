@@ -3469,22 +3469,22 @@ function selfCheckMixedCourse() {
 
 function selfCheckConsecutiveIncrease() {
   const built = buildOwnBedChart(join(root, "public/sample/increase/increase_cylinder_faces_ring_layout.json"));
-  const knit = built.sheet.find((row) => row.kind === "knit" && row.course === 2 && row.dir === "L");
-  if (!knit) fail("increase cylinder course 2 has no L knit");
+  const knit = built.sheet.find((row) => row.kind === "knit" && row.course === 2 && row.dir === "R");
+  if (!knit) fail("increase cylinder course 2 has no R knit");
   const seq = knit.cells.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ");
   const expect =
-    "B^R@B1 B·@B2 B·@B3 B·@B4 B·@B5 B·@B6 B·@B7 F+L1@F7 F·@F6 F+L1@F5 F·@F4 F+L1@F3 F·@F2 F·@F1 F+L1@F0 F·@F-1 F·@F-2 F·@F-3 FvL@F-4";
-  if (seq !== expect) fail(`course 2 L knit is ${seq}`);
+    "F·@F0 F·@F1 F·@F2 F+R1@F3 F·@F4 F·@F5 F·@F6 F+R1@F7 F·@F8 F·@F9 F·@F10 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B+R1@B3 B·@B2 B·@B1 B·@B0 B·@B-1";
+  if (seq !== expect) fail(`course 2 R knit is ${seq}`);
   const front = knit.cells.filter((cell) => cell.bed === "F");
   for (let i = 1; i < front.length; i++) {
-    if (front[i].phys !== front[i - 1].phys - 1) {
-      fail(`course 2 L jumps from F${front[i - 1].phys} to F${front[i].phys}`);
+    if (front[i].phys !== front[i - 1].phys + 1) {
+      fail(`course 2 R jumps from F${front[i - 1].phys} to F${front[i].phys}`);
     }
   }
-  const terms = knit.cells.filter((cell) => cell.tIdx >= 37 && cell.tIdx <= 41).map((cell) => cell.tIdx);
-  if (terms.join(",") !== "37,37,38,38,39,39,40,41,41") fail(`course 2 increase terms ${terms.join(",")}`);
+  const terms = knit.cells.filter((cell) => cell.tIdx >= 31 && cell.tIdx <= 34).map((cell) => cell.tIdx);
+  if (terms.join(",") !== "31,31,32,33,34,34") fail(`course 2 increase terms ${terms.join(",")}`);
   const openings = built.sheet.filter((row) => row.course === 2 && row.kind === "increase");
-  if (openings.length !== 4) fail(`course 2 opened ${openings.length} increase sites`);
+  if (openings.length !== 3) fail(`course 2 opened ${openings.length} increase sites`);
   const knitAt = built.sheet.indexOf(knit);
   if (openings.some((row) => built.sheet.indexOf(row) > knitAt)) fail("course 2 knitted before every increase was open");
 }
