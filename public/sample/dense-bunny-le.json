@@ -1,0 +1,12 @@
+{
+  "name": "Dense Bunny LE",
+  "outputs": [
+    {
+      "label": "Dense Bunny LE",
+      "columnsPolyline": "dense-bunny-le/columns_polyline.obj",
+      "columnsType": "dense-bunny-le/columns_type.obj",
+      "columnsField": "dense-bunny-le/columns_field.obj",
+      "columnsOrder": "dense-bunny-le/columns_order.json"
+    }
+  ]
+}

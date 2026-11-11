@@ -48,6 +48,22 @@ export function isFacesRingLayoutName(name) {
   return /\.json$/i.test(base) && /faces_ring_layout/i.test(base);
 }
 
+export function isColumnPolylineName(name) {
+  return /^columns_polyline\.obj$/i.test(basename(name));
+}
+
+export function isColumnTypeObjName(name) {
+  return /^columns_type\.obj$/i.test(basename(name));
+}
+
+export function isColumnFieldObjName(name) {
+  return /^columns_field\.obj$/i.test(basename(name));
+}
+
+export function isColumnOrderName(name) {
+  return /^columns_order\.json$/i.test(basename(name));
+}
+
 export function isStitchMapBindName(name) {
   const base = basename(name);
   return /\.json$/i.test(base) && /stitch_map_bind/i.test(base);
@@ -123,9 +139,53 @@ export function projectFromManifest(data, index, manifestPath = "") {
   for (const raw of data.outputs) {
     if (!raw || typeof raw !== "object") continue;
     const meshRef = raw.mesh || raw.obj || raw.path;
-    const meshFile = lookup(index, meshRef, fromDir);
-    if (!meshFile) {
-      warnings.push(`缺少网格 / Missing mesh: ${meshRef || "(empty)"}`);
+    const meshFile = meshRef ? lookup(index, meshRef, fromDir) : null;
+    const columnRefs = {
+      polyline: raw.columnsPolyline || raw.columns_polyline || "",
+      type: raw.columnsType || raw.columns_type || "",
+      field: raw.columnsField || raw.columns_field || "",
+      order: raw.columnsOrder || raw.columns_order || "",
+    };
+    const columnsPolylineFile = columnRefs.polyline ? lookup(index, columnRefs.polyline, fromDir) : null;
+    const columnsTypeFile = columnRefs.type ? lookup(index, columnRefs.type, fromDir) : null;
+    const columnsFieldFile = columnRefs.field ? lookup(index, columnRefs.field, fromDir) : null;
+    const columnsOrderFile = columnRefs.order ? lookup(index, columnRefs.order, fromDir) : null;
+    const columnExtract = Boolean(columnsPolylineFile);
+    if (meshRef && !meshFile) warnings.push(`缺少网格 / Missing mesh: ${meshRef}`);
+    else if (!meshFile && !columnExtract) warnings.push(`缺少网格 / Missing mesh: ${meshRef || "(empty)"}`);
+    if (columnRefs.polyline && !columnsPolylineFile) {
+      warnings.push(`缺少列折线 / Missing columns_polyline: ${columnRefs.polyline}`);
+    }
+    if (columnRefs.type && !columnsTypeFile) {
+      warnings.push(`缺少列类型 / Missing columns_type: ${columnRefs.type}`);
+    }
+    if (columnRefs.field && !columnsFieldFile) {
+      warnings.push(`缺少列场 / Missing columns_field: ${columnRefs.field}`);
+    }
+    if (columnRefs.order && !columnsOrderFile) {
+      warnings.push(`缺少列序 / Missing columns_order: ${columnRefs.order}`);
+    }
+    if (!meshFile && !columnExtract) continue;
+    if (columnExtract) {
+      outputs.push({
+        label: raw.label || columnExtractLabel(columnsPolylineFile),
+        meshFile: meshFile || null,
+        overlayFile: null,
+        colsResampleFile: null,
+        colsResampleXlsFile: null,
+        colsResampleJsonFile: null,
+        stitchFile: null,
+        readableMapFile: null,
+        readableMapTxtFile: null,
+        firstRowsFile: null,
+        facesRingLayoutFile: null,
+        stitchMapBindFile: null,
+        columnExtract: true,
+        columnsPolylineFile,
+        columnsTypeFile,
+        columnsFieldFile,
+        columnsOrderFile,
+      });
       continue;
     }
     const overlayRef = raw.overlay;
@@ -221,15 +281,14 @@ export function projectFromManifest(data, index, manifestPath = "") {
 }
 
 export function projectFromDiscovery(index) {
-  const meshes = index.objs.filter((f) => !isOverlayName(f.name));
-  const overlays = index.objs.filter((f) => isOverlayName(f.name));
-  const list = meshes.length ? meshes : index.objs;
+  const columnPolylines = index.objs.filter((f) => isColumnPolylineName(f.name));
+  const meshes = index.objs.filter((f) => !isOverlayName(f.name) && !isColumnPolylineName(f.name));
+  const overlays = index.objs.filter(
+    (f) => isOverlayName(f.name) && !isColumnTypeObjName(f.name) && !isColumnFieldObjName(f.name),
+  );
+  const list = meshes.length ? meshes : columnPolylines.length ? [] : index.objs;
 
-  if (!list.length) {
-    throw new Error("未找到 OBJ / No .obj files in the selection");
-  }
-
-  const outputs = list.map((meshFile) => {
+  const meshOutputs = list.map((meshFile) => {
     const overlayFile =
       matchOverlay(meshFile, overlays) || (overlays.length === 1 ? overlays[0] : null);
     return {
@@ -248,11 +307,54 @@ export function projectFromDiscovery(index) {
     };
   });
 
+  const outputs = [
+    ...meshOutputs,
+    ...columnPolylines.map((polyline) =>
+      columnExtractOutput(index, polyline, columnExtractLabel(polyline)),
+    ),
+  ];
+
+  if (!outputs.length) {
+    throw new Error("未找到 OBJ / No .obj files in the selection");
+  }
+
   return {
     name: inferProjectName(index),
     source: "discovery",
     outputs,
     warnings: [],
+  };
+}
+
+function columnExtractLabel(file) {
+  const folder = parentDir(file?.path || "").split("/").filter(Boolean).pop();
+  return folder || "columns";
+}
+
+function siblingFile(files, file, pred) {
+  const dir = parentDir(file.path);
+  return files.find((item) => parentDir(item.path) === dir && pred(item.name)) || null;
+}
+
+function columnExtractOutput(index, polyline, label) {
+  return {
+    label,
+    meshFile: null,
+    overlayFile: null,
+    colsResampleFile: null,
+    colsResampleXlsFile: null,
+    colsResampleJsonFile: null,
+    stitchFile: null,
+    readableMapFile: null,
+    readableMapTxtFile: null,
+    firstRowsFile: null,
+    facesRingLayoutFile: null,
+    stitchMapBindFile: null,
+    columnExtract: true,
+    columnsPolylineFile: polyline,
+    columnsTypeFile: siblingFile(index.objs, polyline, isColumnTypeObjName),
+    columnsFieldFile: siblingFile(index.objs, polyline, isColumnFieldObjName),
+    columnsOrderFile: siblingFile(index.jsons || [], polyline, isColumnOrderName),
   };
 }
 

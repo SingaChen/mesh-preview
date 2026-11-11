@@ -105,6 +105,7 @@
  *   (i,i+1) chains in field.obj. Do not invent SHORT_* parent merges.
  */
 
+import { formatHalfOpenRangeLabel } from "./range.js";
 import { findXlsSheet, parseXlsWorkbook } from "./xls.js";
 
 const MANIFEST_PATH_KEYS = [
@@ -133,6 +134,14 @@ const MANIFEST_PATH_KEYS = [
   "faces_ring_layout",
   "stitchMapBind",
   "stitch_map_bind",
+  "columnsPolyline",
+  "columns_polyline",
+  "columnsType",
+  "columns_type",
+  "columnsField",
+  "columns_field",
+  "columnsOrder",
+  "columns_order",
 ];
 
 export function collectManifestRefs(data) {
@@ -1017,6 +1026,226 @@ export function parseColsResample({ xls, workbook, fieldText } = {}) {
 
   if (xlsCols.length) return xlsCols;
   return fieldCols;
+}
+
+const POINT_MATCH_EPS = 1e-5;
+
+function samePoint(a, b) {
+  return (
+    Math.abs(a.x - b.x) <= POINT_MATCH_EPS &&
+    Math.abs(a.y - b.y) <= POINT_MATCH_EPS &&
+    Math.abs(a.z - b.z) <= POINT_MATCH_EPS
+  );
+}
+
+function chainsMatch(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const ap = a[i].points || [];
+    const bp = b[i].points || [];
+    if (ap.length !== bp.length) return false;
+    for (let k = 0; k < ap.length; k++) {
+      if (!samePoint(ap[k], bp[k])) return false;
+    }
+  }
+  return true;
+}
+
+function rgbOf(point) {
+  return { r: point.r, g: point.g, b: point.b };
+}
+
+function countTypes(columns) {
+  const counts = {};
+  for (const col of columns) {
+    if (!col.type) continue;
+    counts[col.type] = (counts[col.type] || 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * Column-extract preview. Geometry is the polyline file's sequential
+ * (i, i+1) chains. Type and field OBJs only contribute vertex colors when
+ * every chain has the same positions. columns_order.json contributes
+ * index_column and type when each record lines up with that chain.
+ * This is not cols_resample and does not build faces, rings, or a mesh.
+ */
+export function parseExtractColumns({ polylineText, typeText = "", fieldText = "", order = null } = {}) {
+  const problems = [];
+  const poly = polylineText ? parseColsResampleField(polylineText) : [];
+  if (!poly.length) problems.push("没有列折线 / columns_polyline has no chains");
+  const typeCols = typeText ? parseColsResampleField(typeText) : null;
+  const fieldCols = fieldText ? parseColsResampleField(fieldText) : null;
+  const typeOk = Boolean(typeCols && chainsMatch(poly, typeCols));
+  const fieldOk = Boolean(fieldCols && chainsMatch(poly, fieldCols));
+  if (typeCols && !typeOk) {
+    problems.push(`columns_type 对不上折线 / columns_type chains=${typeCols.length} polylines=${poly.length}`);
+  }
+  if (fieldCols && !fieldOk) {
+    problems.push(`columns_field 对不上折线 / columns_field chains=${fieldCols.length} polylines=${poly.length}`);
+  }
+
+  const records = order && Array.isArray(order.columns) ? order.columns : null;
+  if (order && !records) problems.push("columns_order 没有 columns[] / columns_order has no columns[]");
+  let aligned = Boolean(records && records.length === poly.length && poly.length);
+  if (records && records.length !== poly.length) {
+    problems.push(`columns_order n=${records.length} polylines=${poly.length}`);
+    aligned = false;
+  }
+  if (aligned) {
+    let mismatches = 0;
+    let first = "";
+    for (let i = 0; i < poly.length; i++) {
+      const rec = records[i];
+      const nPoints = Number(rec?.n_points);
+      const indexColumn = Number(rec?.index_column);
+      const badPoints = nPoints !== poly[i].points.length;
+      const badIndex = indexColumn !== i;
+      const badType = rec?.type == null || rec.type === "";
+      if (!badPoints && !badIndex && !badType) continue;
+      mismatches += 1;
+      if (!first) {
+        first = `index ${i} index_column=${rec?.index_column} n_points=${rec?.n_points} polyline=${poly[i].points.length} type=${rec?.type ?? ""}`;
+      }
+    }
+    if (mismatches) {
+      problems.push(`columns_order mismatch ${mismatches}: ${first}`);
+      aligned = false;
+    }
+  }
+
+  const columns = poly.map((col, i) => {
+    const rec = aligned ? records[i] : null;
+    const points = col.points.map((p, k) => ({
+      index: k,
+      x: p.x,
+      y: p.y,
+      z: p.z,
+      r: p.r,
+      g: p.g,
+      b: p.b,
+      typeColor: typeOk ? rgbOf(typeCols[i].points[k]) : null,
+      fieldColor: fieldOk ? rgbOf(fieldCols[i].points[k]) : null,
+    }));
+    return {
+      col: rec ? Number(rec.index_column) : i,
+      type: rec ? String(rec.type) : null,
+      points,
+    };
+  });
+
+  if (order && order.n_exported != null && Number(order.n_exported) !== poly.length) {
+    problems.push(`n_exported=${order.n_exported} polylines=${poly.length}`);
+  }
+  if (aligned && order.type_counts && typeof order.type_counts === "object") {
+    const got = countTypes(columns);
+    const keys = new Set([...Object.keys(got), ...Object.keys(order.type_counts)]);
+    for (const key of keys) {
+      const want = Number(order.type_counts[key] || 0);
+      const have = got[key] || 0;
+      if (want !== have) problems.push(`type_counts ${key}=${order.type_counts[key]} columns=${have}`);
+    }
+  }
+  if (aligned && order.n_full != null) {
+    const full = columns.filter((col) => col.type === "FULL").length;
+    if (full !== Number(order.n_full)) problems.push(`n_full=${order.n_full} FULL columns=${full}`);
+  }
+  if (aligned && order.n_short != null) {
+    const shorts = columns.filter((col) => col.type && col.type !== "FULL").length;
+    if (shorts !== Number(order.n_short)) problems.push(`n_short=${order.n_short} non-FULL=${shorts}`);
+  }
+
+  return {
+    columns,
+    order: order && typeof order === "object" ? order : null,
+    colors: { type: typeOk, field: fieldOk },
+    problems,
+  };
+}
+
+export function applyExtractColumnColors(columns, mode) {
+  let painted = 0;
+  let skipped = 0;
+  for (const col of columns || []) {
+    for (const point of col.points || []) {
+      const src = mode === "field" ? point.fieldColor : mode === "type" ? point.typeColor : null;
+      if (!src) {
+        skipped += 1;
+        continue;
+      }
+      point.r = src.r;
+      point.g = src.g;
+      point.b = src.b;
+      painted += 1;
+    }
+  }
+  return { painted, skipped };
+}
+
+export function extractTypeLegend(columns) {
+  const rows = [];
+  const byType = new Map();
+  for (const col of columns || []) {
+    if (!col?.type) continue;
+    let row = byType.get(col.type);
+    if (!row) {
+      row = { type: col.type, n: 0, color: null, mixed: false };
+      byType.set(col.type, row);
+      rows.push(row);
+    }
+    row.n += 1;
+    for (const point of col.points || []) {
+      const color = point.typeColor;
+      if (!color) continue;
+      if (!row.color) {
+        row.color = color;
+        continue;
+      }
+      if (row.color.r !== color.r || row.color.g !== color.g || row.color.b !== color.b) row.mixed = true;
+    }
+  }
+  return rows;
+}
+
+export function formatExtractRangeLabel(columns, start, end) {
+  const list = columns || [];
+  const base = formatHalfOpenRangeLabel("index_column", start, end, list.length);
+  if (end !== start + 1) return base;
+  const type = list[start]?.type;
+  return type ? `${base} · ${type}` : base;
+}
+
+export function formatExtractStatus(label, extract) {
+  const columns = extract?.columns || [];
+  const order = extract?.order || {};
+  const parts = [];
+  if (label) parts.push(label);
+  parts.push(`${columns.length} columns`);
+  if (columns.length) {
+    const ids = columns.map((col) => col.col);
+    parts.push(`index ${Math.min(...ids)}–${Math.max(...ids)}`);
+  }
+  if (order.type_counts && typeof order.type_counts === "object") {
+    const text = Object.entries(order.type_counts)
+      .map(([key, value]) => `${key}=${value}`)
+      .join(" ");
+    if (text) parts.push(text);
+  }
+  if (order.point_source) parts.push(String(order.point_source));
+  if (order.field_source) {
+    const scale = order.scale_ran;
+    parts.push(scale == null ? String(order.field_source) : `${order.field_source} · scale_ran=${scale}`);
+  }
+  const ph = order.phagocytosis;
+  if (ph && typeof ph === "object") {
+    const bits = [];
+    if (ph.n != null) bits.push(`n=${ph.n}`);
+    if (ph.n_raw != null) bits.push(`raw=${ph.n_raw}`);
+    if (ph.n_in_batch_merges != null) bits.push(`merges=${ph.n_in_batch_merges}`);
+    if (bits.length) parts.push(`phagocytosis ${bits.join(" ")}`);
+  }
+  return parts.join(" · ");
 }
 
 export function columnTrails(stitches, { maxRow = Infinity, onlyCol = null } = {}) {

@@ -1,0 +1,12 @@
+{
+  "name": "Dense Bunny 4split",
+  "outputs": [
+    {
+      "label": "Dense Bunny 4split",
+      "columnsPolyline": "dense-bunny-4split/columns_polyline.obj",
+      "columnsType": "dense-bunny-4split/columns_type.obj",
+      "columnsField": "dense-bunny-4split/columns_field.obj",
+      "columnsOrder": "dense-bunny-4split/columns_order.json"
+    }
+  ]
+}

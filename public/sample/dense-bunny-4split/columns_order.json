@@ -1,0 +1,2619 @@
+{
+  "n_exported": 126,
+  "type_counts": {
+    "SHORT_END": 13,
+    "FULL": 11,
+    "SHORT_BEGIN": 65,
+    "SHORT_INNER": 37
+  },
+  "n_full": 11,
+  "n_short": 115,
+  "point_source": "smooth_points",
+  "field_written": true,
+  "field_source": "scale_values_smooth",
+  "scale_ran": true,
+  "phagocytosis": {
+    "n": 126,
+    "n_raw": 126,
+    "n_in_batch_merges": 0,
+    "n_batches": 118,
+    "n_widened_batches": 2,
+    "n_tie_steps": 0,
+    "n_full_list": 15,
+    "planned_batches": [
+      {
+        "batch": 0,
+        "input_indices": [
+          0
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 1,
+        "input_indices": [
+          1
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 2,
+        "input_indices": [
+          2
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 3,
+        "input_indices": [
+          3
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 4,
+        "input_indices": [
+          4
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 5,
+        "input_indices": [
+          5
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 6,
+        "input_indices": [
+          6
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 7,
+        "input_indices": [
+          7
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 8,
+        "input_indices": [
+          9
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 9,
+        "input_indices": [
+          8
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 10,
+        "input_indices": [
+          13
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 11,
+        "input_indices": [
+          11
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 12,
+        "input_indices": [
+          10
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 13,
+        "input_indices": [
+          12
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 14,
+        "input_indices": [
+          14
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 15,
+        "input_indices": [
+          15
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 16,
+        "input_indices": [
+          16
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 17,
+        "input_indices": [
+          17
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 18,
+        "input_indices": [
+          18,
+          22,
+          20
+        ],
+        "types": [
+          "SHORT_INNER",
+          "SHORT_END",
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 19,
+        "input_indices": [
+          19
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 20,
+        "input_indices": [
+          21
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 21,
+        "input_indices": [
+          23
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 22,
+        "input_indices": [
+          24
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 23,
+        "input_indices": [
+          25
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 24,
+        "input_indices": [
+          26
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 25,
+        "input_indices": [
+          27
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 26,
+        "input_indices": [
+          29
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 27,
+        "input_indices": [
+          30
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 28,
+        "input_indices": [
+          28
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 29,
+        "input_indices": [
+          31
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 30,
+        "input_indices": [
+          33
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 31,
+        "input_indices": [
+          32,
+          35
+        ],
+        "types": [
+          "FULL",
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 32,
+        "input_indices": [
+          43
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 33,
+        "input_indices": [
+          34
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 34,
+        "input_indices": [
+          42
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 35,
+        "input_indices": [
+          47
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 36,
+        "input_indices": [
+          41
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 37,
+        "input_indices": [
+          44
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 38,
+        "input_indices": [
+          48
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 39,
+        "input_indices": [
+          45
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 40,
+        "input_indices": [
+          36
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 41,
+        "input_indices": [
+          37
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 42,
+        "input_indices": [
+          38
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 43,
+        "input_indices": [
+          39
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 44,
+        "input_indices": [
+          40
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 45,
+        "input_indices": [
+          46
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 46,
+        "input_indices": [
+          49
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 47,
+        "input_indices": [
+          51
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 48,
+        "input_indices": [
+          50
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 49,
+        "input_indices": [
+          53
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 50,
+        "input_indices": [
+          52
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 51,
+        "input_indices": [
+          55
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 52,
+        "input_indices": [
+          54
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 53,
+        "input_indices": [
+          56
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 54,
+        "input_indices": [
+          57
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 55,
+        "input_indices": [
+          58
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 56,
+        "input_indices": [
+          59
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 57,
+        "input_indices": [
+          61
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 58,
+        "input_indices": [
+          60
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 59,
+        "input_indices": [
+          62
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 60,
+        "input_indices": [
+          63
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 61,
+        "input_indices": [
+          64
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 62,
+        "input_indices": [
+          65
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 63,
+        "input_indices": [
+          66
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 64,
+        "input_indices": [
+          67
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 65,
+        "input_indices": [
+          68
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 66,
+        "input_indices": [
+          69
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 67,
+        "input_indices": [
+          70
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 68,
+        "input_indices": [
+          71
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 69,
+        "input_indices": [
+          72
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 70,
+        "input_indices": [
+          73,
+          74
+        ],
+        "types": [
+          "SHORT_BEGIN",
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 71,
+        "input_indices": [
+          75
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 72,
+        "input_indices": [
+          76
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 73,
+        "input_indices": [
+          77
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 74,
+        "input_indices": [
+          80
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 75,
+        "input_indices": [
+          78
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 76,
+        "input_indices": [
+          79
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 77,
+        "input_indices": [
+          81
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 78,
+        "input_indices": [
+          82
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 79,
+        "input_indices": [
+          88
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 80,
+        "input_indices": [
+          83
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 81,
+        "input_indices": [
+          84,
+          87
+        ],
+        "types": [
+          "SHORT_BEGIN",
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 82,
+        "input_indices": [
+          85
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 83,
+        "input_indices": [
+          86
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 84,
+        "input_indices": [
+          89
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 85,
+        "input_indices": [
+          90,
+          92
+        ],
+        "types": [
+          "SHORT_BEGIN",
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 86,
+        "input_indices": [
+          91
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 87,
+        "input_indices": [
+          93
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 88,
+        "input_indices": [
+          95
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 89,
+        "input_indices": [
+          94
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 90,
+        "input_indices": [
+          96
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 91,
+        "input_indices": [
+          97
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 92,
+        "input_indices": [
+          98
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 93,
+        "input_indices": [
+          99
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 94,
+        "input_indices": [
+          100
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 95,
+        "input_indices": [
+          101
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 96,
+        "input_indices": [
+          102
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 97,
+        "input_indices": [
+          103
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 98,
+        "input_indices": [
+          104
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 99,
+        "input_indices": [
+          105
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 100,
+        "input_indices": [
+          106
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 101,
+        "input_indices": [
+          107
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 102,
+        "input_indices": [
+          108
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 103,
+        "input_indices": [
+          109
+        ],
+        "types": [
+          "SHORT_INNER"
+        ]
+      },
+      {
+        "batch": 104,
+        "input_indices": [
+          110,
+          117
+        ],
+        "types": [
+          "SHORT_BEGIN",
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 105,
+        "input_indices": [
+          111
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 106,
+        "input_indices": [
+          112
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 107,
+        "input_indices": [
+          113
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 108,
+        "input_indices": [
+          115
+        ],
+        "types": [
+          "SHORT_END"
+        ]
+      },
+      {
+        "batch": 109,
+        "input_indices": [
+          114
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 110,
+        "input_indices": [
+          116
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 111,
+        "input_indices": [
+          118
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 112,
+        "input_indices": [
+          120
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 113,
+        "input_indices": [
+          119
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 114,
+        "input_indices": [
+          125
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 115,
+        "input_indices": [
+          121
+        ],
+        "types": [
+          "FULL"
+        ]
+      },
+      {
+        "batch": 116,
+        "input_indices": [
+          122
+        ],
+        "types": [
+          "SHORT_BEGIN"
+        ]
+      },
+      {
+        "batch": 117,
+        "input_indices": [
+          124,
+          123
+        ],
+        "types": [
+          "SHORT_INNER",
+          "SHORT_BEGIN"
+        ]
+      }
+    ],
+    "in_batch_merges": []
+  },
+  "columns": [
+    {
+      "index_column": 0,
+      "index_inner": 0,
+      "type": "SHORT_END",
+      "batch": 0,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 249,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 0
+    },
+    {
+      "index_column": 1,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 1,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 299,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 1
+    },
+    {
+      "index_column": 2,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 2,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 18,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 2
+    },
+    {
+      "index_column": 3,
+      "index_inner": 1,
+      "type": "SHORT_INNER",
+      "batch": 3,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 89,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 3
+    },
+    {
+      "index_column": 4,
+      "index_inner": 2,
+      "type": "SHORT_BEGIN",
+      "batch": 4,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 223,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 4
+    },
+    {
+      "index_column": 5,
+      "index_inner": 3,
+      "type": "SHORT_BEGIN",
+      "batch": 5,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 299,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 5
+    },
+    {
+      "index_column": 6,
+      "index_inner": 4,
+      "type": "SHORT_BEGIN",
+      "batch": 6,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 19,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 6
+    },
+    {
+      "index_column": 7,
+      "index_inner": 5,
+      "type": "SHORT_END",
+      "batch": 7,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 200,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 7
+    },
+    {
+      "index_column": 8,
+      "index_inner": 6,
+      "type": "SHORT_INNER",
+      "batch": 8,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 111,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 9
+    },
+    {
+      "index_column": 9,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 9,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 345,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 8
+    },
+    {
+      "index_column": 10,
+      "index_inner": 0,
+      "type": "SHORT_INNER",
+      "batch": 10,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 105,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 13
+    },
+    {
+      "index_column": 11,
+      "index_inner": 1,
+      "type": "SHORT_END",
+      "batch": 11,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 126,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 11
+    },
+    {
+      "index_column": 12,
+      "index_inner": 2,
+      "type": "SHORT_BEGIN",
+      "batch": 12,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 53,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 10
+    },
+    {
+      "index_column": 13,
+      "index_inner": 3,
+      "type": "SHORT_BEGIN",
+      "batch": 13,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 12,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 12
+    },
+    {
+      "index_column": 14,
+      "index_inner": 4,
+      "type": "SHORT_BEGIN",
+      "batch": 14,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 233,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 14
+    },
+    {
+      "index_column": 15,
+      "index_inner": 5,
+      "type": "SHORT_END",
+      "batch": 15,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 266,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 15
+    },
+    {
+      "index_column": 16,
+      "index_inner": 6,
+      "type": "SHORT_BEGIN",
+      "batch": 16,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 326,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 16
+    },
+    {
+      "index_column": 17,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 17,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 383,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 17
+    },
+    {
+      "index_column": 18,
+      "index_inner": 0,
+      "type": "SHORT_INNER",
+      "batch": 18,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 70,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 18
+    },
+    {
+      "index_column": 19,
+      "index_inner": 1,
+      "type": "SHORT_END",
+      "batch": 18,
+      "corridor_axis": false,
+      "jump_widened": false,
+      "n_points": 2,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 22
+    },
+    {
+      "index_column": 20,
+      "index_inner": 2,
+      "type": "SHORT_INNER",
+      "batch": 18,
+      "corridor_axis": false,
+      "jump_widened": false,
+      "n_points": 2,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 20
+    },
+    {
+      "index_column": 21,
+      "index_inner": 3,
+      "type": "SHORT_BEGIN",
+      "batch": 19,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 332,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 19
+    },
+    {
+      "index_column": 22,
+      "index_inner": 4,
+      "type": "SHORT_INNER",
+      "batch": 20,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 268,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 21
+    },
+    {
+      "index_column": 23,
+      "index_inner": 5,
+      "type": "SHORT_INNER",
+      "batch": 21,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 238,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 23
+    },
+    {
+      "index_column": 24,
+      "index_inner": 6,
+      "type": "SHORT_BEGIN",
+      "batch": 22,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 406,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 24
+    },
+    {
+      "index_column": 25,
+      "index_inner": 7,
+      "type": "SHORT_BEGIN",
+      "batch": 23,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 409,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 25
+    },
+    {
+      "index_column": 26,
+      "index_inner": 8,
+      "type": "SHORT_BEGIN",
+      "batch": 24,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 402,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 26
+    },
+    {
+      "index_column": 27,
+      "index_inner": 9,
+      "type": "SHORT_BEGIN",
+      "batch": 25,
+      "corridor_axis": true,
+      "jump_widened": true,
+      "n_points": 48,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 27
+    },
+    {
+      "index_column": 28,
+      "index_inner": 10,
+      "type": "SHORT_BEGIN",
+      "batch": 26,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 32,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 29
+    },
+    {
+      "index_column": 29,
+      "index_inner": 11,
+      "type": "SHORT_BEGIN",
+      "batch": 27,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 37,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 30
+    },
+    {
+      "index_column": 30,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 28,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 457,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 28
+    },
+    {
+      "index_column": 31,
+      "index_inner": 0,
+      "type": "SHORT_END",
+      "batch": 29,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 336,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 31
+    },
+    {
+      "index_column": 32,
+      "index_inner": 1,
+      "type": "SHORT_END",
+      "batch": 30,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 2,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 33
+    },
+    {
+      "index_column": 33,
+      "index_inner": 0,
+      "type": "SHORT_INNER",
+      "batch": 31,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 453,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 32
+    },
+    {
+      "index_column": 34,
+      "index_inner": 0,
+      "type": "SHORT_INNER",
+      "batch": 31,
+      "corridor_axis": false,
+      "jump_widened": false,
+      "n_points": 91,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 35
+    },
+    {
+      "index_column": 35,
+      "index_inner": 1,
+      "type": "SHORT_INNER",
+      "batch": 32,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 47,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 43
+    },
+    {
+      "index_column": 36,
+      "index_inner": 2,
+      "type": "SHORT_BEGIN",
+      "batch": 33,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 414,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 34
+    },
+    {
+      "index_column": 37,
+      "index_inner": 3,
+      "type": "SHORT_INNER",
+      "batch": 34,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 195,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 42
+    },
+    {
+      "index_column": 38,
+      "index_inner": 4,
+      "type": "SHORT_END",
+      "batch": 35,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 215,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 47
+    },
+    {
+      "index_column": 39,
+      "index_inner": 5,
+      "type": "SHORT_INNER",
+      "batch": 36,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 276,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 41
+    },
+    {
+      "index_column": 40,
+      "index_inner": 6,
+      "type": "SHORT_INNER",
+      "batch": 37,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 22,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 44
+    },
+    {
+      "index_column": 41,
+      "index_inner": 7,
+      "type": "SHORT_END",
+      "batch": 38,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 149,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 48
+    },
+    {
+      "index_column": 42,
+      "index_inner": 8,
+      "type": "SHORT_INNER",
+      "batch": 39,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 111,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 45
+    },
+    {
+      "index_column": 43,
+      "index_inner": 9,
+      "type": "SHORT_BEGIN",
+      "batch": 40,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 181,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 36
+    },
+    {
+      "index_column": 44,
+      "index_inner": 10,
+      "type": "SHORT_BEGIN",
+      "batch": 41,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 281,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 37
+    },
+    {
+      "index_column": 45,
+      "index_inner": 11,
+      "type": "SHORT_BEGIN",
+      "batch": 42,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 102,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 38
+    },
+    {
+      "index_column": 46,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 43,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 421,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 39
+    },
+    {
+      "index_column": 47,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 44,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 386,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 40
+    },
+    {
+      "index_column": 48,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 45,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 411,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 46
+    },
+    {
+      "index_column": 49,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 46,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 208,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 49
+    },
+    {
+      "index_column": 50,
+      "index_inner": 1,
+      "type": "SHORT_BEGIN",
+      "batch": 47,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 44,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 51
+    },
+    {
+      "index_column": 51,
+      "index_inner": 2,
+      "type": "SHORT_BEGIN",
+      "batch": 48,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 360,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 50
+    },
+    {
+      "index_column": 52,
+      "index_inner": 3,
+      "type": "SHORT_INNER",
+      "batch": 49,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 97,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 53
+    },
+    {
+      "index_column": 53,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 50,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 392,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 52
+    },
+    {
+      "index_column": 54,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 51,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 147,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 55
+    },
+    {
+      "index_column": 55,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 52,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 397,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 54
+    },
+    {
+      "index_column": 56,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 53,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 399,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 56
+    },
+    {
+      "index_column": 57,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 54,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 184,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 57
+    },
+    {
+      "index_column": 58,
+      "index_inner": 1,
+      "type": "SHORT_INNER",
+      "batch": 55,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 199,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 58
+    },
+    {
+      "index_column": 59,
+      "index_inner": 2,
+      "type": "SHORT_BEGIN",
+      "batch": 56,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 219,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 59
+    },
+    {
+      "index_column": 60,
+      "index_inner": 3,
+      "type": "SHORT_INNER",
+      "batch": 57,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 210,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 61
+    },
+    {
+      "index_column": 61,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 58,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 420,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 60
+    },
+    {
+      "index_column": 62,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 59,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 363,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 62
+    },
+    {
+      "index_column": 63,
+      "index_inner": 1,
+      "type": "SHORT_BEGIN",
+      "batch": 60,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 256,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 63
+    },
+    {
+      "index_column": 64,
+      "index_inner": 2,
+      "type": "SHORT_BEGIN",
+      "batch": 61,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 331,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 64
+    },
+    {
+      "index_column": 65,
+      "index_inner": 3,
+      "type": "SHORT_END",
+      "batch": 62,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 395,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 65
+    },
+    {
+      "index_column": 66,
+      "index_inner": 4,
+      "type": "SHORT_BEGIN",
+      "batch": 63,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 292,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 66
+    },
+    {
+      "index_column": 67,
+      "index_inner": 5,
+      "type": "SHORT_INNER",
+      "batch": 64,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 291,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 67
+    },
+    {
+      "index_column": 68,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 65,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 460,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 68
+    },
+    {
+      "index_column": 69,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 66,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 240,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 69
+    },
+    {
+      "index_column": 70,
+      "index_inner": 1,
+      "type": "SHORT_BEGIN",
+      "batch": 67,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 441,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 70
+    },
+    {
+      "index_column": 71,
+      "index_inner": 2,
+      "type": "SHORT_INNER",
+      "batch": 68,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 277,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 71
+    },
+    {
+      "index_column": 72,
+      "index_inner": 3,
+      "type": "SHORT_BEGIN",
+      "batch": 69,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 321,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 72
+    },
+    {
+      "index_column": 73,
+      "index_inner": 4,
+      "type": "SHORT_BEGIN",
+      "batch": 70,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 414,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 73
+    },
+    {
+      "index_column": 74,
+      "index_inner": 5,
+      "type": "SHORT_BEGIN",
+      "batch": 70,
+      "corridor_axis": false,
+      "jump_widened": false,
+      "n_points": 2,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 74
+    },
+    {
+      "index_column": 75,
+      "index_inner": 6,
+      "type": "SHORT_BEGIN",
+      "batch": 71,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 2,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 75
+    },
+    {
+      "index_column": 76,
+      "index_inner": 7,
+      "type": "SHORT_INNER",
+      "batch": 72,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 315,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 76
+    },
+    {
+      "index_column": 77,
+      "index_inner": 8,
+      "type": "SHORT_INNER",
+      "batch": 73,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 369,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 77
+    },
+    {
+      "index_column": 78,
+      "index_inner": 9,
+      "type": "SHORT_INNER",
+      "batch": 74,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 43,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 80
+    },
+    {
+      "index_column": 79,
+      "index_inner": 10,
+      "type": "SHORT_BEGIN",
+      "batch": 75,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 139,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 78
+    },
+    {
+      "index_column": 80,
+      "index_inner": 11,
+      "type": "SHORT_INNER",
+      "batch": 76,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 378,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 79
+    },
+    {
+      "index_column": 81,
+      "index_inner": 12,
+      "type": "SHORT_BEGIN",
+      "batch": 77,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 139,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 81
+    },
+    {
+      "index_column": 82,
+      "index_inner": 13,
+      "type": "SHORT_INNER",
+      "batch": 78,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 413,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 82
+    },
+    {
+      "index_column": 83,
+      "index_inner": 14,
+      "type": "SHORT_INNER",
+      "batch": 79,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 219,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 88
+    },
+    {
+      "index_column": 84,
+      "index_inner": 15,
+      "type": "SHORT_END",
+      "batch": 80,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 495,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 83
+    },
+    {
+      "index_column": 85,
+      "index_inner": 16,
+      "type": "SHORT_INNER",
+      "batch": 81,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 411,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 84
+    },
+    {
+      "index_column": 86,
+      "index_inner": 17,
+      "type": "SHORT_INNER",
+      "batch": 81,
+      "corridor_axis": false,
+      "jump_widened": false,
+      "n_points": 56,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 87
+    },
+    {
+      "index_column": 87,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 82,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 499,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 85
+    },
+    {
+      "index_column": 88,
+      "index_inner": 0,
+      "type": "SHORT_INNER",
+      "batch": 83,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 299,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 86
+    },
+    {
+      "index_column": 89,
+      "index_inner": 1,
+      "type": "SHORT_BEGIN",
+      "batch": 84,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 75,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 89
+    },
+    {
+      "index_column": 90,
+      "index_inner": 2,
+      "type": "SHORT_INNER",
+      "batch": 85,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 406,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 90
+    },
+    {
+      "index_column": 91,
+      "index_inner": 3,
+      "type": "SHORT_BEGIN",
+      "batch": 85,
+      "corridor_axis": false,
+      "jump_widened": false,
+      "n_points": 2,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 92
+    },
+    {
+      "index_column": 92,
+      "index_inner": 4,
+      "type": "SHORT_BEGIN",
+      "batch": 86,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 300,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 91
+    },
+    {
+      "index_column": 93,
+      "index_inner": 5,
+      "type": "SHORT_INNER",
+      "batch": 87,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 267,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 93
+    },
+    {
+      "index_column": 94,
+      "index_inner": 6,
+      "type": "SHORT_INNER",
+      "batch": 88,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 232,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 95
+    },
+    {
+      "index_column": 95,
+      "index_inner": 7,
+      "type": "SHORT_BEGIN",
+      "batch": 89,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 245,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 94
+    },
+    {
+      "index_column": 96,
+      "index_inner": 8,
+      "type": "SHORT_BEGIN",
+      "batch": 90,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 312,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 96
+    },
+    {
+      "index_column": 97,
+      "index_inner": 9,
+      "type": "SHORT_BEGIN",
+      "batch": 91,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 219,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 97
+    },
+    {
+      "index_column": 98,
+      "index_inner": 10,
+      "type": "SHORT_BEGIN",
+      "batch": 92,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 266,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 98
+    },
+    {
+      "index_column": 99,
+      "index_inner": 11,
+      "type": "SHORT_INNER",
+      "batch": 93,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 352,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 99
+    },
+    {
+      "index_column": 100,
+      "index_inner": 0,
+      "type": "FULL",
+      "batch": 94,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 391,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 100
+    },
+    {
+      "index_column": 101,
+      "index_inner": 0,
+      "type": "SHORT_INNER",
+      "batch": 95,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 224,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 101
+    },
+    {
+      "index_column": 102,
+      "index_inner": 1,
+      "type": "SHORT_BEGIN",
+      "batch": 96,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 243,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 102
+    },
+    {
+      "index_column": 103,
+      "index_inner": 2,
+      "type": "SHORT_BEGIN",
+      "batch": 97,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 205,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 103
+    },
+    {
+      "index_column": 104,
+      "index_inner": 3,
+      "type": "SHORT_BEGIN",
+      "batch": 98,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 350,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 104
+    },
+    {
+      "index_column": 105,
+      "index_inner": 4,
+      "type": "SHORT_INNER",
+      "batch": 99,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 212,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 105
+    },
+    {
+      "index_column": 106,
+      "index_inner": 5,
+      "type": "SHORT_BEGIN",
+      "batch": 100,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 284,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 106
+    },
+    {
+      "index_column": 107,
+      "index_inner": 6,
+      "type": "SHORT_BEGIN",
+      "batch": 101,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 334,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 107
+    },
+    {
+      "index_column": 108,
+      "index_inner": 7,
+      "type": "SHORT_BEGIN",
+      "batch": 102,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 156,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 108
+    },
+    {
+      "index_column": 109,
+      "index_inner": 8,
+      "type": "SHORT_INNER",
+      "batch": 103,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 117,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 109
+    },
+    {
+      "index_column": 110,
+      "index_inner": 9,
+      "type": "SHORT_BEGIN",
+      "batch": 104,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 181,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 110
+    },
+    {
+      "index_column": 111,
+      "index_inner": 10,
+      "type": "SHORT_END",
+      "batch": 104,
+      "corridor_axis": false,
+      "jump_widened": false,
+      "n_points": 2,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 117
+    },
+    {
+      "index_column": 112,
+      "index_inner": 11,
+      "type": "SHORT_BEGIN",
+      "batch": 105,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 222,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 111
+    },
+    {
+      "index_column": 113,
+      "index_inner": 12,
+      "type": "SHORT_BEGIN",
+      "batch": 106,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 262,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 112
+    },
+    {
+      "index_column": 114,
+      "index_inner": 13,
+      "type": "SHORT_BEGIN",
+      "batch": 107,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 194,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 113
+    },
+    {
+      "index_column": 115,
+      "index_inner": 14,
+      "type": "SHORT_END",
+      "batch": 108,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 233,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 115
+    },
+    {
+      "index_column": 116,
+      "index_inner": 15,
+      "type": "SHORT_BEGIN",
+      "batch": 109,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 65,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 114
+    },
+    {
+      "index_column": 117,
+      "index_inner": 16,
+      "type": "SHORT_BEGIN",
+      "batch": 110,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 242,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 116
+    },
+    {
+      "index_column": 118,
+      "index_inner": 17,
+      "type": "SHORT_BEGIN",
+      "batch": 111,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 138,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 118
+    },
+    {
+      "index_column": 119,
+      "index_inner": 18,
+      "type": "SHORT_BEGIN",
+      "batch": 112,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 91,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 120
+    },
+    {
+      "index_column": 120,
+      "index_inner": 19,
+      "type": "SHORT_BEGIN",
+      "batch": 113,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 193,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 119
+    },
+    {
+      "index_column": 121,
+      "index_inner": 20,
+      "type": "SHORT_BEGIN",
+      "batch": 114,
+      "corridor_axis": true,
+      "jump_widened": true,
+      "n_points": 2,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 125
+    },
+    {
+      "index_column": 122,
+      "index_inner": 0,
+      "type": "SHORT_INNER",
+      "batch": 115,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 278,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 121
+    },
+    {
+      "index_column": 123,
+      "index_inner": 0,
+      "type": "SHORT_BEGIN",
+      "batch": 116,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 251,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 122
+    },
+    {
+      "index_column": 124,
+      "index_inner": 1,
+      "type": "SHORT_INNER",
+      "batch": 117,
+      "corridor_axis": true,
+      "jump_widened": false,
+      "n_points": 15,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 124
+    },
+    {
+      "index_column": 125,
+      "index_inner": 2,
+      "type": "SHORT_BEGIN",
+      "batch": 117,
+      "corridor_axis": false,
+      "jump_widened": false,
+      "n_points": 131,
+      "point_source": "smooth_points",
+      "scale_source": "scale_values_smooth",
+      "phagocytosis_input_index": 123
+    }
+  ]
+}

@@ -23,8 +23,13 @@ import {
   faceChunksFromFaces,
   facesRingChunksFromStitches,
   formatStitchPickParts,
+  applyExtractColumnColors,
+  extractTypeLegend,
+  formatExtractRangeLabel,
+  formatExtractStatus,
   parseColoredObj,
   parseColsResample,
+  parseExtractColumns,
   parseFacesRingLayout,
   parseFirstRows,
   parseReadableMap,
@@ -92,6 +97,8 @@ const denseThinBtn = document.querySelector("#load-dense-thin-cylinder");
 const fatBtn = document.querySelector("#load-fat-cylinder");
 const denseFatBtn = document.querySelector("#load-dense-fat-cylinder");
 const fatPropagateBtn = document.querySelector("#load-fat-cylinder-propagate");
+const denseBunny4SplitBtn = document.querySelector("#load-dense-bunny-4split");
+const denseBunnyLeBtn = document.querySelector("#load-dense-bunny-le");
 const fitBtn = document.querySelector("#fit-view");
 const slider = document.querySelector("#mesh-slider");
 const meshRow = document.querySelector("#mesh-row");
@@ -100,6 +107,11 @@ const facesRow = document.querySelector("#faces-row");
 const modelsRow = document.querySelector("#models-row");
 const termsRow = document.querySelector("#terms-row");
 const colsLabel = document.querySelector("#cols-label");
+const colsSub = document.querySelector("#cols-sub");
+const colColor = document.querySelector("#col-color");
+const colColorType = document.querySelector("#col-color-type");
+const colColorField = document.querySelector("#col-color-field");
+const colLegend = document.querySelector("#col-legend");
 const facesLabel = document.querySelector("#faces-label");
 const modelsLabel = document.querySelector("#models-label");
 const termsLabel = document.querySelector("#terms-label");
@@ -151,6 +163,7 @@ const termsRange = bindDualRange(document.querySelector("#terms-range"));
 let project = null;
 let outputIndex = 0;
 let scene = null;
+let columnColorMode = "type";
 let pickedStitch = null;
 let showPhysNeedle = false;
 let physPickKeys = null;
@@ -296,10 +309,15 @@ function updateChrome() {
 
   if (hasCols) {
     const [a, b] = colsRange.value;
-    colsLabel.textContent = formatHalfOpenRangeLabel("cols_resample", a, b, scene.columns.length);
+    colsLabel.textContent = scene.extract
+      ? formatExtractRangeLabel(scene.columns, a, b)
+      : formatHalfOpenRangeLabel("cols_resample", a, b, scene.columns.length);
   } else {
     colsLabel.textContent = "cols_resample: -";
   }
+  if (colsSub) colsSub.hidden = !scene?.extract;
+  document.querySelector("#cols-range")?.setAttribute("aria-label", scene?.extract ? "index_column" : "cols_resample");
+  paintColumnColorControls();
 
   if (hasStitches) {
     const [a, b] = facesRange.value;
@@ -512,6 +530,83 @@ async function loadStitches(output) {
   return { bound, faceChunks, rowChunks, firstRows, layout, stitchBind, stitchEntry, mapEntry, map: parsedMap };
 }
 
+function paintColumnColorControls() {
+  const extract = scene?.extract || null;
+  const mode = scene?.columnColorMode || columnColorMode;
+  if (colColor) colColor.hidden = !extract || (!extract.colors.type && !extract.colors.field);
+  if (colColorType) {
+    colColorType.hidden = !extract?.colors.type;
+    colColorType.setAttribute("aria-pressed", mode === "type" ? "true" : "false");
+  }
+  if (colColorField) {
+    colColorField.hidden = !extract?.colors.field;
+    colColorField.setAttribute("aria-pressed", mode === "field" ? "true" : "false");
+  }
+  paintColumnLegend();
+}
+
+function paintColumnLegend() {
+  if (!colLegend) return;
+  const extract = scene?.extract || null;
+  colLegend.replaceChildren();
+  if (!extract) {
+    colLegend.hidden = true;
+    return;
+  }
+  const mode = scene.columnColorMode;
+  if (mode === "field" && extract.colors.field) {
+    const src = extract.order?.field_source || "field";
+    const scale = extract.order?.scale_ran;
+    const text = document.createElement("span");
+    text.textContent = scale == null ? `field · ${src}` : `field · ${src} · scale_ran=${scale}`;
+    colLegend.append(text);
+    colLegend.hidden = false;
+    return;
+  }
+  if (mode === "type" && extract.colors.type) {
+    for (const item of extractTypeLegend(extract.columns)) {
+      const row = document.createElement("span");
+      row.className = "col-legend-item";
+      if (item.color && !item.mixed) {
+        const swatch = document.createElement("i");
+        swatch.className = "col-swatch";
+        const r = Math.round(item.color.r * 255);
+        const g = Math.round(item.color.g * 255);
+        const b = Math.round(item.color.b * 255);
+        swatch.style.background = `rgb(${r}, ${g}, ${b})`;
+        row.append(swatch);
+      }
+      row.append(`${item.type} ${item.n}${item.mixed ? " mixed" : ""}`);
+      colLegend.append(row);
+    }
+    colLegend.hidden = false;
+    return;
+  }
+  const text = document.createElement("span");
+  text.textContent = "无类型色、无场色 / no type or field colors";
+  colLegend.append(text);
+  colLegend.hidden = false;
+}
+
+function chooseColumnColorMode(extract) {
+  if (columnColorMode === "type" && extract.colors.type) return "type";
+  if (columnColorMode === "field" && extract.colors.field) return "field";
+  if (extract.colors.type) return "type";
+  if (extract.colors.field) return "field";
+  return "none";
+}
+
+async function loadExtractColumns(output) {
+  const [polylineText, typeText, fieldText, orderText] = await Promise.all([
+    loadText(output.columnsPolylineFile),
+    output.columnsTypeFile ? loadText(output.columnsTypeFile) : Promise.resolve(""),
+    output.columnsFieldFile ? loadText(output.columnsFieldFile) : Promise.resolve(""),
+    output.columnsOrderFile ? loadText(output.columnsOrderFile) : Promise.resolve(""),
+  ]);
+  const order = orderText ? JSON.parse(orderText) : null;
+  return parseExtractColumns({ polylineText, typeText, fieldText, order });
+}
+
 async function loadCols(output) {
   if (!output.colsResampleXlsFile && !output.colsResampleFile) {
     return null;
@@ -557,7 +652,21 @@ function applyColsRange() {
   if (!scene?.columns?.length) return;
   const [start, end] = colsRange.value;
   viewer.setColsResampleRange(start, end);
-  colsLabel.textContent = formatHalfOpenRangeLabel("cols_resample", start, end, scene.columns.length);
+  colsLabel.textContent = scene.extract
+    ? formatExtractRangeLabel(scene.columns, start, end)
+    : formatHalfOpenRangeLabel("cols_resample", start, end, scene.columns.length);
+}
+
+function setColumnColorMode(mode) {
+  if (!scene?.extract) return;
+  if (mode === "type" && !scene.extract.colors.type) return;
+  if (mode === "field" && !scene.extract.colors.field) return;
+  columnColorMode = mode;
+  scene.columnColorMode = mode;
+  applyExtractColumnColors(scene.columns, mode);
+  applyColsRange();
+  if (statsEl) statsEl.textContent = `${scene.columns.length} columns · ${mode}`;
+  updateChrome();
 }
 
 function syncTermSlider({ reset = false } = {}) {
@@ -647,9 +756,21 @@ async function showOutput(index, { fit = false } = {}) {
   paintStitchPick(null);
   setStatus("加载中 / Loading…");
   try {
-    const meshGeom = await loadGeometry(output.meshFile);
-    const stitches = await loadStitches(output);
-    const cols = await loadCols(output);
+    const meshGeom = output.meshFile ? await loadGeometry(output.meshFile) : null;
+    const extract = output.columnExtract ? await loadExtractColumns(output) : null;
+    if (extract && !extract.columns.length) {
+      throw new Error(extract.problems[0] || "没有列折线 / No column polylines");
+    }
+    if (extract) {
+      columnColorMode = chooseColumnColorMode(extract);
+      if (columnColorMode === "type" || columnColorMode === "field") {
+        applyExtractColumnColors(extract.columns, columnColorMode);
+      }
+    }
+    const stitches = output.columnExtract ? null : await loadStitches(output);
+    const cols = extract
+      ? { columns: extract.columns, entry: output.columnsPolylineFile, kind: "extract" }
+      : await loadCols(output);
     viewer.setBaseLayers(baseLayers);
     viewer.setShowOverlay(overlayBtn.getAttribute("aria-pressed") === "true");
     viewer.setShowKnitBed(knitBedBtn?.getAttribute("aria-pressed") === "true");
@@ -657,17 +778,19 @@ async function showOutput(index, { fit = false } = {}) {
 
     const models = [];
     const cutName = modelNameFromFile(output.meshFile, "cut_iteration_0");
-    registerDisplayModel(models, {
-      kind: "mesh",
-      name: cutName,
-      item: cutName,
-    });
-    if (cols) {
+    if (!output.columnExtract) {
       registerDisplayModel(models, {
-        kind: "cols_resample",
-        name: "cols_resample",
-        item: "cols_resample",
+        kind: "mesh",
+        name: cutName,
+        item: cutName,
       });
+      if (cols) {
+        registerDisplayModel(models, {
+          kind: "cols_resample",
+          name: "cols_resample",
+          item: "cols_resample",
+        });
+      }
     }
     if (stitches) {
       registerDisplayModel(models, {
@@ -684,6 +807,10 @@ async function showOutput(index, { fit = false } = {}) {
     scene = {
       models,
       columns: cols?.columns || null,
+      extract: extract
+        ? { ...extract, columns: cols.columns }
+        : null,
+      columnColorMode: extract ? columnColorMode : null,
       stitches,
       facesBound: stitches,
       prevFacesItem: stitches ? "KnittingStitches" : null,
@@ -721,16 +848,27 @@ async function showOutput(index, { fit = false } = {}) {
     applyAllFilters();
 
     const bits = [];
-    if (meshGeom) {
-      const pos = meshGeom.getAttribute("position");
-      bits.push(`${pos?.count ?? 0} vtx`);
+    if (extract) {
+      bits.push(`${extract.columns.length} columns`);
+      if (columnColorMode === "type" || columnColorMode === "field") bits.push(columnColorMode);
+    } else {
+      if (meshGeom) {
+        const pos = meshGeom.getAttribute("position");
+        bits.push(`${pos?.count ?? 0} vtx`);
+      }
+      if (cols) bits.push(`${cols.columns.length} cols_resample`);
+      if (stitches) bits.push(`${stitches.rowChunks.length} faces_ring`);
+      if (stitches?.layout?.termTotal) bits.push(`${stitches.layout.termTotal} terms`);
+      else bits.push(`${models.length} models`);
     }
-    if (cols) bits.push(`${cols.columns.length} cols_resample`);
-    if (stitches) bits.push(`${stitches.rowChunks.length} faces_ring`);
-    if (stitches?.layout?.termTotal) bits.push(`${stitches.layout.termTotal} terms`);
-    else bits.push(`${models.length} models`);
     statsEl.textContent = bits.join(" · ");
-    setStatus("三滑块半开区间 [start,end) · dual-range like SingaLab");
+    if (extract) {
+      const summary = formatExtractStatus(output.label, extract);
+      const text = extract.problems.length ? `${summary} · ${extract.problems.join(" · ")}` : summary;
+      setStatus(text, extract.problems.length > 0);
+    } else {
+      setStatus("三滑块半开区间 [start,end) · dual-range like SingaLab");
+    }
     syncViewportAfterLayout(fit ? () => viewer.fitToView() : undefined);
   } catch (err) {
     statsEl.textContent = "";
@@ -809,6 +947,16 @@ function isDenseFatSheet(sheet) {
 function isFatPropagateSheet(sheet) {
   const want = String(sheet || "").toLowerCase();
   return want === "fat-cylinder-propagate" || want === "fat-propagate";
+}
+
+function isDenseBunny4SplitSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "dense-bunny-4split";
+}
+
+function isDenseBunnyLeSheet(sheet) {
+  const want = String(sheet || "").toLowerCase();
+  return want === "dense-bunny-le";
 }
 
 function isDecreaseSheet(sheet) {
@@ -961,7 +1109,7 @@ async function loadNamedCylinder({ manifest, missing, status, banner }) {
   await openEntries(entries);
   if (project && banner) project.banner = banner;
   updateChrome();
-  if (!statusEl.classList.contains("error")) setStatus(status);
+  if (status && !statusEl.classList.contains("error")) setStatus(status);
 }
 
 async function loadThinCylinder() {
@@ -1030,6 +1178,28 @@ async function loadDenseFatCylinder() {
       manifest: "dense-fat-cylinder.json",
       missing: "Dense Fat Cylinder",
       status: "Dense Fat Cylinder · cols_resample 51 · 表宽 48 · 前床 F0–F12 · 后床 B12–B1 · 前五环落座 25、26、26、29、33 · 停在 ring 5 course 17",
+    });
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadDenseBunny4Split() {
+  try {
+    await loadNamedCylinder({
+      manifest: "dense-bunny-4split.json",
+      missing: "Dense Bunny 4split",
+    });
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
+async function loadDenseBunnyLe() {
+  try {
+    await loadNamedCylinder({
+      manifest: "dense-bunny-le.json",
+      missing: "Dense Bunny LE",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1181,6 +1351,16 @@ fatPropagateBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("fat-cylinder-propagate");
   loadFatPropagateCylinder();
+});
+denseBunny4SplitBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("dense-bunny-4split");
+  loadDenseBunny4Split();
+});
+denseBunnyLeBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery("dense-bunny-le");
+  loadDenseBunnyLe();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -1405,6 +1585,9 @@ for (const [layer, el] of Object.entries(baseChecks)) {
 
 paintBaseChecks();
 
+colColorType?.addEventListener("click", () => setColumnColorMode("type"));
+colColorField?.addEventListener("click", () => setColumnColorMode("field"));
+
 warpBtn.addEventListener("click", () => {
   const on = warpBtn.getAttribute("aria-pressed") !== "true";
   pressed(warpBtn, on);
@@ -1448,7 +1631,9 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 updateChrome();
 syncExportButton();
-if (isFatPropagateSheet(sheetQuery())) loadFatPropagateCylinder();
+if (isDenseBunny4SplitSheet(sheetQuery())) loadDenseBunny4Split();
+else if (isDenseBunnyLeSheet(sheetQuery())) loadDenseBunnyLe();
+else if (isFatPropagateSheet(sheetQuery())) loadFatPropagateCylinder();
 else if (isDenseFatSheet(sheetQuery())) loadDenseFatCylinder();
 else if (isFatSheet(sheetQuery())) loadFatCylinder();
 else if (isDenseThinSheet(sheetQuery())) loadDenseThinCylinder();
