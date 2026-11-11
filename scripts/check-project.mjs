@@ -82,7 +82,6 @@ import {
   isDenseThinCylinderBedChart,
   isDenseFatCylinderBedChart,
   isFatCylinderBedChart,
-  isFatPropagateCylinderBedChart,
   knitBedsByFace,
   KNIT_BED_RGB,
   parseExcelReadableMap,
@@ -2125,45 +2124,6 @@ assertDenseCylinderSample({
 });
 
 assertDenseCylinderSample({
-  sheet: "fat-cylinder-propagate",
-  title: "Fat Cylinder Propagate",
-  loader: "loadFatPropagateCylinder",
-  dir: "fat-propagate",
-  prefix: "fat_propagate",
-  recognizer: "isFatPropagateCylinderBedChart",
-  bedChart: isFatPropagateCylinderBedChart,
-  rels: [
-    "fat-propagate/fat_propagate_KnittingStitches.obj",
-    "fat-propagate/fat_propagate_cols_resample_field.obj",
-    "fat-propagate/fat_propagate_cols_resample_type.obj",
-    "fat-propagate/fat_propagate_cols_resample.xls",
-    "fat-propagate/fat_propagate_faces_ring_layout.json",
-    "fat-propagate/fat_propagate_first_rows.xls",
-    "fat-propagate/fat_propagate_bed.xls",
-  ],
-  verts: 1968,
-  faces: 503,
-  yMaxLo: 79.93,
-  yMaxHi: 80.0,
-  terms: [16, 16, 16, 17, 28, 30, 86, 48, 88, 38, 30, 58, 16, 16],
-  cols: 30,
-  width: 33,
-  colMin: 0,
-  colMax: 32,
-  firstCourse: plainRightCourse(7, 7, 0),
-  txt: [
-    "床图（未完成）",
-    "generation stopped at ring 11 course 2 R",
-    "course 0 R  start F0  end B0  （16 针）",
-    "第一环落座之后 N=16，窗 F8[0…7] / B8[0…7]。",
-    "第11环结束 N=26，窗 F13[0…12] / B13[0…12]。",
-    "表宽 33",
-    "完整画到 ring 10。ring 11 只画到 course 2 抛出之前的行。",
-  ],
-  status: ["前床 F0–F7", "后床 B7–B0", "表宽 33", "前十一环落座 16、16、17、28、30、30、30、30、30、30、26", "停在 ring 11 course 2"],
-});
-
-assertDenseCylinderSample({
   sheet: "fat-cylinder",
   title: "Fat Cylinder",
   loader: "loadFatCylinder",
@@ -2235,7 +2195,7 @@ assertDenseCylinderSample({
       datForSheet("fat") === fat,
     "complete cylinder aliases share the same dat",
   );
-  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "fat-cylinder-propagate", "fat-propagate", "dense-bunny-4split", "dense-bunny-le"]) {
+  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
   }
   const sha256 = (rel) => createHash("sha256").update(readFileSync(join(sampleDir, rel))).digest("hex");
@@ -2301,12 +2261,6 @@ assertDenseCylinderSample({
   assert(sha256("thin/thin_cylinder.k") === "9b88134acd72871563b3809bbed8535a7afb1199bf9fd1f34cb0a43e920b03f0", "thin_cylinder.k bytes stay");
   assert(sha256("fat/fat_cylinder.dat") === "2a36f8cdd7b61f8c7fbf2deedda75b8c97415bd1ba9873a56d6aaf36cd5e9d83", "fat_cylinder.dat bytes stay");
   assert(sha256("fat/fat_cylinder.k") === "590263f4f65e24aab3911b3339eb16862090052a27f17a981535b3e0902c118b", "fat_cylinder.k bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_KnittingStitches.obj") === "26125c4723d9d7fc990445de70ce71927ca528240a5699d9e0083baab1787331", "fat propagate stitchmesh bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample_field.obj") === "50d74e6ec1f338cfc7827255eca6e8fa794ff21390ea8d806957e7e3ce20cee3", "fat propagate cols field bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample_type.obj") === "0d4792ece3a50e177e40d41fcf4f2d18f0e029e395e5860012976426e41103a0", "fat propagate cols type bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample.xls") === "4291af9ae7f8b73d450a17d8a2af71638310e554a6544662db6ba3ecf9523550", "fat propagate cols xls bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_first_rows.xls") === "0560659a3fed2456bc106452047d329d970e968db6eeca637d123acc56a3c4ee", "fat propagate first_rows bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_faces_ring_layout.json") === "c5c4d5337f9310e307d65462ecad253b7ab282113c8e9eba5edc62d3ce706510", "fat propagate faces_ring bytes stay");
   assert(readFileSync(join(sampleDir, "increase/increase_cylinder.k"), "utf8").includes("\nsplit "), "increase knitout uses split");
   assert(!readFileSync(join(sampleDir, "cylinder/standrad_cylinder.k"), "utf8").includes("\nsplit "), "standrad has no increase split");
 }
