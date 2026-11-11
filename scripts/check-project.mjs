@@ -81,6 +81,7 @@ import {
   isDenseDecreaseCylinderBedChart,
   isDenseThinCylinderBedChart,
   isDenseFatCylinderBedChart,
+  isFatCylinderBedChart,
   isFatPropagateCylinderBedChart,
   knitBedsByFace,
   KNIT_BED_RGB,
@@ -1435,7 +1436,7 @@ assert(
     "Decrease Cylinder uses its own cols_resample field, xls, and faces ring",
   );
   const parsed = parseColoredObj(readFileSync(join(decDir, "decrease_cylinder_KnittingStitches.obj"), "utf8"));
-  assert(parsed.verts.length === 524 && parsed.faces.length === 129, "Decrease Cylinder is the SingaLab stitchmesh");
+  assert(parsed.verts.length === 545 && parsed.faces.length === 139, "Decrease Cylinder is the SingaLab stitchmesh");
   const ySpan = parsed.verts.reduce(
     (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
     { min: Infinity, max: -Infinity },
@@ -1450,8 +1451,8 @@ assert(
     colors: layout.colors,
   });
   assert(
-    chunks.length === 7 && chunks.map((chunk) => chunk.faces.length).join(",") === "23,23,23,18,16,13,13",
-    "Decrease Cylinder faces ring is the exported 7 rings",
+    chunks.length === 5 && chunks.map((chunk) => chunk.faces.length).join(",") === "23,23,61,18,14",
+    "Decrease Cylinder faces ring is the exported 5 rings",
   );
   const decreaseCols = parseColsResample({
     fieldText: readFileSync(join(decDir, "decrease_cylinder_cols_resample_field.obj"), "utf8"),
@@ -1503,13 +1504,13 @@ assert(
   assert(
     decreaseTxt.includes("course 0 R  start F0  end B1  （23 针）") &&
       decreaseTxt.includes("course 1 R  start F0  end B1  （23 针）") &&
-      decreaseTxt.includes("course 2 R  start F0  end B1  （23 针）") &&
-      decreaseTxt.includes("course 3 R  start F0  end B0  （23 针）") &&
-      decreaseTxt.includes("course 6 R  start B2  end B5  （13 针）") &&
+      decreaseTxt.includes("course 2 R  start F0  end F3  （5 针）") &&
+      decreaseTxt.includes("course 3 L  start F3  end B0  （5 针）") &&
+      decreaseTxt.includes("course 6 R  start F4  end B9  （9 针）") &&
       decreaseTxt.includes("表宽 24") &&
       decreaseTxt.includes("第一环落座之后 N=23，窗 F12[0…11] / B11[1…11]。") &&
-      decreaseTxt.includes("第五环结束 N=16，窗 F8[0…7] / B8[0…7]。") &&
-      decreaseTxt.includes("7 环都在这一张表上。"),
+      decreaseTxt.includes("第五环结束 N=14，窗 F7[0…6] / B7[0…6]。") &&
+      decreaseTxt.includes("5 环都在这一张表上。"),
     "Decrease Cylinder courses are the generator report",
   );
   const ring0 = decreaseBed.rows[0];
@@ -1994,11 +1995,11 @@ assertDenseCylinderSample({
     "dense-decrease/dense_decrease_cylinder_faces_ring_layout.json",
     "dense-decrease/dense_decrease_cylinder_bed.xls",
   ],
-  verts: 2548,
-  faces: 661,
+  verts: 2523,
+  faces: 656,
   yMaxLo: 39.9,
   yMaxHi: 40.1,
-  terms: [47, 47, 47, 47, 133, 103, 41, 87, 28, 27, 27, 27],
+  terms: [47, 47, 47, 47, 133, 103, 41, 86, 27, 26, 26, 26],
   cols: 47,
   width: 48,
   colMin: 0,
@@ -2008,11 +2009,11 @@ assertDenseCylinderSample({
     "course 0 R  start F0  end B1  （47 针）",
     "第一环落座之后 N=47，窗 F24[0…23] / B23[1…23]。",
     "第三环结束 N=47，窗 F24[0…23] / B23[1…23]。",
-    "第12环结束 N=27，窗 F14[0…13] / B13[1…13]。",
+    "第12环结束 N=28，窗 F14[0…13] / B14[0…13]。",
     "表宽 48",
     "12 环都在这一张表上。",
   ],
-  status: ["前床 F0–F23", "后床 B23–B1", "表宽 48", "12 环落座 47、47、47、47、47、45、41、29、28、27、27、27"],
+  status: ["前床 F0–F23", "后床 B23–B1", "表宽 48", "12 环落座 47、47、47、47、47、45、41、30、29、28、28、28"],
 });
 
 assertDenseCylinderSample({
@@ -2066,25 +2067,25 @@ assertDenseCylinderSample({
     "dense-thin/dense_thin_cylinder_faces_ring_layout.json",
     "dense-thin/dense_thin_cylinder_bed.xls",
   ],
-  verts: 4404,
-  faces: 1153,
-  yMaxLo: 74.58,
-  yMaxHi: 74.59,
-  terms: [49, 49, 49, 49, 49, 138, 78, 28, 27, 26, 26, 24, 24, 24, 24, 24, 26, 26, 28, 33, 122, 99, 131],
+  verts: 2675,
+  faces: 690,
+  yMaxLo: 45.26,
+  yMaxHi: 45.27,
+  terms: [49, 49, 49, 49, 49, 134, 80, 29, 28, 27, 27, 24, 24, 24, 24, 24],
   cols: 73,
-  width: 53,
+  width: 50,
   colMin: 0,
-  colMax: 52,
+  colMax: 49,
   firstCourse: plainRightCourse(24, 24, 1),
   txt: [
     "course 0 R  start F0  end B1  （49 针）",
     "第一环落座之后 N=49，窗 F25[0…24] / B24[1…24]。",
-    "第15环结束 N=27，窗 F14[0…13] / B13[1…13]。",
-    "第23环结束 N=49，窗 F25[0…24] / B24[1…24]。",
-    "表宽 53",
-    "23 环都在这一张表上。",
+    "第15环结束 N=26，窗 F13[0…12] / B13[0…12]。",
+    "第16环结束 N=26，窗 F13[0…12] / B13[0…12]。",
+    "表宽 50",
+    "16 环都在这一张表上。",
   ],
-  status: ["前床 F0–F24", "后床 B24–B1", "表宽 53", "23 环落座 49、49、49、49、49、48、38、30、29、28、28、27、27、27、27、28、28、30、35、41、49、49、49"],
+  status: ["前床 F0–F24", "后床 B24–B1", "表宽 50", "16 环落座 49、49、49、49、49、48、38、29、28、27、27、26、26、26、26、26"],
 });
 
 assertDenseCylinderSample({
@@ -2140,26 +2141,63 @@ assertDenseCylinderSample({
     "fat-propagate/fat_propagate_first_rows.xls",
     "fat-propagate/fat_propagate_bed.xls",
   ],
-  verts: 2002,
-  faces: 515,
+  verts: 1968,
+  faces: 503,
   yMaxLo: 79.93,
   yMaxHi: 80.0,
-  terms: [16, 16, 16, 16, 26, 29, 42, 90, 88, 57, 29, 26, 16, 16, 16, 16],
-  cols: 31,
-  width: 16,
+  terms: [16, 16, 16, 17, 28, 30, 86, 48, 88, 38, 30, 58, 16, 16],
+  cols: 30,
+  width: 33,
   colMin: 0,
-  colMax: 15,
+  colMax: 32,
   firstCourse: plainRightCourse(7, 7, 0),
   txt: [
     "床图（未完成）",
-    "generation stopped at ring 3 course 0 R",
+    "generation stopped at ring 11 course 2 R",
     "course 0 R  start F0  end B0  （16 针）",
     "第一环落座之后 N=16，窗 F8[0…7] / B8[0…7]。",
-    "第三环结束 N=16，窗 F8[0…7] / B8[0…7]。",
-    "表宽 16",
-    "完整画到 ring 2。ring 3 只画到 course 0 抛出之前的行。",
+    "第11环结束 N=26，窗 F13[0…12] / B13[0…12]。",
+    "表宽 33",
+    "完整画到 ring 10。ring 11 只画到 course 2 抛出之前的行。",
   ],
-  status: ["前床 F0–F7", "后床 B7–B0", "表宽 16", "前三环落座 16、16、16", "停在 ring 3 course 0"],
+  status: ["前床 F0–F7", "后床 B7–B0", "表宽 33", "前十一环落座 16、16、17、28、30、30、30、30、30、30、26", "停在 ring 11 course 2"],
+});
+
+assertDenseCylinderSample({
+  sheet: "fat-cylinder",
+  title: "Fat Cylinder",
+  loader: "loadFatCylinder",
+  dir: "fat",
+  prefix: "fat_cylinder",
+  recognizer: "isFatCylinderBedChart",
+  bedChart: isFatCylinderBedChart,
+  rels: [
+    "fat/fat_cylinder_KnittingStitches.obj",
+    "fat/fat_cylinder_cols_resample_field.obj",
+    "fat/fat_cylinder_cols_resample.xls",
+    "fat/fat_cylinder_faces_ring_layout.json",
+    "fat/fat_cylinder_bed.xls",
+  ],
+  verts: 1270,
+  faces: 333,
+  yMaxLo: 79.93,
+  yMaxHi: 80.0,
+  terms: [13, 13, 14, 24, 70, 46, 70, 31, 39, 13],
+  cols: 24,
+  width: 28,
+  colMin: 0,
+  colMax: 27,
+  firstCourse: plainRightCourse(6, 6, 1),
+  txt: [
+    "床图（未完成）",
+    "generation stopped at ring 8 course 2 R",
+    "course 0 R  start F0  end B1  （13 针）",
+    "第一环落座之后 N=13，窗 F7[0…6] / B6[1…6]。",
+    "第8环结束 N=23，窗 F12[0…11] / B11[1…11]。",
+    "表宽 28",
+    "完整画到 ring 7。ring 8 只画到 course 2 抛出之前的行。",
+  ],
+  status: ["前床 F0–F6", "后床 B6–B1", "表宽 28", "前八环落座 13、14、24、24、24、24、24、23", "停在 ring 8 course 2"],
 });
 
 {
@@ -2263,12 +2301,12 @@ assertDenseCylinderSample({
   assert(sha256("thin/thin_cylinder.k") === "9b88134acd72871563b3809bbed8535a7afb1199bf9fd1f34cb0a43e920b03f0", "thin_cylinder.k bytes stay");
   assert(sha256("fat/fat_cylinder.dat") === "2a36f8cdd7b61f8c7fbf2deedda75b8c97415bd1ba9873a56d6aaf36cd5e9d83", "fat_cylinder.dat bytes stay");
   assert(sha256("fat/fat_cylinder.k") === "590263f4f65e24aab3911b3339eb16862090052a27f17a981535b3e0902c118b", "fat_cylinder.k bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_KnittingStitches.obj") === "4af344f4f8850f4129a9b25d2a3050ad587ad3cf5afdb1a2d77c55f92a784e72", "fat propagate stitchmesh bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample_field.obj") === "14a3cf0ee4e8d6edd1b225abd8fe963bb1c538f9e65f97140613fa5e5e054165", "fat propagate cols field bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample_type.obj") === "2b3ba0a932f2387ccd20599bfcf34815ba9467878a3e43a71e1a99f77787bd36", "fat propagate cols type bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_cols_resample.xls") === "8a3e8b7f8746828e2a45e0bd6965ffddf5170236dd4f4d3bd00a7c0552f91dbc", "fat propagate cols xls bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_first_rows.xls") === "e246bab35d1fb6cec3704406dc06286565e5e9dc3684412d198a8dfd29b4fa8c", "fat propagate first_rows bytes stay");
-  assert(sha256("fat-propagate/fat_propagate_faces_ring_layout.json") === "48aca65ebe73f38e767f142ff7fb52f545d87e0485860ad76691dd5b9dab231c", "fat propagate faces_ring bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_KnittingStitches.obj") === "26125c4723d9d7fc990445de70ce71927ca528240a5699d9e0083baab1787331", "fat propagate stitchmesh bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_cols_resample_field.obj") === "50d74e6ec1f338cfc7827255eca6e8fa794ff21390ea8d806957e7e3ce20cee3", "fat propagate cols field bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_cols_resample_type.obj") === "0d4792ece3a50e177e40d41fcf4f2d18f0e029e395e5860012976426e41103a0", "fat propagate cols type bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_cols_resample.xls") === "4291af9ae7f8b73d450a17d8a2af71638310e554a6544662db6ba3ecf9523550", "fat propagate cols xls bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_first_rows.xls") === "0560659a3fed2456bc106452047d329d970e968db6eeca637d123acc56a3c4ee", "fat propagate first_rows bytes stay");
+  assert(sha256("fat-propagate/fat_propagate_faces_ring_layout.json") === "c5c4d5337f9310e307d65462ecad253b7ab282113c8e9eba5edc62d3ce706510", "fat propagate faces_ring bytes stay");
   assert(readFileSync(join(sampleDir, "increase/increase_cylinder.k"), "utf8").includes("\nsplit "), "increase knitout uses split");
   assert(!readFileSync(join(sampleDir, "cylinder/standrad_cylinder.k"), "utf8").includes("\nsplit "), "standrad has no increase split");
 }
