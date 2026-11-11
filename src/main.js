@@ -1082,7 +1082,7 @@ async function loadIncreaseCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Increase Cylinder · cols_resample 23 · 表宽 27 · 前床 F0–F6 · 后床 B6–B0 · 5 环落座 14、18、21、23、23");
+      setStatus("Increase Cylinder · cols_resample 22 · 表宽 24 · 前床 F0–F6 · 后床 B6–B0 · 5 环落座 14、18、21、22、22");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1117,7 +1117,7 @@ async function loadThinCylinder() {
     await loadNamedCylinder({
       manifest: "thin-cylinder.json",
       missing: "Thin Cylinder",
-      status: "Thin Cylinder · cols_resample 36 · 表宽 28 · 前床 F0–F11 · 后床 B11–B0 · 10 环落座 24、24、24、17、13、13、13、17、24、23",
+      status: "Thin Cylinder · cols_resample 34 · 表宽 28 · 前床 F0–F11 · 后床 B11–B0 · 10 环落座 24、24、24、17、13、13、13、17、24、23",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1141,7 +1141,7 @@ async function loadDenseDecreaseCylinder() {
     await loadNamedCylinder({
       manifest: "dense-decrease-cylinder.json",
       missing: "Dense Decrease Cylinder",
-      status: "Dense Decrease Cylinder · cols_resample 47 · 表宽 48 · 前床 F0–F23 · 后床 B23–B1 · 12 环落座 47、47、47、47、47、45、41、30、29、28、28、28",
+      status: "Dense Decrease Cylinder · cols_resample 46 · 表宽 46 · 前床 F0–F22 · 后床 B22–B0 · 12 环落座 46、46、46、46、46、44、40、29、28、27、27、27",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1153,7 +1153,7 @@ async function loadDenseIncreaseCylinder() {
     await loadNamedCylinder({
       manifest: "dense-increase-cylinder.json",
       missing: "Dense Increase Cylinder",
-      status: "Dense Increase Cylinder · cols_resample 47 · 表宽 54 · 前床 F0–F13 · 后床 B13–B1 · 11 环落座 27、27、29、29、30、43、45、47、47、47、47",
+      status: "Dense Increase Cylinder · cols_resample 46 · 表宽 48 · 前床 F0–F13 · 后床 B13–B1 · 10 环落座 27、27、29、29、33、41、46、46、46、46",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1165,7 +1165,7 @@ async function loadDenseThinCylinder() {
     await loadNamedCylinder({
       manifest: "dense-thin-cylinder.json",
       missing: "Dense Thin Cylinder",
-      status: "Dense Thin Cylinder · cols_resample 73 · 表宽 50 · 前床 F0–F24 · 后床 B24–B1 · 16 环落座 49、49、49、49、49、48、38、29、28、27、27、26、26、26、26、26",
+      status: "Dense Thin Cylinder · cols_resample 69 · 表宽 50 · 前床 F0–F24 · 后床 B24–B1 · 16 环落座 49、49、49、49、49、48、38、29、28、27、27、26、26、26、26、26",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1177,7 +1177,7 @@ async function loadDenseFatCylinder() {
     await loadNamedCylinder({
       manifest: "dense-fat-cylinder.json",
       missing: "Dense Fat Cylinder",
-      status: "Dense Fat Cylinder · cols_resample 51 · 表宽 48 · 前床 F0–F12 · 后床 B12–B1 · 前五环落座 25、26、26、29、33 · 停在 ring 5 course 17",
+      status: "Dense Fat Cylinder · cols_resample 47 · 表宽 54 · 前床 F0–F12 · 后床 B12–B1 · 20 环落座 25、26、26、28、36、43、47、47、47、47、47、47、47、47、46、29、26、26、25、25",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);

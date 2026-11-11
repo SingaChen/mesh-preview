@@ -1,225 +1,1076 @@
-dense_fat_cylinder_faces_ring_layout.json step4 床图（未完成）
-generation stopped at ring 5 course 17 L (faces-ring0-step4: course 17: front is not on F0 (3…25)).
-这一张表只含抛出之前已经画出的行。失败之后的平衡和后面的环都没有补。
+dense_fat_cylinder_faces_ring_layout.json step4 床图
 输入只有 dense_fat_cylinder_faces_ring_layout.json 的 rings（types 和 hangs）。每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。
 Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。
 底圈 N=25，拆成 F=13、B=12。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
 第一环落座之后 N=25，窗 F13[0…12] / B12[1…12]。
 第二环结束 N=26，窗 F13[0…12] / B13[0…12]。
 第三环结束 N=26，窗 F13[0…12] / B13[0…12]。
-第四环结束 N=29，窗 F15[0…14] / B14[1…14]。
-第五环结束 N=33，窗 F17[0…16] / B16[1…16]。
-生成停在 ring 5 course 17，平衡之前 N=45，窗 F23[3…25] / B22[3…24]。
-针号是 F# / B#。表宽 48，由占用列最宽的一课决定：course 3 R 占 29 列，跨度 44。前床列 = 物理针，后床列 = 41 − 物理针。短课中间可以空。
-完整画到 ring 4。ring 5 只画到 course 17 抛出之前的行。
+第四环结束 N=28，窗 F14[0…13] / B14[0…13]。
+第五环结束 N=36，窗 F18[0…17] / B18[0…17]。
+第六环结束 N=43，窗 F22[0…21] / B21[1…21]。
+第七环结束 N=47，窗 F24[0…23] / B23[1…23]。
+第8环结束 N=47，窗 F24[0…23] / B23[1…23]。
+第9环结束 N=47，窗 F24[0…23] / B23[1…23]。
+第10环结束 N=47，窗 F24[0…23] / B23[1…23]。
+第11环结束 N=47，窗 F24[0…23] / B23[1…23]。
+第12环结束 N=47，窗 F24[0…23] / B23[1…23]。
+第13环结束 N=47，窗 F24[0…23] / B23[1…23]。
+第14环结束 N=47，窗 F24[0…23] / B23[1…23]。
+第15环结束 N=46，窗 F23[0…22] / B23[0…22]。
+第16环结束 N=29，窗 F15[0…14] / B14[1…14]。
+第17环结束 N=26，窗 F13[0…12] / B13[0…12]。
+第18环结束 N=26，窗 F13[0…12] / B13[0…12]。
+第19环结束 N=25，窗 F13[0…12] / B12[1…12]。
+第20环结束 N=25，窗 F13[0…12] / B12[1…12]。
+针号是 F# / B#。表宽 54，由占用列最宽的一课决定：course 4 R 占 36 列，跨度 53。前床列 = 物理针，后床列 = 47 − 物理针。短课中间可以空。
+20 环都在这一张表上。每一环都用这一份 faces_ring 自己落座的针。
 
 行程（织行）起点针、终点针：
   course 0 R  start F0  end B1  （25 针）
   course 1 R  start F0  end B1  （26 针）
   course 2 R  start F0  end B0  （26 针）
-  course 3 R  start F0  end B-2  （29 针）
-  course 4 R  start F0  end B-1  （33 针）
-  course 5 R  start F0  end F3  （4 针）
-  course 6 L  start F3  end F1  （3 针）
-  course 7 R  start F1  end F15  （15 针）
-  course 8 L  start F15  end F1  （15 针）
-  course 9 R  start F5  end F11  （7 针）
-  course 10 L  start F11  end F10  （2 针）
-  course 11 R  start F10  end F13  （4 针）
-  course 12 L  start F13  end F12  （2 针）
-  course 13 R  start F12  end F16  （5 针）
-  course 14 L  start F16  end F15  （2 针）
-  course 15 R  start F15  end F18  （4 针）
-  course 16 L  start F18  end F17  （2 针）
-  course 17 R  start F17  end F20  （4 针）
-  course 18 L  start F20  end F19  （2 针）
-  course 19 R  start F19  end B19  （4 针）
-  course 20 L  start B19  end B20  （2 针）
-  course 21 R  start B20  end B9  （12 针）
-  course 22 L  start B9  end B22  （14 针）
+  course 3 R  start F0  end B-1  （28 针）
+  course 4 R  start F0  end B-5  （36 针）
+  course 5 R  start F0  end F10  （11 针）
+  course 6 L  start F10  end F8  （3 针）
+  course 7 R  start F9  end B-2  （34 针）
+  course 8 R  start F0  end F6  （7 针）
+  course 9 L  start F6  end B5  （14 针）
+  course 10 R  start B6  end F9  （17 针）
+  course 11 L  start F9  end F8  （2 针）
+  course 12 R  start F8  end F11  （4 针）
+  course 13 L  start F11  end F10  （2 针）
+  course 14 R  start F10  end F15  （6 针）
+  course 15 L  start F15  end F14  （2 针）
+  course 16 R  start F14  end F18  （5 针）
+  course 17 L  start F18  end F16  （3 针）
+  course 18 R  start F16  end F20  （5 针）
+  course 19 L  start F20  end F19  （2 针）
+  course 20 R  start F19  end F22  （4 针）
+  course 21 L  start F22  end F21  （2 针）
+  course 22 R  start F21  end B21  （4 针）
+  course 23 L  start B21  end B22  （2 针）
+  course 24 R  start B22  end B19  （4 针）
+  course 25 L  start B19  end B20  （2 针）
+  course 26 R  start B20  end B17  （4 针）
+  course 27 L  start B17  end B18  （2 针）
+  course 28 R  start B18  end B14  （5 针）
+  course 29 L  start B14  end B16  （3 针）
+  course 30 R  start B16  end B12  （5 针）
+  course 31 L  start B12  end B13  （2 针）
+  course 32 R  start B13  end B9  （5 针）
+  course 33 L  start B9  end B11  （3 针）
+  course 34 R  start B11  end B9  （3 针）
+  course 35 L  start B11  end B12  （2 针）
+  course 36 R  start B12  end B8  （5 针）
+  course 37 L  start B8  end B9  （2 针）
+  course 38 R  start B9  end B1  （9 针）
+  course 39 R  start F0  end F3  （4 针）
+  course 40 L  start F3  end B5  （9 针）
+  course 41 R  start B5  end F21  （27 针）
+  course 42 L  start F21  end F6  （16 针）
+  course 43 R  start F6  end B15  （27 针）
+  course 44 L  start B15  end F22  （11 针）
+  course 45 R  start F22  end B12  （14 针）
+  course 46 L  start B12  end B14  （3 针）
+  course 47 R  start B14  end B7  （8 针）
+  course 48 L  start B7  end B11  （5 针）
+  course 49 R  start B11  end B1  （11 针）
+  course 50 R  start F0  end F5  （6 针）
+  course 51 L  start F5  end F4  （2 针）
+  course 52 R  start F4  end F22  （19 针）
+  course 53 L  start F22  end F21  （2 针）
+  course 54 R  start F21  end B14  （13 针）
+  course 55 L  start B14  end B15  （2 针）
+  course 56 R  start B15  end B6  （10 针）
+  course 57 L  start B6  end B7  （2 针）
+  course 58 R  start B7  end B1  （7 针）
+  course 59 R  start F0  end F4  （5 针）
+  course 60 L  start F4  end F3  （2 针）
+  course 61 R  start F3  end F6  （4 针）
+  course 62 L  start F6  end F5  （2 针）
+  course 63 R  start F5  end F8  （4 针）
+  course 64 L  start F8  end F7  （2 针）
+  course 65 R  start F7  end F10  （4 针）
+  course 66 L  start F10  end F9  （2 针）
+  course 67 R  start F9  end F14  （6 针）
+  course 68 L  start F14  end F11  （4 针）
+  course 69 R  start F11  end F16  （6 针）
+  course 70 L  start F16  end F15  （2 针）
+  course 71 R  start F15  end F19  （5 针）
+  course 72 L  start F19  end F18  （2 针）
+  course 73 R  start F18  end F21  （4 针）
+  course 74 L  start F21  end F20  （2 针）
+  course 75 R  start F20  end F23  （4 针）
+  course 76 L  start F23  end F22  （2 针）
+  course 77 R  start F22  end B22  （4 针）
+  course 78 L  start B22  end B23  （2 针）
+  course 79 R  start B23  end B20  （4 针）
+  course 80 L  start B20  end B21  （2 针）
+  course 81 R  start B21  end B18  （4 针）
+  course 82 L  start B18  end B19  （2 针）
+  course 83 R  start B19  end B15  （5 针）
+  course 84 L  start B15  end B16  （2 针）
+  course 85 R  start B16  end B11  （6 针）
+  course 86 L  start B11  end B12  （2 针）
+  course 87 R  start B12  end B9  （4 针）
+  course 88 L  start B9  end B10  （2 针）
+  course 89 R  start B10  end B5  （6 针）
+  course 90 L  start B5  end B6  （2 针）
+  course 91 R  start B6  end B1  （6 针）
+  course 92 R  start F0  end F3  （4 针）
+  course 93 L  start F3  end B5  （9 针）
+  course 94 R  start B5  end F7  （13 针）
+  course 95 L  start F7  end F4  （4 针）
+  course 96 R  start F4  end F9  （6 针）
+  course 97 L  start F9  end F8  （2 针）
+  course 98 R  start F8  end F11  （4 针）
+  course 99 L  start F11  end F10  （2 针）
+  course 100 R  start F10  end F15  （6 针）
+  course 101 L  start F15  end F14  （2 针）
+  course 102 R  start F14  end F18  （5 针）
+  course 103 L  start F18  end F16  （3 针）
+  course 104 R  start F16  end F20  （5 针）
+  course 105 L  start F20  end F19  （2 针）
+  course 106 R  start F19  end F22  （4 针）
+  course 107 L  start F22  end F21  （2 针）
+  course 108 R  start F21  end B23  （4 针）
+  course 109 L  start B23  end F23  （2 针）
+  course 110 R  start F23  end B21  （4 针）
+  course 111 L  start B21  end B22  （2 针）
+  course 112 R  start B22  end B19  （4 针）
+  course 113 L  start B19  end B20  （2 针）
+  course 114 R  start B20  end B16  （5 针）
+  course 115 L  start B16  end B18  （3 针）
+  course 116 R  start B18  end B12  （7 针）
+  course 117 L  start B12  end B15  （4 针）
+  course 118 R  start B15  end B10  （6 针）
+  course 119 L  start B10  end B11  （2 针）
+  course 120 R  start B11  end B6  （6 针）
+  course 121 L  start B6  end B9  （4 针）
+  course 122 R  start B9  end B1  （9 针）
+  course 123 R  start F0  end F4  （5 针）
+  course 124 L  start F4  end B6  （11 针）
+  course 125 R  start B6  end F7  （14 针）
+  course 126 L  start F7  end F6  （2 针）
+  course 127 R  start F6  end F9  （4 针）
+  course 128 L  start F9  end F8  （2 针）
+  course 129 R  start F8  end F13  （6 针）
+  course 130 L  start F13  end F10  （4 针）
+  course 131 R  start F10  end F20  （11 针）
+  course 132 L  start F20  end F14  （7 针）
+  course 133 R  start F14  end B23  （11 针）
+  course 134 L  start B23  end F22  （3 针）
+  course 135 R  start F22  end B15  （11 针）
+  course 136 L  start B15  end B22  （8 针）
+  course 137 R  start B22  end B10  （13 针）
+  course 138 L  start B10  end B14  （5 针）
+  course 139 R  start B14  end B7  （8 针）
+  course 140 L  start B7  end B9  （3 针）
+  course 141 R  start B9  end B1  （9 针）
+  course 142 R  start F0  end F6  （7 针）
+  course 143 L  start F6  end F5  （2 针）
+  course 144 R  start F5  end F8  （4 针）
+  course 145 L  start F8  end F7  （2 针）
+  course 146 R  start F7  end F10  （4 针）
+  course 147 L  start F10  end F9  （2 针）
+  course 148 R  start F9  end F14  （6 针）
+  course 149 L  start F14  end F13  （2 针）
+  course 150 R  start F13  end F22  （10 针）
+  course 151 L  start F22  end F20  （3 针）
+  course 152 R  start F20  end B22  （6 针）
+  course 153 L  start B22  end B23  （2 针）
+  course 154 R  start B23  end B14  （10 针）
+  course 155 L  start B14  end B15  （2 针）
+  course 156 R  start B15  end B9  （7 针）
+  course 157 L  start B9  end B10  （2 针）
+  course 158 R  start B10  end B6  （5 针）
+  course 159 L  start B6  end B7  （2 针）
+  course 160 R  start B7  end B1  （7 针）
+  course 161 R  start F0  end F5  （6 针）
+  course 162 L  start F5  end F4  （2 针）
+  course 163 R  start F4  end F13  （10 针）
+  course 164 L  start F13  end F11  （3 针）
+  course 165 R  start F11  end F16  （6 针）
+  course 166 L  start F16  end F15  （2 针）
+  course 167 R  start F15  end F19  （5 针）
+  course 168 L  start F19  end F18  （2 针）
+  course 169 R  start F18  end F23  （6 针）
+  course 170 L  start F23  end F22  （2 针）
+  course 171 R  start F22  end B20  （6 针）
+  course 172 L  start B20  end B21  （2 针）
+  course 173 R  start B21  end B18  （4 针）
+  course 174 L  start B18  end B19  （2 针）
+  course 175 R  start B19  end B15  （5 针）
+  course 176 L  start B15  end B16  （2 针）
+  course 177 R  start B16  end B11  （6 针）
+  course 178 L  start B11  end B12  （2 针）
+  course 179 R  start B12  end B1  （12 针）
+  course 180 R  start F0  end F4  （5 针）
+  course 181 L  start F4  end B4  （10 针）
+  course 182 R  start B4  end F10  （16 针）
+  course 183 L  start F10  end F5  （6 针）
+  course 184 R  start F5  end F14  （10 针）
+  course 185 L  start F14  end F12  （3 针）
+  course 186 R  start F12  end F17  （6 针）
+  course 187 L  start F17  end F15  （3 针）
+  course 188 R  start F15  end F21  （7 针）
+  course 189 L  start F21  end F18  （4 针）
+  course 190 R  start F18  end B20  （8 针）
+  course 191 L  start B20  end F22  （4 针）
+  course 192 R  start F22  end B18  （6 针）
+  course 193 L  start B18  end B19  （2 针）
+  course 194 R  start B19  end B15  （5 针）
+  course 195 L  start B15  end B17  （3 针）
+  course 196 R  start B17  end B11  （7 针）
+  course 197 L  start B11  end B14  （4 针）
+  course 198 R  start B14  end B5  （10 针）
+  course 199 L  start B5  end B10  （6 针）
+  course 200 R  start B10  end B0  （11 针）
+  course 201 R  start F0  end F4  （6 针）
+  course 202 L  start F4  end F3  （2 针）
+  course 203 R  start F3  end F8  （10 针）
+  course 204 L  start F8  end F7  （2 针）
+  course 205 R  start F7  end B1  （34 针）
+  course 206 R  start F0  end F6  （8 针）
+  course 207 L  start F6  end F12  （23 针）
+  course 208 R  start F12  end F11  （26 针）
+  course 209 L  start F11  end F7  （5 针）
+  course 210 R  start F7  end B0  （19 针）
+  course 211 R  start F0  end B0  （26 针）
+  course 212 R  start F0  end B1  （26 针）
+  course 213 R  start F0  end B1  （25 针）
 
 表行（格子按织的顺序，不是按表列从左到右）：
   row 0 R  这一行开始时 0针 · 前空 · 后空
     F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
-  row 1 R  这一行开始时 26针 · 前14[0…13] · 后12[1…12]
-    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F+R1@F12 F·@F13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
-  row 2 Flip  这一行开始时 F14[0…13] / B12[1…12]
+  row 1 X+  这一行开始时 25针 · 前13[0…12] · 后12[1…12]
+    F→@F12
+    course 1: partial increase move on F, then the increase, balance after the knit.
+  row 2 R  这一行开始时 26针 · 前14[0…13] · 后12[1…12]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F+R1@F11 F·@F12 F·@F13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 3 Flip  这一行开始时 F14[0…13] / B12[1…12]
     ⬆@F13
     course 1: right-fold flip F13→B13 (same index).
-  row 3 X  这一行开始时 F13[0…12] / B13[1…13]
+  row 4 X  这一行开始时 F13[0…12] / B13[1…13]
     B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
     course 1: counts match and the beds are one needle apart. Rack B -1 (F13[0…12] / B13[1…13] → F13[0…12] / B13[0…12]).
-  row 4 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+  row 5 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
     F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
-  row 5 X+  这一行开始时 27针 · 前13[0…12] · 后14[-1…12]
-    B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1
+  row 6 X+  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    B←@B3 B←@B2 B←@B1 B←@B0
     course 3: partial increase move on B, then the increase, balance after the knit.
-  row 6 X+  这一行开始时 28针 · 前13[0…12] · 后15[-2…12]
+  row 7 X+  这一行开始时 27针 · 前13[0…12] · 后14[-1…12]
     F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12
     course 3: partial increase move on F, then the increase, balance after the knit.
-  row 7 R  这一行开始时 29针 · 前14[0…13] · 后15[-2…12]
-    F·@F0 F·@F1 F·@F2 F+R1@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B+R1@B4 B·@B3 B·@B2 B·@B1 B·@B0 B+R1@B-1 B·@B-2
-  row 8 X  这一行开始时 F14[0…13] / B15[-2…12]
-    B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1 B→@B-2
-    course 3: rack B +1 so the right fold can flip one stitch (F14[0…13] / B15[-2…12] → F14[0…13] / B15[-1…13]).
-  row 9 X  这一行开始时 F14[0…13] / B15[-1…13]
-    B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1
-    course 3: rack B +1 so the right fold can flip one stitch (F14[0…13] / B15[-1…13] → F14[0…13] / B15[0…14]).
-  row 10 Flip  这一行开始时 F14[0…13] / B15[0…14]
-    ⬇@B14
-    course 3: right-fold flip B14→F14 (same index).
-  row 11 X  这一行开始时 F15[0…14] / B14[0…13]
-    B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
-    course 3: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F15[0…14] / B14[1…14]).
-  row 12 X+  这一行开始时 30针 · 前15[0…14] · 后15[0…14]
-    B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0
+  row 8 R  这一行开始时 28针 · 前14[0…13] · 后14[-1…12]
+    F·@F0 F·@F1 F·@F2 F+R1@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B+R1@B4 B·@B3 B·@B2 B·@B1 B·@B0 B·@B-1
+  row 9 X  这一行开始时 F14[0…13] / B14[-1…12]
+    B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1
+    course 3: counts match and the beds are one needle apart. Rack B +1 (F14[0…13] / B14[-1…12] → F14[0…13] / B14[0…13]).
+  row 10 X+  这一行开始时 28针 · 前14[0…13] · 后14[0…13]
+    B←@B4 B←@B3 B←@B2 B←@B1 B←@B0
     course 4: partial increase move on B, then the increase, balance after the knit.
-  row 13 X+  这一行开始时 32针 · 前16[0…15] · 后16[-1…14]
-    F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15
+  row 11 X+  这一行开始时 29针 · 前14[0…13] · 后15[-1…13]
+    B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1
+    course 4: partial increase move on B, then the increase, balance after the knit.
+  row 12 X+  这一行开始时 30针 · 前14[0…13] · 后16[-2…13]
+    B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1 B←@B-2
+    course 4: partial increase move on B, then the increase, balance after the knit.
+  row 13 X+  这一行开始时 31针 · 前14[0…13] · 后17[-3…13]
+    B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1 B←@B-2 B←@B-3
+    course 4: partial increase move on B, then the increase, balance after the knit.
+  row 14 X+  这一行开始时 32针 · 前14[0…13] · 后18[-4…13]
+    B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1 B←@B-2 B←@B-3 B←@B-4
+    course 4: partial increase move on B, then the increase, balance after the knit.
+  row 15 X+  这一行开始时 34针 · 前15[0…14] · 后19[-5…13]
+    F→@F13 F→@F14
     course 4: partial increase move on F, then the increase, balance after the knit.
-  row 14 R  这一行开始时 33针 · 前17[0…16] · 后16[-1…14]
-    F·@F0 F·@F1 F·@F2 F·@F3 F+R1@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F+R1@F15 F·@F16 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B+R1@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B+R1@B0 B·@B-1
-  row 15 X  这一行开始时 F17[0…16] / B16[-1…14]
-    B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1
-    course 4: counts match and the front is already on F0. Rack the back +1 (F17[0…16] / B16[-1…14] → F17[0…16] / B16[0…15]).
-  row 16 X  这一行开始时 F17[0…16] / B16[0…15]
-    B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
-    course 4: counts match and the front is already on F0. Rack the back +1 (F17[0…16] / B16[0…15] → F17[0…16] / B16[1…16]).
-  row 17 R  这一行开始时 33针 · 前17[0…16] · 后16[1…16]
-    F·@F0 F·@F1 F·@F2 FvR@F3
-  row 18 L  这一行开始时 33针 · 前17[0…16] · 后16[1…16]
-    F^R@F3 F·@F2 FvL@F1
-  row 19 X+  这一行开始时 33针 · 前17[0…16] · 后16[1…16]
-    F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16
-    course 7: partial increase move on F, then the increase, balance after the knit.
-  row 20 R  这一行开始时 34针 · 前18[0…17] · 后16[1…16]
-    F^L@F1 F·@F2 F·@F3 F·@F4 F·@F5 F+R1@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 FvR@F15
-  row 21 Flip  这一行开始时 F18[0…17] / B16[1…16]
-    ⬆@F17
-    course 7: right-fold flip F17→B17 (same index).
-  row 22 X  这一行开始时 F17[0…16] / B17[1…17]
-    B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
-    course 7: counts match and the beds are one needle apart. Rack B -1 (F17[0…16] / B17[1…17] → F17[0…16] / B17[0…16]).
-  row 23 X+  这一行开始时 34针 · 前17[0…16] · 后17[0…16]
-    F←@F0 F←@F1 F←@F2 F←@F3 F←@F4 F←@F5 F←@F6 F←@F7
-    course 8: partial increase move on F, then the increase, balance after the knit.
-  row 24 X+  这一行开始时 35针 · 前18[-1…16] · 后17[0…16]
-    F←@F-1 F←@F0 F←@F1 F←@F2 F←@F3 F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9
-    course 8: partial increase move on F, then the increase, balance after the knit.
-  row 25 X+  这一行开始时 36针 · 前19[-2…16] · 后17[0…16]
-    F←@F-2 F←@F-1 F←@F0 F←@F1 F←@F2 F←@F3 F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13
-    course 8: partial increase move on F, then the increase, balance after the knit.
-  row 26 X+  这一行开始时 37针 · 前20[-3…16] · 后17[0…16]
-    F←@F-3 F←@F-2 F←@F-1 F←@F0 F←@F1 F←@F2 F←@F3 F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14
-    course 8: partial increase move on F, then the increase, balance after the knit.
-  row 27 L  这一行开始时 38针 · 前21[-4…16] · 后17[0…16]
-    F+R1@F15 F^R@F14 F+L1@F13 F·@F12 F·@F11 F·@F10 F·@F9 F+L1@F8 F·@F7 F·@F6 F+L1@F5 F·@F4 F·@F3 F·@F2 FvL@F1
-  row 28 X  这一行开始时 F21[-4…16] / B17[0…16]
-    F→@F-4 F→@F-3 F→@F-2 F→@F-1 F→@F0 F→@F1 F→@F2 F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16
-    course 8: front seats toward F0 by +1 (F21[-4…16] / B17[0…16] → F21[-3…17] / B17[0…16]).
-  row 29 X  这一行开始时 F21[-3…17] / B17[0…16]
-    F→@F-3 F→@F-2 F→@F-1 F→@F0 F→@F1 F→@F2 F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17
-    course 8: front seats toward F0 by +1 (F21[-3…17] / B17[0…16] → F21[-2…18] / B17[0…16]).
-  row 30 X  这一行开始时 F21[-2…18] / B17[0…16]
-    F→@F-2 F→@F-1 F→@F0 F→@F1 F→@F2 F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18
-    course 8: front seats toward F0 by +1 (F21[-2…18] / B17[0…16] → F21[-1…19] / B17[0…16]).
-  row 31 X  这一行开始时 F21[-1…19] / B17[0…16]
-    F→@F-1 F→@F0 F→@F1 F→@F2 F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18 F→@F19
-    course 8: front seats toward F0 by +1 (F21[-1…19] / B17[0…16] → F21[0…20] / B17[0…16]).
-  row 32 X  这一行开始时 F21[0…20] / B17[0…16]
-    B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
-    course 8: rack B +1 so the right fold can flip one stitch (F21[0…20] / B17[0…16] → F21[0…20] / B17[1…17]).
-  row 33 X  这一行开始时 F21[0…20] / B17[1…17]
-    B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1
-    course 8: rack B +1 so the right fold can flip one stitch (F21[0…20] / B17[1…17] → F21[0…20] / B17[2…18]).
-  row 34 Flip  这一行开始时 F21[0…20] / B17[2…18]
-    ⬆@F20
-    course 8: right-fold flip F20→B20 (same index).
-  row 35 X  这一行开始时 F21[0…20] / B17[2…18]
-    B←@B20
-    course 8: only B20 steps to B19.
-  row 36 X  这一行开始时 F20[0…19] / B18[2…19]
-    B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2
-    course 8: clear B19 with a −1 rack before the same-index flip (F20[0…19] / B18[2…19] → F20[0…19] / B18[1…18]).
-  row 37 Flip  这一行开始时 F20[0…19] / B18[1…18]
+  row 16 X+  这一行开始时 35针 · 前16[0…15] · 后19[-5…13]
+    F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15
+    course 4: partial increase move on F, then the increase, balance after the knit.
+  row 17 R  这一行开始时 36针 · 前17[0…16] · 后19[-5…13]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F+R1@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F+R1@F13 F·@F14 F+R1@F15 F·@F16 B+R1@B13 B·@B12 B·@B11 B·@B10 B·@B9 B+R1@B8 B·@B7 B+R1@B6 B·@B5 B·@B4 B+R1@B3 B·@B2 B+R1@B1 B·@B0 B·@B-1 B·@B-2 B·@B-3 B·@B-4 B·@B-5
+  row 18 X  这一行开始时 F17[0…16] / B19[-5…13]
+    B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1 B→@B-2 B→@B-3 B→@B-4 B→@B-5
+    course 4: rack B +1 so the right fold can flip one stitch (F17[0…16] / B19[-5…13] → F17[0…16] / B19[-4…14]).
+  row 19 X  这一行开始时 F17[0…16] / B19[-4…14]
+    B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1 B→@B-2 B→@B-3 B→@B-4
+    course 4: rack B +1 so the right fold can flip one stitch (F17[0…16] / B19[-4…14] → F17[0…16] / B19[-3…15]).
+  row 20 X  这一行开始时 F17[0…16] / B19[-3…15]
+    B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1 B→@B-2 B→@B-3
+    course 4: rack B +1 so the right fold can flip one stitch (F17[0…16] / B19[-3…15] → F17[0…16] / B19[-2…16]).
+  row 21 X  这一行开始时 F17[0…16] / B19[-2…16]
+    B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1 B→@B-2
+    course 4: rack B +1 so the right fold can flip one stitch (F17[0…16] / B19[-2…16] → F17[0…16] / B19[-1…17]).
+  row 22 Flip  这一行开始时 F17[0…16] / B19[-1…17]
+    ⬇@B17
+    course 4: right-fold flip B17→F17 (same index).
+  row 23 X  这一行开始时 F18[0…17] / B18[-1…16]
+    B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1
+    course 4: counts match and the beds are one needle apart. Rack B +1 (F18[0…17] / B18[-1…16] → F18[0…17] / B18[0…17]).
+  row 24 X+  这一行开始时 36针 · 前18[0…17] · 后18[0…17]
+    F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17
+    course 5: partial increase move on F, then the increase, balance after the knit.
+  row 25 R  这一行开始时 37针 · 前19[0…18] · 后18[0…17]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F+R1@F7 F·@F8 F·@F9 FvR@F10
+  row 26 X  这一行开始时 F19[0…18] / B18[0…17]
+    B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 5: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F19[0…18] / B18[1…18]).
+  row 27 X+  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
+    F←@F0 F←@F1 F←@F2 F←@F3 F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9
+    course 6: partial increase move on F, then the increase, balance after the knit.
+  row 28 L  这一行开始时 38针 · 前20[-1…18] · 后18[1…18]
+    F+R1@F10 F^R@F9 FvL@F8
+  row 29 X  这一行开始时 F20[-1…18] / B18[1…18]
+    F→@F-1 F→@F0 F→@F1 F→@F2 F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18
+    course 6: front seats toward F0 by +1 (F20[-1…18] / B18[1…18] → F20[0…19] / B18[1…18]).
+  row 30 Flip  这一行开始时 F20[0…19] / B18[1…18]
     ⬆@F19
-    course 8: right-fold flip F19→B19 (same index).
-  row 38 X  这一行开始时 F19[0…18] / B19[1…19]
+    course 6: right-fold flip F19→B19 (same index).
+  row 31 X  这一行开始时 F19[0…18] / B19[1…19]
     B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
-    course 8: counts match and the beds are one needle apart. Rack B -1 (F19[0…18] / B19[1…19] → F19[0…18] / B19[0…18]).
-  row 39 X+  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
-    F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18
+    course 6: counts match and the beds are one needle apart. Rack B -1 (F19[0…18] / B19[1…19] → F19[0…18] / B19[0…18]).
+  row 32 X+  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
+    B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0
+    course 7: partial increase move on B, then the increase, balance after the knit.
+  row 33 X+  这一行开始时 39针 · 前19[0…18] · 后20[-1…18]
+    B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0 B←@B-1
+    course 7: partial increase move on B, then the increase, balance after the knit.
+  row 34 X+  这一行开始时 40针 · 前19[0…18] · 后21[-2…18]
+    F→@F15 F→@F16 F→@F17 F→@F18
+    course 7: partial increase move on F, then the increase, balance after the knit.
+  row 35 X+  这一行开始时 41针 · 前20[0…19] · 后21[-2…18]
+    F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18 F→@F19
+    course 7: partial increase move on F, then the increase, balance after the knit.
+  row 36 X+  这一行开始时 42针 · 前21[0…20] · 后21[-2…18]
+    F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18 F→@F19 F→@F20
+    course 7: partial increase move on F, then the increase, balance after the knit.
+  row 37 R  这一行开始时 43针 · 前22[0…21] · 后21[-2…18]
+    F^L@F9 F+R1@F10 F·@F11 F·@F12 F+R1@F13 F·@F14 F·@F15 F+R1@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 B·@B18 B·@B17 B+R1@B16 B·@B15 B+R1@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 B·@B-1 B·@B-2
+  row 38 X  这一行开始时 F22[0…21] / B21[-2…18]
+    B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1 B→@B-2
+    course 7: counts match and the front is already on F0. Rack the back +1 (F22[0…21] / B21[-2…18] → F22[0…21] / B21[-1…19]).
+  row 39 X  这一行开始时 F22[0…21] / B21[-1…19]
+    B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1
+    course 7: counts match and the front is already on F0. Rack the back +1 (F22[0…21] / B21[-1…19] → F22[0…21] / B21[0…20]).
+  row 40 X  这一行开始时 F22[0…21] / B21[0…20]
+    B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 7: counts match and the front is already on F0. Rack the back +1 (F22[0…21] / B21[0…20] → F22[0…21] / B21[1…21]).
+  row 41 X+  这一行开始时 43针 · 前22[0…21] · 后21[1…21]
+    F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18 F→@F19 F→@F20 F→@F21
+    course 8: partial increase move on F, then the increase, balance after the knit.
+  row 42 R  这一行开始时 44针 · 前23[0…22] · 后21[1…21]
+    F·@F0 F·@F1 F·@F2 F·@F3 F+R1@F4 F·@F5 FvR@F6
+  row 43 Flip  这一行开始时 F23[0…22] / B21[1…21]
+    ⬆@F22
+    course 8: right-fold flip F22→B22 (same index).
+  row 44 X  这一行开始时 F22[0…21] / B22[1…22]
+    B←@B22 B←@B21 B←@B20 B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 8: counts match and the beds are one needle apart. Rack B -1 (F22[0…21] / B22[1…22] → F22[0…21] / B22[0…21]).
+  row 45 X+  这一行开始时 44针 · 前22[0…21] · 后22[0…21]
+    F←@F0 F←@F1 F←@F2
     course 9: partial increase move on F, then the increase, balance after the knit.
-  row 40 R  这一行开始时 39针 · 前20[0…19] · 后19[0…18]
-    F^L@F5 F·@F6 F·@F7 F·@F8 F·@F9 F+R1@F10 FvR@F11
-  row 41 X  这一行开始时 F20[0…19] / B19[0…18]
-    B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
-    course 9: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F20[0…19] / B19[1…19]).
-  row 42 L  这一行开始时 39针 · 前20[0…19] · 后19[1…19]
+  row 46 L  这一行开始时 45针 · 前23[-1…21] · 后22[0…21]
+    F^R@F6 F·@F5 F·@F4 F+L1@F3 F·@F2 F·@F1 F·@F0 F·@F-1 B·@B0 B·@B1 B·@B2 B·@B3 B·@B4 BvL@B5
+  row 47 X  这一行开始时 F23[-1…21] / B22[0…21]
+    F→@F-1 F→@F0 F→@F1 F→@F2 F→@F3 F→@F4 F→@F5 F→@F6 F→@F7 F→@F8 F→@F9 F→@F10 F→@F11 F→@F12 F→@F13 F→@F14 F→@F15 F→@F16 F→@F17 F→@F18 F→@F19 F→@F20 F→@F21
+    course 9: front seats toward F0 by +1 (F23[-1…21] / B22[0…21] → F23[0…22] / B22[0…21]).
+  row 48 X  这一行开始时 F23[0…22] / B22[0…21]
+    B→@B21 B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 9: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F23[0…22] / B22[1…22]).
+  row 49 X+  这一行开始时 45针 · 前23[0…22] · 后22[1…22]
+    B←@B4 B←@B3 B←@B2 B←@B1
+    course 10: partial increase move on B, then the increase, balance after the knit.
+  row 50 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B6 B+R1@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 FvR@F9
+  row 51 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^R@F9 FvL@F8
+  row 52 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F8 F·@F9 F·@F10 FvR@F11
+  row 53 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
     F^R@F11 FvL@F10
-  row 43 R  这一行开始时 39针 · 前20[0…19] · 后19[1…19]
-    F^L@F10 F·@F11 F·@F12 FvR@F13
-  row 44 L  这一行开始时 39针 · 前20[0…19] · 后19[1…19]
-    F^R@F13 FvL@F12
-  row 45 X+  这一行开始时 39针 · 前20[0…19] · 后19[1…19]
-    F→@F16 F→@F17 F→@F18 F→@F19
-    course 13: partial increase move on F, then the increase, balance after the knit.
-  row 46 R  这一行开始时 40针 · 前21[0…20] · 后19[1…19]
-    F^L@F12 F·@F13 F·@F14 F+R1@F15 FvR@F16
-  row 47 Flip  这一行开始时 F21[0…20] / B19[1…19]
-    ⬆@F20
-    course 13: right-fold flip F20→B20 (same index).
-  row 48 X  这一行开始时 F20[0…19] / B20[1…20]
-    B←@B20 B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
-    course 13: counts match and the beds are one needle apart. Rack B -1 (F20[0…19] / B20[1…20] → F20[0…19] / B20[0…19]).
-  row 49 L  这一行开始时 40针 · 前20[0…19] · 后20[0…19]
-    F^R@F16 FvL@F15
-  row 50 X+  这一行开始时 40针 · 前20[0…19] · 后20[0…19]
-    F→@F18 F→@F19
-    course 15: partial increase move on F, then the increase, balance after the knit.
-  row 51 R  这一行开始时 41针 · 前21[0…20] · 后20[0…19]
-    F^L@F15 F·@F16 F+R1@F17 FvR@F18
-  row 52 X  这一行开始时 F21[0…20] / B20[0…19]
-    B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
-    course 15: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F21[0…20] / B20[1…20]).
-  row 53 L  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
-    F^R@F18 FvL@F17
-  row 54 R  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
-    F^L@F17 F·@F18 F·@F19 FvR@F20
-  row 55 L  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
+  row 54 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F10 F·@F11 F·@F12 F·@F13 F·@F14 FvR@F15
+  row 55 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^R@F15 FvL@F14
+  row 56 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F14 F·@F15 F·@F16 F·@F17 FvR@F18
+  row 57 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^R@F18 F·@F17 FvL@F16
+  row 58 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F16 F·@F17 F·@F18 F·@F19 FvR@F20
+  row 59 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
     F^R@F20 FvL@F19
-  row 56 R  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
-    F^L@F19 F·@F20 B·@B20 BvR@B19
-  row 57 L  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
+  row 60 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F19 F·@F20 F·@F21 FvR@F22
+  row 61 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^R@F22 FvL@F21
+  row 62 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F21 F·@F22 B·@B22 BvR@B21
+  row 63 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B21 BvL@B22
+  row 64 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B22 B·@B21 B·@B20 BvR@B19
+  row 65 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
     B^R@B19 BvL@B20
-  row 58 R  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
-    B^L@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 BvR@B9
-  row 59 X+  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
-    B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14
-    course 22: partial increase move on B, then the increase, balance after the knit.
-  row 60 X+  这一行开始时 42针 · 前21[0…20] · 后21[1…21]
-    B→@B21 B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13
-    course 22: partial increase move on B, then the increase, balance after the knit.
-  row 61 X+  这一行开始时 43针 · 前21[0…20] · 后22[1…22]
-    B→@B22 B→@B21 B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11
-    course 22: partial increase move on B, then the increase, balance after the knit.
-  row 62 X+  这一行开始时 43针 · 前21[0…20] · 后22[1…23]
-    B→@B23 B→@B22 B→@B21 B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12
-    course 22: partial increase move on B, then the increase, balance after the knit.
-  row 63 L  这一行开始时 45针 · 前21[0…20] · 后24[1…24]
-    B^R@B9 B+L2@B10 B·@B11 B·@B12 B·@B13 B+L1@B14 B·@B15 B+L1@B16 B·@B17 B·@B18 B·@B19 B·@B20 B·@B21 BvL@B22
+  row 66 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B20 B·@B19 B·@B18 BvR@B17
+  row 67 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B17 BvL@B18
+  row 68 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B18 B·@B17 B·@B16 B·@B15 BvR@B14
+  row 69 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B14 B·@B15 BvL@B16
+  row 70 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B16 B·@B15 B·@B14 B·@B13 BvR@B12
+  row 71 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B12 BvL@B13
+  row 72 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B13 B·@B12 B·@B11 B·@B10 BvR@B9
+  row 73 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B9 B·@B10 BvL@B11
+  row 74 X+  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1 B←@B0
+    course 34: partial increase move on B, then the increase, balance after the knit.
+  row 75 R  这一行开始时 47针 · 前23[0…22] · 后24[-1…22]
+    B^L@B11 B+R1@B10 BvR@B9
+  row 76 X  这一行开始时 F23[0…22] / B24[-1…22]
+    B→@B22 B→@B21 B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0 B→@B-1
+    course 34: rack B +1 so the right fold can flip one stitch (F23[0…22] / B24[-1…22] → F23[0…22] / B24[0…23]).
+  row 77 Flip  这一行开始时 F23[0…22] / B24[0…23]
+    ⬇@B23
+    course 34: right-fold flip B23→F23 (same index).
+  row 78 X  这一行开始时 F24[0…23] / B23[0…22]
+    B→@B22 B→@B21 B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 34: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F24[0…23] / B23[1…23]).
+  row 79 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B11 BvL@B12
+  row 80 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B12 B·@B11 B·@B10 B·@B9 BvR@B8
+  row 81 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B8 BvL@B9
+  row 82 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 83 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F·@F0 F·@F1 F·@F2 FvR@F3
+  row 84 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F3 F·@F2 F·@F1 F·@F0 B·@B1 B·@B2 B·@B3 B·@B4 BvL@B5
+  row 85 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B5 B·@B4 B·@B3 B·@B2 B·@B1 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 FvR@F21
+  row 86 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F21 F·@F20 F·@F19 F·@F18 F·@F17 F·@F16 F·@F15 F·@F14 F·@F13 F·@F12 F·@F11 F·@F10 F·@F9 F·@F8 F·@F7 FvL@F6
+  row 87 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 F·@F22 F·@F23 B·@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 BvR@B15
+  row 88 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B15 B·@B16 B·@B17 B·@B18 B·@B19 B·@B20 B·@B21 B·@B22 B·@B23 F·@F23 FvL@F22
+  row 89 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F22 F·@F23 B·@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 BvR@B12
+  row 90 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B12 B·@B13 BvL@B14
+  row 91 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 BvR@B7
+  row 92 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B7 B·@B8 B·@B9 B·@B10 BvL@B11
+  row 93 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 94 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 FvR@F5
+  row 95 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F5 FvL@F4
+  row 96 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 FvR@F22
+  row 97 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F22 FvL@F21
+  row 98 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F21 F·@F22 F·@F23 B·@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 BvR@B14
+  row 99 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B14 BvL@B15
+  row 100 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 BvR@B6
+  row 101 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B6 BvL@B7
+  row 102 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 103 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F·@F0 F·@F1 F·@F2 F·@F3 FvR@F4
+  row 104 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F4 FvL@F3
+  row 105 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F3 F·@F4 F·@F5 FvR@F6
+  row 106 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F6 FvL@F5
+  row 107 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F5 F·@F6 F·@F7 FvR@F8
+  row 108 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F8 FvL@F7
+  row 109 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F7 F·@F8 F·@F9 FvR@F10
+  row 110 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F10 FvL@F9
+  row 111 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F9 F·@F10 F·@F11 F·@F12 F·@F13 FvR@F14
+  row 112 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F14 F·@F13 F·@F12 FvL@F11
+  row 113 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F11 F·@F12 F·@F13 F·@F14 F·@F15 FvR@F16
+  row 114 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F16 FvL@F15
+  row 115 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F15 F·@F16 F·@F17 F·@F18 FvR@F19
+  row 116 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F19 FvL@F18
+  row 117 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F18 F·@F19 F·@F20 FvR@F21
+  row 118 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F21 FvL@F20
+  row 119 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F20 F·@F21 F·@F22 FvR@F23
+  row 120 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F23 FvL@F22
+  row 121 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F22 F·@F23 B·@B23 BvR@B22
+  row 122 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B22 BvL@B23
+  row 123 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B23 B·@B22 B·@B21 BvR@B20
+  row 124 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B20 BvL@B21
+  row 125 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B21 B·@B20 B·@B19 BvR@B18
+  row 126 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B18 BvL@B19
+  row 127 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B19 B·@B18 B·@B17 B·@B16 BvR@B15
+  row 128 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B15 BvL@B16
+  row 129 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B16 B·@B15 B·@B14 B·@B13 B·@B12 BvR@B11
+  row 130 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B11 BvL@B12
+  row 131 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B12 B·@B11 B·@B10 BvR@B9
+  row 132 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B9 BvL@B10
+  row 133 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B10 B·@B9 B·@B8 B·@B7 B·@B6 BvR@B5
+  row 134 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B5 BvL@B6
+  row 135 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 136 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F·@F0 F·@F1 F·@F2 FvR@F3
+  row 137 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F3 F·@F2 F·@F1 F·@F0 B·@B1 B·@B2 B·@B3 B·@B4 BvL@B5
+  row 138 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B5 B·@B4 B·@B3 B·@B2 B·@B1 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 FvR@F7
+  row 139 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F7 F·@F6 F·@F5 FvL@F4
+  row 140 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F4 F·@F5 F·@F6 F·@F7 F·@F8 FvR@F9
+  row 141 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F9 FvL@F8
+  row 142 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F8 F·@F9 F·@F10 FvR@F11
+  row 143 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F11 FvL@F10
+  row 144 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F10 F·@F11 F·@F12 F·@F13 F·@F14 FvR@F15
+  row 145 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F15 FvL@F14
+  row 146 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F14 F·@F15 F·@F16 F·@F17 FvR@F18
+  row 147 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F18 F·@F17 FvL@F16
+  row 148 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F16 F·@F17 F·@F18 F·@F19 FvR@F20
+  row 149 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F20 FvL@F19
+  row 150 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F19 F·@F20 F·@F21 FvR@F22
+  row 151 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F22 FvL@F21
+  row 152 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F21 F·@F22 F·@F23 BvR@B23
+  row 153 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B23 FvL@F23
+  row 154 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F23 B·@B23 B·@B22 BvR@B21
+  row 155 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B21 BvL@B22
+  row 156 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B22 B·@B21 B·@B20 BvR@B19
+  row 157 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B19 BvL@B20
+  row 158 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B20 B·@B19 B·@B18 B·@B17 BvR@B16
+  row 159 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B16 B·@B17 BvL@B18
+  row 160 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 BvR@B12
+  row 161 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B12 B·@B13 B·@B14 BvL@B15
+  row 162 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B15 B·@B14 B·@B13 B·@B12 B·@B11 BvR@B10
+  row 163 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B10 BvL@B11
+  row 164 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B11 B·@B10 B·@B9 B·@B8 B·@B7 BvR@B6
+  row 165 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B6 B·@B7 B·@B8 BvL@B9
+  row 166 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 167 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F·@F0 F·@F1 F·@F2 F·@F3 FvR@F4
+  row 168 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F4 F·@F3 F·@F2 F·@F1 F·@F0 B·@B1 B·@B2 B·@B3 B·@B4 B·@B5 BvL@B6
+  row 169 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 FvR@F7
+  row 170 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F7 FvL@F6
+  row 171 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F6 F·@F7 F·@F8 FvR@F9
+  row 172 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F9 FvL@F8
+  row 173 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F8 F·@F9 F·@F10 F·@F11 F·@F12 FvR@F13
+  row 174 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F13 F·@F12 F·@F11 FvL@F10
+  row 175 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F10 F·@F11 F·@F12 F·@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 FvR@F20
+  row 176 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F20 F·@F19 F·@F18 F·@F17 F·@F16 F·@F15 FvL@F14
+  row 177 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 F·@F22 F·@F23 BvR@B23
+  row 178 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B23 F·@F23 FvL@F22
+  row 179 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F22 F·@F23 B·@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 BvR@B15
+  row 180 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B15 B·@B16 B·@B17 B·@B18 B·@B19 B·@B20 B·@B21 BvL@B22
+  row 181 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 B·@B11 BvR@B10
+  row 182 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B10 B·@B11 B·@B12 B·@B13 BvL@B14
+  row 183 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 BvR@B7
+  row 184 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B7 B·@B8 BvL@B9
+  row 185 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 186 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 FvR@F6
+  row 187 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F6 FvL@F5
+  row 188 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F5 F·@F6 F·@F7 FvR@F8
+  row 189 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F8 FvL@F7
+  row 190 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F7 F·@F8 F·@F9 FvR@F10
+  row 191 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F10 FvL@F9
+  row 192 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F9 F·@F10 F·@F11 F·@F12 F·@F13 FvR@F14
+  row 193 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F14 FvL@F13
+  row 194 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F13 F·@F14 F·@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 F·@F21 FvR@F22
+  row 195 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F22 F·@F21 FvL@F20
+  row 196 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F20 F·@F21 F·@F22 F·@F23 B·@B23 BvR@B22
+  row 197 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B22 BvL@B23
+  row 198 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B23 B·@B22 B·@B21 B·@B20 B·@B19 B·@B18 B·@B17 B·@B16 B·@B15 BvR@B14
+  row 199 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B14 BvL@B15
+  row 200 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B15 B·@B14 B·@B13 B·@B12 B·@B11 B·@B10 BvR@B9
+  row 201 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B9 BvL@B10
+  row 202 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B10 B·@B9 B·@B8 B·@B7 BvR@B6
+  row 203 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B6 BvL@B7
+  row 204 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 205 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 FvR@F5
+  row 206 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F5 FvL@F4
+  row 207 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 FvR@F13
+  row 208 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F13 F·@F12 FvL@F11
+  row 209 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F11 F·@F12 F·@F13 F·@F14 F·@F15 FvR@F16
+  row 210 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F16 FvL@F15
+  row 211 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F15 F·@F16 F·@F17 F·@F18 FvR@F19
+  row 212 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F19 FvL@F18
+  row 213 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F18 F·@F19 F·@F20 F·@F21 F·@F22 FvR@F23
+  row 214 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^R@F23 FvL@F22
+  row 215 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F^L@F22 F·@F23 B·@B23 B·@B22 B·@B21 BvR@B20
+  row 216 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B20 BvL@B21
+  row 217 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B21 B·@B20 B·@B19 BvR@B18
+  row 218 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B18 BvL@B19
+  row 219 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B19 B·@B18 B·@B17 B·@B16 BvR@B15
+  row 220 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B15 BvL@B16
+  row 221 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B16 B·@B15 B·@B14 B·@B13 B·@B12 BvR@B11
+  row 222 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^R@B11 BvL@B12
+  row 223 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    B^L@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+  row 224 R  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F·@F0 F·@F1 F·@F2 F·@F3 FvR@F4
+  row 225 L  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F-L1@F4 F^R@F3
+    course 181: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-L1@F4 F^R@F3。然后从 F3 起移 1 次（F3 套到 F4，F2…F0 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 226 X  这一行开始时 47针 · 前24[0…23] · 后23[1…23]
+    F→@F0 F→@F1 F→@F2 F→@F3
+    course 181: 第 1 次移圈从 F3 起。F3 套到 F4，F2…F0 各退一针。都套上第一格 F4，第一格不是移圈源。
+  row 227 X  这一行开始时 F23[1…23] / B23[1…23]
+    F←@F1 F←@F2 F←@F3 F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19 F←@F20 F←@F21 F←@F22 F←@F23
+    course 181: front seats toward F0 by −1 (F23[1…23] / B23[1…23] → F23[0…22] / B23[1…23]).
+  row 228 X  这一行开始时 F23[0…22] / B23[1…23]
+    B←@B23 B←@B22 B←@B21 B←@B20 B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 181: counts match and the beds are one needle apart. Rack B -1 (F23[0…22] / B23[1…23] → F23[0…22] / B23[0…22]).
+  row 229 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F·@F2 F·@F1 F·@F0 B·@B0 B·@B1 B·@B2 B·@B3 BvL@B4
+    course 181: 平衡之后的下一课，从 F2 织到 B4。
+  row 230 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 FvR@F10
+  row 231 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^R@F10 F·@F9 F·@F8 F·@F7 F·@F6 FvL@F5
+  row 232 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 F·@F13 FvR@F14
+  row 233 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^R@F14 F·@F13 FvL@F12
+  row 234 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F12 F·@F13 F·@F14 F·@F15 F·@F16 FvR@F17
+  row 235 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^R@F17 F·@F16 FvL@F15
+  row 236 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F15 F·@F16 F·@F17 F·@F18 F·@F19 F·@F20 FvR@F21
+  row 237 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^R@F21 F·@F20 F·@F19 FvL@F18
+  row 238 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F18 F·@F19 F·@F20 F·@F21 F·@F22 B·@B22 B·@B21 BvR@B20
+  row 239 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B20 B·@B21 B·@B22 FvL@F22
+  row 240 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F^L@F22 B·@B22 B·@B21 B·@B20 B·@B19 BvR@B18
+  row 241 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B18 BvL@B19
+  row 242 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B19 B·@B18 B·@B17 B·@B16 BvR@B15
+  row 243 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B15 B·@B16 BvL@B17
+  row 244 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B17 B·@B16 B·@B15 B·@B14 B·@B13 B·@B12 BvR@B11
+  row 245 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B11 B·@B12 B·@B13 BvL@B14
+  row 246 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B14 B·@B13 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 BvR@B5
+  row 247 L  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^R@B5 B·@B6 B·@B7 B·@B8 B·@B9 BvL@B10
+  row 248 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    B^L@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+  row 249 R  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F·@F0 F·@F1 F·@F2 F·@F3 F-R1@F4 FvR@F5
+    course 201: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F4 FvR@F5。然后从 F5 起移 1 次（F5 套到 F4，F6…F22 各退一针）。移圈一结束就平衡床位。 减针格后面没有剩下的针。
+  row 250 X  这一行开始时 46针 · 前23[0…22] · 后23[0…22]
+    F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19 F←@F20 F←@F21 F←@F22
+    course 201: 第 1 次移圈从 F5 起。F5 套到 F4，F6…F22 各退一针。都套上第一格 F4，第一格不是移圈源。
+  row 251 Flip  这一行开始时 F22[0…21] / B23[0…22]
+    ⬇@B22
+    course 201: right-fold flip B22→F22 (same index).
+  row 252 X  这一行开始时 F23[0…22] / B22[0…21]
+    B→@B21 B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 201: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F23[0…22] / B22[1…22]).
+  row 253 L  这一行开始时 45针 · 前23[0…22] · 后22[1…22]
+    F^R@F4 FvL@F3
+  row 254 R  这一行开始时 45针 · 前23[0…22] · 后22[1…22]
+    F^L@F3 F·@F4 F-R1@F5 F·@F6
+    course 203: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F5 F·@F6。然后从 F6 起移 1 次（F6 套到 F5，F7…F22 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 255 X  这一行开始时 45针 · 前23[0…22] · 后22[1…22]
+    F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19 F←@F20 F←@F21 F←@F22
+    course 203: 第 1 次移圈从 F6 起。F6 套到 F5，F7…F22 各退一针。都套上第一格 F5，第一格不是移圈源。
+  row 256 X  这一行开始时 F22[0…21] / B22[1…22]
+    B←@B22 B←@B21 B←@B20 B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 203: counts match and the beds are one needle apart. Rack B -1 (F22[0…21] / B22[1…22] → F22[0…21] / B22[0…21]).
+  row 257 R  这一行开始时 44针 · 前22[0…21] · 后22[0…21]
+    F-R1@F6 F·@F7
+    course 203: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F6 F·@F7。然后从 F7 起移 1 次（F7 套到 F6，F8…F21 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 258 X  这一行开始时 44针 · 前22[0…21] · 后22[0…21]
+    F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19 F←@F20 F←@F21
+    course 203: 第 1 次移圈从 F7 起。F7 套到 F6，F8…F21 各退一针。都套上第一格 F6，第一格不是移圈源。
+  row 259 Flip  这一行开始时 F21[0…20] / B22[0…21]
+    ⬇@B21
+    course 203: right-fold flip B21→F21 (same index).
+  row 260 X  这一行开始时 F22[0…21] / B21[0…20]
+    B→@B20 B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 203: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F22[0…21] / B21[1…21]).
+  row 261 R  这一行开始时 43针 · 前22[0…21] · 后21[1…21]
+    F-R1@F7 F·@F8
+    course 203: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F7 F·@F8。然后从 F8 起移 1 次（F8 套到 F7，F9…F21 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 262 X  这一行开始时 43针 · 前22[0…21] · 后21[1…21]
+    F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19 F←@F20 F←@F21
+    course 203: 第 1 次移圈从 F8 起。F8 套到 F7，F9…F21 各退一针。都套上第一格 F7，第一格不是移圈源。
+  row 263 X  这一行开始时 F21[0…20] / B21[1…21]
+    B←@B21 B←@B20 B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 203: counts match and the beds are one needle apart. Rack B -1 (F21[0…20] / B21[1…21] → F21[0…20] / B21[0…20]).
+  row 264 R  这一行开始时 42针 · 前21[0…20] · 后21[0…20]
+    F-R1@F8 FvR@F9
+    course 203: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F8 FvR@F9。然后从 F9 起移 1 次（F9 套到 F8，F10…F20 各退一针）。移圈一结束就平衡床位。 减针格后面没有剩下的针。
+  row 265 X  这一行开始时 42针 · 前21[0…20] · 后21[0…20]
+    F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19 F←@F20
+    course 203: 第 1 次移圈从 F9 起。F9 套到 F8，F10…F20 各退一针。都套上第一格 F8，第一格不是移圈源。
+  row 266 Flip  这一行开始时 F20[0…19] / B21[0…20]
+    ⬇@B20
+    course 203: right-fold flip B20→F20 (same index).
+  row 267 X  这一行开始时 F21[0…20] / B20[0…19]
+    B→@B19 B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 203: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F21[0…20] / B20[1…20]).
+  row 268 L  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
+    F^R@F8 FvL@F7
+  row 269 R  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
+    F^L@F7 F·@F8 F-R1@F9 F·@F10
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F9 F·@F10。然后从 F10 起移 1 次（F10 套到 F9，F11…F20 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 270 X  这一行开始时 41针 · 前21[0…20] · 后20[1…20]
+    F←@F10 F←@F11 F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19 F←@F20
+    course 205: 第 1 次移圈从 F10 起。F10 套到 F9，F11…F20 各退一针。都套上第一格 F9，第一格不是移圈源。
+  row 271 X  这一行开始时 F20[0…19] / B20[1…20]
+    B←@B20 B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 205: counts match and the beds are one needle apart. Rack B -1 (F20[0…19] / B20[1…20] → F20[0…19] / B20[0…19]).
+  row 272 R  这一行开始时 40针 · 前20[0…19] · 后20[0…19]
+    F·@F10 F-R1@F11 F·@F12
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F11 F·@F12。然后从 F12 起移 1 次（F12 套到 F11，F13…F19 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 273 X  这一行开始时 40针 · 前20[0…19] · 后20[0…19]
+    F←@F12 F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19
+    course 205: 第 1 次移圈从 F12 起。F12 套到 F11，F13…F19 各退一针。都套上第一格 F11，第一格不是移圈源。
+  row 274 Flip  这一行开始时 F19[0…18] / B20[0…19]
+    ⬇@B19
+    course 205: right-fold flip B19→F19 (same index).
+  row 275 X  这一行开始时 F20[0…19] / B19[0…18]
+    B→@B18 B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F20[0…19] / B19[1…19]).
+  row 276 R  这一行开始时 39针 · 前20[0…19] · 后19[1…19]
+    F-R1@F12 F·@F13
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F12 F·@F13。然后从 F13 起移 1 次（F13 套到 F12，F14…F19 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 277 X  这一行开始时 39针 · 前20[0…19] · 后19[1…19]
+    F←@F13 F←@F14 F←@F15 F←@F16 F←@F17 F←@F18 F←@F19
+    course 205: 第 1 次移圈从 F13 起。F13 套到 F12，F14…F19 各退一针。都套上第一格 F12，第一格不是移圈源。
+  row 278 X  这一行开始时 F19[0…18] / B19[1…19]
+    B←@B19 B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 205: counts match and the beds are one needle apart. Rack B -1 (F19[0…18] / B19[1…19] → F19[0…18] / B19[0…18]).
+  row 279 R  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
+    F-R1@F13 F·@F14
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F13 F·@F14。然后从 F14 起移 1 次（F14 套到 F13，F15…F18 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 280 X  这一行开始时 38针 · 前19[0…18] · 后19[0…18]
+    F←@F14 F←@F15 F←@F16 F←@F17 F←@F18
+    course 205: 第 1 次移圈从 F14 起。F14 套到 F13，F15…F18 各退一针。都套上第一格 F13，第一格不是移圈源。
+  row 281 Flip  这一行开始时 F18[0…17] / B19[0…18]
+    ⬇@B18
+    course 205: right-fold flip B18→F18 (same index).
+  row 282 X  这一行开始时 F19[0…18] / B18[0…17]
+    B→@B17 B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F19[0…18] / B18[1…18]).
+  row 283 R  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
+    F-R1@F14 F·@F15
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F14 F·@F15。然后从 F15 起移 1 次（F15 套到 F14，F16…F18 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 284 X  这一行开始时 37针 · 前19[0…18] · 后18[1…18]
+    F←@F15 F←@F16 F←@F17 F←@F18
+    course 205: 第 1 次移圈从 F15 起。F15 套到 F14，F16…F18 各退一针。都套上第一格 F14，第一格不是移圈源。
+  row 285 X  这一行开始时 F18[0…17] / B18[1…18]
+    B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 205: counts match and the beds are one needle apart. Rack B -1 (F18[0…17] / B18[1…18] → F18[0…17] / B18[0…17]).
+  row 286 R  这一行开始时 36针 · 前18[0…17] · 后18[0…17]
+    F-R1@F15 F·@F16
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F15 F·@F16。然后从 F16 起移 1 次（F16 套到 F15，F17…F17 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 287 X  这一行开始时 36针 · 前18[0…17] · 后18[0…17]
+    F←@F16 F←@F17
+    course 205: 第 1 次移圈从 F16 起。F16 套到 F15，F17…F17 各退一针。都套上第一格 F15，第一格不是移圈源。
+  row 288 Flip  这一行开始时 F17[0…16] / B18[0…17]
+    ⬇@B17
+    course 205: right-fold flip B17→F17 (same index).
+  row 289 X  这一行开始时 F18[0…17] / B17[0…16]
+    B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F18[0…17] / B17[1…17]).
+  row 290 R  这一行开始时 35针 · 前18[0…17] · 后17[1…17]
+    F-R1@F16 F·@F17
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F16 F·@F17。然后从 F17 起移 1 次（F17 套到 F16）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 291 X  这一行开始时 35针 · 前18[0…17] · 后17[1…17]
+    F←@F17
+    course 205: 第 1 次移圈从 F17 起。F17 套到 F16。都套上第一格 F16，第一格不是移圈源。
+  row 292 X  这一行开始时 F17[0…16] / B17[1…17]
+    B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 205: counts match and the beds are one needle apart. Rack B -1 (F17[0…16] / B17[1…17] → F17[0…16] / B17[0…16]).
+  row 293 R  这一行开始时 34针 · 前17[0…16] · 后17[0…16]
+    B·@B16 B·@B15 B-L1@B14 B·@B13
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-L1@B14 B·@B13。然后从 B13 起移 1 次（B13 套到 B14，B12…B0 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 294 X  这一行开始时 34针 · 前17[0…16] · 后17[0…16]
+    B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: 第 1 次移圈从 B13 起。B13 套到 B14，B12…B0 各退一针。都套上第一格 B14，第一格不是移圈源。
+  row 295 R  这一行开始时 33针 · 前17[0…16] · 后16[1…16]
+    B·@B13 B-L1@B12 B·@B11
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-L1@B12 B·@B11。然后从 B11 起移 1 次（B11 套到 B12，B10…B1 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 296 X  这一行开始时 33针 · 前17[0…16] · 后16[1…16]
+    B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1
+    course 205: 第 1 次移圈从 B11 起。B11 套到 B12，B10…B1 各退一针。都套上第一格 B12，第一格不是移圈源。
+  row 297 X  这一行开始时 F17[0…16] / B15[2…16]
+    B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2
+    course 205: clear B16 with a −1 rack before the same-index flip (F17[0…16] / B15[2…16] → F17[0…16] / B15[1…15]).
+  row 298 Flip  这一行开始时 F17[0…16] / B15[1…15]
+    ⬆@F16
+    course 205: right-fold flip F16→B16 (same index).
+  row 299 X  这一行开始时 F16[0…15] / B16[1…16]
+    B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 205: counts match and the beds are one needle apart. Rack B -1 (F16[0…15] / B16[1…16] → F16[0…15] / B16[0…15]).
+  row 300 R  这一行开始时 32针 · 前16[0…15] · 后16[0…15]
+    B-L1@B9 B·@B8
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-L1@B9 B·@B8。然后从 B8 起移 1 次（B8 套到 B9，B7…B0 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 301 X  这一行开始时 32针 · 前16[0…15] · 后16[0…15]
+    B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: 第 1 次移圈从 B8 起。B8 套到 B9，B7…B0 各退一针。都套上第一格 B9，第一格不是移圈源。
+  row 302 R  这一行开始时 31针 · 前16[0…15] · 后15[1…15]
+    B-L1@B8 B·@B7
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-L1@B8 B·@B7。然后从 B7 起移 1 次（B7 套到 B8，B6…B1 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 303 X  这一行开始时 31针 · 前16[0…15] · 后15[1…15]
+    B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1
+    course 205: 第 1 次移圈从 B7 起。B7 套到 B8，B6…B1 各退一针。都套上第一格 B8，第一格不是移圈源。
+  row 304 X  这一行开始时 F16[0…15] / B14[2…15]
+    B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2
+    course 205: clear B15 with a −1 rack before the same-index flip (F16[0…15] / B14[2…15] → F16[0…15] / B14[1…14]).
+  row 305 Flip  这一行开始时 F16[0…15] / B14[1…14]
+    ⬆@F15
+    course 205: right-fold flip F15→B15 (same index).
+  row 306 X  这一行开始时 F15[0…14] / B15[1…15]
+    B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 205: counts match and the beds are one needle apart. Rack B -1 (F15[0…14] / B15[1…15] → F15[0…14] / B15[0…14]).
+  row 307 R  这一行开始时 30针 · 前15[0…14] · 后15[0…14]
+    B-L1@B5 B·@B4
+    course 205: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-L1@B5 B·@B4。然后从 B4 起移 1 次（B4 套到 B5，B3…B0 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 308 X  这一行开始时 30针 · 前15[0…14] · 后15[0…14]
+    B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: 第 1 次移圈从 B4 起。B4 套到 B5，B3…B0 各退一针。都套上第一格 B5，第一格不是移圈源。
+  row 309 R  这一行开始时 29针 · 前15[0…14] · 后14[1…14]
+    B·@B4 B·@B3 B·@B2 B·@B1
+    course 205: 平衡之后的下一课，从 B4 织到 B1。
+  row 310 R  这一行开始时 29针 · 前15[0…14] · 后14[1…14]
+    F·@F0 F·@F1 F·@F2 F-R1@F3 F·@F4
+    course 206: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F3 F·@F4。然后从 F4 起移 1 次（F4 套到 F3，F5…F14 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 311 X  这一行开始时 29针 · 前15[0…14] · 后14[1…14]
+    F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14
+    course 206: 第 1 次移圈从 F4 起。F4 套到 F3，F5…F14 各退一针。都套上第一格 F3，第一格不是移圈源。
+  row 312 X  这一行开始时 F14[0…13] / B14[1…14]
+    B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 206: counts match and the beds are one needle apart. Rack B -1 (F14[0…13] / B14[1…14] → F14[0…13] / B14[0…13]).
+  row 313 R  这一行开始时 28针 · 前14[0…13] · 后14[0…13]
+    F·@F4 F·@F5 FvR@F6
+    course 206: 平衡之后的下一课，从 F4 织到 F6。
+  row 314 L  这一行开始时 28针 · 前14[0…13] · 后14[0…13]
+    F^R@F6 F·@F5 F·@F4 F·@F3 F·@F2 F·@F1 F·@F0 B·@B0 B·@B1 B·@B2 B·@B3 B-R1@B4 B·@B5
+    course 207: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-R1@B4 B·@B5。然后从 B5 起移 1 次（B5 套到 B4，B6…B13 各退一针）。移圈一结束就平衡床位。这一行还有减针，剩下的针从平衡后的针位接着织。
+  row 315 X  这一行开始时 28针 · 前14[0…13] · 后14[0…13]
+    B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5
+    course 207: 第 1 次移圈从 B5 起。B5 套到 B4，B6…B13 各退一针。都套上第一格 B4，第一格不是移圈源。
+  row 316 X  这一行开始时 F14[0…13] / B13[0…12]
+    B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 207: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F14[0…13] / B13[1…13]).
+  row 317 L  这一行开始时 27针 · 前14[0…13] · 后13[1…13]
+    B·@B6 B·@B7 B·@B8 B-R1@B9 B·@B10
+    course 207: 先织到减针最后一格。减 1 针占 2 格，都是减针色：B-R1@B9 B·@B10。然后从 B10 起移 1 次（B10 套到 B9，B11…B13 各退一针）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 318 X  这一行开始时 27针 · 前14[0…13] · 后13[1…13]
+    B←@B13 B←@B12 B←@B11 B←@B10
+    course 207: 第 1 次移圈从 B10 起。B10 套到 B9，B11…B13 各退一针。都套上第一格 B9，第一格不是移圈源。
+  row 319 Flip  这一行开始时 F14[0…13] / B12[1…12]
+    ⬆@F13
+    course 207: right-fold flip F13→B13 (same index).
+  row 320 X  这一行开始时 F13[0…12] / B13[1…13]
+    B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    course 207: counts match and the beds are one needle apart. Rack B -1 (F13[0…12] / B13[1…13] → F13[0…12] / B13[0…12]).
+  row 321 L  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    B·@B9 B·@B10 B·@B11 B·@B12 FvL@F12
+    course 207: 平衡之后的下一课，从 B9 织到 F12。
+  row 322 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F^L@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 FvR@F11
+  row 323 L  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F^R@F11 F·@F10 F·@F9 F·@F8 FvL@F7
+  row 324 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F^L@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+  row 325 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+  row 326 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F-R1@F11 F·@F12
+    course 212: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F11 F·@F12。然后从 F12 起移 1 次（F12 套到 F11）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 327 X  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F←@F12
+    course 212: 第 1 次移圈从 F12 起。F12 套到 F11。都套上第一格 F11，第一格不是移圈源。
+  row 328 Flip  这一行开始时 F12[0…11] / B13[0…12]
+    ⬇@B12
+    course 212: right-fold flip B12→F12 (same index).
+  row 329 X  这一行开始时 F13[0…12] / B12[0…11]
+    B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 212: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F13[0…12] / B12[1…12]).
+  row 330 R  这一行开始时 25针 · 前13[0…12] · 后12[1…12]
+    F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+    course 212: 平衡之后的下一课，从 F12 织到 B1。
+  row 331 R  这一行开始时 25针 · 前13[0…12] · 后12[1…12]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
 
 每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。
 第一环 加减针 hang（n_extra）：无。
 第一环里没有 hang 不是 1 的项。
-第二环 加减针 hang（n_extra）：term 37 Type 4 hang 1。
+第二环 加减针 hang（n_extra）：term 36 Type 4 hang 1。
 第二环里没有 hang 不是 1 的项。
 第三环 加减针 hang（n_extra）：无。
 第三环里没有 hang 不是 1 的项。
-第四环 加减针 hang（n_extra）：term 79 Type 4 hang 1，term 97 Type 4 hang 1，term 101 Type 4 hang 1。
+第四环 加减针 hang（n_extra）：term 79 Type 4 hang 1，term 97 Type 4 hang 1。
 第四环里没有 hang 不是 1 的项。
-第五环 加减针 hang（n_extra）：term 106 Type 4 hang 1，term 116 Type 4 hang 1，term 125 Type 4 hang 1，term 130 Type 4 hang 1。
+第五环 加减针 hang（n_extra）：term 107 Type 4 hang 1，term 114 Type 4 hang 1，term 115 Type 4 hang 1，term 116 Type 4 hang 1，term 120 Type 4 hang 1，term 121 Type 4 hang 1，term 123 Type 4 hang 1，term 124 Type 4 hang 1。
 第五环里没有 hang 不是 1 的项。
-第六环 加减针 hang（n_extra）：term 143 Type 4 hang 1，term 152 Type 6 hang 1，term 153 Type 4 hang 1，term 157 Type 4 hang 1，term 159 Type 4 hang 1，term 168 Type 6 hang 1，term 180 Type 6 hang 1，term 185 Type 6 hang 1，term 213 Type 4 hang 2，term 215 Type 4 hang 1，term 216 Type 4 hang 1。
-其中 hang 不是 1 的：term 213 hang 2。
-其余 203 项不是加减针，hang 为 0。
+第六环 加减针 hang（n_extra）：term 137 Type 4 hang 1，term 140 Type 6 hang 1，term 143 Type 4 hang 1，term 145 Type 4 hang 1，term 147 Type 4 hang 1，term 154 Type 4 hang 1，term 155 Type 4 hang 1。
+第六环里没有 hang 不是 1 的项。
+第七环 加减针 hang（n_extra）：term 175 Type 4 hang 1，term 180 Type 4 hang 1，term 191 Type 4 hang 1，term 285 Type 6 hang 1。
+第七环里没有 hang 不是 1 的项。
+第8环 加减针 hang（n_extra）：无。
+第8环里没有 hang 不是 1 的项。
+第9环 加减针 hang（n_extra）：无。
+第9环里没有 hang 不是 1 的项。
+第10环 加减针 hang（n_extra）：无。
+第10环里没有 hang 不是 1 的项。
+第11环 加减针 hang（n_extra）：无。
+第11环里没有 hang 不是 1 的项。
+第12环 加减针 hang（n_extra）：无。
+第12环里没有 hang 不是 1 的项。
+第13环 加减针 hang（n_extra）：无。
+第13环里没有 hang 不是 1 的项。
+第14环 加减针 hang（n_extra）：无。
+第14环里没有 hang 不是 1 的项。
+第15环 加减针 hang（n_extra）：term 1066 Type 5 hang 1。
+第15环里没有 hang 不是 1 的项。
+第16环 加减针 hang（n_extra）：term 1200 Type 5 hang 1，term 1205 Type 3 hang 1，term 1206 Type 3 hang 1，term 1207 Type 3 hang 1，term 1208 Type 5 hang 1，term 1213 Type 3 hang 1，term 1215 Type 3 hang 1，term 1216 Type 3 hang 1，term 1217 Type 3 hang 1，term 1218 Type 3 hang 1，term 1219 Type 3 hang 1，term 1220 Type 3 hang 1，term 1223 Type 3 hang 1，term 1225 Type 3 hang 1，term 1226 Type 3 hang 1，term 1227 Type 3 hang 1，term 1228 Type 3 hang 1。
+第16环里没有 hang 不是 1 的项。
+第17环 加减针 hang（n_extra）：term 1236 Type 3 hang 1，term 1251 Type 3 hang 1，term 1255 Type 3 hang 1。
+第17环里没有 hang 不是 1 的项。
+第18环 加减针 hang（n_extra）：无。
+第18环里没有 hang 不是 1 的项。
+第19环 加减针 hang（n_extra）：term 1348 Type 3 hang 1。
+第19环里没有 hang 不是 1 的项。
+第20环 加减针 hang（n_extra）：无。
+第20环里没有 hang 不是 1 的项。
+其余 1343 项不是加减针，hang 为 0。
