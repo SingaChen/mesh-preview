@@ -1435,7 +1435,7 @@ assert(
     "Decrease Cylinder uses its own cols_resample field, xls, and faces ring",
   );
   const parsed = parseColoredObj(readFileSync(join(decDir, "decrease_cylinder_KnittingStitches.obj"), "utf8"));
-  assert(parsed.verts.length === 527 && parsed.faces.length === 129, "Decrease Cylinder is the SingaLab stitchmesh");
+  assert(parsed.verts.length === 524 && parsed.faces.length === 129, "Decrease Cylinder is the SingaLab stitchmesh");
   const ySpan = parsed.verts.reduce(
     (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
     { min: Infinity, max: -Infinity },
@@ -1450,7 +1450,7 @@ assert(
     colors: layout.colors,
   });
   assert(
-    chunks.length === 7 && chunks.map((chunk) => chunk.faces.length).join(",") === "23,23,22,19,14,14,14",
+    chunks.length === 7 && chunks.map((chunk) => chunk.faces.length).join(",") === "23,23,23,18,16,13,13",
     "Decrease Cylinder faces ring is the exported 7 rings",
   );
   const decreaseCols = parseColsResample({
@@ -1458,13 +1458,12 @@ assert(
     xls: readFileSync(join(decDir, "decrease_cylinder_cols_resample.xls")),
   });
   assert(
-    decreaseCols.length === 24 &&
+    decreaseCols.length === 23 &&
       decreaseCols.every((col, i) => col.col === i) &&
-      decreaseCols[22].type === "SHORT_INNER" &&
-      decreaseCols[22].points.length === 1 &&
-      decreaseCols.filter((col) => col.points.length < 2).length === 1 &&
-      decreaseCols.every((col) => col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
-    "cols_resample is 24 side edges; col 22 is one SHORT_INNER sample and the rest climb",
+      decreaseCols.filter((col) => col.type === "SHORT_BEGIN").length === 9 &&
+      decreaseCols.filter((col) => col.type === "FULL").length === 14 &&
+      decreaseCols.every((col) => col.points.length >= 2 && col.points.every((p, k) => k === 0 || p.y > col.points[k - 1].y)),
+    "cols_resample is 23 side edges; 9 SHORT_BEGIN and 14 FULL climb",
   );
   const nearestVert = (point) => {
     let best = Infinity;
@@ -1502,14 +1501,15 @@ assert(
   );
   const decreaseTxt = readFileSync(join(decDir, "decrease_cylinder_bed.txt"), "utf8");
   assert(
-    decreaseTxt.includes("course 0 R  start F0  end B0  （24 针）") &&
-      decreaseTxt.includes("course 1 R  start F0  end B1  （24 针）") &&
-      decreaseTxt.includes("course 2 R  start F0  end B0  （23 针）") &&
-      decreaseTxt.includes("course 3 R  start F0  end B1  （22 针）") &&
-      decreaseTxt.includes("course 4 R  start F0  end B0  （47 针）") &&
+    decreaseTxt.includes("course 0 R  start F0  end B1  （23 针）") &&
+      decreaseTxt.includes("course 1 R  start F0  end B1  （23 针）") &&
+      decreaseTxt.includes("course 2 R  start F0  end B1  （23 针）") &&
+      decreaseTxt.includes("course 3 R  start F0  end B0  （23 针）") &&
+      decreaseTxt.includes("course 6 R  start B2  end B5  （13 针）") &&
       decreaseTxt.includes("表宽 24") &&
-      decreaseTxt.includes("第一环落座之后 N=24，窗 F12[0…11] / B12[0…11]。") &&
-      decreaseTxt.includes("第五环结束 N=14，窗 F7[0…6] / B7[0…6]。"),
+      decreaseTxt.includes("第一环落座之后 N=23，窗 F12[0…11] / B11[1…11]。") &&
+      decreaseTxt.includes("第五环结束 N=16，窗 F8[0…7] / B8[0…7]。") &&
+      decreaseTxt.includes("7 环都在这一张表上。"),
     "Decrease Cylinder courses are the generator report",
   );
   const ring0 = decreaseBed.rows[0];
@@ -1519,13 +1519,13 @@ assert(
     ring0.dir === "R" &&
       ring0.beds === "0针 · 前空 · 后空" &&
       ring0Seq ===
-        "F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B+R1@B2 B·@B1 B·@B0" &&
+        "F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1" &&
       ring0Knit.every((cell) => cell.col === (cell.bed === "F" ? cell.phys : 23 - cell.phys)),
-    "ring 0 knits F0–F11 then B11–B0 on an empty bed, and B0 holds the last loop",
+    "ring 0 knits F0–F11 then B11–B1 on an empty bed",
   );
   const decreaseFn = mainSrc.slice(mainSrc.indexOf("async function loadDecreaseCylinder"), mainSrc.indexOf("async function loadIncreaseCylinder"));
   assert(decreaseFn.includes("sampleEntry"), "Decrease Cylinder loads the cols xls as bytes");
-  assert(decreaseFn.includes("前床 F0–F11") && decreaseFn.includes("后床 B11–B0"), "Decrease Cylinder status quotes the seated bed");
+  assert(decreaseFn.includes("前床 F0–F11") && decreaseFn.includes("后床 B11–B1"), "Decrease Cylinder status quotes the seated bed");
   assert(mainSrc.includes("isDecreaseCylinderBedChart"), "the excel map loader recognizes the Decrease Cylinder bed chart");
   assert(!/root\.rotation|camera\.up/.test(decreaseFn), "Decrease Cylinder does not rotate the viewer");
 }
@@ -1575,7 +1575,7 @@ assert(
     "Increase Cylinder uses its own cols_resample field, xls, and faces ring",
   );
   const parsed = parseColoredObj(readFileSync(join(incDir, "increase_cylinder_KnittingStitches.obj"), "utf8"));
-  assert(parsed.verts.length === 489 && parsed.faces.length === 128, "Increase Cylinder is the SingaLab stitchmesh");
+  assert(parsed.verts.length === 533 && parsed.faces.length === 136, "Increase Cylinder is the SingaLab stitchmesh");
   const ySpan = parsed.verts.reduce(
     (acc, vert) => ({ min: Math.min(acc.min, vert.y), max: Math.max(acc.max, vert.y) }),
     { min: Infinity, max: -Infinity },
@@ -1590,8 +1590,8 @@ assert(
     colors: layout.colors,
   });
   assert(
-    chunks.length === 4 && chunks.map((chunk) => chunk.faces.length).join(",") === "14,14,31,69",
-    "Increase Cylinder faces ring is the exported 4 rings",
+    chunks.length === 5 && chunks.map((chunk) => chunk.faces.length).join(",") === "14,14,18,67,23",
+    "Increase Cylinder faces ring is the exported 5 rings",
   );
   const increaseCols = parseColsResample({
     fieldText: readFileSync(join(incDir, "increase_cylinder_cols_resample_field.obj"), "utf8"),
@@ -1633,20 +1633,19 @@ assert(
     "Increase Cylinder right-hand map is the excel bed chart",
   );
   assert(
-    increaseBed.needleCols.length === 28 && increaseBed.colMin === -4 && increaseBed.colMax === 23,
-    "Increase Cylinder bed chart width is the widest course (28 columns)",
+    increaseBed.needleCols.length === 27 && increaseBed.colMin === 0 && increaseBed.colMax === 26,
+    "Increase Cylinder bed chart width is the widest course (27 columns)",
   );
   const increaseTxt = readFileSync(join(incDir, "increase_cylinder_bed.txt"), "utf8");
   assert(
-    increaseTxt.includes("course 0 R  start F0  end B1  （15 针）") &&
-      increaseTxt.includes("第一环落座之后 N=15，窗 F8[0…7] / B7[1…7]。") &&
-      increaseTxt.includes("第二环结束 N=23，窗 F12[0…11] / B11[1…11]。") &&
-      increaseTxt.includes("第三环结束 N=23，窗 F12[0…11] / B11[1…11]。") &&
-      increaseTxt.includes("表宽 28") &&
+    increaseTxt.includes("course 0 R  start F0  end B0  （14 针）") &&
+      increaseTxt.includes("course 2 R  start F0  end B-1  （21 针）") &&
+      increaseTxt.includes("第一环落座之后 N=14，窗 F7[0…6] / B7[0…6]。") &&
+      increaseTxt.includes("第二环结束 N=18，窗 F9[0…8] / B9[0…8]。") &&
+      increaseTxt.includes("第五环结束 N=23，窗 F12[0…11] / B11[1…11]。") &&
+      increaseTxt.includes("表宽 27") &&
       increaseTxt.includes("每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。") &&
-      increaseTxt.includes(
-        "B^R@B1 B·@B2 B·@B3 B·@B4 B·@B5 B·@B6 B·@B7 F+L1@F7 F·@F6 F+L1@F5 F·@F4 F+L1@F3 F·@F2 F·@F1 F+L1@F0 F·@F-1 F·@F-2 F·@F-3 FvL@F-4",
-      ),
+      increaseTxt.includes("5 环都在这一张表上。"),
     "Increase Cylinder courses are the generator report",
   );
   const ring0 = increaseBed.rows[0];
@@ -1655,14 +1654,14 @@ assert(
   assert(
     ring0.dir === "R" &&
       ring0.beds === "0针 · 前空 · 后空" &&
-      ring0Seq === "F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1" &&
+      ring0Seq === "F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0" &&
       ring0Knit.every((cell) => cell.col === (cell.bed === "F" ? cell.phys : 23 - cell.phys)),
-    "ring 0 knits F0–F7 then B7–B1 on an empty bed",
+    "ring 0 knits F0–F6 then B6–B0 on an empty bed",
   );
   const increaseFn = mainSrc.slice(mainSrc.indexOf("async function loadIncreaseCylinder"), mainSrc.indexOf("async function loadSample"));
   assert(increaseFn.includes("sampleEntry") && mainSrc.includes("arrayBuffer"), "Increase Cylinder loads the cols xls as bytes");
   assert(
-    increaseFn.includes("前床 F0–F7") && increaseFn.includes("后床 B7–B1") && increaseFn.includes("表宽 28"),
+    increaseFn.includes("前床 F0–F6") && increaseFn.includes("后床 B6–B0") && increaseFn.includes("表宽 27"),
     "Increase Cylinder status quotes the seated bed",
   );
   assert(mainSrc.includes("isIncreaseCylinderBedChart"), "the excel map loader recognizes the Increase Cylinder bed chart");
@@ -1995,26 +1994,25 @@ assertDenseCylinderSample({
     "dense-decrease/dense_decrease_cylinder_faces_ring_layout.json",
     "dense-decrease/dense_decrease_cylinder_bed.xls",
   ],
-  verts: 2537,
-  faces: 652,
+  verts: 2548,
+  faces: 661,
   yMaxLo: 39.9,
   yMaxHi: 40.1,
-  terms: [48, 48, 48, 133, 93, 45, 41, 87, 28, 27, 27, 27],
-  cols: 48,
+  terms: [47, 47, 47, 47, 133, 103, 41, 87, 28, 27, 27, 27],
+  cols: 47,
   width: 48,
   colMin: 0,
   colMax: 47,
-  firstCourse: plainRightCourse(23, 23, 0),
+  firstCourse: plainRightCourse(23, 23, 1),
   txt: [
-    "床图（未完成）",
-    "generation stopped at ring 3 course 8 R",
-    "course 0 R  start F0  end B0  （48 针）",
-    "第一环落座之后 N=48，窗 F24[0…23] / B24[0…23]。",
-    "第三环结束 N=48，窗 F24[0…23] / B24[0…23]。",
+    "course 0 R  start F0  end B1  （47 针）",
+    "第一环落座之后 N=47，窗 F24[0…23] / B23[1…23]。",
+    "第三环结束 N=47，窗 F24[0…23] / B23[1…23]。",
+    "第12环结束 N=27，窗 F14[0…13] / B13[1…13]。",
     "表宽 48",
-    "完整画到 ring 2。ring 3 只画到 course 8 抛出之前的行。",
+    "12 环都在这一张表上。",
   ],
-  status: ["前床 F0–F23", "后床 B23–B0", "表宽 48", "前三环落座 48、48、48", "停在 ring 3 course 8"],
+  status: ["前床 F0–F23", "后床 B23–B1", "表宽 48", "12 环落座 47、47、47、47、47、45、41、29、28、27、27、27"],
 });
 
 assertDenseCylinderSample({
@@ -2032,25 +2030,25 @@ assertDenseCylinderSample({
     "dense-increase/dense_increase_cylinder_faces_ring_layout.json",
     "dense-increase/dense_increase_cylinder_bed.xls",
   ],
-  verts: 2385,
-  faces: 604,
+  verts: 2388,
+  faces: 619,
   yMaxLo: 39.9,
   yMaxHi: 40.2,
-  terms: [27, 27, 27, 29, 30, 113, 63, 144, 144],
-  cols: 48,
-  width: 34,
-  colMin: 0,
-  colMax: 33,
+  terms: [27, 27, 27, 29, 29, 30, 43, 134, 139, 87, 47],
+  cols: 47,
+  width: 54,
+  colMin: -1,
+  colMax: 52,
   firstCourse: plainRightCourse(13, 13, 1),
   txt: [
-    "床图（未完成）",
-    "generation stopped at ring 4 course 0 R",
+    "course 0 R  start F0  end B1  （27 针）",
     "第一环落座之后 N=27，窗 F14[0…13] / B13[1…13]。",
-    "第四环结束 N=33，窗 F17[0…16] / B16[1…16]。",
-    "表宽 34",
-    "完整画到 ring 3。ring 4 只画到 course 0 抛出之前的行。",
+    "第四环结束 N=29，窗 F15[0…14] / B14[1…14]。",
+    "第11环结束 N=47，窗 F24[0…23] / B23[1…23]。",
+    "表宽 54",
+    "11 环都在这一张表上。",
   ],
-  status: ["前床 F0–F13", "后床 B13–B1", "表宽 34", "前四环落座 27、27、29、33", "停在 ring 4 course 0"],
+  status: ["前床 F0–F13", "后床 B13–B1", "表宽 54", "11 环落座 27、27、29、29、30、43、45、47、47、47、47"],
 });
 
 assertDenseCylinderSample({
@@ -2068,25 +2066,25 @@ assertDenseCylinderSample({
     "dense-thin/dense_thin_cylinder_faces_ring_layout.json",
     "dense-thin/dense_thin_cylinder_bed.xls",
   ],
-  verts: 4968,
-  faces: 1274,
-  yMaxLo: 79.9,
-  yMaxHi: 80.2,
-  terms: [49, 49, 49, 49, 49, 48, 125, 46, 28, 27, 27, 25, 25, 25, 25, 25, 27, 27, 29, 109, 70, 145, 65, 131],
-  cols: 76,
-  width: 55,
-  colMin: -3,
-  colMax: 51,
+  verts: 4404,
+  faces: 1153,
+  yMaxLo: 74.58,
+  yMaxHi: 74.59,
+  terms: [49, 49, 49, 49, 49, 138, 78, 28, 27, 26, 26, 24, 24, 24, 24, 24, 26, 26, 28, 33, 122, 99, 131],
+  cols: 73,
+  width: 53,
+  colMin: 0,
+  colMax: 52,
   firstCourse: plainRightCourse(24, 24, 1),
   txt: [
-    "床图（未完成）",
-    "generation stopped at ring 15 course 2 R",
+    "course 0 R  start F0  end B1  （49 针）",
     "第一环落座之后 N=49，窗 F25[0…24] / B24[1…24]。",
-    "第15环结束 N=30，窗 F15[0…14] / B15[0…14]。",
-    "表宽 55",
-    "完整画到 ring 14。ring 15 只画到 course 2 抛出之前的行。",
+    "第15环结束 N=27，窗 F14[0…13] / B13[1…13]。",
+    "第23环结束 N=49，窗 F25[0…24] / B24[1…24]。",
+    "表宽 53",
+    "23 环都在这一张表上。",
   ],
-  status: ["前床 F0–F24", "后床 B24–B1", "表宽 55", "前15环落座 49、49、49、49、49、48、36、28、28、25、25、26、27、28、30", "停在 ring 15 course 2"],
+  status: ["前床 F0–F24", "后床 B24–B1", "表宽 53", "23 环落座 49、49、49、49、49、48、38、30、29、28、28、27、27、27、27、28、28、30、35、41、49、49、49"],
 });
 
 assertDenseCylinderSample({

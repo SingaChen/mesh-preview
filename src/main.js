@@ -1055,7 +1055,7 @@ async function loadDecreaseCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Decrease Cylinder · cols_resample 24 · 表宽 24 · 前床 F0–F11 · 后床 B11–B0");
+      setStatus("Decrease Cylinder · cols_resample 23 · 表宽 24 · 前床 F0–F11 · 后床 B11–B1 · 7 环落座 23、23、23、18、16、15、15");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1082,7 +1082,7 @@ async function loadIncreaseCylinder() {
     );
     await openEntries(entries);
     if (!statusEl.classList.contains("error")) {
-      setStatus("Increase Cylinder · cols_resample 23 · 表宽 28 · 前床 F0–F7 · 后床 B7–B1");
+      setStatus("Increase Cylinder · cols_resample 23 · 表宽 27 · 前床 F0–F6 · 后床 B6–B0 · 5 环落座 14、18、21、23、23");
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1141,7 +1141,7 @@ async function loadDenseDecreaseCylinder() {
     await loadNamedCylinder({
       manifest: "dense-decrease-cylinder.json",
       missing: "Dense Decrease Cylinder",
-      status: "Dense Decrease Cylinder · cols_resample 48 · 表宽 48 · 前床 F0–F23 · 后床 B23–B0 · 前三环落座 48、48、48 · 停在 ring 3 course 8",
+      status: "Dense Decrease Cylinder · cols_resample 47 · 表宽 48 · 前床 F0–F23 · 后床 B23–B1 · 12 环落座 47、47、47、47、47、45、41、29、28、27、27、27",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1153,7 +1153,7 @@ async function loadDenseIncreaseCylinder() {
     await loadNamedCylinder({
       manifest: "dense-increase-cylinder.json",
       missing: "Dense Increase Cylinder",
-      status: "Dense Increase Cylinder · cols_resample 49 · 表宽 34 · 前床 F0–F13 · 后床 B13–B1 · 前四环落座 27、27、29、33 · 停在 ring 4 course 0",
+      status: "Dense Increase Cylinder · cols_resample 47 · 表宽 54 · 前床 F0–F13 · 后床 B13–B1 · 11 环落座 27、27、29、29、30、43、45、47、47、47、47",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -1165,7 +1165,7 @@ async function loadDenseThinCylinder() {
     await loadNamedCylinder({
       manifest: "dense-thin-cylinder.json",
       missing: "Dense Thin Cylinder",
-      status: "Dense Thin Cylinder · cols_resample 76 · 表宽 55 · 前床 F0–F24 · 后床 B24–B1 · 前15环落座 49、49、49、49、49、48、36、28、28、25、25、26、27、28、30 · 停在 ring 15 course 2",
+      status: "Dense Thin Cylinder · cols_resample 73 · 表宽 53 · 前床 F0–F24 · 后床 B24–B1 · 23 环落座 49、49、49、49、49、48、38、30、29、28、28、27、27、27、27、28、28、30、35、41、49、49、49",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
