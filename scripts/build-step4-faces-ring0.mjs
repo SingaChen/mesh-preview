@@ -103,7 +103,12 @@
  * each rack is ±1. When a count gap leaves the long bed ending inside
  * the short bed, the back walks one needle at a time until the empty
  * needle just past the short bed is the right fold, then the flip.
- * The front stays on F0.
+ * The same walk covers a long back whose high end already sits on the
+ * front's high end while the front is parked on F0: the back racks
+ * toward + until that one-stitch gap exists, then B→F, and this
+ * repeats. The rack is the size of the gap. After a flip the ends can
+ * land so that +1 would make them coincide again, and the next rack is
+ * then larger than one needle. The front stays on F0.
  * A 1-needle transfer omits the number (F→, B←).
  * A fold-return short row is its own course. It is not glued into
  * the next long row. Finishing the ring is not a fold-return: the
@@ -736,12 +741,16 @@ function rackOntoRightFold(stitches, plan, where) {
  * at the right fold onto the same physical index, one stitch at a time.
  * If the short bed does not yet meet that fold, it racks one needle
  * toward the fold first. If the long bed ends inside the short bed, the
- * back walks one needle at a time until that fold is empty. F17→B18 is
- * not a flip. Equal counts one needle apart rack the offset bed. A
- * larger offset, including a back bed below 0, is that many successive
- * ±1 racks of the whole back when the front is already on F0. An
- * |F−B|=1 empty left on the right fold racks the short bed so the gap
- * sits at the left junction.
+ * back walks one needle at a time until that fold is empty. When the
+ * back is already the long bed, both high ends share an index, and the
+ * front is parked on F0, that same walk racks the back toward + until
+ * the right fold is one empty needle, then the loop flips B→F. The
+ * distance is whatever opens that one-stitch gap, so the next pass can
+ * be more than +1. F17→B18 is not a flip. Equal counts one needle apart
+ * rack the offset bed. A larger offset, including a back bed below 0,
+ * is that many successive ±1 racks of the whole back when the front is
+ * already on F0. An |F−B|=1 empty left on the right fold racks the
+ * short bed so the gap sits at the left junction.
  */
 export function balanceBeds(stitches, plan, where) {
   const fixes = [];
@@ -783,7 +792,19 @@ export function balanceBeds(stitches, plan, where) {
     const onePastNow = longWin[0] === 0 && pair === shortHiNow + 2 && !shortWin.includes(shortHiNow + 1);
     if (Math.abs(diff) !== 1 && !sameIndex && !adjacentNow && !onePastNow) {
       const delta = shortHiNow < pair ? 1 : shortHiNow > pair ? -1 : 0;
-      if (!delta) fail(`${where}: ${win.text} is not F${win.tF}/B${win.tB}, and the gap is not one stitch`);
+      if (!delta) {
+        // The high ends already share an index, so a short-bed ±1 cannot
+        // open a one-stitch right-fold gap. Rack the long bed (the back,
+        // when the front is already on F0) far enough that its high end
+        // is the empty needle just past the short bed, then flip on the
+        // next pass. rackOntoRightFold sizes that rack: a later pass can
+        // need more than +1 when +1 would only make the ends meet again.
+        const folded = rackOntoRightFold(stitches, plan, where);
+        if (!folded.length) fail(`${where}: ${win.text} is not F${win.tF}/B${win.tB}, and the gap is not one stitch`);
+        fixes.push(...folded);
+        win = measure();
+        continue;
+      }
       const before = win.text;
       const cells = rackBed(stitches, plan, shortBed, delta, where);
       win = measure();
@@ -3166,6 +3187,41 @@ function selfCheckCountSeat() {
   if (thinBack.join(",") !== "1,2,3,4,5,6,7,8") fail(`Thin back seat ${thinBack}`);
   if (thinFixes.some((fix) => fix.cells.some((cell) => /[→←]\d/.test(cell.token)))) {
     fail("Thin balance used a multi-needle rack");
+  }
+  selfCheckBackLongCoincidentFold();
+}
+
+/** Dense Thin ring 19 course 0: back-long, coincident highs, front on F0. */
+function selfCheckBackLongCoincidentFold() {
+  const stitches = spanStitches("F", 0, 16, 0);
+  for (const [id, st] of spanStitches("B", -4, 16, 200)) stitches.set(id, st);
+  const where = "back-long fold";
+  const start = windowText(stitches, new Map(), where).text;
+  if (start !== "F17[0…16] / B21[-4…16]") fail(`back-long start ${start}`);
+  const fixes = balanceBeds(stitches, new Map(), where);
+  const end = windowText(stitches, new Map(), where).text;
+  if (end !== "F19[0…18] / B19[0…18]") fail(`back-long seat ${end}`);
+  const walk = fixes.map((fix) => {
+    const tokens = [...new Set(fix.cells.map((cell) => cell.token))].join(",");
+    return `${fix.dir}:${tokens}:${fix.beds}`;
+  });
+  const expect = [
+    "X:B→:F17[0…16] / B21[-4…16]",
+    "Flip:⬇:F17[0…16] / B21[-3…17]",
+    "X:B→:F18[0…17] / B20[-3…16]",
+    "X:B→:F18[0…17] / B20[-2…17]",
+    "Flip:⬇:F18[0…17] / B20[-1…18]",
+    "X:B→:F19[0…18] / B19[-1…17]",
+  ];
+  if (walk.join(" | ") !== expect.join(" | ")) fail(`back-long walk ${walk.join(" | ")}`);
+  const flips = fixes.filter((fix) => fix.dir === "Flip").map((fix) => fix.cells.map((cell) => `${cell.bed}${cell.phys}`).join(","));
+  if (flips.join(" ") !== "B17 B18") fail(`back-long flips ${flips.join(" ")}`);
+  if (fixes.some((fix) => fix.cells.some((cell) => /[→←]\d/.test(cell.token)))) {
+    fail("back-long balance used a multi-needle rack");
+  }
+  const last = fixes.at(-1);
+  if (!last || !last.note.includes("F19[0…18] / B19[-1…17] → F19[0…18] / B19[0…18]")) {
+    fail(`back-long final rack ${last && last.note}`);
   }
 }
 
