@@ -1,5 +1,5 @@
 {
-  "source": "Thin Cylinder, scale_mode=propagate. rings[].types is Term.Type. rings[].hangs is Term.remain / n_extra. path_generate skips first_rows index 0, so first_rows_index = row + 1. SingaLab algorithm 561ae6c18c0fe2c8d92be1c9433770cfc5d915a4.",
+  "source": "Thin Cylinder, scale_mode=propagate. rings[].types is Term.Type. rings[].hangs is Term.remain / n_extra. path_generate skips first_rows index 0, so first_rows_index = row + 1. SingaLab algorithm 4b80d8f4f079929ab6bb203d5d8bc0e2c76d9c04.",
   "model": "thin",
   "title": "Thin Cylinder",
   "scale_mode": "propagate",
@@ -27,8 +27,8 @@
     "0": 230,
     "2": 18,
     "1": 18,
-    "3": 13,
-    "4": 9
+    "3": 11,
+    "4": 11
   },
   "rings": [
     {
@@ -8027,7 +8027,7 @@
       "types": [
         0,
         0,
-        3,
+        4,
         4,
         4,
         4,
@@ -8140,13 +8140,9 @@
           ]
         },
         {
-          "Type": 3,
+          "Type": 4,
           "remain": 1,
           "points": [
-            [
-              4,
-              0
-            ],
             [
               2,
               10
@@ -8154,6 +8150,10 @@
             [
               2,
               11
+            ],
+            [
+              4,
+              0
             ],
             [
               7,
@@ -8654,7 +8654,7 @@
         0,
         0,
         0,
-        3,
+        4,
         0,
         0
       ],
@@ -9404,13 +9404,9 @@
           ]
         },
         {
-          "Type": 3,
+          "Type": 4,
           "remain": 1,
           "points": [
-            [
-              30,
-              0
-            ],
             [
               28,
               11
@@ -9418,6 +9414,10 @@
             [
               28,
               12
+            ],
+            [
+              30,
+              0
             ],
             [
               31,
@@ -12735,8 +12735,8 @@
       "0": 230,
       "2": 18,
       "1": 18,
-      "3": 13,
-      "4": 9
+      "3": 11,
+      "4": 11
     }
   },
   "n_resample_cols": 34
