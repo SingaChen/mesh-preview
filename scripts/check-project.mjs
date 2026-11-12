@@ -2073,20 +2073,42 @@ assertDenseCylinderSample({
   yMaxHi: 80.1,
   terms: [47, 47, 47, 47, 47, 130, 74, 28, 27, 26, 26, 25, 25, 25, 25, 25, 26, 26, 28, 34, 127, 85, 133, 141],
   cols: 69,
-  width: 50,
+  width: 52,
   colMin: 0,
-  colMax: 49,
-  firstCourse: plainRightCourse(24, 24, 1),
+  colMax: 51,
+  firstCourse: plainRightCourse(23, 23, 1),
   txt: [
-    "course 0 R  start F0  end B1  （49 针）",
-    "第一环落座之后 N=49，窗 F25[0…24] / B24[1…24]。",
-    "第15环结束 N=26，窗 F13[0…12] / B13[0…12]。",
-    "第16环结束 N=26，窗 F13[0…12] / B13[0…12]。",
-    "表宽 50",
-    "16 环都在这一张表上。",
+    "床图（未完成）",
+    "generation stopped at ring 19 course 0 R",
+    "course 0 R  start F0  end B1  （47 针）",
+    "第一环落座之后 N=47，窗 F24[0…23] / B23[1…23]。",
+    "第19环结束 N=34，窗 F17[0…16] / B17[0…16]。",
+    "表宽 52",
+    "完整画到 ring 18。ring 19 只画到 course 0 抛出之前的行。",
   ],
-  status: ["前床 F0–F24", "后床 B24–B1", "表宽 50", "16 环落座 49、49、49、49、49、48、38、29、28、27、27、26、26、26、26、26"],
+  status: ["前床 F0–F23", "后床 B23–B1", "表宽 52", "前19环落座 47、47、47、47、47、46、36、28、27、26、26、25、25、25、25、26、26、28、34", "停在 ring 19 course 0"],
 });
+
+{
+  const thinTxt = readFileSync(join(sampleDir, "thin/thin_cylinder_bed.txt"), "utf8");
+  assert(thinTxt.includes("13 环都在这一张表上。"), "Thin Cylinder bed covers all 13 faces_ring rings");
+  assert(thinTxt.includes("course 0 R  start F0  end B1  （23 针）"), "Thin Cylinder first course is 23 stitches");
+  assert(thinTxt.includes("第13环结束 N=23，窗 F12[0…11] / B11[1…11]。"), "Thin Cylinder last ring seat");
+  assert(!thinTxt.includes("未完成") && !thinTxt.includes("10 环都在这一张表上"), "Thin Cylinder bed is the finished 13-ring sheet");
+  const thinBed = parseExcelReadableMap(readFileSync(join(sampleDir, "thin/thin_cylinder_bed.xls")));
+  const thinKnit = thinBed.rows.find((row) => row.dir === "R" || row.dir === "L").cells.filter((cell) => cell.token);
+  assert(
+    thinBed.needleCols.length === 26 && thinBed.colMin === 0 && thinBed.colMax === 25 &&
+      thinKnit.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ") === plainRightCourse(11, 11, 1),
+    "Thin Cylinder bed chart is 26 columns and starts F0–F11 then B11–B1",
+  );
+  const thinFn = mainSrc.slice(mainSrc.indexOf("async function loadThinCylinder"), mainSrc.indexOf("async function loadThinCylinder") + 900);
+  assert(
+    thinFn.includes("表宽 26") && thinFn.includes("前床 F0–F11") && thinFn.includes("后床 B11–B1") &&
+      thinFn.includes("13 环落座 23、23、23、20、13、13、13、13、20、23、24、24、23"),
+    "Thin Cylinder status quotes the 13-ring bed",
+  );
+}
 
 assertDenseCylinderSample({
   sheet: "dense-fat-cylinder",
