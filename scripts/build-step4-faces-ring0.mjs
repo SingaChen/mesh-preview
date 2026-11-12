@@ -86,6 +86,15 @@
  * decrease's transfer, then continue from the post-balance needles.
  * One decrease keeps the decrease-only balance timing, and the
  * leftover knit is still this same course.
+ * One course may take several knit rows. A knit row cannot visit the
+ * same live needle twice. Switching front and back does not end the
+ * row, and walking around the bed does not end the course. When the
+ * next cell would reuse a needle already knitted on this row, that
+ * row ends and the same course continues, same direction, on the next
+ * row. A decrease span stays on one row. If the span would reuse a
+ * needle already on the current row, the row ends before the decrease
+ * header and the whole span is the next row. The knitted-twice check
+ * is that row, not the whole course.
  * Balance is a whole-bed shift so
  * F≥B and |F−B|≤1, front low end at F0, extra stitch at the fold
  * gap. The target seat is only the stitch count N and "front starts
@@ -1344,6 +1353,32 @@ function stepCircle(stitch, dirSign, stitches) {
   return circle[(at + dirSign + circle.length) % circle.length];
 }
 
+const LIVE_ROW_NOTE = "同一课继续会重复这一行里的活针，先结束这一行。";
+
+/**
+ * Split one knit so each row visits a live needle only once.
+ * The next row keeps the same course and the same direction.
+ * Callers that must keep a decrease span together decide the break
+ * before the span is appended; this helper does not see spans.
+ */
+function rowsByLiveNeedle(cells) {
+  const rows = [];
+  let row = [];
+  const seen = new Set();
+  for (const cell of cells) {
+    const key = `${cell.bed}:${cell.phys}`;
+    if (seen.has(key)) {
+      rows.push(row);
+      row = [];
+      seen.clear();
+    }
+    seen.add(key);
+    row.push(cell);
+  }
+  if (row.length) rows.push(row);
+  return rows;
+}
+
 /** Keep each cell on its needle column. A mirror collision draws the later cell onward. */
 function settleColumns(knitCells, dirSign, where) {
   const taken = new Set();
@@ -1542,6 +1577,8 @@ export function seatRing(courses, planInfo, carried = null) {
       // seating, so the placeholder is this stitch, not a second birth.
       const slotNow = plan.get(cell.wale);
       if (slotNow && !slotNow.used && st.bed === slotNow.bed && st.phys === slotNow.phys) slotNow.used = true;
+      // Ring 0 births each stitch once. A later ring may come back to a
+      // live needle; seatContinuation ends the row there and keeps the course.
       if (used.has(st.id)) fail(`${where}: stitch ${st.id} is knitted twice`);
       used.add(st.id);
       prevKnit = st;
@@ -1558,13 +1595,8 @@ export function seatRing(courses, planInfo, carried = null) {
         tIdx: cell.tIdx,
       });
     }
-    const seenNeedle = new Set();
-    for (const cell of knitCells) {
-      const key = `${cell.bed}:${cell.phys}`;
-      if (seenNeedle.has(key)) fail(`${where}: ${cell.bed}${cell.phys} is knitted twice in one course`);
-      seenNeedle.add(key);
-    }
-    settleColumns(knitCells, dirSign, where);
+    const segments = rowsByLiveNeedle(knitCells);
+    for (const segment of segments) settleColumns(segment, dirSign, where);
     const start = knitCells[0];
     const end = knitCells.at(-1);
     if (prevEnd && fold) {
@@ -1588,16 +1620,21 @@ export function seatRing(courses, planInfo, carried = null) {
         );
       }
     }
-    sheet.push({
-      dir: course.dir === 0 ? "R" : "L",
-      kind: "knit",
-      course: ci,
-      cells: knitCells,
-      beds: knitBeds,
+    const dirName = course.dir === 0 ? "R" : "L";
+    segments.forEach((segment, segIndex) => {
+      const row = {
+        dir: dirName,
+        kind: "knit",
+        course: ci,
+        cells: segment,
+        beds: knitBeds,
+      };
+      if (segIndex < segments.length - 1) row.note = `${where}: ${LIVE_ROW_NOTE}`;
+      sheet.push(row);
     });
     coursesOut.push({
       course: ci,
-      dir: course.dir === 0 ? "R" : "L",
+      dir: dirName,
       start: `${start.bed}${start.phys}`,
       end: `${end.bed}${end.phys}`,
       n: knitCells.length,
@@ -1667,6 +1704,9 @@ export function seatRing(courses, planInfo, carried = null) {
  * an increase transfers when that stitch is reached, and a decrease
  * transfers when its span is knitted. Several decreases balance
  * after each one. The leftover stays on this course.
+ * A knit row ends before it would visit a live needle again. The course
+ * keeps its direction. A decrease span is moved whole onto the next row
+ * when it would reuse a needle already knitted on this row.
  */
 export function seatContinuation(courses, seeds, prevDir = null, carried = null, options = null) {
   const stitches = carried ? carried.stitches : new Map();
@@ -1746,7 +1786,7 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
         const key = `${cell.bed}:${cell.phys}`;
         if (seenNeedle.has(key)) {
           const seq = knitCells.map((c) => `${c.token}@${c.bed}${c.phys}`).join(" ");
-          fail(`${where}: ${cell.bed}${cell.phys} is knitted twice in one course (${seq})`);
+          fail(`${where}: ${cell.bed}${cell.phys} is knitted twice in one row (${seq})`);
         }
         seenNeedle.add(key);
       }
@@ -1926,6 +1966,30 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
         if (!knitBeds) knitBeds = liveWindow(stitches);
         const nDec = decAdded(cell.label);
         const isHeader = nDec && (cell.kind === "dec" || cell.kind === "wrapDec");
+        // Close this row before a cell that would knit a live needle again.
+        // A decrease span is not split: if any needle of the span is already
+        // on this row, the whole span waits for the next row.
+        if (!pastSpan && spanLeft === 0 && prefix.length) {
+          const occupied = new Set(prefix.map((item) => `${item.bed}:${item.phys}`));
+          let spanKeys = null;
+          if (isHeader) {
+            spanKeys = [];
+            let cur = st;
+            spanKeys.push(`${cur.bed}:${cur.phys}`);
+            for (let k = 0; k < nDec; k++) {
+              cur = stepCircle(cur, dirSign, stitches);
+              spanKeys.push(`${cur.bed}:${cur.phys}`);
+            }
+          }
+          const key = `${st.bed}:${st.phys}`;
+          const overlaps = spanKeys ? spanKeys.some((item) => occupied.has(item)) : occupied.has(key);
+          const spanRepeats = spanKeys ? new Set(spanKeys).size !== spanKeys.length : false;
+          if (overlaps || spanRepeats) {
+            notes.push(`${where}: ${LIVE_ROW_NOTE}`);
+            flushKnitPrefix();
+            knitBeds = liveWindow(stitches);
+          }
+        }
         // R removes the high physical end, L the low end. On the front the
         // carriage moves toward higher needles when the course goes right;
         // on the back it moves toward lower needles. The letter follows
@@ -2336,19 +2400,25 @@ export function seatContinuation(courses, seeds, prevDir = null, carried = null,
           tIdx: item.cell.tIdx,
         });
       }
-      finishKnit(knitCells);
+      const segments = rowsByLiveNeedle(knitCells);
+      for (const segment of segments) finishKnit(segment);
       const start = knitCells[0];
       const end = knitCells.at(-1);
-      sheet.push({
-        dir: course.dir === 0 ? "R" : "L",
-        kind: "knit",
-        course: ci,
-        cells: knitCells,
-        beds: knitBeds,
+      const dirName = course.dir === 0 ? "R" : "L";
+      segments.forEach((segment, segIndex) => {
+        const row = {
+          dir: dirName,
+          kind: "knit",
+          course: ci,
+          cells: segment,
+          beds: knitBeds,
+        };
+        if (segIndex < segments.length - 1) row.note = `${where}: ${LIVE_ROW_NOTE}`;
+        sheet.push(row);
       });
       coursesOut.push({
         course: ci,
-        dir: course.dir === 0 ? "R" : "L",
+        dir: dirName,
         start: `${start.bed}${start.phys}`,
         end: `${end.bed}${end.phys}`,
         n: knitCells.length,
@@ -2712,7 +2782,10 @@ export function renderReport(built) {
 
 function assertChart(built) {
   const knit = built.sheet.filter((row) => row.kind === "knit");
-  if (knit.length !== built.courses.length) fail("knit rows and course report diverged");
+  const knitCourses = [...new Set(knit.map((row) => row.course))];
+  if (knitCourses.length !== built.courses.length || built.courses.some((course, i) => knitCourses[i] !== course.course)) {
+    fail("knit rows and course report diverged");
+  }
   for (const row of built.sheet) {
     for (const cell of row.cells) {
       if (/^[FB][←→]1$/.test(cell.token)) fail(`1-needle transfer must omit the number: ${cell.token}`);
@@ -3523,6 +3596,95 @@ function selfCheckMixedCourse() {
   if (!only.sheet.some((row) => /下一课/.test(row.note || ""))) fail("decrease-only leftover is no longer the next course");
 }
 
+function cellSeq(row) {
+  return row.cells.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" ");
+}
+
+function selfCheckLiveNeedleRows() {
+  const bed14 = () => {
+    const seeds = [];
+    for (let p = 0; p <= 6; p++) seeds.push({ bed: "F", phys: p });
+    for (let p = 6; p >= 0; p--) seeds.push({ bed: "B", phys: p });
+    return seeds;
+  };
+  const lap = coursesFromTypes(Array(14).fill(0), Array(14).fill(0));
+  if (lap.length !== 1) fail("a plain lap is no longer one course");
+  const once = seatContinuation(lap, bed14(), null);
+  const onceKnit = once.sheet.filter((row) => row.kind === "knit");
+  if (once.courses.length !== 1 || onceKnit.length !== 1) fail("crossing F and B split a row that does not reuse a needle");
+  const onceSeq = cellSeq(onceKnit[0]);
+  const lapExpect = [
+    ...Array.from({ length: 7 }, (_, i) => `F·@F${i}`),
+    ...Array.from({ length: 7 }, (_, i) => `B·@B${6 - i}`),
+  ].join(" ");
+  if (onceSeq !== lapExpect) fail(`one lap is ${onceSeq}`);
+  const f6 = onceKnit[0].cells.findIndex((cell) => cell.bed === "F" && cell.phys === 6);
+  const next = onceKnit[0].cells[f6 + 1];
+  if (!next || next.bed !== "B" || next.phys !== 6) fail("F6 did not continue onto B6 in the same row");
+
+  const wrapped = coursesFromTypes(Array(15).fill(0), Array(15).fill(0));
+  if (wrapped.length !== 1 || wrapped[0].cells.length !== 15) fail("course splitter split a plain course that wraps the bed");
+  const again = seatContinuation(wrapped, bed14(), null);
+  const againKnit = again.sheet.filter((row) => row.kind === "knit");
+  if (again.courses.length !== 1 || again.courses[0].n !== 15) fail("a wrapped plain course did not stay one course");
+  if (againKnit.length !== 2) fail(`wrapped plain course drew ${againKnit.length} rows`);
+  if (cellSeq(againKnit[0]) !== lapExpect) fail(`wrapped first row is ${cellSeq(againKnit[0])}`);
+  if (cellSeq(againKnit[1]) !== "F·@F0") fail(`wrapped second row is ${cellSeq(againKnit[1])}`);
+  if (againKnit[0].course !== againKnit[1].course || againKnit[1].dir !== againKnit[0].dir) {
+    fail("the second row is not the same course and direction");
+  }
+  if (!againKnit[0].note || !againKnit[0].note.includes(LIVE_ROW_NOTE)) fail("the closed row does not say why it ended");
+
+  const fitted = coursesFromTypes([0, 0, 0, 3], [0, 0, 0, 1]);
+  if (fitted.length !== 1) fail("a decrease that fits was split into courses");
+  const fit = seatContinuation(fitted, bed14(), null);
+  const fitKnit = fit.sheet.filter((row) => row.kind === "knit");
+  if (fitKnit.length !== 1) fail(`a decrease that fits the row was split into ${fitKnit.length} rows`);
+  if (cellSeq(fitKnit[0]) !== "F·@F0 F·@F1 F·@F2 F-R1@F3 F·@F4") {
+    fail(`fitted decrease row is ${cellSeq(fitKnit[0])}`);
+  }
+
+  const seeds = [{ bed: "F", phys: 6 }];
+  for (let p = 0; p <= 5; p++) seeds.push({ bed: "F", phys: p });
+  for (let p = 6; p >= 0; p--) seeds.push({ bed: "B", phys: p });
+  const types = [...Array(13).fill(0), 3, ...Array(7).fill(0)];
+  const hangs = [...Array(13).fill(0), 1, ...Array(7).fill(0)];
+  const planned = coursesFromTypes(types, hangs);
+  if (planned.length !== 1 || planned[0].cells.length !== 22) fail("the long decrease course was split by the course parser");
+  const seated = seatContinuation(planned, seeds, 1);
+  if (seated.courses.length !== 1 || seated.courses[0].n !== 22 || seated.courses[0].course !== 0) {
+    fail("decrease leftover left the course");
+  }
+  const knits = seated.sheet.filter((row) => row.kind === "knit");
+  if (knits.length < 3) fail(`decrease course drew ${knits.length} knit rows`);
+  const first = "F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4";
+  if (cellSeq(knits[0]) !== first) fail(`row before the decrease is ${cellSeq(knits[0])}`);
+  if (knits[0].cells.some((cell) => decAdded(cell.label || ""))) fail("the decrease header stayed on the row it would reuse");
+  const decRow = knits.find((row) => row.cells.some((cell) => decAdded(cell.label || "")));
+  if (!decRow || cellSeq(decRow) !== "F-R1@F5 F·@F6") fail(`decrease span row is ${decRow ? cellSeq(decRow) : "missing"}`);
+  if (decRow.cells.some((cell) => cell.tIdx !== decRow.cells[0].tIdx)) fail("decrease span is not one term");
+  const later = knits.filter((row) => knits.indexOf(row) > knits.indexOf(decRow));
+  if (!later.length || later.some((row) => row.course !== decRow.course || row.dir !== decRow.dir)) {
+    fail("leftover after the decrease is not the same course");
+  }
+  const knitted = knits.reduce((sum, row) => sum + row.cells.length, 0);
+  if (knitted !== 22) fail(`decrease course knitted ${knitted} cells`);
+  for (const row of knits) {
+    const seen = new Set();
+    for (const cell of row.cells) {
+      const key = `${cell.bed}:${cell.phys}`;
+      if (seen.has(key)) fail(`row still knits ${cell.bed}${cell.phys} twice`);
+      seen.add(key);
+    }
+  }
+  const decAt = seated.sheet.indexOf(decRow);
+  const xfer = seated.sheet.slice(decAt + 1).find((row) => row.kind === "decrease" || row.kind === "flip");
+  const tail = later[0];
+  if (!xfer || seated.sheet.indexOf(xfer) > seated.sheet.indexOf(tail)) {
+    fail("leftover was knitted before the decrease transfer");
+  }
+}
+
 function selfCheckConsecutiveIncrease() {
   const built = buildOwnBedChart(join(root, "public/sample/increase/increase_cylinder_faces_ring_layout.json"));
   const knit = built.sheet.find((row) => row.kind === "knit" && row.course === 2 && row.dir === "R");
@@ -3609,6 +3771,7 @@ function main(argv = process.argv.slice(2)) {
   selfCheckNegativeSeat();
   selfCheckCountSeat();
   selfCheckMixedCourse();
+  selfCheckLiveNeedleRows();
   if (inputAt >= 0) {
     const input = argv[inputAt + 1];
     if (!input) fail("--input needs the faces_ring file");

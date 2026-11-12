@@ -2182,16 +2182,26 @@ assertDenseCylinderSample({
   colMax: 27,
   firstCourse: plainRightCourse(6, 6, 1),
   txt: [
-    "床图（未完成）",
-    "generation stopped at ring 8 course 2 R",
     "course 0 R  start F0  end B1  （13 针）",
+    "course 50 R  start F6  end B1  （22 针）",
     "第一环落座之后 N=13，窗 F7[0…6] / B6[1…6]。",
     "第8环结束 N=23，窗 F12[0…11] / B11[1…11]。",
+    "第9环结束 N=13，窗 F7[0…6] / B6[1…6]。",
+    "第10环结束 N=13，窗 F7[0…6] / B6[1…6]。",
+    "F^L@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4",
+    "F-R1@F5 F·@F6",
+    "F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1",
     "表宽 28",
-    "完整画到 ring 7。ring 8 只画到 course 2 抛出之前的行。",
+    "10 环都在这一张表上。",
   ],
-  status: ["前床 F0–F6", "后床 B6–B1", "表宽 28", "前八环落座 13、14、24、24、24、24、24、23", "停在 ring 8 course 2"],
+  status: ["前床 F0–F6", "后床 B6–B1", "表宽 28", "10 环落座 13、14、24、24、24、24、24、23、13、13"],
 });
+
+{
+  const fatTxt = readFileSync(join(sampleDir, "fat/fat_cylinder_bed.txt"), "utf8");
+  assert(fatTxt.includes("10 环都在这一张表上。"), "Fat Cylinder bed covers all 10 faces_ring rings");
+  assert(!fatTxt.includes("未完成") && !fatTxt.includes("generation stopped"), "Fat Cylinder bed is the finished 10-ring sheet");
+}
 
 {
   const exportAt = html.indexOf('id="export-dat"');

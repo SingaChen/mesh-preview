@@ -1121,7 +1121,7 @@ async function loadFatCylinder() {
     await loadNamedCylinder({
       manifest: "fat-cylinder.json",
       missing: "Fat Cylinder",
-      status: "Fat Cylinder · cols_resample 24 · 表宽 28 · 前床 F0–F6 · 后床 B6–B1 · 前八环落座 13、14、24、24、24、24、24、23 · 停在 ring 8 course 2",
+      status: "Fat Cylinder · cols_resample 24 · 表宽 28 · 前床 F0–F6 · 后床 B6–B1 · 10 环落座 13、14、24、24、24、24、24、23、13、13",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
