@@ -2073,21 +2073,32 @@ assertDenseCylinderSample({
   yMaxHi: 80.1,
   terms: [47, 47, 47, 47, 47, 130, 74, 28, 27, 26, 26, 25, 25, 25, 25, 25, 26, 26, 28, 34, 127, 85, 133, 141],
   cols: 69,
-  width: 52,
-  colMin: 0,
+  width: 53,
+  colMin: -1,
   colMax: 51,
   firstCourse: plainRightCourse(23, 23, 1),
   txt: [
-    "床图（未完成）",
-    "generation stopped at ring 19 course 0 R",
     "course 0 R  start F0  end B1  （47 针）",
     "第一环落座之后 N=47，窗 F24[0…23] / B23[1…23]。",
     "第19环结束 N=34，窗 F17[0…16] / B17[0…16]。",
-    "表宽 52",
-    "完整画到 ring 18。ring 19 只画到 course 0 抛出之前的行。",
+    "第20环结束 N=38，窗 F19[0…18] / B19[0…18]。",
+    "第24环结束 N=47，窗 F24[0…23] / B23[1…23]。",
+    "course 69: rack B +1 so the right fold can flip one stitch (F17[0…16] / B21[-4…16] → F17[0…16] / B21[-3…17]).",
+    "course 69: right-fold flip B17→F17 (same index).",
+    "course 69: rack B +1 so the right fold can flip one stitch (F18[0…17] / B20[-2…17] → F18[0…17] / B20[-1…18]).",
+    "course 69: right-fold flip B18→F18 (same index).",
+    "course 69: counts match and the beds are one needle apart. Rack B +1 (F19[0…18] / B19[-1…17] → F19[0…18] / B19[0…18]).",
+    "表宽 53",
+    "24 环都在这一张表上。",
   ],
-  status: ["前床 F0–F23", "后床 B23–B1", "表宽 52", "前19环落座 47、47、47、47、47、46、36、28、27、26、26、25、25、25、25、26、26、28、34", "停在 ring 19 course 0"],
+  status: ["前床 F0–F23", "后床 B23–B1", "表宽 53", "24 环落座 47、47、47、47、47、46、36、28、27、26、26、25、25、25、25、26、26、28、34、38、46、47、47、47"],
 });
+
+{
+  const denseThinTxt = readFileSync(join(sampleDir, "dense-thin/dense_thin_cylinder_bed.txt"), "utf8");
+  assert(denseThinTxt.includes("24 环都在这一张表上。"), "Dense Thin Cylinder bed covers all 24 faces_ring rings");
+  assert(!denseThinTxt.includes("未完成") && !denseThinTxt.includes("generation stopped"), "Dense Thin Cylinder bed is the finished 24-ring sheet");
+}
 
 {
   const thinTxt = readFileSync(join(sampleDir, "thin/thin_cylinder_bed.txt"), "utf8");

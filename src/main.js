@@ -1157,7 +1157,7 @@ async function loadDenseThinCylinder() {
     await loadNamedCylinder({
       manifest: "dense-thin-cylinder.json",
       missing: "Dense Thin Cylinder",
-      status: "Dense Thin Cylinder · cols_resample 69 · 表宽 52 · 前床 F0–F23 · 后床 B23–B1 · 前19环落座 47、47、47、47、47、46、36、28、27、26、26、25、25、25、25、26、26、28、34 · 停在 ring 19 course 0",
+      status: "Dense Thin Cylinder · cols_resample 69 · 表宽 53 · 前床 F0–F23 · 后床 B23–B1 · 24 环落座 47、47、47、47、47、46、36、28、27、26、26、25、25、25、25、26、26、28、34、38、46、47、47、47",
     });
   } catch (err) {
     setStatus(err.message || String(err), true);
