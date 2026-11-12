@@ -1,6 +1,4 @@
-fat_cylinder_faces_ring_layout.json step4 床图（未完成）
-generation stopped at ring 8 course 2 R (faces-ring0-step4: course 2: F6 is knitted twice in one course (F^L@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F-R1@F5 F·@F6)).
-这一张表只含抛出之前已经画出的行。失败之后的平衡和后面的环都没有补。
+fat_cylinder_faces_ring_layout.json step4 床图
 输入只有 fat_cylinder_faces_ring_layout.json 的 rings（types 和 hangs）。每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。加减针数是该项的 n_extra。
 Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。
 底圈 N=13，拆成 F=7、B=6。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
@@ -12,9 +10,10 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
 第六环结束 N=24，窗 F12[0…11] / B12[0…11]。
 第七环结束 N=24，窗 F12[0…11] / B12[0…11]。
 第8环结束 N=23，窗 F12[0…11] / B11[1…11]。
-生成停在 ring 8 course 2，平衡之前 N=13，窗 F6[0…5] / B7[0…6]。
+第9环结束 N=13，窗 F7[0…6] / B6[1…6]。
+第10环结束 N=13，窗 F7[0…6] / B6[1…6]。
 针号是 F# / B#。表宽 28，由占用列最宽的一课决定：course 2 R 占 24 列，跨度 28。前床列 = 物理针，后床列 = 23 − 物理针。短课中间可以空。
-完整画到 ring 7。ring 8 只画到 course 2 抛出之前的行。
+10 环都在这一张表上。每一环都用这一份 faces_ring 自己落座的针。
 
 行程（织行）起点针、终点针：
   course 0 R  start F0  end B1  （13 针）
@@ -67,6 +66,8 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   course 47 R  start B2  end B1  （2 针）
   course 48 R  start F0  end F4  （8 针）
   course 49 L  start F4  end F6  （19 针）
+  course 50 R  start F6  end B1  （22 针）
+  course 51 R  start F0  end B1  （13 针）
 
 表行（格子按织的顺序，不是按表列从左到右）：
   row 0 R  这一行开始时 0针 · 前空 · 后空
@@ -319,6 +320,26 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   row 98 L  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
     FvL@F6
     course 49: 平衡之后的下一课，从 F6 织到 F6。
+  row 99 R  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    F^L@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4
+    course 50: 同一课继续会重复这一行里的活针，先结束这一行。
+  row 100 R  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    F-R1@F5 F·@F6
+    course 50: 先织到减针最后一格。减 1 针占 2 格，都是减针色：F-R1@F5 F·@F6。然后从 F6 起移 1 次（F6 套到 F5）。移圈一结束就平衡床位。 剩下的针是下一课，针号等平衡之后再数。
+  row 101 X  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    F←@F6
+    course 50: 第 1 次移圈从 F6 起。F6 套到 F5。都套上第一格 F5，第一格不是移圈源。
+  row 102 Flip  这一行开始时 F6[0…5] / B7[0…6]
+    ⬇@B6
+    course 50: right-fold flip B6→F6 (same index).
+  row 103 X  这一行开始时 F7[0…6] / B6[0…5]
+    B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 50: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F7[0…6] / B6[1…6]).
+  row 104 R  这一行开始时 13针 · 前7[0…6] · 后6[1…6]
+    F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+    course 50: 平衡之后的下一课，从 F6 织到 B1。
+  row 105 R  这一行开始时 13针 · 前7[0…6] · 后6[1…6]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
 
 每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。
 第一环 加减针 hang（n_extra）：无。
@@ -337,6 +358,8 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
 第七环里没有 hang 不是 1 的项。
 第8环 加减针 hang（n_extra）：term 253 Type 3 hang 1。
 第8环里没有 hang 不是 1 的项。
-第9环 加减针 hang（n_extra）：term 283 Type 3 hang 1，term 284 Type 3 hang 1，term 285 Type 5 hang 1，term 291 Type 3 hang 1，term 293 Type 3 hang 1，term 294 Type 3 hang 1，term 295 Type 3 hang 1，term 296 Type 3 hang 1，term 297 Type 3 hang 1。
+第9环 加减针 hang（n_extra）：term 283 Type 3 hang 1，term 284 Type 3 hang 1，term 285 Type 5 hang 1，term 291 Type 3 hang 1，term 293 Type 3 hang 1，term 294 Type 3 hang 1，term 295 Type 3 hang 1，term 296 Type 3 hang 1，term 297 Type 3 hang 1，term 312 Type 3 hang 1。
 第9环里没有 hang 不是 1 的项。
-其余 280 项不是加减针，hang 为 0。
+第10环 加减针 hang（n_extra）：无。
+第10环里没有 hang 不是 1 的项。
+其余 313 项不是加减针，hang 为 0。
