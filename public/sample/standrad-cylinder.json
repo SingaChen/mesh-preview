@@ -10,7 +10,8 @@
       "field": "cylinder/standrad_cylinder_cols_resample_field.obj",
       "colsResample": "cylinder/standrad_cylinder_cols_resample_field.obj",
       "colsResampleXls": "cylinder/standrad_cylinder_cols_resample.xls",
-      "facesRingLayout": "cylinder/standrad_cylinder_rings.json"
+      "facesRingLayout": "cylinder/standrad_cylinder_rings.json",
+      "knitCode": "cylinder/standrad_cylinder_knitcode.json"
     }
   ]
 }

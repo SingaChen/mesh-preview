@@ -67,6 +67,7 @@ import {
   stitchForMapCell,
   tokenKind,
 } from "../src/readable-map.js";
+import { KNIT_CODE_CAPTION, describeKnitCell, knitCodeInk, parseKnitCode } from "../src/knit-code.js";
 import { excelBedsWidth, hitTestContent, MAP_BEDS_W, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import {
@@ -427,6 +428,7 @@ assert(readableMapRank("iteration_0_cut_readable_map_step3_xfer.xls") > readable
     "folder discovery keeps the iteration 0 stitchmesh",
   );
   assert(/step4_ring0\.xls$/i.test(onDisk.outputs[0].readableMapFile?.name || ""), "folder discovery prefers step4-ring0 when beds and step3 are also present");
+  assert(!onDisk.outputs[0].knitCodeFile, "folder discovery does not attach Standrad knitting code to Bunny");
   assert(
     !/standrad_cylinder_readable_map\.txt$/i.test(onDisk.outputs[0].readableMapTxtFile?.name || ""),
     "folder discovery does not swap in the Standrad Cylinder readable_map",
@@ -1202,6 +1204,7 @@ assert(
       rels.includes("cylinder/standrad_cylinder_bed.xls") &&
       rels.includes("cylinder/standrad_cylinder_cols_resample_field.obj") &&
       rels.includes("cylinder/standrad_cylinder_cols_resample.xls") &&
+      rels.includes("cylinder/standrad_cylinder_knitcode.json") &&
       !rels.some((rel) => /step4|knitout|\.dat$|faces_ring0_step4_bed/i.test(rel)),
     "Standrad Cylinder does not reference the faces-ring sheet or knitout",
   );
@@ -1222,10 +1225,55 @@ assert(
       /standrad_cylinder_readable_map\.txt$/i.test(out.readableMapTxtFile?.name || "") &&
       /standrad_cylinder_cols_resample_field\.obj$/i.test(out.colsResampleFile?.name || "") &&
       /standrad_cylinder_cols_resample\.xls$/i.test(out.colsResampleXlsFile?.name || "") &&
+      /standrad_cylinder_knitcode\.json$/i.test(out.knitCodeFile?.name || "") &&
       !out.firstRowsFile &&
       !out.stitchMapBindFile,
-    "Standrad Cylinder uses its own bed chart and cols_resample, not the cylinder sheets",
+    "Standrad Cylinder uses its own bed chart, cols_resample, and knitting code, not the cylinder sheets",
   );
+  const knit = parseKnitCode(JSON.parse(readFileSync(join(cylDir, "standrad_cylinder_knitcode.json"), "utf8")));
+  const knitFront = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+  const knitBack = [0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+  assert(
+    knit?.model === "Standrad Cylinder" &&
+      knit.rows.length === 14 &&
+      knit.needles.length === 13 &&
+      knit.needles.every((n, i) => n === i) &&
+      knit.colors[0] === "#000000" &&
+      knit.colors[1] === "#FF0000" &&
+      knit.colors[2] === "#00FF00" &&
+      knit.rows[0].label === "第1环 前床  F0→F12" &&
+      knit.rows[1].label === "第1环 后床  B12→B1" &&
+      knit.rows.every((row, i) => row.cells.every((code, col) => code === (i % 2 === 0 ? knitFront : knitBack)[col])),
+    "Standrad knitting code is the accepted 14×13 plain-tube matrix",
+  );
+  assert(
+    knitCodeInk(1, knit.colors).label === "1" &&
+      knitCodeInk(1, knit.colors).fill === "#FF0000" &&
+      knitCodeInk(1, knit.colors).text === "#ffffff" &&
+      knitCodeInk(2, knit.colors).label === "2" &&
+      knitCodeInk(2, knit.colors).fill === "#00FF00" &&
+      knitCodeInk(2, knit.colors).text === "#111111" &&
+      knitCodeInk(0, knit.colors).label === "" &&
+      knitCodeInk(0, knit.colors).fill === "#000000",
+    "knitting-code cells use the Tiffany DAT colors, and empty 0 stays blank",
+  );
+  assert(
+    describeKnitCell(knit, 0, 0) === "第1环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
+      describeKnitCell(knit, 1, 0) === "第1环 后床  B12→B1 · 物理针 0 · 0 空针" &&
+      describeKnitCell(knit, 1, 12) === "第1环 后床  B12→B1 · 物理针 12 · 2 后床平针",
+    "a knitting-code cell names its pass, physical needle, and code",
+  );
+  assert(parseKnitCode({ matrix: [] }) == null && parseKnitCode({ matrix: [[3]] }) == null, "a knitting-code file without the accepted codes does not render");
+  assert(KNIT_CODE_CAPTION.includes("空位为 0") && KNIT_CODE_CAPTION.includes("0–12"), "knitting-code caption matches the accepted table");
+  assert(!fromManifest.outputs[0].knitCodeFile, "Bunny has no knitting-code table");
+  for (const name of readdirSync(sampleDir).filter((item) => item.endsWith(".json") && item !== "standrad-cylinder.json")) {
+    const sheet = JSON.parse(readFileSync(join(sampleDir, name), "utf8"));
+    if (!sheet?.outputs) continue;
+    assert(
+      !collectManifestRefs(sheet).some((rel) => /knitcode|knit_code|knitting/i.test(rel)),
+      `${name} does not publish a knitting-code table`,
+    );
+  }
   const bed = parseReadableMap(readFileSync(join(cylDir, "standrad_cylinder_readable_map.txt"), "utf8"));
   assert(
     bed.header?.rows === 7 &&
@@ -1680,6 +1728,10 @@ assert(html.includes('id="map-pane"') && html.includes('id="map-canvas"'), "righ
 }
 assert(mainSrc.includes("setShowKnitBed") && mainSrc.includes("knitBedsByFace") && mainSrc.includes("#toggle-knit-bed"), "main wires the knit-bed switch from the loaded sheet");
 assert(viewerSrc.includes("showKnitBed = false") && viewerSrc.includes("KNIT_BED_RGB") && viewerSrc.includes('bed === "FB"'), "viewer recolors stitches by knit bed only while the switch is on");
+assert(html.includes('id="map-mode-readable"') && html.includes('id="map-mode-knit"') && html.includes("生长图") && html.includes("编织码"), "map panel toggles between the readable map and knitting code");
+assert(/id="map-mode-readable"[^>]*aria-pressed="true"/.test(html), "readable map is the default panel mode");
+assert(/id="map-mode-knit"[^>]*disabled/.test(html), "knitting code starts unavailable");
+assert(mainSrc.includes('mapMode = "readable"') && mainSrc.includes("此 sheet 暂无编织码") && mainSrc.includes("parseKnitCode"), "opening a sheet stays on the readable map and disables knitting code when the sheet has none");
 assert(html.includes('id="map-phys"') && html.includes("物理针"), "map toolbar has a physical-needle toggle");
 assert(/id="map-phys"[^>]*aria-pressed="false"/.test(html), "physical-needle toggle starts off");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
