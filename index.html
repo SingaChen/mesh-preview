@@ -87,8 +87,12 @@
           <section class="map-pane" id="map-pane" hidden>
             <div class="map-toolbar">
               <div class="map-title">
-                <strong>生长图 <span class="en">Map</span></strong>
+                <strong id="map-heading">生长图 <span class="en">Map</span></strong>
                 <span id="map-meta">readable_map</span>
+              </div>
+              <div class="map-mode" role="group" aria-label="生长图或编织码">
+                <button class="btn toggle" id="map-mode-readable" type="button" aria-pressed="true" title="readable map">生长图 <span class="en">Map</span></button>
+                <button class="btn toggle" id="map-mode-knit" type="button" aria-pressed="false" disabled title="此 sheet 暂无编织码">编织码 <span class="en">Code</span></button>
               </div>
               <div class="map-zoom">
                 <button class="fit" id="map-zoom-out" type="button" title="Zoom out">−</button>
@@ -98,6 +102,15 @@
               </div>
             </div>
             <canvas id="map-canvas"></canvas>
+            <div class="knit-code" id="knit-code" hidden>
+              <div class="knit-head">
+                <strong id="knit-title"></strong>
+                <p id="knit-note"></p>
+                <div class="knit-legend" id="knit-legend"></div>
+                <p class="knit-detail" id="knit-detail" aria-live="polite"></p>
+              </div>
+              <div class="knit-scroll" id="knit-scroll"></div>
+            </div>
             <p class="map-empty" id="map-empty" hidden>无生长图 / No readable_map</p>
           </section>
         </div>

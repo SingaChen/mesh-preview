@@ -180,6 +180,7 @@ export function projectFromManifest(data, index, manifestPath = "") {
         firstRowsFile: null,
         facesRingLayoutFile: null,
         stitchMapBindFile: null,
+        knitCodeFile: null,
         columnExtract: true,
         columnsPolylineFile,
         columnsTypeFile,
@@ -252,6 +253,11 @@ export function projectFromManifest(data, index, manifestPath = "") {
     if (bindRef && !stitchMapBindFile) {
       warnings.push(`缺少针迹绑定 / Missing stitch_map_bind: ${bindRef}`);
     }
+    const knitRef = raw.knitCode || raw.knit_code || raw.knittingCode || raw.knitting_code;
+    const knitCodeFile = knitRef ? lookup(index, knitRef, fromDir) : null;
+    if (knitRef && !knitCodeFile) {
+      warnings.push(`缺少编织码 / Missing knitting code: ${knitRef}`);
+    }
     outputs.push({
       label: raw.label || basename(meshFile.path),
       meshFile,
@@ -265,6 +271,7 @@ export function projectFromManifest(data, index, manifestPath = "") {
       firstRowsFile,
       facesRingLayoutFile,
       stitchMapBindFile,
+      knitCodeFile,
     });
   }
 
@@ -304,6 +311,7 @@ export function projectFromDiscovery(index) {
       firstRowsFile: findFirstRowsXls(index, meshFile),
       facesRingLayoutFile: findFacesRingLayout(index, meshFile),
       stitchMapBindFile: findStitchMapBind(index, meshFile),
+      knitCodeFile: null,
     };
   });
 
@@ -350,6 +358,7 @@ function columnExtractOutput(index, polyline, label) {
     firstRowsFile: null,
     facesRingLayoutFile: null,
     stitchMapBindFile: null,
+    knitCodeFile: null,
     columnExtract: true,
     columnsPolylineFile: polyline,
     columnsTypeFile: siblingFile(index.objs, polyline, isColumnTypeObjName),

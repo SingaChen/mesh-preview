@@ -72,6 +72,7 @@ import {
   stitchForMapCell,
 } from "./readable-map.js";
 import { ReadableMapView } from "./map-view.js";
+import { KNIT_CODE_CAPTION, KNIT_CODE_LEGEND, describeKnitCell, knitCodeInk, parseKnitCode } from "./knit-code.js";
 import { NO_DAT_TITLE, datForSheet } from "./sheet-dat.js";
 
 const canvas = document.querySelector("#viewport");
@@ -148,6 +149,15 @@ const mapZoomIn = document.querySelector("#map-zoom-in");
 const mapZoomOut = document.querySelector("#map-zoom-out");
 const mapFitBtn = document.querySelector("#map-fit");
 const mapPhysBtn = document.querySelector("#map-phys");
+const mapHeading = document.querySelector("#map-heading");
+const mapModeReadable = document.querySelector("#map-mode-readable");
+const mapModeKnit = document.querySelector("#map-mode-knit");
+const knitCodeEl = document.querySelector("#knit-code");
+const knitTitle = document.querySelector("#knit-title");
+const knitNote = document.querySelector("#knit-note");
+const knitLegend = document.querySelector("#knit-legend");
+const knitDetail = document.querySelector("#knit-detail");
+const knitScroll = document.querySelector("#knit-scroll");
 
 const viewer = new MeshViewer(canvas);
 const mapView = mapCanvas ? new ReadableMapView(mapCanvas) : null;
@@ -165,6 +175,8 @@ let columnColorMode = "type";
 let pickedStitch = null;
 let showPhysNeedle = false;
 let physPickKeys = null;
+let mapMode = "readable";
+let knitRenderKey = null;
 const geomCache = new Map();
 const textCache = new Map();
 
@@ -459,6 +471,17 @@ async function loadReadableMap(output) {
   return loadExcelOrTxtMap(output.readableMapTxtFile);
 }
 
+async function loadKnitCode(output) {
+  if (!output?.knitCodeFile) return null;
+  try {
+    const text = await loadText(output.knitCodeFile);
+    if (!text) return null;
+    return parseKnitCode(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
 async function loadStitches(output) {
   const stitchEntry = output.stitchFile || output.overlayFile;
   const mapEntry = output.readableMapFile;
@@ -750,6 +773,8 @@ async function showOutput(index, { fit = false } = {}) {
   outputIndex = Math.min(Math.max(0, index), project.outputs.length - 1);
   const output = project.outputs[outputIndex];
   scene = null;
+  mapMode = "readable";
+  knitRenderKey = null;
   paintStitchPick(null);
   setStatus("加载中 / Loading…");
   try {
@@ -800,6 +825,7 @@ async function showOutput(index, { fit = false } = {}) {
     }
 
     const readableMap = stitches?.map || (await loadReadableMap(output));
+    const knitCode = output.columnExtract ? null : await loadKnitCode(output);
     viewer.setKnitBeds(knitBedsByFace(readableMap));
     scene = {
       models,
@@ -814,6 +840,7 @@ async function showOutput(index, { fit = false } = {}) {
       prevActiveRing: null,
       cutName,
       readableMap,
+      knitCode,
     };
     paintReadableMap();
 
@@ -1384,6 +1411,127 @@ function stoppedMapSuffix(map) {
   return ` · 停在 ring ${hit[1]} course ${hit[2]}（后床低于 0，规则等 Singa）`;
 }
 
+function renderKnitCode(knit) {
+  if (!knitScroll || !knit) return;
+  if (knitTitle) knitTitle.textContent = `${knit.model || "Knitting"} knitting code`;
+  if (knitNote) knitNote.textContent = KNIT_CODE_CAPTION;
+  if (knitLegend) {
+    knitLegend.replaceChildren();
+    for (const item of KNIT_CODE_LEGEND) {
+      const span = document.createElement("span");
+      span.className = "knit-swatch-item";
+      const swatch = document.createElement("i");
+      swatch.className = "knit-swatch";
+      swatch.style.background = knitCodeInk(item.code, knit.colors).fill;
+      span.append(swatch, document.createTextNode(item.name));
+      knitLegend.append(span);
+    }
+  }
+  if (knitDetail) knitDetail.textContent = "点一格查看这一针";
+  const table = document.createElement("table");
+  table.className = "knit-grid";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const [className, text] of [
+    ["idx", "行"],
+    ["desc", "说明"],
+  ]) {
+    const th = document.createElement("th");
+    th.className = className;
+    th.textContent = text;
+    headRow.append(th);
+  }
+  for (const needle of knit.needles) {
+    const th = document.createElement("th");
+    th.textContent = String(needle);
+    headRow.append(th);
+  }
+  thead.append(headRow);
+  const tbody = document.createElement("tbody");
+  knit.rows.forEach((row, rowIndex) => {
+    const tr = document.createElement("tr");
+    const idx = document.createElement("td");
+    idx.className = "idx";
+    idx.textContent = String(row.index);
+    const desc = document.createElement("td");
+    desc.className = "desc";
+    desc.textContent = row.label;
+    tr.append(idx, desc);
+    row.cells.forEach((code, needleIndex) => {
+      const td = document.createElement("td");
+      const ink = knitCodeInk(code, knit.colors);
+      const detail = describeKnitCell(knit, rowIndex, needleIndex);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "knit-cell";
+      button.style.background = ink.fill;
+      button.style.color = ink.text;
+      button.textContent = ink.label;
+      button.title = detail;
+      button.setAttribute("aria-label", detail);
+      button.setAttribute("aria-pressed", "false");
+      button.addEventListener("click", () => {
+        for (const cell of table.querySelectorAll(".knit-cell[aria-pressed='true']")) {
+          cell.setAttribute("aria-pressed", "false");
+        }
+        button.setAttribute("aria-pressed", "true");
+        if (knitDetail) knitDetail.textContent = detail;
+      });
+      td.append(button);
+      tr.append(td);
+    });
+    tbody.append(tr);
+  });
+  table.append(thead, tbody);
+  knitScroll.replaceChildren(table);
+  knitRenderKey = knit;
+}
+
+function paintMapChrome() {
+  const knit = scene?.knitCode;
+  const hasKnit = Boolean(knit?.rows?.length);
+  if (!hasKnit) mapMode = "readable";
+  const showingKnit = mapMode === "knit" && hasKnit;
+  if (mapModeReadable) pressed(mapModeReadable, !showingKnit);
+  if (mapModeKnit) {
+    mapModeKnit.disabled = !hasKnit;
+    mapModeKnit.title = hasKnit ? "knitting code" : "此 sheet 暂无编织码";
+    pressed(mapModeKnit, showingKnit);
+  }
+  mapPane?.classList.toggle("show-knit-code", showingKnit);
+  if (knitCodeEl) knitCodeEl.hidden = !showingKnit;
+  for (const btn of [mapZoomIn, mapZoomOut, mapFitBtn, mapPhysBtn]) {
+    if (btn) btn.disabled = showingKnit;
+  }
+  if (mapHeading) {
+    mapHeading.replaceChildren();
+    mapHeading.append(document.createTextNode(showingKnit ? "编织码 " : "生长图 "));
+    const en = document.createElement("span");
+    en.className = "en";
+    en.textContent = showingKnit ? "Code" : "Map";
+    mapHeading.append(en);
+  }
+  if (showingKnit) {
+    if (knitRenderKey !== knit) renderKnitCode(knit);
+    const first = knit.needles[0];
+    const last = knit.needles[knit.needles.length - 1];
+    if (mapMeta) mapMeta.textContent = `${knit.rows.length} 行 · 针 ${first}…${last}`;
+  }
+}
+
+function setMapMode(mode) {
+  const next = mode === "knit" && scene?.knitCode?.rows?.length ? "knit" : "readable";
+  if (next === mapMode) return;
+  mapMode = next;
+  paintMapChrome();
+  if (next === "readable") {
+    requestAnimationFrame(() => {
+      paintReadableMap();
+      mapView?.resize();
+    });
+  }
+}
+
 function paintReadableMap() {
   const map = scene?.readableMap;
   const hasMap = Boolean(map?.rows?.length || map?.cells?.length);
@@ -1395,6 +1543,7 @@ function paintReadableMap() {
   if (!hasMap) {
     mapView?.clear();
     if (mapMeta) mapMeta.textContent = "readable_map";
+    paintMapChrome();
     syncPaneLayout();
     return;
   }
@@ -1411,6 +1560,7 @@ function paintReadableMap() {
           : `${map.rows.length} rows · ${map.cells.length} cells`;
   }
   paintMapHighlight();
+  paintMapChrome();
   syncPaneLayout();
   requestAnimationFrame(() => {
     mapView?.resize();
@@ -1504,6 +1654,11 @@ mapZoomOut?.addEventListener("click", () => {
 mapFitBtn?.addEventListener("click", () => {
   mapView?.resize();
   mapView?.fit({ overview: true });
+});
+mapModeReadable?.addEventListener("click", () => setMapMode("readable"));
+mapModeKnit?.addEventListener("click", () => {
+  if (mapModeKnit.disabled) return;
+  setMapMode("knit");
 });
 mapPhysBtn?.addEventListener("click", () => {
   showPhysNeedle = mapPhysBtn.getAttribute("aria-pressed") !== "true";
