@@ -72,7 +72,15 @@ import {
   stitchForMapCell,
 } from "./readable-map.js";
 import { ReadableMapView } from "./map-view.js";
-import { KNIT_CODE_CAPTION, KNIT_CODE_LEGEND, describeKnitCell, knitCodeInk, parseKnitCode } from "./knit-code.js";
+import {
+  describeKnitCell,
+  knitCodeCaption,
+  knitCodeDisplayRows,
+  knitCodeInitialScrollTop,
+  knitCodeInk,
+  knitCodeLegend,
+  parseKnitCode,
+} from "./knit-code.js";
 import { NO_DAT_TITLE, datForSheet } from "./sheet-dat.js";
 
 const canvas = document.querySelector("#viewport");
@@ -1414,10 +1422,10 @@ function stoppedMapSuffix(map) {
 function renderKnitCode(knit) {
   if (!knitScroll || !knit) return;
   if (knitTitle) knitTitle.textContent = `${knit.model || "Knitting"} knitting code`;
-  if (knitNote) knitNote.textContent = KNIT_CODE_CAPTION;
+  if (knitNote) knitNote.textContent = knitCodeCaption(knit);
   if (knitLegend) {
     knitLegend.replaceChildren();
-    for (const item of KNIT_CODE_LEGEND) {
+    for (const item of knitCodeLegend(knit)) {
       const span = document.createElement("span");
       span.className = "knit-swatch-item";
       const swatch = document.createElement("i");
@@ -1448,7 +1456,8 @@ function renderKnitCode(knit) {
   }
   thead.append(headRow);
   const tbody = document.createElement("tbody");
-  knit.rows.forEach((row, rowIndex) => {
+  // Last course at the top, first ring at the bottom. Data order is unchanged.
+  for (const { row, rowIndex } of knitCodeDisplayRows(knit)) {
     const tr = document.createElement("tr");
     const idx = document.createElement("td");
     idx.className = "idx";
@@ -1481,10 +1490,21 @@ function renderKnitCode(knit) {
       tr.append(td);
     });
     tbody.append(tr);
-  });
+  }
   table.append(thead, tbody);
   knitScroll.replaceChildren(table);
   knitRenderKey = knit;
+  pinKnitCodeScroll();
+}
+
+function pinKnitCodeScroll() {
+  if (!knitScroll) return;
+  const pin = () => {
+    knitScroll.scrollTop = knitCodeInitialScrollTop(knitScroll.scrollHeight, knitScroll.clientHeight);
+  };
+  pin();
+  requestAnimationFrame(pin);
+  document.fonts?.ready?.then(pin);
 }
 
 function paintMapChrome() {
