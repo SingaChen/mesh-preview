@@ -67,7 +67,17 @@ import {
   stitchForMapCell,
   tokenKind,
 } from "../src/readable-map.js";
-import { KNIT_CODE_CAPTION, describeKnitCell, knitCodeInk, parseKnitCode } from "../src/knit-code.js";
+import {
+  KNIT_CODE_CAPTION,
+  KNIT_CODE_LEGEND,
+  describeKnitCell,
+  knitCodeCaption,
+  knitCodeDisplayRows,
+  knitCodeInitialScrollTop,
+  knitCodeInk,
+  knitCodeLegend,
+  parseKnitCode,
+} from "../src/knit-code.js";
 import { excelBedsWidth, hitTestContent, MAP_BEDS_W, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import {
@@ -1265,12 +1275,37 @@ assert(
   );
   assert(parseKnitCode({ matrix: [] }) == null && parseKnitCode({ matrix: [[3]] }) == null, "a knitting-code file without the accepted codes does not render");
   assert(KNIT_CODE_CAPTION.includes("空位为 0") && KNIT_CODE_CAPTION.includes("0–12"), "knitting-code caption matches the accepted table");
+  const standradShown = knitCodeDisplayRows(knit);
+  assert(
+    knit.rows[0].label === "第1环 前床  F0→F12" &&
+      standradShown.length === 14 &&
+      standradShown[0].rowIndex === 13 &&
+      standradShown[0].row.label === "第7环 后床  B12→B1" &&
+      standradShown[13].row === knit.rows[0] &&
+      standradShown[13].rowIndex === 0 &&
+      knit.rows.every((row, index) => standradShown[13 - index].row === row),
+    "Standrad knitting code stays chronological in data and is drawn with the first ring at the bottom",
+  );
+  assert(
+    knitCodeCaption(knit) === KNIT_CODE_CAPTION &&
+      knitCodeLegend(knit).map((item) => `${item.code}:${item.name}`).join("|") ===
+        KNIT_CODE_LEGEND.map((item) => `${item.code}:${item.name}`).join("|"),
+    "Standrad caption and legend still name needles 0–12 and the empty B0",
+  );
+  assert(
+    knitCodeInitialScrollTop(400, 400) === 0 &&
+      knitCodeInitialScrollTop(900, 400) === 500 &&
+      knitCodeInitialScrollTop(100, 0) === 100,
+    "a tall knitting-code table opens scrolled to the first rings at the bottom",
+  );
   assert(!fromManifest.outputs[0].knitCodeFile, "Bunny has no knitting-code table");
-  for (const name of readdirSync(sampleDir).filter((item) => item.endsWith(".json") && item !== "standrad-cylinder.json")) {
+  for (const name of readdirSync(sampleDir).filter(
+    (item) => item.endsWith(".json") && item !== "standrad-cylinder.json" && item !== "dense-standrad-cylinder.json",
+  )) {
     const sheet = JSON.parse(readFileSync(join(sampleDir, name), "utf8"));
     if (!sheet?.outputs) continue;
     assert(
-      !collectManifestRefs(sheet).some((rel) => /knitcode|knit_code|knitting/i.test(rel)),
+      !collectManifestRefs(sheet).some((rel) => /knitcode|knit_code|knitting_code|knittingcode/i.test(rel)),
       `${name} does not publish a knitting-code table`,
     );
   }
@@ -1732,6 +1767,14 @@ assert(html.includes('id="map-mode-readable"') && html.includes('id="map-mode-kn
 assert(/id="map-mode-readable"[^>]*aria-pressed="true"/.test(html), "readable map is the default panel mode");
 assert(/id="map-mode-knit"[^>]*disabled/.test(html), "knitting code starts unavailable");
 assert(mainSrc.includes('mapMode = "readable"') && mainSrc.includes("此 sheet 暂无编织码") && mainSrc.includes("parseKnitCode"), "opening a sheet stays on the readable map and disables knitting code when the sheet has none");
+assert(
+  mainSrc.includes("knitCodeDisplayRows") &&
+    mainSrc.includes("knitCodeInitialScrollTop") &&
+    mainSrc.includes("knitCodeCaption") &&
+    mainSrc.includes("knitCodeLegend") &&
+    mainSrc.includes("pinKnitCodeScroll"),
+  "every knitting-code table is drawn bottom-up and opens on the first rings",
+);
 assert(html.includes('id="map-phys"') && html.includes("物理针"), "map toolbar has a physical-needle toggle");
 assert(/id="map-phys"[^>]*aria-pressed="false"/.test(html), "physical-needle toggle starts off");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
@@ -1834,8 +1877,9 @@ assert(
       rels.includes("dense-standrad/dense_standrad_cylinder_cols_resample.xls") &&
       rels.includes("dense-standrad/dense_standrad_cylinder_faces_ring_layout.json") &&
       rels.includes("dense-standrad/dense_standrad_cylinder_bed.xls") &&
+      rels.includes("dense-standrad/dense_standrad_cylinder_knitcode.json") &&
       !/knitout|faces_ring0|\/standrad_cylinder|increase_cylinder|decrease_cylinder|thin_cylinder|fat_cylinder|readable_map/i.test(rels),
-    "Dense Standrad Cylinder binds its own stitchmesh, cols_resample, faces ring, and bed chart",
+    "Dense Standrad Cylinder binds its own stitchmesh, cols_resample, faces ring, bed chart, and knitting code",
   );
   const denseDir = join(sampleDir, "dense-standrad");
   const entries = [
@@ -1858,8 +1902,54 @@ assert(
   assert(
     /dense_standrad_cylinder_cols_resample_field\.obj$/i.test(out.colsResampleFile?.name || "") &&
       /dense_standrad_cylinder_cols_resample\.xls$/i.test(out.colsResampleXlsFile?.name || "") &&
-      /dense_standrad_cylinder_faces_ring_layout\.json$/i.test(out.facesRingLayoutFile?.name || ""),
-    "Dense Standrad Cylinder uses its own cols_resample field, xls, and faces ring",
+      /dense_standrad_cylinder_faces_ring_layout\.json$/i.test(out.facesRingLayoutFile?.name || "") &&
+      /dense_standrad_cylinder_knitcode\.json$/i.test(out.knitCodeFile?.name || ""),
+    "Dense Standrad Cylinder uses its own cols_resample field, xls, faces ring, and knitting code",
+  );
+  const denseKnitPath = join(denseDir, "dense_standrad_cylinder_knitcode.json");
+  assert(
+    createHash("sha256").update(readFileSync(denseKnitPath)).digest("hex") ===
+      "4a5d95b0f6c0406c2fa7669c2d00690b3b2882e5825acf7c6d9ad7bdcd504754",
+    "Dense Standrad knitting code bytes stay the accepted table",
+  );
+  const denseKnit = parseKnitCode(JSON.parse(readFileSync(denseKnitPath, "utf8")));
+  const denseShown = knitCodeDisplayRows(denseKnit);
+  assert(
+    denseKnit?.model === "Dense Standrad Cylinder" &&
+      denseKnit.rows.length === 30 &&
+      denseKnit.needles.length === 25 &&
+      denseKnit.needles.every((n, i) => n === i) &&
+      denseKnit.colors[0] === "#000000" &&
+      denseKnit.colors[1] === "#FF0000" &&
+      denseKnit.colors[2] === "#00FF00" &&
+      denseKnit.rows[0].label === "第1环 前床  F0→F24" &&
+      denseKnit.rows[1].label === "第1环 后床  B24→B0" &&
+      denseKnit.rows[29].label === "第15环 后床  B24→B0" &&
+      denseKnit.rows.every((row, i) => row.cells.length === 25 && row.cells.every((code) => code === (i % 2 === 0 ? 1 : 2))) &&
+      !denseKnit.rows.some((row) => row.cells.includes(0)),
+    "Dense Standrad knitting code is the accepted 30×25 plain-tube matrix",
+  );
+  assert(
+    denseShown.length === 30 &&
+      denseShown[0].row === denseKnit.rows[29] &&
+      denseShown[0].rowIndex === 29 &&
+      denseShown[29].row === denseKnit.rows[0] &&
+      denseShown[29].rowIndex === 0 &&
+      denseKnit.rows[0].cells.every((code) => code === 1),
+    "Dense Standrad knitting code is drawn with the first ring at the bottom",
+  );
+  assert(
+    knitCodeCaption(denseKnit) === "前床 1（红）一行，换后床新开一行 2（绿）。列是物理针 0–24。" &&
+      !knitCodeCaption(denseKnit).includes("无B0") &&
+      !knitCodeCaption(denseKnit).includes("0–12") &&
+      knitCodeLegend(denseKnit).map((item) => `${item.code}:${item.name}`).join("|") === "1:1 前床平针|2:2 后床平针",
+    "Dense Standrad caption names needles 0–24 and does not claim an empty B0",
+  );
+  assert(
+    describeKnitCell(denseKnit, 0, 0) === "第1环 前床  F0→F24 · 物理针 0 · 1 前床平针" &&
+      describeKnitCell(denseKnit, 1, 0) === "第1环 后床  B24→B0 · 物理针 0 · 2 后床平针" &&
+      describeKnitCell(denseKnit, 1, 24) === "第1环 后床  B24→B0 · 物理针 24 · 2 后床平针",
+    "a Dense knitting-code cell names its pass, physical needle, and code",
   );
   const parsed = parseColoredObj(readFileSync(join(denseDir, "dense_standrad_cylinder_KnittingStitches.obj"), "utf8"));
   assert(parsed.verts.length === 3000 && parsed.faces.length === 750, "Dense Standrad Cylinder is 3000 vertices and 750 faces");
