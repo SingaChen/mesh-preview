@@ -42,15 +42,25 @@ function garmentColumns(knit) {
   return needles.map((needle, needleIndex) => ({ needleIndex, needle }));
 }
 
-/** Empty garment cells sit only on physical needle 0, so the back bed has no B0. */
+/**
+ * Empty garment cells sit only on physical needle 0, and no body row knits
+ * that needle on the back bed. Standrad's back 13 now occupies the empty B0
+ * cell, so the test is "never 2 or 12", not "the cell is 0". A tube that
+ * knits B0 is not this case, even when pad columns are 0.
+ */
 function missingBackZero(knit) {
   const garment = garmentColumns(knit);
   if (!garment.length || garment[0].needle !== 0) return false;
   const rows = (knit?.rows || []).filter((row) => row.bind !== false);
   if (!rows.length) return false;
-  return rows.every((row) =>
+  const onlyAtNeedle0 = rows.every((row) =>
     garment.every((col) => row.cells[col.needleIndex] !== 0 || col.needle === 0),
   );
+  const knitsBackZero = rows.some((row) => {
+    const code = row.cells[garment[0].needleIndex];
+    return code === 2 || code === 12;
+  });
+  return onlyAtNeedle0 && !knitsBackZero;
 }
 
 /** True when this sheet carries copied opening function rails. */
@@ -393,6 +403,7 @@ export function parseKnitCode(data) {
   const windings = Array.isArray(data.row_winding) ? data.row_winding : [];
   const rails = Array.isArray(data.function_rails) ? data.function_rails : [];
   const binds = Array.isArray(data.row_bind) ? data.row_bind : null;
+  const bedRows = Array.isArray(data.bed_row) ? data.bed_row : [];
   const colors = paletteFrom(data);
   return {
     model: typeof data.model === "string" ? data.model : "",
@@ -405,6 +416,7 @@ export function parseKnitCode(data) {
       winding: knitRowWinding(windings[index]),
       cells: row.slice(),
       bind: binds ? binds[index] !== false : true,
+      bedRow: Number.isInteger(bedRows[index]) ? bedRows[index] : null,
       functionRails: rails[index] && typeof rails[index] === "object" ? rails[index] : null,
       colors,
     })),
@@ -596,44 +608,74 @@ function liveKnitCells(knit) {
   return cells;
 }
 
+function rememberBind(byKey, unmatched, cell, token, bind, stitches, map) {
+  const key = `${cell.rowIndex},${cell.needleIndex}`;
+  if (!token) {
+    unmatched.push({ rowIndex: cell.rowIndex, needleIndex: cell.needleIndex, bed: cell.bed, phys: cell.phys });
+    return;
+  }
+  const stitch = stitchForMapCell(token.row, token.col, bind, stitches, map);
+  if (!stitch) {
+    unmatched.push({ rowIndex: cell.rowIndex, needleIndex: cell.needleIndex, bed: cell.bed, phys: cell.phys });
+    return;
+  }
+  byKey.set(key, stitch);
+}
+
 /**
  * Pair knitting-code cells with stitches already on the bed chart.
- * Bed tokens stay in carriage order, one queue per bed, so a needle knitted
- * twice in one course (a split row) binds to two stitches in that order.
- * A cell whose next token is a different needle stays unbound.
- * 11 binds as front bed, the same as 1. 12 binds as back bed, the same as 2.
- * Empty cells are not entries. The returned stitch is the growth-map stitch.
+ * Without bed_row, tokens stay in carriage order, one queue per bed, so a
+ * needle knitted twice in one course (a split row) binds to two stitches in
+ * that order. A cell whose next token is a different needle stays unbound.
+ * A table that records bed_row looks the stitch up on that sheet row. One
+ * sheet row can knit the same bed twice with other needles in between, and
+ * the column walk is not that order. 11 binds as front, the same as 1.
+ * 12 binds as back, the same as 2. Empty cells and color 13 are not entries.
+ * The returned stitch is the growth-map stitch.
  */
 export function bindKnitCodeStitches(knit, map, stitches = null, bind = null) {
   const byKey = new Map();
   const unmatched = [];
   const cells = liveKnitCells(knit);
-  const queues = { F: [], B: [] };
+  const tokens = [];
   for (const token of bedKnitTokens(map)) {
     if ((token.bed !== "F" && token.bed !== "B") || !Number.isInteger(token.phys)) continue;
-    queues[token.bed].push(token);
+    tokens.push(token);
   }
-  const cursor = { F: 0, B: 0 };
-  for (const cell of cells) {
-    const key = `${cell.rowIndex},${cell.needleIndex}`;
-    const queue = queues[cell.bed];
-    const token = cell.ordered ? queue?.[cursor[cell.bed]] : null;
-    if (!cell.ordered || !token || token.phys !== cell.phys) {
-      unmatched.push({ rowIndex: cell.rowIndex, needleIndex: cell.needleIndex, bed: cell.bed, phys: cell.phys });
-      continue;
+  const useBedRow = cells.some((cell) => Number.isInteger(knit?.rows?.[cell.rowIndex]?.bedRow));
+  if (!useBedRow) {
+    const queues = { F: [], B: [] };
+    for (const token of tokens) queues[token.bed].push(token);
+    const cursor = { F: 0, B: 0 };
+    for (const cell of cells) {
+      const queue = queues[cell.bed];
+      const token = cell.ordered ? queue?.[cursor[cell.bed]] : null;
+      if (!cell.ordered || !token || token.phys !== cell.phys) {
+        unmatched.push({ rowIndex: cell.rowIndex, needleIndex: cell.needleIndex, bed: cell.bed, phys: cell.phys });
+        continue;
+      }
+      cursor[cell.bed] += 1;
+      rememberBind(byKey, unmatched, cell, token, bind, stitches, map);
     }
-    cursor[cell.bed] += 1;
-    const stitch = stitchForMapCell(token.row, token.col, bind, stitches, map);
-    if (!stitch) {
-      unmatched.push({ rowIndex: cell.rowIndex, needleIndex: cell.needleIndex, bed: cell.bed, phys: cell.phys });
-      continue;
+  } else {
+    const buckets = new Map();
+    for (const token of tokens) {
+      const key = `${token.row},${token.bed},${token.phys}`;
+      const bucket = buckets.get(key);
+      if (bucket) bucket.push(token);
+      else buckets.set(key, [token]);
     }
-    byKey.set(key, stitch);
+    for (const cell of cells) {
+      const bedRow = knit.rows[cell.rowIndex]?.bedRow;
+      const bucket = Number.isInteger(bedRow) ? buckets.get(`${bedRow},${cell.bed},${cell.phys}`) : null;
+      const token = bucket?.length ? bucket.shift() : null;
+      rememberBind(byKey, unmatched, cell, token, bind, stitches, map);
+    }
   }
   return {
     byKey,
     unmatched,
     knitCells: cells.length,
-    bedTokens: queues.F.length + queues.B.length,
+    bedTokens: tokens.length,
   };
 }
