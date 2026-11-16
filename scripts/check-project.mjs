@@ -71,11 +71,13 @@ import {
   KNIT_CODE_CAPTION,
   KNIT_CODE_LEGEND,
   describeKnitCell,
+  knitCellTravel,
   knitCodeCaption,
   knitCodeDisplayRows,
   knitCodeInitialScrollTop,
   knitCodeInk,
   knitCodeLegend,
+  knitRowWinding,
   parseKnitCode,
 } from "../src/knit-code.js";
 import { excelBedsWidth, hitTestContent, MAP_BEDS_W, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
@@ -108,6 +110,14 @@ const cylDir = join(sampleDir, "cylinder");
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
+}
+
+function knitMatrixSuffixHash(path) {
+  const text = readFileSync(path, "utf8");
+  const key = '\n  "matrix": ';
+  const at = text.indexOf(key);
+  if (at < 0) throw new Error(`knitting code is missing its matrix: ${path}`);
+  return createHash("sha256").update(text.slice(at)).digest("hex");
 }
 
 const manifest = JSON.parse(readFileSync(join(sampleDir, "manifest.json"), "utf8"));
@@ -1240,7 +1250,14 @@ assert(
       !out.stitchMapBindFile,
     "Standrad Cylinder uses its own bed chart, cols_resample, and knitting code, not the cylinder sheets",
   );
-  const knit = parseKnitCode(JSON.parse(readFileSync(join(cylDir, "standrad_cylinder_knitcode.json"), "utf8")));
+  const standradKnitPath = join(cylDir, "standrad_cylinder_knitcode.json");
+  assert(
+    knitMatrixSuffixHash(standradKnitPath) ===
+      "2fe3fee0c4cfa429ac52fccd7923e354ba0c7b3bfe783fcd28b030738f009ffc",
+    "Standrad knitting-code matrix bytes stay the accepted table",
+  );
+  const standradRaw = JSON.parse(readFileSync(standradKnitPath, "utf8"));
+  const knit = parseKnitCode(standradRaw);
   const knitFront = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
   const knitBack = [0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
   assert(
@@ -1253,8 +1270,20 @@ assert(
       knit.colors[2] === "#00FF00" &&
       knit.rows[0].label === "第1环 前床  F0→F12" &&
       knit.rows[1].label === "第1环 后床  B12→B1" &&
-      knit.rows.every((row, i) => row.cells.every((code, col) => code === (i % 2 === 0 ? knitFront : knitBack)[col])),
+      knit.rows.every((row, i) => row.cells.every((code, col) => code === (i % 2 === 0 ? knitFront : knitBack)[col])) &&
+      standradRaw.row_winding.length === 14 &&
+      standradRaw.row_winding.every((winding) => winding === "ccw") &&
+      knit.rows.every((row, index) => row.winding === standradRaw.row_winding[index]),
     "Standrad knitting code is the accepted 14×13 plain-tube matrix",
+  );
+  assert(
+    knitCellTravel(knit.rows[0].winding, knit.rows[0].cells[0])?.text === "向右" &&
+      knitCellTravel(knit.rows[0].winding, 1)?.arrow === "→" &&
+      knitCellTravel(knit.rows[1].winding, knit.rows[1].cells[12])?.text === "向左" &&
+      knitCellTravel(knit.rows[1].winding, 2)?.arrow === "←" &&
+      knit.rows[1].cells[0] === 0 &&
+      knitCellTravel(knit.rows[1].winding, knit.rows[1].cells[0]) == null,
+    "Standrad front goes right, back goes left, and the empty B0 has no direction",
   );
   assert(
     knitCodeInk(1, knit.colors).label === "1" &&
@@ -1281,9 +1310,13 @@ assert(
       standradShown.length === 14 &&
       standradShown[0].rowIndex === 13 &&
       standradShown[0].row.label === "第7环 后床  B12→B1" &&
+      standradShown[0].row.winding === knit.rows[13].winding &&
       standradShown[13].row === knit.rows[0] &&
       standradShown[13].rowIndex === 0 &&
-      knit.rows.every((row, index) => standradShown[13 - index].row === row),
+      standradShown[13].row.winding === "ccw" &&
+      knit.rows.every(
+        (row, index) => standradShown[13 - index].row === row && standradShown[13 - index].row.winding === row.winding,
+      ),
     "Standrad knitting code stays chronological in data and is drawn with the first ring at the bottom",
   );
   assert(
@@ -1297,6 +1330,67 @@ assert(
       knitCodeInitialScrollTop(900, 400) === 500 &&
       knitCodeInitialScrollTop(100, 0) === 100,
     "a tall knitting-code table opens scrolled to the first rings at the bottom",
+  );
+  const mixed = parseKnitCode({
+    row_labels: ["前", "后", "操作", "空"],
+    row_winding: ["ccw", "cw", "none", "ccw"],
+    matrix: [
+      [1, 1],
+      [2, 2],
+      [1, 2],
+      [0, 1],
+    ],
+  });
+  const mixedShown = knitCodeDisplayRows(mixed);
+  const right = knitCellTravel("ccw", 1);
+  const back = knitCellTravel("ccw", 2);
+  const cwFront = knitCellTravel("cw", 1);
+  const cwBack = knitCellTravel("cw", 2);
+  const operation = knitCellTravel("none", 1);
+  const operationBack = knitCellTravel("none", 2);
+  assert(
+    mixed.rows.map((row) => row.winding).join(",") === "ccw,cw,none,ccw" &&
+      mixedShown.map((item) => item.row.winding).join(",") === "ccw,none,cw,ccw" &&
+      mixedShown[0].row === mixed.rows[3] &&
+      mixedShown[3].row === mixed.rows[0] &&
+      right?.text === "向右" &&
+      right.arrow === "→" &&
+      right.kind === "right" &&
+      back?.text === "向左" &&
+      back.arrow === "←" &&
+      cwFront?.text === "向左" &&
+      cwFront.kind === "left" &&
+      cwBack?.text === "向右" &&
+      cwBack.kind === "right" &&
+      operation?.text === "操作行，无方向" &&
+      operation.kind === "none" &&
+      operation.arrow == null &&
+      operationBack?.text === "操作行，无方向" &&
+      operationBack.arrow == null,
+    "cw and operation rows keep their winding through the bottom-up reverse",
+  );
+  const unguessed = parseKnitCode({
+    matrix: [
+      [1, 1, 1],
+      [2, 2, 2],
+    ],
+    row_winding: ["cw"],
+  });
+  assert(
+    knitCellTravel("ccw", 0) == null &&
+      knitCellTravel("cw", 0) == null &&
+      knitCellTravel("none", 0) == null &&
+      knitCellTravel(null, 1) == null &&
+      knitCellTravel(undefined, 2) == null &&
+      knitCellTravel("CCW", 1) == null &&
+      knitRowWinding("ccw") === "ccw" &&
+      knitRowWinding("none") === "none" &&
+      knitRowWinding("clockwise") == null &&
+      unguessed.rows[0].winding === "cw" &&
+      unguessed.rows[1].winding == null &&
+      knitCellTravel(unguessed.rows[0].winding, 1)?.text === "向左" &&
+      knitCellTravel(unguessed.rows[1].winding, 2) == null,
+    "empty cells and missing windings have no direction and are not called operation rows",
   );
   assert(!fromManifest.outputs[0].knitCodeFile, "Bunny has no knitting-code table");
   for (const name of readdirSync(sampleDir).filter(
@@ -1772,7 +1866,11 @@ assert(
     mainSrc.includes("knitCodeInitialScrollTop") &&
     mainSrc.includes("knitCodeCaption") &&
     mainSrc.includes("knitCodeLegend") &&
-    mainSrc.includes("pinKnitCodeScroll"),
+    mainSrc.includes("pinKnitCodeScroll") &&
+    mainSrc.includes("knitCellTravel(row.winding, code)") &&
+    mainSrc.includes('knitDir.id = "knit-dir"') &&
+    !mainSrc.includes("向右") &&
+    !mainSrc.includes("向左"),
   "every knitting-code table is drawn bottom-up and opens on the first rings",
 );
 assert(html.includes('id="map-phys"') && html.includes("物理针"), "map toolbar has a physical-needle toggle");
@@ -1826,6 +1924,10 @@ assert(
 assert(css.includes(".stage canvas") && css.includes("width: 100%") && css.includes("height: 100%"), "canvas CSS fills the stage");
 assert(css.includes(".split") && css.includes(".map-pane") && css.includes("narrow-split"), "layout is a left-right split with a narrow fallback");
 assert(css.includes(".stitch-pick") && css.includes(".hud-chips"), "stitch readout is a HUD chip under the mesh label");
+assert(
+  css.includes(".knit-dir") && /\.knit-dir\.is-none \.knit-dir-arrow\s*\{[^}]*display:\s*none/.test(css),
+  "operation rows hide the travel arrow",
+);
 assert(css.includes("#map-phys") && css.includes('.map-zoom .fit[aria-pressed="true"]'), "physical-needle toggle has a pressed state");
 
 assert(aspectFromSize(800, 400) === 2, "wide stage is aspect 2, not the constructor default 1");
@@ -1907,12 +2009,13 @@ assert(
     "Dense Standrad Cylinder uses its own cols_resample field, xls, faces ring, and knitting code",
   );
   const denseKnitPath = join(denseDir, "dense_standrad_cylinder_knitcode.json");
+  const denseText = readFileSync(denseKnitPath, "utf8");
   assert(
-    createHash("sha256").update(readFileSync(denseKnitPath)).digest("hex") ===
-      "4a5d95b0f6c0406c2fa7669c2d00690b3b2882e5825acf7c6d9ad7bdcd504754",
-    "Dense Standrad knitting code bytes stay the accepted table",
+    knitMatrixSuffixHash(denseKnitPath) === "7d16bc70f629a9d65c1c46d4c312464590222d02d1fee26577fb9214c3f29785",
+    "Dense Standrad knitting-code matrix bytes stay the accepted table",
   );
-  const denseKnit = parseKnitCode(JSON.parse(readFileSync(denseKnitPath, "utf8")));
+  const denseRaw = JSON.parse(denseText);
+  const denseKnit = parseKnitCode(denseRaw);
   const denseShown = knitCodeDisplayRows(denseKnit);
   assert(
     denseKnit?.model === "Dense Standrad Cylinder" &&
@@ -1935,7 +2038,14 @@ assert(
       denseShown[0].rowIndex === 29 &&
       denseShown[29].row === denseKnit.rows[0] &&
       denseShown[29].rowIndex === 0 &&
-      denseKnit.rows[0].cells.every((code) => code === 1),
+      denseShown[29].row.winding === "ccw" &&
+      denseShown[0].row.winding === denseKnit.rows[29].winding &&
+      denseKnit.rows[0].cells.every((code) => code === 1) &&
+      denseRaw.row_winding.length === 30 &&
+      denseRaw.row_winding.every((winding) => winding === "ccw") &&
+      denseKnit.rows.every((row, index) => row.winding === denseRaw.row_winding[index]) &&
+      knitCellTravel(denseKnit.rows[0].winding, 1)?.text === "向右" &&
+      knitCellTravel(denseKnit.rows[1].winding, 2)?.text === "向左",
     "Dense Standrad knitting code is drawn with the first ring at the bottom",
   );
   assert(
