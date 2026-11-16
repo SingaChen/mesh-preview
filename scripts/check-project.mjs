@@ -1394,7 +1394,11 @@ assert(
   );
   assert(!fromManifest.outputs[0].knitCodeFile, "Bunny has no knitting-code table");
   for (const name of readdirSync(sampleDir).filter(
-    (item) => item.endsWith(".json") && item !== "standrad-cylinder.json" && item !== "dense-standrad-cylinder.json",
+    (item) =>
+      item.endsWith(".json") &&
+      item !== "standrad-cylinder.json" &&
+      item !== "dense-standrad-cylinder.json" &&
+      item !== "decrease-cylinder.json",
   )) {
     const sheet = JSON.parse(readFileSync(join(sampleDir, name), "utf8"));
     if (!sheet?.outputs) continue;
@@ -1584,8 +1588,9 @@ assert(
       rels.includes("decrease/decrease_cylinder_cols_resample.xls") &&
       rels.includes("decrease/decrease_cylinder_faces_ring_layout.json") &&
       rels.includes("decrease/decrease_cylinder_bed.xls") &&
+      rels.includes("decrease/decrease_cylinder_knitcode.json") &&
       !/knitout|faces_ring0|standrad_cylinder|readable_map/i.test(rels),
-    "Decrease Cylinder binds its own stitchmesh, cols_resample, faces ring, and bed chart",
+    "Decrease Cylinder binds its own stitchmesh, cols_resample, faces ring, bed chart, and knitting code",
   );
   const decDir = join(sampleDir, "decrease");
   const entries = [
@@ -1608,8 +1613,85 @@ assert(
   assert(
     /decrease_cylinder_cols_resample_field\.obj$/i.test(out.colsResampleFile?.name || "") &&
       /decrease_cylinder_cols_resample\.xls$/i.test(out.colsResampleXlsFile?.name || "") &&
-      /decrease_cylinder_faces_ring_layout\.json$/i.test(out.facesRingLayoutFile?.name || ""),
-    "Decrease Cylinder uses its own cols_resample field, xls, and faces ring",
+      /decrease_cylinder_faces_ring_layout\.json$/i.test(out.facesRingLayoutFile?.name || "") &&
+      /decrease_cylinder_knitcode\.json$/i.test(out.knitCodeFile?.name || ""),
+    "Decrease Cylinder uses its own cols_resample field, xls, faces ring, and knitting code",
+  );
+  const decreaseKnitPath = join(decDir, "decrease_cylinder_knitcode.json");
+  assert(
+    knitMatrixSuffixHash(decreaseKnitPath) ===
+      "eec42e2bc0949d782372b8bc220300225ffdd65ad671a956364a77fb0b63404c",
+    "Decrease knitting-code matrix bytes stay the correction draft",
+  );
+  const decreaseRaw = JSON.parse(readFileSync(decreaseKnitPath, "utf8"));
+  const decreaseKnit = parseKnitCode(decreaseRaw);
+  const decreaseShown = knitCodeDisplayRows(decreaseKnit);
+  const frontCells = decreaseKnit.rows.reduce((sum, row) => sum + row.cells.filter((code) => code === 1).length, 0);
+  const backCells = decreaseKnit.rows.reduce((sum, row) => sum + row.cells.filter((code) => code === 2).length, 0);
+  const cwFront = decreaseKnit.rows.find((row) => row.label.startsWith("第3环 前床  F3→F0"));
+  assert(
+    decreaseKnit?.model === "Decrease Cylinder" &&
+      decreaseRaw.n_rows === 32 &&
+      decreaseRaw.n_rings === 5 &&
+      decreaseKnit.rows.length === 32 &&
+      decreaseKnit.needles.length === 12 &&
+      decreaseKnit.needles.every((n, i) => n === i) &&
+      decreaseRaw.row_winding.length === 32 &&
+      decreaseRaw.row_winding.filter((winding) => winding === "ccw").length === 23 &&
+      decreaseRaw.row_winding.filter((winding) => winding === "cw").length === 9 &&
+      decreaseKnit.rows.every((row, index) => row.winding === decreaseRaw.row_winding[index]) &&
+      decreaseKnit.rows[0].winding === "ccw" &&
+      decreaseKnit.rows[31].winding === "ccw" &&
+      decreaseKnit.rows[0].cells.every((code) => code === 1) &&
+      decreaseKnit.rows[1].cells[0] === 0 &&
+      decreaseKnit.rows[1].cells.slice(1).every((code) => code === 2) &&
+      frontCells === 78 &&
+      backCells === 70 &&
+      decreaseKnit.rows.every((row) => row.cells.some((code) => code !== 0)) &&
+      decreaseRaw.rules.status === "矫正稿，已接入预览供矫正，未生成 .dat / .k",
+    "Decrease knitting code is the 32×12 correction draft",
+  );
+  assert(
+    knitCodeCaption(decreaseKnit) ===
+      "前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 0–11。移针/翻针未画；短行折返暂按普通平针。矫正稿。" &&
+      !knitCodeCaption(decreaseKnit).includes("无B0") &&
+      !knitCodeCaption(decreaseKnit).includes("0–12") &&
+      knitCodeLegend(decreaseKnit).map((item) => `${item.code}:${item.name}`).join("|") ===
+        "1:1 前床平针|2:2 后床平针|0:0 空针",
+    "Decrease caption names needles 0–11, marks the draft, and calls empty cells 0 空针",
+  );
+  const otherEmpty = parseKnitCode({
+    model: "Other",
+    needles: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    matrix: [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [0, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    ],
+  });
+  assert(
+    knitCodeCaption(otherEmpty) === "前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 0–11。" &&
+      !knitCodeCaption(otherEmpty).includes("矫正稿"),
+    "the draft note stays on Decrease Cylinder",
+  );
+  assert(
+    decreaseShown.length === 32 &&
+      decreaseShown[31].row === decreaseKnit.rows[0] &&
+      decreaseShown[31].rowIndex === 0 &&
+      decreaseShown[31].row.winding === "ccw" &&
+      decreaseShown[31].row.cells.every((code) => code === 1) &&
+      decreaseShown[30].row === decreaseKnit.rows[1] &&
+      decreaseShown[30].row.cells[0] === 0 &&
+      decreaseShown[0].row === decreaseKnit.rows[31] &&
+      decreaseShown[0].row.winding === "ccw" &&
+      cwFront?.winding === "cw" &&
+      knitCellTravel(decreaseKnit.rows[0].winding, 1)?.text === "向右" &&
+      knitCellTravel(decreaseKnit.rows[0].winding, 1)?.arrow === "→" &&
+      knitCellTravel(decreaseKnit.rows[1].winding, 2)?.text === "向左" &&
+      knitCellTravel(decreaseKnit.rows[1].winding, 2)?.arrow === "←" &&
+      knitCellTravel(decreaseKnit.rows[1].winding, decreaseKnit.rows[1].cells[0]) == null &&
+      knitCellTravel(cwFront.winding, 1)?.text === "向左" &&
+      knitCellTravel(cwFront.winding, 1)?.arrow === "←",
+    "Decrease knitting code is drawn with the first ring at the bottom, and cw front goes left",
   );
   const parsed = parseColoredObj(readFileSync(join(decDir, "decrease_cylinder_KnittingStitches.obj"), "utf8"));
   assert(parsed.verts.length === 545 && parsed.faces.length === 139, "Decrease Cylinder is the SingaLab stitchmesh");
