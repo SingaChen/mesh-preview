@@ -446,15 +446,25 @@ function assertStandradOpening(knit, raw) {
           row.functionRails == null &&
           row.winding === "ccw" &&
           slice.join(",") === expect.join(",") &&
-          row.cells.every((code, col) => (col >= 3 && col <= 15) || code === 0)
+          row.cells.every((code, col) => {
+            if (col === 2 || col === 16) return code === 13;
+            if (col >= 3 && col <= 15) return true;
+            return code === 0;
+          })
         );
       }) &&
+      knit.rows[10].winding === "none" &&
+      knit.rows[11].winding === "none" &&
+      !knit.rows[10].cells.includes(13) &&
+      !knit.rows[11].cells.includes(13) &&
       raw.row_winding.slice(34).every((winding) => winding === "ccw") &&
       raw.function_rails.slice(34).every((rails) => rails == null) &&
       raw.row_bind.slice(0, 34).every((flag) => flag === false) &&
       !raw.rules.row_turn.includes("每一行都算一次换行") &&
-      raw.rules.row_turn.includes("没有短行折返"),
-    "14 body rows keep the live work slice, ccw winding, and generator rails",
+      raw.rules.row_turn.includes("没有短行折返") &&
+      raw.rules.knit_frames.includes("边框列 2 与 16") &&
+      raw.rules.knit_frames.includes("开头 11–12"),
+    "14 body rows keep the live work slice, frame 13s at columns 2 and 16, ccw winding, and generator rails",
   );
   assert(
     railCell(knit, 4, "L", 12, "mark").text === "10" &&
@@ -568,8 +578,12 @@ function assertStandradOpening(knit, raw) {
       standradF0.termInRing === 0 &&
       !standradBind.byKey.has("35,3") &&
       !standradBind.byKey.has("0,4") &&
+      !standradBind.byKey.has("34,2") &&
+      !standradBind.byKey.has("34,16") &&
+      !standradBind.byKey.has("35,2") &&
+      !standradBind.byKey.has("35,16") &&
       [...standradBind.byKey.keys()].every((key) => Number(key.split(",")[0]) >= 34),
-    "opening rows do not bind, and body work cells still bind 175/175",
+    "opening rows do not bind, frame 13s stay unbound, and body work cells still bind 175/175",
   );
 }
 
