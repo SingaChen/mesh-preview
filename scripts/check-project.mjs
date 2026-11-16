@@ -133,6 +133,20 @@ function knitMatrixSuffixHash(path) {
   return createHash("sha256").update(text.slice(at)).digest("hex");
 }
 
+/** Hash 14 body rows × 13 work columns in the same pretty suffix as the locked 13-wide table. */
+function knitBodyWorkHash(matrix, start = 34, col0 = 3, col1 = 16) {
+  const slice = matrix.slice(start, start + 14).map((row) => row.slice(col0, col1));
+  const pretty = JSON.stringify(slice, null, 2);
+  const wrapped =
+    '\n  "matrix": ' +
+    pretty
+      .split("\n")
+      .map((line, index) => (index === 0 ? line : `  ${line}`))
+      .join("\n") +
+    "\n}";
+  return createHash("sha256").update(wrapped).digest("hex");
+}
+
 function liveKnitCount(knit) {
   return knit.rows.reduce(
     (sum, row) => sum + row.cells.filter((code) => code === 1 || code === 2 || code === 11 || code === 12).length,
@@ -203,7 +217,6 @@ function assertFunctionRails(knit, width, label) {
   const lastPattern = columns.findLastIndex((col) => col.role === "pattern");
   const left = columns.filter((col) => col.role === "function" && col.side === "L");
   const right = columns.filter((col) => col.role === "function" && col.side === "R");
-  assert(knit.needles.length === width, `${label} keeps its own needle width ${width}`);
   assert(columns.length === 40 + 5 + width + 5 + 40, `${label} row is 40 + 5 + ${width} + 5 + 40`);
   assert(left.length === 40 && right.length === 40, `${label} has 20 pairs on each side`);
   assert(
@@ -258,11 +271,15 @@ function assertFunctionRails(knit, width, label) {
     `${label} mirrors ?n on the left and n? on the right`,
   );
   const pattern = columns.filter((col) => col.role === "pattern");
+  const garment = pattern.filter((col) => Number.isInteger(col.needle));
   assert(
     pattern.length === width &&
-      pattern.map((col) => col.header).join(",") === knit.needles.join(",") &&
+      (garment.length === pattern.length
+        ? pattern.map((col) => col.header).join(",") === knit.needles.join(",")
+        : garment.map((col) => col.header).join(",") === knit.needles.join(",") &&
+          pattern.every((col) => col.header === (Number.isInteger(col.needle) ? String(col.needle) : ""))) &&
       columns.every((col) => col.role === "function" || col.role === "gap" || col.role === "pattern"),
-    `${label} does not pad past its last needle`,
+    `${label} does not pad past its last column, and pad/frame columns are not garment needles`,
   );
   const headerKey = columns.map((col) => `${col.role}:${col.side || ""}:${col.pair || ""}:${col.slot || ""}:${col.header}`).join("|");
   knit.rows.forEach((row, rowIndex) => {
@@ -276,6 +293,39 @@ function assertFunctionRails(knit, width, label) {
         drawnPattern.filter((col) => col.drawsEmptyNeedle).length === row.cells.filter((code) => code === 0).length,
       `${label} row ${rowIndex} draws the locked matrix and no extra knit-code 0`,
     );
+    if (row.functionRails) {
+      for (const col of drawn) {
+        if (col.role === "gap") {
+          assert(
+            col.text === "" && col.fill == null && col.ink == null && col.code == null && col.drawsEmptyNeedle === false,
+            `${label} row ${rowIndex} gap stays empty`,
+          );
+          continue;
+        }
+        if (col.role !== "function") continue;
+        const bag = col.slot === "number" ? row.functionRails[`${col.side}_body`] : row.functionRails[`${col.side}_ind`];
+        const key = String(col.pair);
+        const has = bag && Object.prototype.hasOwnProperty.call(bag, key);
+        const raw = has ? bag[key] : null;
+        if (raw == null) {
+          assert(
+            col.text === "" && col.fill == null && col.ink == null && col.code == null && col.drawsEmptyNeedle === false,
+            `${label} row ${rowIndex} ${col.side}${col.pair} ${col.slot} stays empty`,
+          );
+        } else {
+          const fill = knit.colors?.[Number(raw)] || KNIT_FUNCTION_COLORS[Number(raw)];
+          assert(
+            col.text === String(raw) &&
+              col.fill === fill &&
+              col.ink === knitFunctionTextColor(fill) &&
+              col.code == null &&
+              col.drawsEmptyNeedle === false,
+            `${label} row ${rowIndex} ${col.side}${col.pair} ${col.slot} copies ${raw} not a width-scaled rail`,
+          );
+        }
+      }
+      return;
+    }
     const paint = (col, text, fill) =>
       col &&
       col.text === text &&
@@ -340,23 +390,215 @@ function assertFunctionRails(knit, width, label) {
   });
 }
 
+function railCell(knit, rowIndex, side, pair, slot) {
+  return knitTableCells(knit, rowIndex).find(
+    (col) => col.role === "function" && col.side === side && col.pair === pair && col.slot === slot,
+  );
+}
+
+function assertStandradOpening(knit, raw) {
+  const front = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+  const back = [0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+  const pattern = knitTableColumns(knit).filter((col) => col.role === "pattern");
+  assert(
+    raw.n_rows === 48 &&
+      raw.n_cols === 23 &&
+      raw.n_opening_rows === 34 &&
+      raw.n_body_rows === 14 &&
+      knit.rows.length === 48 &&
+      knit.needles.length === 13 &&
+      knit.needles.every((needle, index) => needle === index) &&
+      pattern.length === 23 &&
+      pattern[0].kind === "pad" &&
+      pattern[0].header === "" &&
+      pattern[2].kind === "frame" &&
+      pattern[2].header === "" &&
+      pattern[3].kind === "needle" &&
+      pattern[3].needle === 0 &&
+      pattern[3].header === "0" &&
+      pattern[15].needle === 12 &&
+      pattern[16].kind === "frame" &&
+      pattern.slice(17).every((col) => col.kind === "pad" && col.header === ""),
+    "Standrad opening canvas is 23 columns and needle 0 stays at column 3",
+  );
+  assert(
+    knit.rows[0].cells.join(",") === "0,0,0,13,1,0,2,0,3,0,4,0,1,0,2,0,13,0,0,0,0,0,0" &&
+      knit.rows[1].cells.join(",") === "0,0,0,13,1,0,2,0,1,0,2,0,1,0,2,0,13,0,0,0,0,0,0" &&
+      knit.rows[0].winding === "ccw" &&
+      knit.rows[1].winding === "cw",
+    "opening rows 1–2 keep the 8-column cycle and the inset frame",
+  );
+  assert(
+    knit.rows[12].cells[15] === 3 &&
+      knit.rows[12].cells[14] === 51 &&
+      knit.rows[13].cells[3] === 3 &&
+      knit.rows[14].cells.join(",") === knit.rows[12].cells.join(",") &&
+      knit.rows[15].cells.join(",") === knit.rows[13].cells.join(","),
+    "opening rows 13–16 keep the edge 3 on 51 and 3/52",
+  );
+  assert(
+    knit.rows.slice(0, 34).every((row) => row.bind === false && row.functionRails) &&
+      knit.rows.slice(34).every((row, index) => {
+        const slice = row.cells.slice(3, 16);
+        const expect = index % 2 === 0 ? front : back;
+        return (
+          row.bind === true &&
+          row.functionRails == null &&
+          row.winding === "ccw" &&
+          slice.join(",") === expect.join(",") &&
+          row.cells.every((code, col) => (col >= 3 && col <= 15) || code === 0)
+        );
+      }) &&
+      raw.row_winding.slice(34).every((winding) => winding === "ccw") &&
+      raw.function_rails.slice(34).every((rails) => rails == null) &&
+      raw.row_bind.slice(0, 34).every((flag) => flag === false) &&
+      !raw.rules.row_turn.includes("每一行都算一次换行") &&
+      raw.rules.row_turn.includes("没有短行折返"),
+    "14 body rows keep the live work slice, ccw winding, and generator rails",
+  );
+  assert(
+    railCell(knit, 4, "L", 12, "mark").text === "10" &&
+      railCell(knit, 4, "L", 11, "mark").text === "13" &&
+      railCell(knit, 4, "L", 10, "mark").text === "3" &&
+      railCell(knit, 4, "R", 6, "mark").text === "22" &&
+      railCell(knit, 4, "R", 19, "number").text === "120" &&
+      railCell(knit, 4, "R", 19, "number").fill === "#90D8FC" &&
+      railCell(knit, 4, "L", 1, "mark").text === "" &&
+      railCell(knit, 4, "R", 20, "mark").text === "" &&
+      railCell(knit, 3, "L", 12, "mark").text === "10",
+    "an opening knit row copies the template rails, including L12 indicator 10",
+  );
+  assert(
+    railCell(knit, 34, "L", 1, "number").text === "6" &&
+      railCell(knit, 34, "L", 1, "number").fill === "#00FFFF" &&
+      railCell(knit, 34, "R", 1, "number").text === "6" &&
+      railCell(knit, 34, "L", 13, "mark").text === "81" &&
+      railCell(knit, 34, "L", 11, "mark").text === "14" &&
+      railCell(knit, 34, "L", 10, "mark").text === "4" &&
+      railCell(knit, 34, "R", 6, "mark").text === "5" &&
+      railCell(knit, 34, "L", 12, "mark").text === "" &&
+      railCell(knit, 35, "L", 1, "number").text === "7" &&
+      railCell(knit, 35, "L", 13, "mark").text === "82",
+    "a body front ccw row keeps L1/R1 6, L13 81, L11 14, and R6 5",
+  );
+  const shown = knitCodeDisplayRows(knit);
+  assert(
+    shown.length === 48 &&
+      shown[0].rowIndex === 47 &&
+      shown[0].row.label === "第7环 后床  B12→B1" &&
+      shown[47].rowIndex === 0 &&
+      shown[47].row.label === "开头 1" &&
+      knit.rows[34].label === "第1环 前床  F0→F12",
+    "opening is drawn under the body, with the first knitted row at the bottom",
+  );
+  assert(
+    knitCodeCaption(knit).startsWith(KNIT_CODE_CAPTION) &&
+      knitCodeCaption(knit).includes("按幅宽适配的开头") &&
+      knitCodeCaption(knit).includes("开头功能行抄自模板") &&
+      knitCodeCaption(knit).includes("主体功能行不变") &&
+      knitCodeLegend(knit)
+        .map((item) => `${item.code}:${item.name}`)
+        .join("|") === KNIT_CODE_LEGEND.map((item) => `${item.code}:${item.name}`).join("|"),
+    "Standrad caption names the width-adapted opening and the legend still names 0–12",
+  );
+  assert(
+    knit.colors[51] === "#FF9090" &&
+      knit.colors[52] === "#C0FF90" &&
+      knit.colors[116] === "#A9E5E7" &&
+      knit.colors[117] === "#D8D8B4" &&
+      knit.colors[13] === "#999999" &&
+      knit.colors[16] === "#51FFDE" &&
+      knit.colors[120] === "#90D8FC" &&
+      knit.colors[99] === "#7F0000" &&
+      knitCodeInk(51, knit.colors).text === "#111111" &&
+      knitCodeInk(1, knit.colors).text === "#ffffff" &&
+      knitCodeInk(4, knit.colors).text === "#ffffff" &&
+      knitCodeInk(99, knit.colors).text === "#ffffff" &&
+      knitCodeInk(6, knit.colors).text === "#111111" &&
+      knitCodeInk(16, knit.colors).text === "#111111" &&
+      knitCodeInk(116, knit.colors).text === "#111111" &&
+      knitCodeInk(0, knit.colors).label === "",
+    "opening DAT colors keep the Tiffany display palette and the contrast rule",
+  );
+  assert(
+    knitCellTravel(knit.rows[34].winding, knit.rows[34].cells[3])?.text === "向右" &&
+      knitCellTravel(knit.rows[35].winding, knit.rows[35].cells[15])?.text === "向左" &&
+      knit.rows[35].cells[3] === 0 &&
+      knitCellTravel(knit.rows[35].winding, knit.rows[35].cells[3]) == null &&
+      knitCellTravel(knit.rows[0].winding, 1)?.text === "向右" &&
+      knitCellTravel(knit.rows[0].winding, 2)?.text === "向左" &&
+      knitCellTravel(knit.rows[10].winding, 6)?.text === "操作行，无方向" &&
+      knitCellTravel(knit.rows[0].winding, 0) == null &&
+      describeKnitCell(knit, 34, 3) === "第1环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
+      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1 · 物理针 0 · 0 空针" &&
+      describeKnitCell(knit, 0, 0).includes("空位"),
+    "body travel is unchanged, and opening non-zero cells can show that row's direction",
+  );
+  const bodyKnit = {
+    ...knit,
+    rows: knit.rows.filter((row) => row.bind !== false).map((row) => ({
+      ...row,
+      cells: pattern.filter((col) => col.kind === "needle").map((col) => row.cells[col.needleIndex]),
+    })),
+  };
+  assertShortRowTurnCodes(bodyKnit, "Standrad body");
+  assert(
+    knit.rows.every((row) => !row.cells.includes(11) && !row.cells.includes(12)),
+    "Standrad has no 11 or 12",
+  );
+  const standradObj = parseColoredObj(readFileSync(join(cylDir, "standrad_cylinder_KnittingStitches.obj"), "utf8"));
+  const standradStitches = standradObj.faces.map((face, index) => ({ index, verts: face.verts }));
+  const standradLayout = parseFacesRingLayout(readFileSync(join(cylDir, "standrad_cylinder_rings.json"), "utf8"));
+  facesRingChunksFromStitches(standradStitches, {
+    nRings: standradLayout.nFacesRing,
+    termCounts: standradLayout.termCounts,
+    ringTypes: standradLayout.ringTypes,
+    colors: standradLayout.colors,
+  });
+  const standradBedMap = parseExcelReadableMap(readFileSync(join(cylDir, "standrad_cylinder_bed.xls")));
+  const standradBind = bindKnitCodeStitches(knit, standradBedMap, standradStitches, null);
+  const standradF0 = standradBind.byKey.get("34,3");
+  assert(
+    standradBind.bedTokens === 175 &&
+      standradBind.knitCells === 175 &&
+      standradBind.unmatched.length === 0 &&
+      standradBind.byKey.size === 175 &&
+      standradF0?.index === 0 &&
+      standradF0.ring === 0 &&
+      standradF0.termInRing === 0 &&
+      !standradBind.byKey.has("35,3") &&
+      !standradBind.byKey.has("0,4") &&
+      [...standradBind.byKey.keys()].every((key) => Number(key.split(",")[0]) >= 34),
+    "opening rows do not bind, and body work cells still bind 175/175",
+  );
+}
+
 {
   const railSpecs = [
-    ["Standrad", "cylinder/standrad_cylinder_knitcode.json", 13, "2fe3fee0c4cfa429ac52fccd7923e354ba0c7b3bfe783fcd28b030738f009ffc"],
+    ["Standrad", "cylinder/standrad_cylinder_knitcode.json", 23, null],
     ["Dense Standrad", "dense-standrad/dense_standrad_cylinder_knitcode.json", 25, "7d16bc70f629a9d65c1c46d4c312464590222d02d1fee26577fb9214c3f29785"],
     ["Decrease", "decrease/decrease_cylinder_knitcode.json", 12, "257be4fb083261bcf3ce040bdcfe75bf8c96516f0b0947057d2a62a9cc22c9ad"],
   ];
   const widths = [];
   for (const [label, rel, width, hash] of railSpecs) {
     const path = join(sampleDir, rel);
-    assert(knitMatrixSuffixHash(path) === hash, `${label} matrix-suffix sha256 stays ${hash}`);
-    const knit = parseKnitCode(JSON.parse(readFileSync(path, "utf8")));
+    const raw = JSON.parse(readFileSync(path, "utf8"));
+    if (label === "Standrad") {
+      assert(
+        knitBodyWorkHash(raw.matrix) === "2fe3fee0c4cfa429ac52fccd7923e354ba0c7b3bfe783fcd28b030738f009ffc",
+        "Standrad body work-slice sha256 stays the plain-tube table",
+      );
+    } else {
+      assert(knitMatrixSuffixHash(path) === hash, `${label} matrix-suffix sha256 stays ${hash}`);
+    }
+    const knit = parseKnitCode(raw);
     assertFunctionRails(knit, width, label);
     widths.push(knitTableColumns(knit).filter((col) => col.role === "pattern").length);
+    if (label === "Standrad") assertStandradOpening(knit, raw);
   }
   assert(
-    widths.join(",") === "13,25,12" && new Set(widths).size === 3,
-    "Standrad, Dense Standrad, and Decrease keep their own widths and are not padded to 25",
+    widths.join(",") === "23,25,12" && new Set(widths).size === 3,
+    "Standrad is 23 columns, Dense Standrad stays 25, and Decrease stays 12",
   );
   assert(
     KNIT_FUNCTION_COLORS[1] === "#FF0000" &&
@@ -1600,60 +1842,26 @@ assert(
     "Standrad Cylinder uses its own bed chart, cols_resample, and knitting code, not the cylinder sheets",
   );
   const standradKnitPath = join(cylDir, "standrad_cylinder_knitcode.json");
-  assert(
-    knitMatrixSuffixHash(standradKnitPath) ===
-      "2fe3fee0c4cfa429ac52fccd7923e354ba0c7b3bfe783fcd28b030738f009ffc",
-    "Standrad knitting-code matrix bytes stay the plain-tube table",
-  );
   const standradRaw = JSON.parse(readFileSync(standradKnitPath, "utf8"));
+  assert(
+    knitBodyWorkHash(standradRaw.matrix) ===
+      "2fe3fee0c4cfa429ac52fccd7923e354ba0c7b3bfe783fcd28b030738f009ffc",
+    "Standrad body work-slice sha256 stays the plain-tube table",
+  );
   const knit = parseKnitCode(standradRaw);
-  const knitFront = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
-  const knitBack = [0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+  assert(knit?.model === "Standrad Cylinder", "Standrad knitting code keeps its model name");
+  assertStandradOpening(knit, standradRaw);
   assert(
-    knit?.model === "Standrad Cylinder" &&
-      knit.rows.length === 14 &&
-      knit.needles.length === 13 &&
-      knit.needles.every((n, i) => n === i) &&
-      knit.colors[0] === "#000000" &&
-      knit.colors[1] === "#FF0000" &&
-      knit.colors[2] === "#00FF00" &&
-      knit.colors[11] === "#FF67BD" &&
-      knit.colors[12] === "#906CB4" &&
-      knit.rows[0].label === "第1环 前床  F0→F12" &&
-      knit.rows[1].label === "第1环 后床  B12→B1" &&
-      knit.rows.every((row, i) =>
-        row.cells.every((code, col) => code === (i % 2 === 0 ? knitFront : knitBack)[col]),
-      ) &&
-      standradRaw.row_winding.length === 14 &&
-      standradRaw.row_winding.every((winding) => winding === "ccw") &&
-      knit.rows.every((row, index) => row.winding === standradRaw.row_winding[index]) &&
-      !standradRaw.rules.row_turn.includes("每一行都算一次换行") &&
-      standradRaw.rules.row_turn.includes("没有短行折返"),
-    "Standrad knitting code is the accepted 14×13 plain-tube matrix, with no short-row turn",
-  );
-  assertShortRowTurnCodes(knit, "Standrad");
-  assert(
-    knit.rows.reduce((sum, row) => sum + row.cells.filter((code) => code === 11).length, 0) === 0 &&
-      knit.rows.reduce((sum, row) => sum + row.cells.filter((code) => code === 12).length, 0) === 0,
-    "Standrad has no 11 or 12 because every row stays ccw",
-  );
-  assert(
-    knitCellTravel(knit.rows[0].winding, knit.rows[0].cells[0])?.text === "向右" &&
-      knitCellTravel(knit.rows[0].winding, 1)?.arrow === "→" &&
-      knit.rows[2].cells[0] === 1 &&
-      knitCellTravel(knit.rows[2].winding, knit.rows[2].cells[0])?.text === "向右" &&
-      knitCellTravel("ccw", 11)?.text === "向右" &&
+    knitCellTravel("ccw", 11)?.text === "向右" &&
       knitCellTravel("cw", 11)?.text === "向左" &&
-      knitCellTravel(knit.rows[1].winding, knit.rows[1].cells[12])?.text === "向左" &&
-      knit.rows[1].cells[12] === 2 &&
-      knitCellTravel(knit.rows[1].winding, 2)?.arrow === "←" &&
       knitCellTravel("ccw", 12)?.text === "向左" &&
       knitCellTravel("cw", 12)?.text === "向右" &&
       knitCellTravel("none", 11)?.text === "操作行，无方向" &&
       knitCellTravel("none", 12)?.kind === "none" &&
-      knit.rows[1].cells[0] === 0 &&
-      knitCellTravel(knit.rows[1].winding, knit.rows[1].cells[0]) == null,
-    "Standrad front goes right, back goes left, and the empty B0 has no direction",
+      knitCellTravel(knit.rows[34].winding, 1)?.arrow === "→" &&
+      knit.rows[35].cells[15] === 2 &&
+      knitCellTravel(knit.rows[35].winding, 2)?.arrow === "←",
+    "Standrad front goes right, back goes left, and 11/12 still follow the bed",
   );
   assert(
     knitCodeInk(1, knit.colors).label === "1" &&
@@ -1675,69 +1883,37 @@ assert(
     "knitting-code cells use the Tiffany DAT colors, and empty 0 stays blank",
   );
   assert(
-    describeKnitCell(knit, 0, 0) === "第1环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
-      describeKnitCell(knit, 2, 0) === "第2环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
-      describeKnitCell(knit, 1, 0) === "第1环 后床  B12→B1 · 物理针 0 · 0 空针" &&
-      describeKnitCell(knit, 1, 12) === "第1环 后床  B12→B1 · 物理针 12 · 2 后床平针",
+    describeKnitCell(knit, 34, 3) === "第1环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
+      describeKnitCell(knit, 36, 3) === "第2环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
+      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1 · 物理针 0 · 0 空针" &&
+      describeKnitCell(knit, 35, 15) === "第1环 后床  B12→B1 · 物理针 12 · 2 后床平针",
     "a knitting-code cell names its pass, physical needle, and code",
   );
   assert(
     parseKnitCode({ matrix: [] }) == null &&
-      parseKnitCode({ matrix: [[3]] }) == null &&
-      parseKnitCode({ matrix: [[10]] }) == null &&
-      parseKnitCode({ matrix: [[13]] }) == null &&
+      parseKnitCode({ matrix: [[-1]] }) == null &&
+      parseKnitCode({ matrix: [[1.5]] }) == null &&
+      parseKnitCode({ matrix: [["x"]] }) == null &&
+      parseKnitCode({ matrix: [[3]] })?.rows[0].cells[0] === 3 &&
       parseKnitCode({ matrix: [[11, 12, 0, 1, 2]] })?.rows[0].cells.join(",") === "11,12,0,1,2",
-    "a knitting-code file without the accepted codes does not render",
+    "a knitting-code file rejects non-integers and keeps integer DAT codes",
   );
   assert(KNIT_CODE_CAPTION.includes("空位为 0") && KNIT_CODE_CAPTION.includes("0–12"), "knitting-code caption matches the accepted table");
   const standradShown = knitCodeDisplayRows(knit);
   assert(
-    knit.rows[0].label === "第1环 前床  F0→F12" &&
-      standradShown.length === 14 &&
-      standradShown[0].rowIndex === 13 &&
+    knit.rows[34].label === "第1环 前床  F0→F12" &&
+      standradShown.length === 48 &&
+      standradShown[0].rowIndex === 47 &&
       standradShown[0].row.label === "第7环 后床  B12→B1" &&
-      standradShown[0].row.winding === knit.rows[13].winding &&
-      standradShown[13].row === knit.rows[0] &&
-      standradShown[13].rowIndex === 0 &&
-      standradShown[13].row.winding === "ccw" &&
+      standradShown[0].row.winding === knit.rows[47].winding &&
+      standradShown[47].row === knit.rows[0] &&
+      standradShown[47].rowIndex === 0 &&
+      standradShown[47].row.label === "开头 1" &&
       knit.rows.every(
-        (row, index) => standradShown[13 - index].row === row && standradShown[13 - index].row.winding === row.winding,
+        (row, index) => standradShown[47 - index].row === row && standradShown[47 - index].row.winding === row.winding,
       ),
-    "Standrad knitting code stays chronological in data and is drawn with the first ring at the bottom",
+    "Standrad knitting code stays chronological in data and is drawn with the first knitted row at the bottom",
   );
-  assert(
-    knitCodeCaption(knit) === KNIT_CODE_CAPTION &&
-      knitCodeLegend(knit).map((item) => `${item.code}:${item.name}`).join("|") ===
-        KNIT_CODE_LEGEND.map((item) => `${item.code}:${item.name}`).join("|"),
-    "Standrad caption and legend still name needles 0–12 and the empty B0",
-  );
-  {
-    const standradObj = parseColoredObj(readFileSync(join(cylDir, "standrad_cylinder_KnittingStitches.obj"), "utf8"));
-    const standradStitches = standradObj.faces.map((face, index) => ({ index, verts: face.verts }));
-    const standradLayout = parseFacesRingLayout(readFileSync(join(cylDir, "standrad_cylinder_rings.json"), "utf8"));
-    facesRingChunksFromStitches(standradStitches, {
-      nRings: standradLayout.nFacesRing,
-      termCounts: standradLayout.termCounts,
-      ringTypes: standradLayout.ringTypes,
-      colors: standradLayout.colors,
-    });
-    const standradBedMap = parseExcelReadableMap(readFileSync(join(cylDir, "standrad_cylinder_bed.xls")));
-    const standradBind = bindKnitCodeStitches(knit, standradBedMap, standradStitches, null);
-    const standradLive = liveKnitCount(knit);
-    const standradF0 = standradBind.byKey.get("0,0");
-    assert(
-      standradBind.bedTokens === standradLive &&
-        standradBind.knitCells === standradLive &&
-        standradBind.unmatched.length === 0 &&
-        standradBind.byKey.size === standradLive &&
-        standradLive === 175 &&
-        !standradBind.byKey.has("1,0") &&
-        standradF0?.index === 0 &&
-        standradF0.ring === 0 &&
-        standradF0.termInRing === 0,
-      "Standrad knitting code binds every knit cell, and first-ring F0 is ring 0's first stitch",
-    );
-  }
   assert(
     knitCodeInitialScrollTop(400, 400) === 0 &&
       knitCodeInitialScrollTop(900, 400) === 500 &&

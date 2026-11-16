@@ -30,11 +30,32 @@ function hasEmptyCell(knit) {
   return Boolean(knit?.rows?.some((row) => row.cells.includes(0)));
 }
 
-/** Empty cells sit only on physical needle 0, so the back bed has no B0. */
+/**
+ * Garment-needle columns. Pad and frame columns are not needles.
+ * Tables without column roles stay one column per needle.
+ */
+function garmentColumns(knit) {
+  if (Array.isArray(knit?.columns) && knit.columns.length) {
+    return knit.columns.filter((col) => Number.isInteger(col.needle));
+  }
+  const needles = Array.isArray(knit?.needles) ? knit.needles : [];
+  return needles.map((needle, needleIndex) => ({ needleIndex, needle }));
+}
+
+/** Empty garment cells sit only on physical needle 0, so the back bed has no B0. */
 function missingBackZero(knit) {
-  const needles = knit?.needles;
-  if (!needles?.length || needles[0] !== 0) return false;
-  return (knit.rows || []).every((row) => row.cells.every((code, index) => code !== 0 || index === 0));
+  const garment = garmentColumns(knit);
+  if (!garment.length || garment[0].needle !== 0) return false;
+  const rows = (knit?.rows || []).filter((row) => row.bind !== false);
+  if (!rows.length) return false;
+  return rows.every((row) =>
+    garment.every((col) => row.cells[col.needleIndex] !== 0 || col.needle === 0),
+  );
+}
+
+/** True when this sheet carries copied opening function rails. */
+function hasCopiedOpening(knit) {
+  return Boolean(knit?.rows?.some((row) => row.functionRails));
 }
 
 /**
@@ -45,6 +66,10 @@ function missingBackZero(knit) {
 const DECREASE_DRAFT_NOTE =
   "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。矫正稿。";
 
+/** Standrad opening sits under the body. Rails on those rows are a template copy. */
+export const KNIT_OPENING_NOTE =
+  "主体下方是按幅宽适配的开头；开头功能行抄自模板，主体功能行不变。";
+
 /** Caption for this table. Standrad keeps the accepted 0–12 / empty-B0 wording. */
 export function knitCodeCaption(knit) {
   const span = needleSpan(knit);
@@ -54,6 +79,7 @@ export function knitCodeCaption(knit) {
     caption = `${BED_CLAUSE}；空位为 0。列是物理针 ${span}。`;
   }
   if (knit?.model === "Decrease Cylinder") caption += DECREASE_DRAFT_NOTE;
+  if (hasCopiedOpening(knit)) caption += KNIT_OPENING_NOTE;
   return caption;
 }
 
@@ -136,9 +162,26 @@ export const KNIT_FUNCTION_COLORS = {
   18: "#007C91",
   19: "#EBEB24",
   20: "#B276B2",
-  // Same swapped display order for the two indicator values outside 1–20.
+  // Same swapped display order for indicator values outside 1–20.
+  22: "#FC9463",
+  31: "#90D848",
+  33: "#A77F01",
+  37: "#FF00A0",
+  39: "#ACACEB",
+  41: "#D84890",
+  44: "#D8B4D8",
+  51: "#FF9090",
+  52: "#C0FF90",
+  73: "#B7BCBC",
   81: "#47869C",
   82: "#6DA5B4",
+  99: "#7F0000",
+  104: "#B2B273",
+  105: "#7F7F00",
+  107: "#B46C6C",
+  116: "#A9E5E7",
+  117: "#D8D8B4",
+  120: "#90D8FC",
 };
 
 function srgbChannel(hex, index) {
@@ -179,11 +222,22 @@ export function knitFunctionTextColor(fill) {
  * Rails line up across the rows of this table. There is no shared pattern width
  * and no alignment padding after the last needle.
  * The number cell is the pair's 本体. The "?" cell is its 指示.
- * L1 and R1 bodies follow the row direction. Named indicators are filled in
- * knitFunctionValue. Every unnamed "?" cell stays empty.
+ * A row with function_rails paints those values. Other rows use knitFunctionValue:
+ * L1 and R1 bodies follow the row direction, named indicators are filled, and
+ * every unnamed "?" cell stays empty. Pad and frame columns are not needles.
  */
-export function knitTableColumns(knit) {
+export function knitPatternColumns(knit) {
+  if (Array.isArray(knit?.columns) && knit.columns.length) return knit.columns;
   const needles = Array.isArray(knit?.needles) ? knit.needles : [];
+  return needles.map((needle, needleIndex) => ({
+    needleIndex,
+    needle: Number.isInteger(needle) ? needle : null,
+    kind: "needle",
+    header: Number.isInteger(needle) ? String(needle) : "",
+  }));
+}
+
+export function knitTableColumns(knit) {
   const columns = [];
   for (let pair = KNIT_FUNCTION_PAIRS; pair >= 1; pair -= 1) {
     columns.push({ role: "function", side: "L", pair, slot: "mark", header: "?" });
@@ -192,13 +246,13 @@ export function knitTableColumns(knit) {
   for (let index = 0; index < KNIT_FUNCTION_GAP; index += 1) {
     columns.push({ role: "gap", side: "left", index, header: "" });
   }
-  for (let needleIndex = 0; needleIndex < needles.length; needleIndex += 1) {
-    const needle = needles[needleIndex];
+  for (const col of knitPatternColumns(knit)) {
     columns.push({
       role: "pattern",
-      needleIndex,
-      needle,
-      header: Number.isInteger(needle) ? String(needle) : "",
+      needleIndex: col.needleIndex,
+      needle: col.needle,
+      kind: col.kind || (Number.isInteger(col.needle) ? "needle" : "pad"),
+      header: col.header ?? (Number.isInteger(col.needle) ? String(col.needle) : ""),
     });
   }
   for (let index = 0; index < KNIT_FUNCTION_GAP; index += 1) {
@@ -261,7 +315,9 @@ const LOCKED_COLORS = {
   12: "#906CB4",
 };
 
-const ACCEPTED_CODES = [0, 1, 2, 11, 12];
+function isKnitCode(code) {
+  return Number.isInteger(code) && code >= 0;
+}
 
 /** 1 and 11 are front bed. 2 and 12 are back bed. Empty 0 is not a stitch. */
 export function knitCodeBed(code) {
@@ -280,14 +336,45 @@ export function knitRowWinding(value) {
 
 function paletteFrom(data) {
   const raw = data?.rules?.colors_tiffany_display || data?.colors_tiffany_display || {};
-  const colors = { ...LOCKED_COLORS };
-  for (const code of ACCEPTED_CODES) {
-    const value = raw[code] ?? raw[String(code)];
+  const colors = { ...KNIT_FUNCTION_COLORS, ...LOCKED_COLORS };
+  for (const [key, value] of Object.entries(raw)) {
+    const code = Number(key);
+    if (!isKnitCode(code)) continue;
     if (typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value)) {
       colors[code] = value.toUpperCase();
     }
   }
   return colors;
+}
+
+function patternColumnsFrom(data, width) {
+  const roles = Array.isArray(data.column_roles) ? data.column_roles : null;
+  let needles = Array.isArray(data.needles) ? data.needles.map((n) => Number(n)) : [];
+  if (roles && roles.length === width) {
+    const columns = roles.map((role, needleIndex) => {
+      if (role === "pad" || role === "frame") {
+        return { needleIndex, needle: null, kind: role, header: "" };
+      }
+      const needle = Number(role);
+      if (!Number.isInteger(needle)) return { needleIndex, needle: null, kind: "pad", header: "" };
+      return { needleIndex, needle, kind: "needle", header: String(needle) };
+    });
+    const garment = columns.filter((col) => col.kind === "needle").map((col) => col.needle);
+    if (needles.length !== garment.length || needles.some((n, index) => n !== garment[index])) needles = garment;
+    return { needles, columns };
+  }
+  if (needles.length !== width || needles.some((n) => !Number.isInteger(n))) {
+    needles = Array.from({ length: width }, (_, i) => i);
+  }
+  return {
+    needles,
+    columns: needles.map((needle, needleIndex) => ({
+      needleIndex,
+      needle,
+      kind: "needle",
+      header: String(needle),
+    })),
+  };
 }
 
 /** @returns {object|null} Parsed table, or null when the file is not a knitting-code matrix. */
@@ -297,49 +384,55 @@ export function parseKnitCode(data) {
   const width = matrix[0]?.length;
   if (!Number.isInteger(width) || width < 1) return null;
   const rowsOk = matrix.every(
-    (row) =>
-      Array.isArray(row) &&
-      row.length === width &&
-      row.every((code) => ACCEPTED_CODES.includes(code)),
+    (row) => Array.isArray(row) && row.length === width && row.every((code) => isKnitCode(code)),
   );
   if (!rowsOk) return null;
 
-  let needles = Array.isArray(data.needles) ? data.needles.map((n) => Number(n)) : [];
-  if (needles.length !== width || needles.some((n) => !Number.isInteger(n))) {
-    needles = Array.from({ length: width }, (_, i) => i);
-  }
+  const { needles, columns } = patternColumnsFrom(data, width);
   const labels = Array.isArray(data.row_labels) ? data.row_labels : [];
   const windings = Array.isArray(data.row_winding) ? data.row_winding : [];
+  const rails = Array.isArray(data.function_rails) ? data.function_rails : [];
+  const binds = Array.isArray(data.row_bind) ? data.row_bind : null;
+  const colors = paletteFrom(data);
   return {
     model: typeof data.model === "string" ? data.model : "",
-    colors: paletteFrom(data),
+    colors,
     needles,
+    columns,
     rows: matrix.map((row, index) => ({
       index,
       label: typeof labels[index] === "string" ? labels[index] : "",
       winding: knitRowWinding(windings[index]),
       cells: row.slice(),
+      bind: binds ? binds[index] !== false : true,
+      functionRails: rails[index] && typeof rails[index] === "object" ? rails[index] : null,
+      colors,
     })),
   };
 }
 
 export function knitCodeInk(code, colors) {
   const n = Number(code);
-  const fill = colors?.[n] || LOCKED_COLORS[n] || LOCKED_COLORS[0];
-  if (n === 1) return { code: 1, fill, text: "#ffffff", label: "1" };
-  if (n === 11) return { code: 11, fill, text: "#111111", label: "11" };
-  if (n === 2) return { code: 2, fill, text: "#111111", label: "2" };
-  if (n === 12) return { code: 12, fill, text: "#111111", label: "12" };
-  return { code: 0, fill: colors?.[0] || LOCKED_COLORS[0], text: "#ffffff", label: "" };
+  const palette = { ...KNIT_FUNCTION_COLORS, ...LOCKED_COLORS, ...(colors || {}) };
+  if (!isKnitCode(n) || n === 0) {
+    return { code: 0, fill: palette[0] || LOCKED_COLORS[0], text: "#ffffff", label: "" };
+  }
+  const fill = palette[n] || "#000000";
+  return { code: n, fill, text: knitFunctionTextColor(fill), label: String(n) };
 }
 
 export function describeKnitCell(knit, rowIndex, needleIndex) {
   const row = knit?.rows?.[rowIndex];
   if (!row || needleIndex < 0 || needleIndex >= row.cells.length) return "";
   const code = row.cells[needleIndex];
-  const needle = knit.needles[needleIndex];
-  const kind = CODE_NAMES[code]?.replace(/^\d+\s/, "") || "空针";
-  const value = code === 0 ? "0 空针" : `${code} ${kind}`;
+  const column = knit.columns?.[needleIndex];
+  const needle = column ? column.needle : knit.needles?.[needleIndex];
+  const named = CODE_NAMES[code];
+  const value = code === 0 ? "0 空针" : named || String(code);
+  if (!Number.isInteger(needle)) {
+    const place = column?.kind === "frame" ? "边框" : "空位";
+    return `${row.label} · ${place} · ${value}`;
+  }
   return `${row.label} · 物理针 ${needle} · ${value}`;
 }
 
@@ -356,12 +449,13 @@ export function describeKnitCell(knit, rowIndex, needleIndex) {
  */
 export function knitCellTravel(winding, code) {
   const n = Number(code);
-  if (n === 0) return null;
-  const bed = knitCodeBed(n);
+  if (!isKnitCode(n) || n === 0) return null;
   const wind = knitRowWinding(winding);
-  if (wind == null || !bed) return null;
+  if (wind == null) return null;
   if (wind === "none") return { kind: "none", text: "操作行，无方向" };
-  const toRight = wind === "ccw" ? bed === "F" : bed === "B";
+  const bed = knitCodeBed(n);
+  // Codes without a bed follow the front-bed reading of this winding.
+  const toRight = bed ? (wind === "ccw" ? bed === "F" : bed === "B") : wind === "ccw";
   return toRight
     ? { kind: "right", text: "向右", arrow: "→" }
     : { kind: "left", text: "向左", arrow: "←" };
@@ -415,7 +509,23 @@ const RAIL_BLANK = { text: "", fill: null };
  * L13 follows the bed on knit rows and on operation rows that still have one.
  * R3 is 6 only while the row has knitting. R5 is 1 only when it does not.
  */
+function explicitRailValue(column, row) {
+  if (column?.role !== "function" || !Number.isInteger(column.pair)) return RAIL_BLANK;
+  const bagName = column.slot === "number" ? `${column.side}_body` : column.slot === "mark" ? `${column.side}_ind` : "";
+  const bag = bagName ? row.functionRails?.[bagName] : null;
+  if (!bag || typeof bag !== "object") return RAIL_BLANK;
+  const key = String(column.pair);
+  if (!Object.prototype.hasOwnProperty.call(bag, key)) return RAIL_BLANK;
+  const raw = bag[key];
+  if (raw == null || raw === "") return RAIL_BLANK;
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return RAIL_BLANK;
+  const fill = row.colors?.[n] || KNIT_FUNCTION_COLORS[n] || null;
+  return fill ? railPaint(n, fill) : { text: String(n), fill: null };
+}
+
 export function knitFunctionValue(column, row) {
+  if (row?.functionRails) return explicitRailValue(column, row);
   if (column?.role !== "function" || !Number.isInteger(column.pair)) return RAIL_BLANK;
   const { side, pair, slot } = column;
   if (slot === "number") {
@@ -445,15 +555,24 @@ export function knitFunctionValue(column, row) {
   return RAIL_BLANK;
 }
 
+function columnNeedle(knit, needleIndex) {
+  const column = knit?.columns?.[needleIndex];
+  if (column) return Number.isInteger(column.needle) ? column.needle : null;
+  const phys = knit?.needles?.[needleIndex];
+  return Number.isInteger(phys) ? phys : null;
+}
+
 function liveKnitCells(knit) {
   const cells = [];
   for (const row of knit?.rows || []) {
+    if (row.bind === false) continue;
     const live = [];
     row.cells.forEach((code, needleIndex) => {
       const bed = knitCodeBed(code);
       if (!bed) return;
+      const phys = columnNeedle(knit, needleIndex);
+      if (!Number.isInteger(phys)) return;
       const travel = knitCellTravel(row.winding, code);
-      const phys = knit.needles?.[needleIndex];
       live.push({
         rowIndex: row.index,
         needleIndex,
