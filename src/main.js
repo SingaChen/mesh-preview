@@ -1592,8 +1592,13 @@ function renderKnitCode(knit) {
         }
         const spacer = document.createElement("span");
         spacer.className = "rail-cell";
-        spacer.setAttribute("aria-hidden", "true");
-        spacer.textContent = knitRailCellText();
+        spacer.textContent = knitRailCellText(cell);
+        if (cell.fill) {
+          td.style.background = cell.fill;
+          td.style.color = cell.ink;
+        } else {
+          spacer.setAttribute("aria-hidden", "true");
+        }
         td.append(spacer);
         tr.append(td);
         continue;

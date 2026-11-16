@@ -479,6 +479,13 @@ input {
   font-variant-numeric: tabular-nums;
 }
 
+.knit-grid .rail-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .knit-grid .knit-cell {
   cursor: pointer;
 }
@@ -509,10 +516,6 @@ input {
   background: #5c6d84;
   border-right-color: #8ea0b5;
   border-bottom-color: #8ea0b5;
-}
-
-.knit-grid td.fn[data-slot="number"] {
-  background: #243044;
 }
 
 .knit-grid td.fn[data-slot="mark"] {
