@@ -845,9 +845,11 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
   const mainText = readFileSync(join(root, "src", "main.js"), "utf8");
   const cssText = readFileSync(join(root, "src", "style.css"), "utf8");
   assert(
-    KNIT_ZOOM_MIN === 0.5 &&
+    KNIT_ZOOM_MIN === 0.05 &&
       KNIT_ZOOM_MAX === 3 &&
-      clampKnitZoom(0.1) === 0.5 &&
+      clampKnitZoom(0.01) === 0.05 &&
+      clampKnitZoom(0.05) === 0.05 &&
+      clampKnitZoom(0.1) === 0.1 &&
       clampKnitZoom(9) === 3 &&
       clampKnitZoom(1.25) === 1.25 &&
       clampKnitZoom("nope") === 1 &&
@@ -858,8 +860,15 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
       mainText.includes("onKnitWheel") &&
       mainText.includes('{ passive: false }') &&
       mainText.includes("zoomKnitToward") &&
-      cssText.includes("--knit-scale"),
-    "knitting-code wheel zoom stays between 0.5× and 3× and anchors on the cursor",
+      cssText.includes("--knit-scale") &&
+      cssText.includes("--knit-fit: min(1, var(--knit-scale))") &&
+      cssText.includes("--knit-line: calc(1px * var(--knit-fit))") &&
+      cssText.includes("--knit-border:") &&
+      cssText.includes("--knit-hair:") &&
+      cssText.includes("--knit-idx: calc(40px * var(--knit-fit))") &&
+      cssText.includes("font-size: calc(13px * var(--knit-fit))") &&
+      cssText.includes("left: var(--knit-idx)"),
+    "knitting-code wheel zoom stays between 0.05× and 3× and anchors on the cursor",
   );
 }
 {
