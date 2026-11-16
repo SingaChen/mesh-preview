@@ -76,12 +76,15 @@ import {
   bindKnitCodeStitches,
   describeKnitCell,
   KNIT_FUNCTION_RAIL_NOTE,
+  clampKnitZoom,
   knitCodeCaption,
   knitCodeDisplayRows,
   knitCodeInitialScrollTop,
   knitCodeInk,
   knitCodeLegend,
   knitCellTravel,
+  knitZoomedScroll,
+  knitZoomFactor,
   knitTableCells,
   knitTableColumns,
   parseKnitCode,
@@ -190,6 +193,10 @@ let pickedStitch = null;
 let showPhysNeedle = false;
 let physPickKeys = null;
 let mapMode = "readable";
+let knitScale = 1;
+let knitPinGeneration = 0;
+let knitPan = null;
+let knitSwallowClick = false;
 let knitRenderKey = null;
 let knitDir = null;
 let knitTravelAnchor = null;
@@ -1520,6 +1527,8 @@ function showKnitTravel(anchor, travel) {
 function renderKnitCode(knit) {
   hideKnitTravel();
   if (!knitScroll || !knit) return;
+  knitScale = 1;
+  knitScroll.style.setProperty("--knit-scale", "1");
   if (knitTitle) knitTitle.textContent = `${knit.model || "Knitting"} knitting code`;
   if (knitNote) knitNote.textContent = knitCodeCaption(knit);
   if (knitRailNote) {
@@ -1717,9 +1726,116 @@ function highlightKnitCodeForPick(prefer) {
   });
 }
 
+function syncKnitScaleLabel() {
+  const knit = scene?.knitCode;
+  if (!mapMeta || mapMode !== "knit" || !knit?.rows?.length) return;
+  const first = knit.needles[0];
+  const last = knit.needles[knit.needles.length - 1];
+  const pct = Math.round(knitScale * 100);
+  mapMeta.textContent = pct === 100
+    ? `${knit.rows.length} 行 · 针 ${first}…${last}`
+    : `${knit.rows.length} 行 · 针 ${first}…${last} · ${pct}%`;
+}
+
+function zoomKnitToward(next, clientX, clientY, anchor) {
+  const scroller = knitScroll;
+  if (!scroller) return;
+  const scale = clampKnitZoom(next);
+  if (Math.abs(scale - knitScale) < 1e-4) return;
+  knitPinGeneration += 1;
+  const node = anchor instanceof Element ? anchor.closest(".knit-grid th, .knit-grid td") : null;
+  const sticky = node?.closest(".idx, .desc, thead");
+  if (node && scroller.contains(node) && !sticky) {
+    const before = node.getBoundingClientRect();
+    const relX = before.width > 0 ? (clientX - before.left) / before.width : 0.5;
+    const relY = before.height > 0 ? (clientY - before.top) / before.height : 0.5;
+    knitScale = scale;
+    scroller.style.setProperty("--knit-scale", String(scale));
+    const after = node.getBoundingClientRect();
+    scroller.scrollLeft += after.left + relX * after.width - clientX;
+    scroller.scrollTop += after.top + relY * after.height - clientY;
+  } else {
+    const rect = scroller.getBoundingClientRect();
+    const left = knitZoomedScroll(scroller.scrollLeft, clientX - rect.left, knitScale, scale);
+    const top = knitZoomedScroll(scroller.scrollTop, clientY - rect.top, knitScale, scale);
+    knitScale = scale;
+    scroller.style.setProperty("--knit-scale", String(scale));
+    scroller.scrollLeft = left;
+    scroller.scrollTop = top;
+  }
+  syncKnitScaleLabel();
+  if (knitTravelAnchor?.isConnected) placeKnitTravel(knitTravelAnchor);
+}
+
+function knitWheelPixels(ev) {
+  let dx = ev.deltaX;
+  let dy = ev.deltaY;
+  if (ev.deltaMode === 1) {
+    dx *= 16;
+    dy *= 16;
+  } else if (ev.deltaMode === 2) {
+    dx *= knitScroll?.clientWidth || 800;
+    dy *= knitScroll?.clientHeight || 600;
+  }
+  return { dx, dy };
+}
+
+function onKnitWheel(ev) {
+  if (!knitScroll || knitCodeEl?.hidden) return;
+  const { dx, dy } = knitWheelPixels(ev);
+  ev.preventDefault();
+  const pinch = ev.ctrlKey || ev.metaKey;
+  const sideways = Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 0.5;
+  if (!pinch && (ev.shiftKey || sideways)) {
+    if (ev.shiftKey && Math.abs(dy) >= Math.abs(dx)) knitScroll.scrollLeft += dy;
+    else knitScroll.scrollLeft += dx;
+    if (!ev.shiftKey && sideways) knitScroll.scrollTop += dy;
+    return;
+  }
+  if (dy === 0) return;
+  zoomKnitToward(knitScale * knitZoomFactor(dy), ev.clientX, ev.clientY, ev.target);
+}
+
+function onKnitPointerDown(ev) {
+  knitSwallowClick = false;
+  if (ev.button !== 0 || !ev.isPrimary || ev.pointerType === "touch" || !knitScroll) return;
+  knitPan = {
+    id: ev.pointerId,
+    x: ev.clientX,
+    y: ev.clientY,
+    left: knitScroll.scrollLeft,
+    top: knitScroll.scrollTop,
+    moved: false,
+  };
+}
+
+function onKnitPointerMove(ev) {
+  if (!knitPan || ev.pointerId !== knitPan.id || !knitScroll) return;
+  const dx = ev.clientX - knitPan.x;
+  const dy = ev.clientY - knitPan.y;
+  if (!knitPan.moved && Math.hypot(dx, dy) < 5) return;
+  if (!knitPan.moved) {
+    knitPan.moved = true;
+    knitScroll.classList.add("is-panning");
+    knitScroll.setPointerCapture(ev.pointerId);
+  }
+  ev.preventDefault();
+  knitScroll.scrollLeft = knitPan.left - dx;
+  knitScroll.scrollTop = knitPan.top - dy;
+}
+
+function onKnitPointerEnd(ev) {
+  if (!knitPan || ev.pointerId !== knitPan.id) return;
+  if (knitPan.moved) knitSwallowClick = true;
+  knitScroll?.classList.remove("is-panning");
+  knitPan = null;
+}
+
 function pinKnitCodeScroll() {
   if (!knitScroll) return;
+  const token = ++knitPinGeneration;
   const pin = () => {
+    if (token !== knitPinGeneration || knitScale !== 1) return;
     knitScroll.scrollTop = knitCodeInitialScrollTop(knitScroll.scrollHeight, knitScroll.clientHeight);
     const pattern =
       knitScroll.querySelector('tbody td.pattern[data-needle="0"]') ||
@@ -1763,7 +1879,12 @@ function paintMapChrome() {
     if (knitRenderKey !== knit) renderKnitCode(knit);
     const first = knit.needles[0];
     const last = knit.needles[knit.needles.length - 1];
-    if (mapMeta) mapMeta.textContent = `${knit.rows.length} 行 · 针 ${first}…${last}`;
+    const pct = Math.round(knitScale * 100);
+    if (mapMeta) {
+      mapMeta.textContent = pct === 100
+        ? `${knit.rows.length} 行 · 针 ${first}…${last}`
+        : `${knit.rows.length} 行 · 针 ${first}…${last} · ${pct}%`;
+    }
   }
 }
 
@@ -1913,6 +2034,25 @@ knitScroll?.addEventListener(
   },
   { passive: true },
 );
+knitScroll?.addEventListener("wheel", onKnitWheel, { passive: false });
+knitScroll?.addEventListener("pointerdown", onKnitPointerDown);
+knitScroll?.addEventListener("pointermove", onKnitPointerMove);
+knitScroll?.addEventListener("pointerup", onKnitPointerEnd);
+knitScroll?.addEventListener("pointercancel", onKnitPointerEnd);
+knitScroll?.addEventListener(
+  "click",
+  (ev) => {
+    if (!knitSwallowClick) return;
+    knitSwallowClick = false;
+    ev.preventDefault();
+    ev.stopPropagation();
+  },
+  true,
+);
+knitScroll?.addEventListener("dblclick", (ev) => {
+  if (ev.target instanceof Element && ev.target.closest(".knit-cell")) return;
+  zoomKnitToward(1, ev.clientX, ev.clientY, ev.target);
+});
 window.addEventListener("resize", () => {
   if (knitTravelAnchor?.isConnected) placeKnitTravel(knitTravelAnchor);
 });
