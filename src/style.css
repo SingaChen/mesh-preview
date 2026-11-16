@@ -395,11 +395,16 @@ input {
   font-family: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
 }
 
+.knit-rail-note {
+  color: #f0e2bc !important;
+}
+
 .knit-scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding: 0 12px 12px;
+  overscroll-behavior: contain;
 }
 
 .knit-grid {
@@ -459,7 +464,8 @@ input {
   white-space: pre;
 }
 
-.knit-grid .knit-cell {
+.knit-grid .knit-cell,
+.knit-grid .rail-cell {
   display: block;
   width: 36px;
   height: 32px;
@@ -471,7 +477,51 @@ input {
   font: inherit;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.knit-grid .knit-cell {
   cursor: pointer;
+}
+
+/* Function rails and the 5-unit gaps are not stitches. Empty needle 0 stays #000000 on .knit-cell only. */
+.knit-grid thead th.fn,
+.knit-grid thead th.gap {
+  padding: 4px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.15;
+  font-weight: 650;
+}
+
+.knit-grid thead th.fn[data-slot="number"] {
+  background: #2e4058;
+  color: #e7eef8;
+}
+
+.knit-grid thead th.fn[data-slot="mark"] {
+  background: #4d4332;
+  color: #f6e6bf;
+}
+
+.knit-grid thead th.gap,
+.knit-grid td.gap {
+  background: #5c6d84;
+  border-right-color: #8ea0b5;
+  border-bottom-color: #8ea0b5;
+}
+
+.knit-grid td.fn[data-slot="number"] {
+  background: #243044;
+}
+
+.knit-grid td.fn[data-slot="mark"] {
+  background: #3a3428;
+}
+
+.knit-grid td.fn,
+.knit-grid td.gap {
+  cursor: default;
 }
 
 .knit-grid .knit-cell:hover,
