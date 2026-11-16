@@ -136,8 +136,8 @@ export function knitCodeInitialScrollTop(scrollHeight, clientHeight) {
   return Math.max(0, height - view);
 }
 
-/** Knitting-code table scale. 1 is the authored cell size. */
-export const KNIT_ZOOM_MIN = 0.5;
+/** Knitting-code table scale. 1 is the authored cell size. 0.05 is the overview floor. */
+export const KNIT_ZOOM_MIN = 0.05;
 export const KNIT_ZOOM_MAX = 3;
 
 export function clampKnitZoom(scale) {

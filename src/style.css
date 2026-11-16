@@ -401,6 +401,15 @@ input {
 
 .knit-scroll {
   --knit-scale: 1;
+  /* Gutter width and label type stay 1× while zooming in, and follow the
+     cells while zooming out. Layout borders cannot be thinner than 1 device
+     pixel, so below 1× the grid is a hairline shadow instead of a border. */
+  --knit-fit: min(1, var(--knit-scale));
+  --knit-line: calc(1px * var(--knit-fit));
+  --knit-border: calc(1px * clamp(0, (var(--knit-fit) - 0.999) * 1000, 1));
+  --knit-hair: calc(var(--knit-line) * clamp(0, (1 - var(--knit-fit)) * 1000, 1));
+  --knit-row: calc(32px * var(--knit-scale));
+  --knit-idx: calc(40px * var(--knit-fit));
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -421,14 +430,31 @@ input {
 
 .knit-grid th,
 .knit-grid td {
-  border-right: 1px solid #555555;
-  border-bottom: 1px solid #555555;
+  --grid-ink: #555555;
+  border-style: solid;
+  border-color: var(--grid-ink);
+  border-width: 0 var(--knit-border) var(--knit-border) 0;
   text-align: center;
   padding: 0;
+  vertical-align: middle;
+  box-shadow:
+    inset calc(-1 * var(--knit-hair)) 0 0 var(--grid-ink),
+    inset 0 calc(-1 * var(--knit-hair)) 0 var(--grid-ink);
+}
+
+.knit-grid .knit-cell,
+.knit-grid .rail-cell {
+  box-shadow:
+    inset calc(-1 * var(--knit-hair)) 0 0 var(--grid-ink),
+    inset 0 calc(-1 * var(--knit-hair)) 0 var(--grid-ink);
 }
 
 .knit-grid tr > :first-child {
-  border-left: 1px solid #555555;
+  border-left-width: var(--knit-border);
+  box-shadow:
+    inset var(--knit-hair) 0 0 var(--grid-ink),
+    inset calc(-1 * var(--knit-hair)) 0 0 var(--grid-ink),
+    inset 0 calc(-1 * var(--knit-hair)) 0 var(--grid-ink);
 }
 
 .knit-grid thead th {
@@ -438,8 +464,29 @@ input {
   background: #222222;
   color: #dddddd;
   font-weight: 550;
-  padding: calc(6px * var(--knit-scale)) calc(8px * var(--knit-scale));
-  border-top: 1px solid #555555;
+  /* Same content height as a stitch cell, including while zoomed out. */
+  height: calc(var(--knit-row) + (2 * var(--knit-border)));
+  padding: 0 calc(8px * var(--knit-scale));
+  line-height: var(--knit-row);
+  border-top-width: var(--knit-border);
+  box-shadow:
+    inset calc(-1 * var(--knit-hair)) 0 0 var(--grid-ink),
+    inset 0 var(--knit-hair) 0 var(--grid-ink),
+    inset 0 calc(-1 * var(--knit-hair)) 0 var(--grid-ink);
+}
+
+.knit-grid thead tr > :first-child {
+  border-left-width: var(--knit-border);
+  box-shadow:
+    inset var(--knit-hair) 0 0 var(--grid-ink),
+    inset calc(-1 * var(--knit-hair)) 0 0 var(--grid-ink),
+    inset 0 var(--knit-hair) 0 var(--grid-ink),
+    inset 0 calc(-1 * var(--knit-hair)) 0 var(--grid-ink);
+}
+
+.knit-grid tbody td {
+  border-top-width: 0;
+  height: calc(var(--knit-row) + var(--knit-border));
 }
 
 .knit-grid .idx,
@@ -448,28 +495,43 @@ input {
   background: #1a1a1a;
   color: #cccccc;
   z-index: 1;
-  /* Stay at the authored size so a zoomed table does not slide under a growing label. */
-  font-size: 13px;
+  /* Zoom in keeps 1× type so the sticky gutter does not grow over the stitches.
+     Zoom out shrinks type, padding, and width so the row can follow the cells. */
+  font-size: calc(13px * var(--knit-fit));
+  line-height: 1.15;
+  vertical-align: middle;
 }
 
 .knit-grid thead .idx,
 .knit-grid thead .desc {
   z-index: 3;
   background: #222222;
+  line-height: var(--knit-row);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.knit-grid thead .idx {
+  padding-left: calc(8px * var(--knit-fit));
+  padding-right: calc(8px * var(--knit-fit));
 }
 
 .knit-grid .idx {
   left: 0;
-  width: 40px;
-  min-width: 40px;
-  max-width: 40px;
+  width: var(--knit-idx);
+  min-width: var(--knit-idx);
+  max-width: var(--knit-idx);
 }
 
 .knit-grid .desc {
-  left: 40px;
+  left: var(--knit-idx);
   text-align: left;
-  padding: 4px 10px;
+  padding: calc(4px * var(--knit-fit)) calc(10px * var(--knit-fit));
   white-space: pre;
+}
+
+.knit-grid thead .desc {
+  padding: 0 calc(10px * var(--knit-fit));
 }
 
 .knit-grid .knit-cell,
@@ -507,11 +569,11 @@ input {
 /* Function rails and the 5-unit gaps are not stitches. Empty needle 0 stays #000000 on .knit-cell only. */
 .knit-grid thead th.fn,
 .knit-grid thead th.gap {
-  padding: calc(4px * var(--knit-scale)) 0;
+  padding: 0;
   overflow: hidden;
   white-space: nowrap;
   font-size: calc(10px * var(--knit-scale));
-  line-height: 1.15;
+  line-height: var(--knit-row);
   font-weight: 650;
 }
 
@@ -527,6 +589,7 @@ input {
 
 .knit-grid thead th.gap,
 .knit-grid td.gap {
+  --grid-ink: #8ea0b5;
   background: #5c6d84;
   border-right-color: #8ea0b5;
   border-bottom-color: #8ea0b5;
