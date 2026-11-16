@@ -474,9 +474,64 @@ input {
   cursor: pointer;
 }
 
+.knit-grid .knit-cell:hover,
+.knit-grid .knit-cell:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -3px;
+}
+
 .knit-grid .knit-cell[aria-pressed="true"] {
   outline: 2px solid var(--accent);
   outline-offset: -3px;
+}
+
+.knit-dir {
+  position: fixed;
+  z-index: 40;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 14px 8px 10px;
+  border: 2px solid #141414;
+  border-radius: 999px;
+  background: #fffef8;
+  color: #141414;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.knit-dir[hidden] {
+  display: none !important;
+}
+
+.knit-dir-arrow {
+  display: inline-flex;
+  width: 40px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+}
+
+.knit-dir-arrow svg {
+  display: block;
+}
+
+.knit-dir.is-none {
+  padding-left: 14px;
+  letter-spacing: 0.01em;
+  font-size: 18px;
+}
+
+.knit-dir.is-none .knit-dir-arrow {
+  display: none;
 }
 
 .map-empty {

@@ -73,6 +73,13 @@ const LOCKED_COLORS = {
   2: "#00FF00",
 };
 
+/** Per-row travel. "none" is an operation row. Missing or unknown values are not a direction. */
+const ROW_WINDINGS = new Set(["ccw", "cw", "none"]);
+
+export function knitRowWinding(value) {
+  return ROW_WINDINGS.has(value) ? value : null;
+}
+
 function paletteFrom(data) {
   const raw = data?.rules?.colors_tiffany_display || data?.colors_tiffany_display || {};
   const colors = { ...LOCKED_COLORS };
@@ -104,6 +111,7 @@ export function parseKnitCode(data) {
     needles = Array.from({ length: width }, (_, i) => i);
   }
   const labels = Array.isArray(data.row_labels) ? data.row_labels : [];
+  const windings = Array.isArray(data.row_winding) ? data.row_winding : [];
   return {
     model: typeof data.model === "string" ? data.model : "",
     colors: paletteFrom(data),
@@ -111,6 +119,7 @@ export function parseKnitCode(data) {
     rows: matrix.map((row, index) => ({
       index,
       label: typeof labels[index] === "string" ? labels[index] : "",
+      winding: knitRowWinding(windings[index]),
       cells: row.slice(),
     })),
   };
@@ -132,4 +141,27 @@ export function describeKnitCell(knit, rowIndex, needleIndex) {
   const kind = code === 1 ? "前床平针" : code === 2 ? "后床平针" : "空针";
   const value = code === 0 ? "0 空针" : `${code} ${kind}`;
   return `${row.label} · 物理针 ${needle} · ${value}`;
+}
+
+/**
+ * Hover travel for one cell.
+ * `winding` is that row's own field (`ccw` | `cw` | `none`). Color names the bed
+ * only: 1 front, 2 back, 0 empty. A row of front stitches can still be clockwise.
+ * Counterclockwise sends the front bed right and the back bed left; clockwise
+ * is the opposite. Operation rows have no arrow. Empty cells are not stitches
+ * and are not operation rows, so they get no direction label.
+ * Bottom-up display does not rewrite this: pass the chronological row's winding.
+ *
+ * @returns {{kind:"left"|"right"|"none", text:string, arrow?:string}|null}
+ */
+export function knitCellTravel(winding, code) {
+  const n = Number(code);
+  if (n === 0) return null;
+  const wind = knitRowWinding(winding);
+  if (wind == null || (n !== 1 && n !== 2)) return null;
+  if (wind === "none") return { kind: "none", text: "操作行，无方向" };
+  const toRight = wind === "ccw" ? n === 1 : n === 2;
+  return toRight
+    ? { kind: "right", text: "向右", arrow: "→" }
+    : { kind: "left", text: "向左", arrow: "←" };
 }

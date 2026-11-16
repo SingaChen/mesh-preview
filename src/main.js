@@ -79,6 +79,7 @@ import {
   knitCodeInitialScrollTop,
   knitCodeInk,
   knitCodeLegend,
+  knitCellTravel,
   parseKnitCode,
 } from "./knit-code.js";
 import { NO_DAT_TITLE, datForSheet } from "./sheet-dat.js";
@@ -185,6 +186,8 @@ let showPhysNeedle = false;
 let physPickKeys = null;
 let mapMode = "readable";
 let knitRenderKey = null;
+let knitDir = null;
+let knitTravelAnchor = null;
 const geomCache = new Map();
 const textCache = new Map();
 
@@ -1419,7 +1422,91 @@ function stoppedMapSuffix(map) {
   return ` · 停在 ring ${hit[1]} course ${hit[2]}（后床低于 0，规则等 Singa）`;
 }
 
+function ensureKnitDir() {
+  if (knitDir) return knitDir;
+  knitDir = document.createElement("div");
+  knitDir.id = "knit-dir";
+  knitDir.className = "knit-dir";
+  knitDir.hidden = true;
+  knitDir.setAttribute("role", "tooltip");
+  const arrow = document.createElement("span");
+  arrow.className = "knit-dir-arrow";
+  const text = document.createElement("span");
+  text.className = "knit-dir-text";
+  knitDir.append(arrow, text);
+  document.body.append(knitDir);
+  return knitDir;
+}
+
+function knitTravelArrow(kind) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 36 24");
+  svg.setAttribute("width", "40");
+  svg.setAttribute("height", "28");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", kind === "left" ? "M32 12H6M16 4L6 12l10 8" : "M4 12H30M20 4l10 8-10 8");
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "3.4");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-linejoin", "round");
+  svg.append(path);
+  return svg;
+}
+
+function placeKnitTravel(anchor) {
+  if (!knitDir || knitDir.hidden || !anchor?.isConnected) return;
+  const rect = anchor.getBoundingClientRect();
+  const tip = knitDir.getBoundingClientRect();
+  const gap = 10;
+  let top = rect.top - tip.height - gap;
+  if (top < 8) top = rect.bottom + gap;
+  // Start the chip at the cell so it stays off the sticky row label.
+  let left = rect.left;
+  const maxLeft = Math.max(8, window.innerWidth - tip.width - 8);
+  left = Math.min(Math.max(8, left), maxLeft);
+  knitDir.style.top = `${Math.round(top)}px`;
+  knitDir.style.left = `${Math.round(left)}px`;
+}
+
+function hideKnitTravel() {
+  knitTravelAnchor?.removeAttribute("aria-describedby");
+  knitTravelAnchor = null;
+  if (!knitDir) return;
+  knitDir.hidden = true;
+  knitDir.style.visibility = "";
+  knitDir.classList.remove("is-left", "is-right", "is-none");
+  knitDir.querySelector(".knit-dir-arrow")?.replaceChildren();
+  const text = knitDir.querySelector(".knit-dir-text");
+  if (text) text.textContent = "";
+}
+
+function showKnitTravel(anchor, travel) {
+  if (!anchor || !travel) {
+    hideKnitTravel();
+    return;
+  }
+  const tip = ensureKnitDir();
+  const arrow = tip.querySelector(".knit-dir-arrow");
+  const text = tip.querySelector(".knit-dir-text");
+  arrow.replaceChildren();
+  if (travel.kind === "left" || travel.kind === "right") arrow.append(knitTravelArrow(travel.kind));
+  text.textContent = travel.text;
+  tip.classList.toggle("is-left", travel.kind === "left");
+  tip.classList.toggle("is-right", travel.kind === "right");
+  tip.classList.toggle("is-none", travel.kind === "none");
+  knitTravelAnchor?.removeAttribute("aria-describedby");
+  knitTravelAnchor = anchor;
+  anchor.setAttribute("aria-describedby", "knit-dir");
+  tip.hidden = false;
+  tip.style.visibility = "hidden";
+  placeKnitTravel(anchor);
+  tip.style.visibility = "visible";
+}
+
 function renderKnitCode(knit) {
+  hideKnitTravel();
   if (!knitScroll || !knit) return;
   if (knitTitle) knitTitle.textContent = `${knit.model || "Knitting"} knitting code`;
   if (knitNote) knitNote.textContent = knitCodeCaption(knit);
@@ -1435,7 +1522,7 @@ function renderKnitCode(knit) {
       knitLegend.append(span);
     }
   }
-  if (knitDetail) knitDetail.textContent = "点一格查看这一针";
+  if (knitDetail) knitDetail.textContent = "悬停看行进方向，点一格查看这一针";
   const table = document.createElement("table");
   table.className = "knit-grid";
   const thead = document.createElement("thead");
@@ -1470,15 +1557,33 @@ function renderKnitCode(knit) {
       const td = document.createElement("td");
       const ink = knitCodeInk(code, knit.colors);
       const detail = describeKnitCell(knit, rowIndex, needleIndex);
+      const travel = knitCellTravel(row.winding, code);
       const button = document.createElement("button");
       button.type = "button";
       button.className = "knit-cell";
       button.style.background = ink.fill;
       button.style.color = ink.text;
       button.textContent = ink.label;
-      button.title = detail;
-      button.setAttribute("aria-label", detail);
+      button.setAttribute("aria-label", travel ? `${detail}，${travel.text}` : detail);
+      button.dataset.rowIndex = String(rowIndex);
+      button.dataset.needle = String(knit.needles[needleIndex]);
+      button.dataset.code = String(code);
+      button.dataset.winding = row.winding || "";
+      button.dataset.travel = travel?.kind || "";
+      if (travel?.text) button.dataset.travelText = travel.text;
       button.setAttribute("aria-pressed", "false");
+      const showTravel = () => {
+        if (travel) showKnitTravel(button, travel);
+        else hideKnitTravel();
+      };
+      button.addEventListener("pointerenter", showTravel);
+      button.addEventListener("pointerleave", () => {
+        if (knitTravelAnchor === button) hideKnitTravel();
+      });
+      button.addEventListener("focus", showTravel);
+      button.addEventListener("blur", () => {
+        if (knitTravelAnchor === button) hideKnitTravel();
+      });
       button.addEventListener("click", () => {
         for (const cell of table.querySelectorAll(".knit-cell[aria-pressed='true']")) {
           cell.setAttribute("aria-pressed", "false");
@@ -1520,6 +1625,7 @@ function paintMapChrome() {
   }
   mapPane?.classList.toggle("show-knit-code", showingKnit);
   if (knitCodeEl) knitCodeEl.hidden = !showingKnit;
+  if (!showingKnit) hideKnitTravel();
   for (const btn of [mapZoomIn, mapZoomOut, mapFitBtn, mapPhysBtn]) {
     if (btn) btn.disabled = showingKnit;
   }
@@ -1674,6 +1780,17 @@ mapZoomOut?.addEventListener("click", () => {
 mapFitBtn?.addEventListener("click", () => {
   mapView?.resize();
   mapView?.fit({ overview: true });
+});
+knitScroll?.addEventListener(
+  "scroll",
+  () => {
+    if (knitTravelAnchor?.isConnected) placeKnitTravel(knitTravelAnchor);
+    else if (knitTravelAnchor) hideKnitTravel();
+  },
+  { passive: true },
+);
+window.addEventListener("resize", () => {
+  if (knitTravelAnchor?.isConnected) placeKnitTravel(knitTravelAnchor);
 });
 mapModeReadable?.addEventListener("click", () => setMapMode("readable"));
 mapModeKnit?.addEventListener("click", () => {
