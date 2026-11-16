@@ -4,22 +4,19 @@ import { bedKnitTokens } from "./excel-map.js";
 import { stitchForMapCell } from "./readable-map.js";
 
 const BED_CLAUSE = "前床 1（红）一行，换后床新开一行 2（绿）";
-const TURN_CLAUSE = "每次换行后沿行进方向的第一针为 11（前床 #FF67BD）或 12（后床 #906CB4）";
 
-export const KNIT_CODE_CAPTION = `${BED_CLAUSE}；${TURN_CLAUSE}；空位为 0。列是物理针 0–12。`;
+export const KNIT_CODE_CAPTION = `${BED_CLAUSE}；空位为 0。列是物理针 0–12。`;
 
 const CODE_NAMES = {
   1: "1 前床平针",
-  11: "11 前床转向首针",
+  11: "11 前床短行折返首针",
   2: "2 后床平针",
-  12: "12 后床转向首针",
+  12: "12 后床短行折返首针",
 };
 
 export const KNIT_CODE_LEGEND = [
   { code: 1, name: CODE_NAMES[1] },
-  { code: 11, name: CODE_NAMES[11] },
   { code: 2, name: CODE_NAMES[2] },
-  { code: 12, name: CODE_NAMES[12] },
   { code: 0, name: "0 空针（无B0）" },
 ];
 
@@ -40,17 +37,21 @@ function missingBackZero(knit) {
   return (knit.rows || []).every((row) => row.cells.every((code, index) => code !== 0 || index === 0));
 }
 
-/** Draft note for Decrease only. Standrad and Dense captions stay on the shared wording. */
+/**
+ * Draft note for Decrease only. 11/12 are the first stitch after a short-row
+ * winding reversal, not the first stitch of every visual row. Standrad and
+ * Dense captions stay on the shared wording.
+ */
 const DECREASE_DRAFT_NOTE =
-  "移针/翻针未画；换行后沿行进方向的第一针为 11 或 12，同一行其余短行折返格仍是 1 或 2。矫正稿。";
+  "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。矫正稿。";
 
 /** Caption for this table. Standrad keeps the accepted 0–12 / empty-B0 wording. */
 export function knitCodeCaption(knit) {
   const span = needleSpan(knit);
-  let caption = `${BED_CLAUSE}；${TURN_CLAUSE}。列是物理针 ${span}。`;
+  let caption = `${BED_CLAUSE}。列是物理针 ${span}。`;
   if (hasEmptyCell(knit) && span === "0–12") caption = KNIT_CODE_CAPTION;
   else if (hasEmptyCell(knit)) {
-    caption = `${BED_CLAUSE}；${TURN_CLAUSE}；空位为 0。列是物理针 ${span}。`;
+    caption = `${BED_CLAUSE}；空位为 0。列是物理针 ${span}。`;
   }
   if (knit?.model === "Decrease Cylinder") caption += DECREASE_DRAFT_NOTE;
   return caption;
