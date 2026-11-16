@@ -9,7 +9,8 @@
       "field": "increase/increase_cylinder_cols_resample_field.obj",
       "colsResample": "increase/increase_cylinder_cols_resample_field.obj",
       "colsResampleXls": "increase/increase_cylinder_cols_resample.xls",
-      "facesRingLayout": "increase/increase_cylinder_faces_ring_layout.json"
+      "facesRingLayout": "increase/increase_cylinder_faces_ring_layout.json",
+      "knitCode": "increase/increase_cylinder_knitcode.json"
     }
   ]
 }
