@@ -26,14 +26,19 @@ function missingBackZero(knit) {
   return (knit.rows || []).every((row) => row.cells.every((code, index) => code !== 0 || index === 0));
 }
 
+/** Draft note for Decrease only. Standrad and Dense captions stay exact. */
+const DECREASE_DRAFT_NOTE = "移针/翻针未画；短行折返暂按普通平针。矫正稿。";
+
 /** Caption for this table. Standrad keeps the accepted 0–12 / empty-B0 wording. */
 export function knitCodeCaption(knit) {
   const span = needleSpan(knit);
-  if (hasEmptyCell(knit) && span === "0–12") return KNIT_CODE_CAPTION;
-  if (hasEmptyCell(knit)) {
-    return `前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 ${span}。`;
+  let caption = `前床 1（红）一行，换后床新开一行 2（绿）。列是物理针 ${span}。`;
+  if (hasEmptyCell(knit) && span === "0–12") caption = KNIT_CODE_CAPTION;
+  else if (hasEmptyCell(knit)) {
+    caption = `前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 ${span}。`;
   }
-  return `前床 1（红）一行，换后床新开一行 2（绿）。列是物理针 ${span}。`;
+  if (knit?.model === "Decrease Cylinder") caption += DECREASE_DRAFT_NOTE;
+  return caption;
 }
 
 /** Legend for the codes this table actually uses. Dense has no empty B0. */
