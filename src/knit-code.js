@@ -136,6 +136,40 @@ export function knitCodeInitialScrollTop(scrollHeight, clientHeight) {
   return Math.max(0, height - view);
 }
 
+/** Knitting-code table scale. 1 is the authored cell size. */
+export const KNIT_ZOOM_MIN = 0.5;
+export const KNIT_ZOOM_MAX = 3;
+
+export function clampKnitZoom(scale) {
+  const n = Number(scale);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(KNIT_ZOOM_MAX, Math.max(KNIT_ZOOM_MIN, n));
+}
+
+/**
+ * Scale multiplier for one wheel delta in CSS pixels.
+ * Positive deltaY (wheel away / scroll down) zooms out.
+ */
+export function knitZoomFactor(deltaY) {
+  const dy = Number(deltaY);
+  if (!Number.isFinite(dy) || dy === 0) return 1;
+  return Math.exp(-dy * 0.0016);
+}
+
+/**
+ * Scroll position that keeps the content point under the cursor after a
+ * uniform scale change. viewportOffset is the cursor's distance from the
+ * scroller's top or left edge.
+ */
+export function knitZoomedScroll(scroll, viewportOffset, oldScale, newScale) {
+  const from = Number(oldScale);
+  const to = Number(newScale);
+  const origin = Number(scroll) || 0;
+  const offset = Number(viewportOffset) || 0;
+  if (!Number.isFinite(from) || from <= 0 || !Number.isFinite(to) || to <= 0) return origin;
+  return (origin + offset) * (to / from) - offset;
+}
+
 /** Function-rail pairs on each side of a knitting-code table. */
 export const KNIT_FUNCTION_PAIRS = 20;
 

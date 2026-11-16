@@ -79,8 +79,13 @@ import {
   knitCellTravel,
   knitCodeCaption,
   knitCodeDisplayRows,
+  KNIT_ZOOM_MAX,
+  KNIT_ZOOM_MIN,
+  clampKnitZoom,
   knitCodeInitialScrollTop,
   knitCodeInk,
+  knitZoomedScroll,
+  knitZoomFactor,
   knitCodeLegend,
   knitFunctionTextColor,
   knitFunctionValue,
@@ -835,6 +840,28 @@ if (facesOut.colsResampleJsonFile) throw new Error("sample should not ship a col
 if (!facesOut.firstRowsFile) throw new Error("expected first_rows xls");
 if (!facesOut.facesRingLayoutFile) throw new Error("expected faces_ring_layout.json");
 if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json");
+{
+  const zoomed = knitZoomedScroll(200, 40, 1, 2);
+  const mainText = readFileSync(join(root, "src", "main.js"), "utf8");
+  const cssText = readFileSync(join(root, "src", "style.css"), "utf8");
+  assert(
+    KNIT_ZOOM_MIN === 0.5 &&
+      KNIT_ZOOM_MAX === 3 &&
+      clampKnitZoom(0.1) === 0.5 &&
+      clampKnitZoom(9) === 3 &&
+      clampKnitZoom(1.25) === 1.25 &&
+      clampKnitZoom("nope") === 1 &&
+      knitZoomFactor(0) === 1 &&
+      knitZoomFactor(100) < 1 &&
+      knitZoomFactor(-100) > 1 &&
+      Math.abs(zoomed - 440) < 1e-9 &&
+      mainText.includes("onKnitWheel") &&
+      mainText.includes('{ passive: false }') &&
+      mainText.includes("zoomKnitToward") &&
+      cssText.includes("--knit-scale"),
+    "knitting-code wheel zoom stays between 0.5× and 3× and anchors on the cursor",
+  );
+}
 {
   const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
   assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");

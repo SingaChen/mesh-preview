@@ -400,6 +400,7 @@ input {
 }
 
 .knit-scroll {
+  --knit-scale: 1;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -407,10 +408,15 @@ input {
   overscroll-behavior: contain;
 }
 
+.knit-scroll.is-panning,
+.knit-scroll.is-panning .knit-cell {
+  cursor: grabbing;
+}
+
 .knit-grid {
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 13px;
+  font-size: calc(13px * var(--knit-scale));
 }
 
 .knit-grid th,
@@ -432,7 +438,7 @@ input {
   background: #222222;
   color: #dddddd;
   font-weight: 550;
-  padding: 6px 8px;
+  padding: calc(6px * var(--knit-scale)) calc(8px * var(--knit-scale));
   border-top: 1px solid #555555;
 }
 
@@ -442,6 +448,8 @@ input {
   background: #1a1a1a;
   color: #cccccc;
   z-index: 1;
+  /* Stay at the authored size so a zoomed table does not slide under a growing label. */
+  font-size: 13px;
 }
 
 .knit-grid thead .idx,
@@ -467,8 +475,8 @@ input {
 .knit-grid .knit-cell,
 .knit-grid .rail-cell {
   display: block;
-  width: 36px;
-  height: 32px;
+  width: calc(36px * var(--knit-scale));
+  height: calc(32px * var(--knit-scale));
   margin: 0;
   padding: 0;
   border: 0;
@@ -492,17 +500,17 @@ input {
 
 .knit-grid .knit-cell.is-wide-code,
 .knit-grid .rail-cell.is-wide-code {
-  font-size: 11px;
+  font-size: calc(11px * var(--knit-scale));
   letter-spacing: -0.04em;
 }
 
 /* Function rails and the 5-unit gaps are not stitches. Empty needle 0 stays #000000 on .knit-cell only. */
 .knit-grid thead th.fn,
 .knit-grid thead th.gap {
-  padding: 4px 0;
+  padding: calc(4px * var(--knit-scale)) 0;
   overflow: hidden;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: calc(10px * var(--knit-scale));
   line-height: 1.15;
   font-weight: 650;
 }
