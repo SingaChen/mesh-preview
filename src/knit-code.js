@@ -100,6 +100,89 @@ export function knitCodeInitialScrollTop(scrollHeight, clientHeight) {
   return Math.max(0, height - view);
 }
 
+/** Function-rail pairs on each side of a knitting-code table. */
+export const KNIT_FUNCTION_PAIRS = 20;
+
+/** Empty units between a function rail and that table's own knitting code. */
+export const KNIT_FUNCTION_GAP = 5;
+
+/** Shown with the table. The "?" columns are drawn and left blank. */
+export const KNIT_FUNCTION_RAIL_NOTE = "功能行已画出、问号暂空。";
+
+/**
+ * Columns for one knitting-code table, left to right.
+ * Left rail: L20, ?, L19, ?, …, L1, ?. L1 is the pair closest to the knitting code.
+ * Then 5 empty units, this table's own needles, 5 empty units.
+ * Right rail: R1, ?, R2, ?, …, R20, ?. R1 is the pair closest to the knitting code.
+ * Rails line up across the rows of this table. There is no shared pattern width
+ * and no alignment padding after the last needle.
+ * Function cells stay empty: headers may say L1 / ? or R1 / ?, but no cell is filled.
+ */
+export function knitTableColumns(knit) {
+  const needles = Array.isArray(knit?.needles) ? knit.needles : [];
+  const columns = [];
+  for (let pair = KNIT_FUNCTION_PAIRS; pair >= 1; pair -= 1) {
+    columns.push({ role: "function", side: "L", pair, slot: "number", header: `L${pair}` });
+    columns.push({ role: "function", side: "L", pair, slot: "mark", header: "?" });
+  }
+  for (let index = 0; index < KNIT_FUNCTION_GAP; index += 1) {
+    columns.push({ role: "gap", side: "left", index, header: "" });
+  }
+  for (let needleIndex = 0; needleIndex < needles.length; needleIndex += 1) {
+    const needle = needles[needleIndex];
+    columns.push({
+      role: "pattern",
+      needleIndex,
+      needle,
+      header: Number.isInteger(needle) ? String(needle) : "",
+    });
+  }
+  for (let index = 0; index < KNIT_FUNCTION_GAP; index += 1) {
+    columns.push({ role: "gap", side: "right", index, header: "" });
+  }
+  for (let pair = 1; pair <= KNIT_FUNCTION_PAIRS; pair += 1) {
+    columns.push({ role: "function", side: "R", pair, slot: "number", header: `R${pair}` });
+    columns.push({ role: "function", side: "R", pair, slot: "mark", header: "?" });
+  }
+  return columns;
+}
+
+/** Function rails and the 5-unit gaps are blank. They are not knit codes. */
+export function knitRailCellText() {
+  return "";
+}
+
+/**
+ * One drawn row. Pattern cells copy the locked matrix. Every other cell is an
+ * empty function or gap cell: no "?", no function number, and not knit-code 0.
+ */
+export function knitTableCells(knit, rowIndex) {
+  const row = knit?.rows?.[rowIndex];
+  if (!row) return [];
+  return knitTableColumns(knit).map((col) => {
+    if (col.role !== "pattern") {
+      return {
+        ...col,
+        text: knitRailCellText(),
+        code: null,
+        fill: null,
+        ink: null,
+        drawsEmptyNeedle: false,
+      };
+    }
+    const code = row.cells[col.needleIndex];
+    const ink = knitCodeInk(code, knit.colors);
+    return {
+      ...col,
+      text: ink.label,
+      code,
+      fill: ink.fill,
+      ink: ink.text,
+      drawsEmptyNeedle: code === 0,
+    };
+  });
+}
+
 const LOCKED_COLORS = {
   0: "#000000",
   1: "#FF0000",

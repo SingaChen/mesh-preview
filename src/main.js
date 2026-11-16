@@ -75,12 +75,16 @@ import { ReadableMapView } from "./map-view.js";
 import {
   bindKnitCodeStitches,
   describeKnitCell,
+  KNIT_FUNCTION_RAIL_NOTE,
   knitCodeCaption,
   knitCodeDisplayRows,
   knitCodeInitialScrollTop,
   knitCodeInk,
   knitCodeLegend,
   knitCellTravel,
+  knitRailCellText,
+  knitTableCells,
+  knitTableColumns,
   parseKnitCode,
 } from "./knit-code.js";
 import { NO_DAT_TITLE, datForSheet } from "./sheet-dat.js";
@@ -167,6 +171,7 @@ const knitTitle = document.querySelector("#knit-title");
 const knitNote = document.querySelector("#knit-note");
 const knitLegend = document.querySelector("#knit-legend");
 const knitDetail = document.querySelector("#knit-detail");
+const knitRailNote = document.querySelector("#knit-rail-note");
 const knitScroll = document.querySelector("#knit-scroll");
 
 const viewer = new MeshViewer(canvas);
@@ -1518,6 +1523,7 @@ function renderKnitCode(knit) {
   if (!knitScroll || !knit) return;
   if (knitTitle) knitTitle.textContent = `${knit.model || "Knitting"} knitting code`;
   if (knitNote) knitNote.textContent = knitCodeCaption(knit);
+  if (knitRailNote) knitRailNote.textContent = KNIT_FUNCTION_RAIL_NOTE;
   if (knitLegend) {
     knitLegend.replaceChildren();
     for (const item of knitCodeLegend(knit)) {
@@ -1531,8 +1537,10 @@ function renderKnitCode(knit) {
     }
   }
   if (knitDetail) knitDetail.textContent = "悬停看行进方向，点一格查看这一针";
+  const columns = knitTableColumns(knit);
   const table = document.createElement("table");
   table.className = "knit-grid";
+  table.dataset.patternWidth = String(columns.filter((col) => col.role === "pattern").length);
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   for (const [className, text] of [
@@ -1544,9 +1552,20 @@ function renderKnitCode(knit) {
     th.textContent = text;
     headRow.append(th);
   }
-  for (const needle of knit.needles) {
+  for (const col of columns) {
     const th = document.createElement("th");
-    th.textContent = String(needle);
+    th.className = col.role === "pattern" ? "pattern" : col.role;
+    th.dataset.role = col.role;
+    if (col.role === "function") {
+      th.dataset.side = col.side;
+      th.dataset.pair = String(col.pair);
+      th.dataset.slot = col.slot;
+    } else if (col.role === "gap") {
+      th.dataset.side = col.side;
+    } else {
+      th.dataset.needle = String(col.needle);
+    }
+    th.textContent = col.header;
     headRow.append(th);
   }
   thead.append(headRow);
@@ -1561,8 +1580,29 @@ function renderKnitCode(knit) {
     desc.className = "desc";
     desc.textContent = row.label;
     tr.append(idx, desc);
-    row.cells.forEach((code, needleIndex) => {
+    for (const cell of knitTableCells(knit, rowIndex)) {
       const td = document.createElement("td");
+      if (cell.role !== "pattern") {
+        td.className = cell.role === "gap" ? "gap" : "fn";
+        td.dataset.role = cell.role;
+        td.dataset.side = cell.side;
+        if (cell.role === "function") {
+          td.dataset.pair = String(cell.pair);
+          td.dataset.slot = cell.slot;
+        }
+        const spacer = document.createElement("span");
+        spacer.className = "rail-cell";
+        spacer.setAttribute("aria-hidden", "true");
+        spacer.textContent = knitRailCellText();
+        td.append(spacer);
+        tr.append(td);
+        continue;
+      }
+      td.className = "pattern";
+      td.dataset.role = "pattern";
+      td.dataset.needle = String(cell.needle);
+      const code = cell.code;
+      const needleIndex = cell.needleIndex;
       const ink = knitCodeInk(code, knit.colors);
       const detail = describeKnitCell(knit, rowIndex, needleIndex);
       const travel = knitCellTravel(row.winding, code);
@@ -1611,7 +1651,7 @@ function renderKnitCode(knit) {
       });
       td.append(button);
       tr.append(td);
-    });
+    }
     tbody.append(tr);
   }
   table.append(thead, tbody);
@@ -1671,6 +1711,11 @@ function pinKnitCodeScroll() {
   if (!knitScroll) return;
   const pin = () => {
     knitScroll.scrollTop = knitCodeInitialScrollTop(knitScroll.scrollHeight, knitScroll.clientHeight);
+    const pattern = knitScroll.querySelector("tbody td.pattern");
+    const desc = knitScroll.querySelector("tbody td.desc");
+    if (!pattern || !desc) return;
+    const delta = pattern.getBoundingClientRect().left - desc.getBoundingClientRect().right;
+    if (Math.abs(delta) > 1) knitScroll.scrollLeft += delta;
   };
   pin();
   requestAnimationFrame(pin);

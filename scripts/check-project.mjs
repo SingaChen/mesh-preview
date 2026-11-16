@@ -70,6 +70,9 @@ import {
 import {
   KNIT_CODE_CAPTION,
   KNIT_CODE_LEGEND,
+  KNIT_FUNCTION_GAP,
+  KNIT_FUNCTION_PAIRS,
+  KNIT_FUNCTION_RAIL_NOTE,
   bindKnitCodeStitches,
   describeKnitCell,
   knitCellTravel,
@@ -78,7 +81,10 @@ import {
   knitCodeInitialScrollTop,
   knitCodeInk,
   knitCodeLegend,
+  knitRailCellText,
   knitRowWinding,
+  knitTableCells,
+  knitTableColumns,
   parseKnitCode,
 } from "../src/knit-code.js";
 import { excelBedsWidth, hitTestContent, MAP_BEDS_W, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
@@ -168,6 +174,124 @@ function assertShortRowTurnCodes(knit, label) {
     }
     if (row.winding === "ccw" || row.winding === "cw") prev = row.winding;
   }
+}
+
+/**
+ * Function rails wrap each table at that table's own width.
+ * No shared 25-wide pattern, and no padding column drawn as knit-code 0.
+ */
+function assertFunctionRails(knit, width, label) {
+  assert(KNIT_FUNCTION_PAIRS === 20 && KNIT_FUNCTION_GAP === 5, "function rails are 20 pairs and a 5-unit gap");
+  assert(knitRailCellText() === "", "a function cell has no text");
+  const columns = knitTableColumns(knit);
+  const patternAt = columns.findIndex((col) => col.role === "pattern");
+  const lastPattern = columns.findLastIndex((col) => col.role === "pattern");
+  const left = columns.filter((col) => col.role === "function" && col.side === "L");
+  const right = columns.filter((col) => col.role === "function" && col.side === "R");
+  assert(knit.needles.length === width, `${label} keeps its own needle width ${width}`);
+  assert(columns.length === 40 + 5 + width + 5 + 40, `${label} row is 40 + 5 + ${width} + 5 + 40`);
+  assert(left.length === 40 && right.length === 40, `${label} has 20 pairs on each side`);
+  assert(
+    columns.slice(0, 40).every((col) => col.role === "function" && col.side === "L") &&
+      columns.slice(40, 45).every((col) => col.role === "gap" && col.side === "left") &&
+      columns.slice(45, 45 + width).every((col) => col.role === "pattern") &&
+      columns.slice(45 + width, 50 + width).every((col) => col.role === "gap" && col.side === "right") &&
+      columns.slice(50 + width).every((col) => col.role === "function" && col.side === "R"),
+    `${label} lays out left rail, 5-gap, its own needles, 5-gap, right rail`,
+  );
+  assert(
+    left[0].header === "L20" &&
+      left[0].slot === "number" &&
+      left[0].pair === 20 &&
+      left[1].header === "?" &&
+      left[1].slot === "mark" &&
+      left[1].pair === 20 &&
+      left[38].header === "L1" &&
+      left[38].slot === "number" &&
+      left[38].pair === 1 &&
+      left[39].header === "?" &&
+      left[39].slot === "mark" &&
+      left[39].pair === 1 &&
+      columns[patternAt - 7].header === "L1" &&
+      columns[patternAt - 6].header === "?" &&
+      columns[patternAt - 6].pair === 1 &&
+      columns.slice(patternAt - 5, patternAt).every((col) => col.role === "gap" && col.side === "left"),
+    `${label} reads L20 ? … L1 ? then 5 empty units, with L1 closest to the knitting code`,
+  );
+  assert(
+    columns.slice(lastPattern + 1, lastPattern + 6).every((col) => col.role === "gap" && col.side === "right") &&
+      columns[lastPattern + 6].header === "R1" &&
+      columns[lastPattern + 6].slot === "number" &&
+      columns[lastPattern + 6].pair === 1 &&
+      columns[lastPattern + 7].header === "?" &&
+      columns[lastPattern + 7].pair === 1 &&
+      columns.at(-2).header === "R20" &&
+      columns.at(-2).slot === "number" &&
+      columns.at(-1).header === "?" &&
+      columns.at(-1).slot === "mark" &&
+      columns.at(-1).pair === 20,
+    `${label} reads 5 empty units then R1 ? … R20 ?, with R1 closest to the knitting code`,
+  );
+  assert(
+    left.filter((col) => col.slot === "number").map((col) => col.pair).join(",") ===
+      Array.from({ length: 20 }, (_, i) => 20 - i).join(",") &&
+      right.filter((col) => col.slot === "number").map((col) => col.pair).join(",") ===
+        Array.from({ length: 20 }, (_, i) => i + 1).join(","),
+    `${label} numbers the pairs L20–L1 and R1–R20`,
+  );
+  const pattern = columns.filter((col) => col.role === "pattern");
+  assert(
+    pattern.length === width &&
+      pattern.map((col) => col.header).join(",") === knit.needles.join(",") &&
+      columns.every((col) => col.role === "function" || col.role === "gap" || col.role === "pattern"),
+    `${label} does not pad past its last needle`,
+  );
+  const headerKey = columns.map((col) => `${col.role}:${col.side || ""}:${col.pair || ""}:${col.slot || ""}:${col.header}`).join("|");
+  knit.rows.forEach((row, rowIndex) => {
+    const drawn = knitTableCells(knit, rowIndex);
+    const again = knitTableColumns(knit).map((col) => `${col.role}:${col.side || ""}:${col.pair || ""}:${col.slot || ""}:${col.header}`).join("|");
+    assert(again === headerKey, `${label} rails stay aligned on every row`);
+    const drawnPattern = drawn.filter((col) => col.role === "pattern");
+    const rails = drawn.filter((col) => col.role !== "pattern");
+    assert(
+      drawnPattern.map((col) => col.code).join(",") === row.cells.join(",") &&
+        drawnPattern.filter((col) => col.drawsEmptyNeedle).length === row.cells.filter((code) => code === 0).length,
+      `${label} row ${rowIndex} draws the locked matrix and no extra knit-code 0`,
+    );
+    assert(
+      rails.length === 90 &&
+        rails.every(
+          (col) =>
+            col.text === "" &&
+            col.code == null &&
+            col.fill == null &&
+            col.ink == null &&
+            col.drawsEmptyNeedle === false &&
+            !/[0-9?]/.test(col.text),
+        ),
+      `${label} row ${rowIndex} leaves every function and gap cell empty`,
+    );
+  });
+}
+
+{
+  const railSpecs = [
+    ["Standrad", "cylinder/standrad_cylinder_knitcode.json", 13, "2fe3fee0c4cfa429ac52fccd7923e354ba0c7b3bfe783fcd28b030738f009ffc"],
+    ["Dense Standrad", "dense-standrad/dense_standrad_cylinder_knitcode.json", 25, "7d16bc70f629a9d65c1c46d4c312464590222d02d1fee26577fb9214c3f29785"],
+    ["Decrease", "decrease/decrease_cylinder_knitcode.json", 12, "257be4fb083261bcf3ce040bdcfe75bf8c96516f0b0947057d2a62a9cc22c9ad"],
+  ];
+  const widths = [];
+  for (const [label, rel, width, hash] of railSpecs) {
+    const path = join(sampleDir, rel);
+    assert(knitMatrixSuffixHash(path) === hash, `${label} matrix-suffix sha256 stays ${hash}`);
+    const knit = parseKnitCode(JSON.parse(readFileSync(path, "utf8")));
+    assertFunctionRails(knit, width, label);
+    widths.push(knitTableColumns(knit).filter((col) => col.role === "pattern").length);
+  }
+  assert(
+    widths.join(",") === "13,25,12" && new Set(widths).size === 3,
+    "Standrad, Dense Standrad, and Decrease keep their own widths and are not padded to 25",
+  );
 }
 
 const manifest = JSON.parse(readFileSync(join(sampleDir, "manifest.json"), "utf8"));
@@ -2149,6 +2273,17 @@ assert(
     !mainSrc.includes("向左"),
   "every knitting-code table is drawn bottom-up and opens on the first rings",
 );
+assert(
+  mainSrc.includes("knitTableColumns") &&
+    mainSrc.includes("knitTableCells") &&
+    mainSrc.includes("knitRailCellText()") &&
+    mainSrc.includes("KNIT_FUNCTION_RAIL_NOTE") &&
+    mainSrc.includes('td.className = cell.role === "gap" ? "gap" : "fn"') &&
+    mainSrc.includes('className = "rail-cell"') &&
+    html.includes(KNIT_FUNCTION_RAIL_NOTE) &&
+    html.includes('id="knit-rail-note"'),
+  "the knitting-code renderer draws empty function rails around the matrix",
+);
 assert(html.includes('id="map-phys"') && html.includes("物理针"), "map toolbar has a physical-needle toggle");
 assert(/id="map-phys"[^>]*aria-pressed="false"/.test(html), "physical-needle toggle starts off");
 assert(html.includes('id="pane-switch"') && html.includes('id="pane-map"'), "narrow screens can tab between 3D and Map");
@@ -2203,6 +2338,16 @@ assert(css.includes(".stitch-pick") && css.includes(".hud-chips"), "stitch reado
 assert(
   css.includes(".knit-dir") && /\.knit-dir\.is-none \.knit-dir-arrow\s*\{[^}]*display:\s*none/.test(css),
   "operation rows hide the travel arrow",
+);
+assert(
+  css.includes('.knit-grid td.fn[data-slot="number"]') &&
+    css.includes("background: #243044") &&
+    css.includes('.knit-grid td.fn[data-slot="mark"]') &&
+    css.includes("background: #3a3428") &&
+    css.includes("background: #5c6d84") &&
+    !/\.knit-grid td\.fn\[[^\]]+\]\s*\{[^}]*#000000/.test(css) &&
+    !/\.knit-grid td\.gap\s*\{[^}]*#000000/.test(css),
+  "function rails and gaps are not painted as knit-code 0",
 );
 assert(css.includes("#map-phys") && css.includes('.map-zoom .fit[aria-pressed="true"]'), "physical-needle toggle has a pressed state");
 
