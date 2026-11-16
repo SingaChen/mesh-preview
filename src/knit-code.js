@@ -106,8 +106,8 @@ export const KNIT_FUNCTION_PAIRS = 20;
 /** Empty units between a function rail and that table's own knitting code. */
 export const KNIT_FUNCTION_GAP = 5;
 
-/** Shown with the table. Number cells are filled; the "?" columns stay blank. */
-export const KNIT_FUNCTION_RAIL_NOTE = "功能行数字格已按 DAT 颜色填好，问号仍空。";
+/** Shown with the table. Named rail cells are filled; unnamed "?" cells stay blank. */
+export const KNIT_FUNCTION_RAIL_NOTE = "功能行已按行进方向和床位补全指定格，未指定的问号仍空。";
 
 /**
  * Tiffany display colors for function numbers 1–20.
@@ -136,6 +136,9 @@ export const KNIT_FUNCTION_COLORS = {
   18: "#007C91",
   19: "#EBEB24",
   20: "#B276B2",
+  // Same swapped display order for the two indicator values outside 1–20.
+  81: "#47869C",
+  82: "#6DA5B4",
 };
 
 function srgbChannel(hex, index) {
@@ -175,7 +178,9 @@ export function knitFunctionTextColor(fill) {
  * Right pairs are n?: R1, ?, R2, ?, …, R20, ?. The digit 1 sits against the gap.
  * Rails line up across the rows of this table. There is no shared pattern width
  * and no alignment padding after the last needle.
- * Number cells show 1–20. The "?" cells stay empty.
+ * The number cell is the pair's 本体. The "?" cell is its 指示.
+ * L1 and R1 bodies follow the row direction. Named indicators are filled in
+ * knitFunctionValue. Every unnamed "?" cell stays empty.
  */
 export function knitTableColumns(knit) {
   const needles = Array.isArray(knit?.needles) ? knit.needles : [];
@@ -207,19 +212,17 @@ export function knitTableColumns(knit) {
 }
 
 /**
- * Text drawn in a rail cell. Number columns show that pair's digit on every
- * row. "?" columns and the 5-unit gaps stay blank. This is not a knit code.
+ * Text drawn in a rail cell. Pass the row when the value depends on direction
+ * or bed. With no row, L1/R1 have no direction (body 1) and L13/R3 have nothing
+ * to read. This is not a knit code.
  */
-export function knitRailCellText(column) {
-  if (column?.role === "function" && column.slot === "number" && Number.isInteger(column.pair)) {
-    return String(column.pair);
-  }
-  return "";
+export function knitRailCellText(column, row) {
+  return knitFunctionValue(column, row).text;
 }
 
 /**
- * One drawn row. Pattern cells copy the locked matrix. Number cells repeat
- * 1–20 in the Tiffany colors. "?" cells and gaps stay empty, and none of them
+ * One drawn row. Pattern cells copy the locked matrix. Rail cells copy
+ * knitFunctionValue. Gaps and unnamed "?" cells stay empty, and none of them
  * is drawn as knit-code 0.
  */
 export function knitTableCells(knit, rowIndex) {
@@ -227,14 +230,13 @@ export function knitTableCells(knit, rowIndex) {
   if (!row) return [];
   return knitTableColumns(knit).map((col) => {
     if (col.role !== "pattern") {
-      const text = knitRailCellText(col);
-      const fill = text ? KNIT_FUNCTION_COLORS[col.pair] : null;
+      const value = knitFunctionValue(col, row);
       return {
         ...col,
-        text,
+        text: value.text,
         code: null,
-        fill,
-        ink: fill ? knitFunctionTextColor(fill) : null,
+        fill: value.fill,
+        ink: value.fill ? knitFunctionTextColor(value.fill) : null,
         drawsEmptyNeedle: false,
       };
     }
@@ -363,6 +365,84 @@ export function knitCellTravel(winding, code) {
   return toRight
     ? { kind: "right", text: "向右", arrow: "→" }
     : { kind: "left", text: "向左", arrow: "←" };
+}
+
+/**
+ * Bed of a whole row. Front rows contain only 1 and 11 among their live
+ * stitches; back rows contain only 2 and 12. Empty 0 is ignored. A row with
+ * no live stitch, or with both beds, has no bed — mixed beds are not a third
+ * value.
+ */
+export function knitRowBed(row) {
+  const beds = new Set();
+  for (const code of row?.cells || []) {
+    const bed = knitCodeBed(code);
+    if (bed) beds.add(bed);
+  }
+  if (beds.size !== 1) return null;
+  return beds.has("F") ? "F" : "B";
+}
+
+/** True when the row has at least one non-empty stitch. Operation rows do not. */
+export function knitRowHasKnitting(row) {
+  return (row?.cells || []).some((code) => knitCodeBed(code) != null);
+}
+
+/**
+ * Displayed travel of a row, the same 向左 / 向右 a live stitch shows on hover.
+ * Counterclockwise sends the front bed right and the back bed left; clockwise
+ * is the opposite. `none` covers an operation row (row_winding none), a missing
+ * winding, and a row whose bed cannot be read.
+ */
+export function knitRowTravelKind(row) {
+  const wind = knitRowWinding(row?.winding);
+  const bed = knitRowBed(row);
+  if (!wind || wind === "none" || !bed) return "none";
+  const travel = knitCellTravel(wind, bed === "F" ? 1 : 2);
+  return travel?.kind === "left" || travel?.kind === "right" ? travel.kind : "none";
+}
+
+function railPaint(text, fill) {
+  return { text: String(text), fill };
+}
+
+const RAIL_BLANK = { text: "", fill: null };
+
+/**
+ * One function cell. The number slot is the 本体. The "?" slot is the 指示.
+ * Only the cells named below change; every other indicator stays empty.
+ * L1 and R1 share the row direction: 向右 is 6, 向左 is 7, no direction is 1.
+ * L13 follows the bed on knit rows and on operation rows that still have one.
+ * R3 is 6 only while the row has knitting. R5 is 1 only when it does not.
+ */
+export function knitFunctionValue(column, row) {
+  if (column?.role !== "function" || !Number.isInteger(column.pair)) return RAIL_BLANK;
+  const { side, pair, slot } = column;
+  if (slot === "number") {
+    if (pair === 1) {
+      const kind = knitRowTravelKind(row);
+      if (kind === "right") return railPaint(6, KNIT_FUNCTION_COLORS[6]);
+      if (kind === "left") return railPaint(7, KNIT_FUNCTION_COLORS[7]);
+      return railPaint(1, KNIT_FUNCTION_COLORS[1]);
+    }
+    if (pair >= 2 && pair <= KNIT_FUNCTION_PAIRS) return railPaint(pair, KNIT_FUNCTION_COLORS[pair]);
+    return RAIL_BLANK;
+  }
+  if (slot !== "mark") return RAIL_BLANK;
+  if (side === "L" && pair === 7) return railPaint(12, KNIT_FUNCTION_COLORS[12]);
+  if (side === "L" && pair === 10) return railPaint(4, KNIT_FUNCTION_COLORS[4]);
+  if (side === "L" && pair === 11) return railPaint(14, KNIT_FUNCTION_COLORS[14]);
+  if (side === "L" && pair === 13) {
+    const bed = knitRowBed(row);
+    if (bed === "F") return railPaint(81, KNIT_FUNCTION_COLORS[81]);
+    if (bed === "B") return railPaint(82, KNIT_FUNCTION_COLORS[82]);
+    return RAIL_BLANK;
+  }
+  if (side === "R" && pair === 3) return knitRowHasKnitting(row) ? railPaint(6, KNIT_FUNCTION_COLORS[6]) : RAIL_BLANK;
+  if (side === "R" && pair === 5) return knitRowHasKnitting(row) ? RAIL_BLANK : railPaint(1, KNIT_FUNCTION_COLORS[1]);
+  if (side === "R" && pair === 6) return railPaint(5, KNIT_FUNCTION_COLORS[5]);
+  if (side === "R" && pair === 11) return railPaint(1, KNIT_FUNCTION_COLORS[1]);
+  return RAIL_BLANK;
 }
 
 function liveKnitCells(knit) {

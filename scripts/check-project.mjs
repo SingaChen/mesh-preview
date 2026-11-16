@@ -83,7 +83,11 @@ import {
   knitCodeInk,
   knitCodeLegend,
   knitFunctionTextColor,
+  knitFunctionValue,
   knitRailCellText,
+  knitRowBed,
+  knitRowHasKnitting,
+  knitRowTravelKind,
   knitRowWinding,
   knitTableCells,
   knitTableColumns,
@@ -188,8 +192,11 @@ function assertFunctionRails(knit, width, label) {
   assert(
     knitRailCellText({ role: "function", slot: "mark", pair: 1 }) === "" &&
       knitRailCellText({ role: "function", slot: "number", pair: 1 }) === "1" &&
-      knitRailCellText({ role: "function", slot: "number", pair: 20 }) === "20",
-    "only the number column shows its digit",
+      knitRailCellText({ role: "function", slot: "number", pair: 20 }) === "20" &&
+      knitRailCellText({ role: "function", side: "L", slot: "mark", pair: 7 }) === "12" &&
+      knitRailCellText({ role: "function", side: "R", slot: "mark", pair: 3 }) === "" &&
+      knitRailCellText({ role: "function", side: "R", slot: "mark", pair: 5 }) === "1",
+    "a row with no direction leaves L1 at 1, and only named indicators have text",
   );
   const columns = knitTableColumns(knit);
   const patternAt = columns.findIndex((col) => col.role === "pattern");
@@ -225,7 +232,7 @@ function assertFunctionRails(knit, width, label) {
       columns[patternAt - 6].header === "L1" &&
       columns[patternAt - 6].slot === "number" &&
       columns.slice(patternAt - 5, patternAt).every((col) => col.role === "gap" && col.side === "left"),
-    `${label} reads ? 20 … ? 1 then 5 empty units, with digit 1 against the gap`,
+    `${label} reads ? 20 … ? 1 then 5 empty units, with the L1 body against the gap`,
   );
   assert(
     columns.slice(lastPattern + 1, lastPattern + 6).every((col) => col.role === "gap" && col.side === "right") &&
@@ -239,7 +246,7 @@ function assertFunctionRails(knit, width, label) {
       columns.at(-1).header === "?" &&
       columns.at(-1).slot === "mark" &&
       columns.at(-1).pair === 20,
-    `${label} reads 5 empty units then 1 ? … 20 ?, with digit 1 against the gap`,
+    `${label} reads 5 empty units then 1 ? … 20 ?, with the R1 body against the gap`,
   );
   assert(
     left.filter((col) => col.slot === "number").map((col) => col.pair).join(",") ===
@@ -269,29 +276,55 @@ function assertFunctionRails(knit, width, label) {
         drawnPattern.filter((col) => col.drawsEmptyNeedle).length === row.cells.filter((code) => code === 0).length,
       `${label} row ${rowIndex} draws the locked matrix and no extra knit-code 0`,
     );
-    const numbers = rails.filter((col) => col.role === "function" && col.slot === "number");
-    const blanks = rails.filter((col) => col.role === "gap" || col.slot === "mark");
+    const paint = (col, text, fill) =>
+      col &&
+      col.text === text &&
+      col.fill === fill &&
+      col.ink === knitFunctionTextColor(fill) &&
+      col.code == null &&
+      col.drawsEmptyNeedle === false;
+    const at = (side, pair, slot) =>
+      drawn.find((col) => col.role === "function" && col.side === side && col.pair === pair && col.slot === slot);
+    const kind = knitRowTravelKind(row);
+    const bed = knitRowBed(row);
+    const knitting = knitRowHasKnitting(row);
+    const body = kind === "right" ? ["6", "#00FFFF"] : kind === "left" ? ["7", "#FFFFFF"] : ["1", "#FF0000"];
+    const bodies = drawn.filter((col) => col.role === "function" && col.slot === "number" && col.pair !== 1);
+    const namedMarks = new Set(["L7", "L10", "L11", "L13", "R3", "R5", "R6", "R11"]);
+    const unnamed = drawn.filter((col) => col.slot === "mark" && !namedMarks.has(`${col.side}${col.pair}`));
+    const gaps = drawn.filter((col) => col.role === "gap");
     assert(
-      numbers.length === 40 &&
-        blanks.length === 50 &&
-        numbers.every(
-          (col) =>
-            col.text === String(col.pair) &&
-            col.fill === KNIT_FUNCTION_COLORS[col.pair] &&
-            col.ink === knitFunctionTextColor(col.fill) &&
-            col.code == null &&
-            col.drawsEmptyNeedle === false,
-        ) &&
-        blanks.every(
-          (col) => col.text === "" && col.fill == null && col.ink == null && col.code == null && col.drawsEmptyNeedle === false,
-        ) &&
-        drawn[patternAt - 6].text === "1" &&
-        drawn[patternAt - 6].fill === "#FF0000" &&
+      paint(at("L", 1, "number"), body[0], body[1]) &&
+        paint(at("R", 1, "number"), body[0], body[1]) &&
+        at("L", 1, "number").text === at("R", 1, "number").text &&
+        bodies.length === 38 &&
+        bodies.every((col) => paint(col, String(col.pair), KNIT_FUNCTION_COLORS[col.pair])) &&
+        paint(at("L", 7, "mark"), "12", "#906CB4") &&
+        paint(at("L", 10, "mark"), "4", "#0000FF") &&
+        paint(at("L", 11, "mark"), "14", "#CF90C0") &&
+        paint(at("R", 6, "mark"), "5", "#FF00FF") &&
+        paint(at("R", 11, "mark"), "1", "#FF0000") &&
+        (bed === "F"
+          ? paint(at("L", 13, "mark"), "81", "#47869C")
+          : bed === "B"
+            ? paint(at("L", 13, "mark"), "82", "#6DA5B4")
+            : at("L", 13, "mark").text === "" && at("L", 13, "mark").fill == null) &&
+        (knitting
+          ? paint(at("R", 3, "mark"), "6", "#00FFFF") && at("R", 5, "mark").text === "" && at("R", 5, "mark").fill == null
+          : at("R", 3, "mark").text === "" &&
+            at("R", 3, "mark").fill == null &&
+            paint(at("R", 5, "mark"), "1", "#FF0000")) &&
+        unnamed.every((col) => col.text === "" && col.fill == null && col.ink == null && col.code == null && col.drawsEmptyNeedle === false) &&
+        gaps.every((col) => col.text === "" && col.fill == null && col.ink == null && col.code == null && col.drawsEmptyNeedle === false) &&
+        drawn[patternAt - 6].slot === "number" &&
+        drawn[patternAt - 6].pair === 1 &&
         drawn[patternAt - 7].text === "" &&
         drawn[patternAt - 7].slot === "mark" &&
-        drawn[lastPattern + 6].text === "1" &&
-        drawn[lastPattern + 6].fill === "#FF0000" &&
+        drawn[patternAt - 7].pair === 1 &&
+        drawn[lastPattern + 6].slot === "number" &&
+        drawn[lastPattern + 6].pair === 1 &&
         drawn[lastPattern + 7].text === "" &&
+        drawn[lastPattern + 7].pair === 1 &&
         drawn[0].text === "" &&
         drawn[0].pair === 20 &&
         drawn[1].text === "20" &&
@@ -299,8 +332,10 @@ function assertFunctionRails(knit, width, label) {
         drawn.at(-1).text === "" &&
         drawn.at(-1).pair === 20 &&
         drawn.at(-2).text === "20" &&
-        drawn.at(-2).fill === "#B276B2",
-      `${label} row ${rowIndex} paints digits 1–20 and leaves every ? and gap empty`,
+        drawn.at(-2).fill === "#B276B2" &&
+        ((label !== "Standrad" && label !== "Dense Standrad") ||
+          (rowIndex % 2 === 0 ? kind === "right" && bed === "F" && body[0] === "6" : kind === "left" && bed === "B" && body[0] === "7")),
+      `${label} row ${rowIndex} fills L1/R1 from travel and only the named indicators`,
     );
   });
 }
@@ -360,8 +395,77 @@ function assertFunctionRails(knit, width, label) {
       knitFunctionTextColor("#EBEB24") === "#111111" &&
       knitFunctionTextColor("#0000FF") === "#ffffff" &&
       knitFunctionTextColor("#6C2490") === "#ffffff" &&
-      knitFunctionTextColor("#007C91") === "#ffffff",
+      knitFunctionTextColor("#007C91") === "#ffffff" &&
+      KNIT_FUNCTION_COLORS[81] === "#47869C" &&
+      KNIT_FUNCTION_COLORS[82] === "#6DA5B4" &&
+      knitFunctionTextColor("#47869C") === "#111111" &&
+      knitFunctionTextColor("#6DA5B4") === "#111111",
     "function digits use the Tiffany display colors, and light grounds keep dark type",
+  );
+  const decrease = parseKnitCode(JSON.parse(readFileSync(join(sampleDir, "decrease/decrease_cylinder_knitcode.json"), "utf8")));
+  const decreaseBody = (rowIndex) => {
+    const drawn = knitTableCells(decrease, rowIndex);
+    const body = drawn.find((col) => col.side === "L" && col.pair === 1 && col.slot === "number");
+    const bedMark = drawn.find((col) => col.side === "L" && col.pair === 13 && col.slot === "mark");
+    return { winding: decrease.rows[rowIndex].winding, body: body.text, fill: body.fill, bed: bedMark.text };
+  };
+  const ccwFront = decreaseBody(0);
+  const cwFront = decreaseBody(6);
+  const ccwBack = decreaseBody(1);
+  const cwBack = decreaseBody(7);
+  assert(
+    ccwFront.winding === "ccw" &&
+      ccwFront.body === "6" &&
+      ccwFront.fill === "#00FFFF" &&
+      ccwFront.bed === "81" &&
+      cwFront.winding === "cw" &&
+      cwFront.body === "7" &&
+      cwFront.fill === "#FFFFFF" &&
+      cwFront.bed === "81" &&
+      ccwBack.winding === "ccw" &&
+      ccwBack.body === "7" &&
+      ccwBack.bed === "82" &&
+      cwBack.winding === "cw" &&
+      cwBack.body === "6" &&
+      cwBack.fill === "#00FFFF" &&
+      cwBack.bed === "82",
+    "Decrease clockwise swaps L1/R1 against a counterclockwise row of the same bed",
+  );
+  const ops = parseKnitCode({
+    needles: [0, 1],
+    row_winding: ["none", "none", "none"],
+    row_labels: ["operation front", "operation back", "operation empty"],
+    matrix: [
+      [1, 1],
+      [2, 0],
+      [0, 0],
+    ],
+  });
+  const opCell = (rowIndex, side, pair, slot) =>
+    knitTableCells(ops, rowIndex).find((col) => col.side === side && col.pair === pair && col.slot === slot);
+  assert(
+    knitRowTravelKind(ops.rows[0]) === "none" &&
+      opCell(0, "L", 1, "number").text === "1" &&
+      opCell(0, "L", 1, "number").fill === "#FF0000" &&
+      opCell(0, "R", 1, "number").text === "1" &&
+      opCell(0, "L", 13, "mark").text === "81" &&
+      opCell(0, "R", 3, "mark").text === "6" &&
+      opCell(0, "R", 5, "mark").text === "" &&
+      opCell(1, "L", 13, "mark").text === "82" &&
+      opCell(1, "L", 13, "mark").fill === "#6DA5B4" &&
+      opCell(2, "L", 1, "number").text === "1" &&
+      opCell(2, "L", 13, "mark").text === "" &&
+      opCell(2, "R", 3, "mark").text === "" &&
+      opCell(2, "R", 5, "mark").text === "1" &&
+      opCell(2, "R", 5, "mark").fill === "#FF0000" &&
+      opCell(2, "L", 7, "mark").text === "12" &&
+      opCell(2, "L", 10, "mark").text === "4" &&
+      opCell(2, "L", 11, "mark").text === "14" &&
+      opCell(2, "R", 6, "mark").text === "5" &&
+      opCell(2, "R", 11, "mark").text === "1" &&
+      opCell(2, "L", 8, "mark").text === "" &&
+      knitFunctionValue({ role: "function", side: "L", pair: 13, slot: "mark" }, ops.rows[2]).fill == null,
+    "operation rows keep the constant indicators, and no-knit rows clear R3 and fill R5",
   );
 }
 
@@ -2347,7 +2451,7 @@ assert(
 assert(
   mainSrc.includes("knitTableColumns") &&
     mainSrc.includes("knitTableCells") &&
-    mainSrc.includes("knitRailCellText(cell)") &&
+    mainSrc.includes("spacer.textContent = cell.text") &&
     mainSrc.includes("cell.fill") &&
     mainSrc.includes("KNIT_FUNCTION_RAIL_NOTE") &&
     mainSrc.includes('td.className = cell.role === "gap" ? "gap" : "fn"') &&

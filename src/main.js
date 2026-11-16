@@ -82,7 +82,6 @@ import {
   knitCodeInk,
   knitCodeLegend,
   knitCellTravel,
-  knitRailCellText,
   knitTableCells,
   knitTableColumns,
   parseKnitCode,
@@ -1592,7 +1591,7 @@ function renderKnitCode(knit) {
         }
         const spacer = document.createElement("span");
         spacer.className = "rail-cell";
-        spacer.textContent = knitRailCellText(cell);
+        spacer.textContent = cell.text;
         if (cell.fill) {
           td.style.background = cell.fill;
           td.style.color = cell.ink;
