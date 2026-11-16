@@ -106,24 +106,83 @@ export const KNIT_FUNCTION_PAIRS = 20;
 /** Empty units between a function rail and that table's own knitting code. */
 export const KNIT_FUNCTION_GAP = 5;
 
-/** Shown with the table. The "?" columns are drawn and left blank. */
-export const KNIT_FUNCTION_RAIL_NOTE = "功能行已画出、问号暂空。";
+/** Shown with the table. Number cells are filled; the "?" columns stay blank. */
+export const KNIT_FUNCTION_RAIL_NOTE = "功能行数字格已按 DAT 颜色填好，问号仍空。";
+
+/**
+ * Tiffany display colors for function numbers 1–20.
+ * These are DATFile.getDefaultPalette(img_order=True): the file stores pairs
+ * swapped, and the preview uses the swapped display order. 1, 2, 11, and 12
+ * match the knit-code cells.
+ */
+export const KNIT_FUNCTION_COLORS = {
+  1: "#FF0000",
+  2: "#00FF00",
+  3: "#FFFF00",
+  4: "#0000FF",
+  5: "#FF00FF",
+  6: "#00FFFF",
+  7: "#FFFFFF",
+  8: "#4A8999",
+  9: "#6C2490",
+  10: "#B4B4D8",
+  11: "#FF67BD",
+  12: "#906CB4",
+  13: "#999999",
+  14: "#CF90C0",
+  15: "#8080FF",
+  16: "#51FFDE",
+  17: "#5291DB",
+  18: "#007C91",
+  19: "#EBEB24",
+  20: "#B276B2",
+};
+
+function srgbChannel(hex, index) {
+  const value = parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16) / 255;
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(hex) {
+  return 0.2126 * srgbChannel(hex, 0) + 0.7152 * srgbChannel(hex, 1) + 0.0722 * srgbChannel(hex, 2);
+}
+
+function contrastRatio(fill, ink) {
+  const a = relativeLuminance(fill);
+  const b = relativeLuminance(ink);
+  const [hi, lo] = a > b ? [a, b] : [b, a];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * Ink for a function number. Light grounds (yellow, cyan, white, and the other
+ * light Tiffany colors) use the dark ink. Dark grounds use white. Pure red
+ * uses white, the same ink as knit code 1.
+ */
+export function knitFunctionTextColor(fill) {
+  const hex = String(fill || "").toUpperCase();
+  if (hex === "#FF0000") return "#ffffff";
+  const dark = "#111111";
+  const light = "#ffffff";
+  return contrastRatio(hex, dark) >= contrastRatio(hex, light) ? dark : light;
+}
 
 /**
  * Columns for one knitting-code table, left to right.
- * Left rail: L20, ?, L19, ?, …, L1, ?. L1 is the pair closest to the knitting code.
+ * The rails mirror around the knitting code.
+ * Left pairs are ?n: ?, L20, ?, L19, …, ?, L1. The digit 1 sits against the gap.
  * Then 5 empty units, this table's own needles, 5 empty units.
- * Right rail: R1, ?, R2, ?, …, R20, ?. R1 is the pair closest to the knitting code.
+ * Right pairs are n?: R1, ?, R2, ?, …, R20, ?. The digit 1 sits against the gap.
  * Rails line up across the rows of this table. There is no shared pattern width
  * and no alignment padding after the last needle.
- * Function cells stay empty: headers may say L1 / ? or R1 / ?, but no cell is filled.
+ * Number cells show 1–20. The "?" cells stay empty.
  */
 export function knitTableColumns(knit) {
   const needles = Array.isArray(knit?.needles) ? knit.needles : [];
   const columns = [];
   for (let pair = KNIT_FUNCTION_PAIRS; pair >= 1; pair -= 1) {
-    columns.push({ role: "function", side: "L", pair, slot: "number", header: `L${pair}` });
     columns.push({ role: "function", side: "L", pair, slot: "mark", header: "?" });
+    columns.push({ role: "function", side: "L", pair, slot: "number", header: `L${pair}` });
   }
   for (let index = 0; index < KNIT_FUNCTION_GAP; index += 1) {
     columns.push({ role: "gap", side: "left", index, header: "" });
@@ -147,26 +206,35 @@ export function knitTableColumns(knit) {
   return columns;
 }
 
-/** Function rails and the 5-unit gaps are blank. They are not knit codes. */
-export function knitRailCellText() {
+/**
+ * Text drawn in a rail cell. Number columns show that pair's digit on every
+ * row. "?" columns and the 5-unit gaps stay blank. This is not a knit code.
+ */
+export function knitRailCellText(column) {
+  if (column?.role === "function" && column.slot === "number" && Number.isInteger(column.pair)) {
+    return String(column.pair);
+  }
   return "";
 }
 
 /**
- * One drawn row. Pattern cells copy the locked matrix. Every other cell is an
- * empty function or gap cell: no "?", no function number, and not knit-code 0.
+ * One drawn row. Pattern cells copy the locked matrix. Number cells repeat
+ * 1–20 in the Tiffany colors. "?" cells and gaps stay empty, and none of them
+ * is drawn as knit-code 0.
  */
 export function knitTableCells(knit, rowIndex) {
   const row = knit?.rows?.[rowIndex];
   if (!row) return [];
   return knitTableColumns(knit).map((col) => {
     if (col.role !== "pattern") {
+      const text = knitRailCellText(col);
+      const fill = text ? KNIT_FUNCTION_COLORS[col.pair] : null;
       return {
         ...col,
-        text: knitRailCellText(),
+        text,
         code: null,
-        fill: null,
-        ink: null,
+        fill,
+        ink: fill ? knitFunctionTextColor(fill) : null,
         drawsEmptyNeedle: false,
       };
     }
