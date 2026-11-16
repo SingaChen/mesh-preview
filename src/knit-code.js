@@ -1,5 +1,8 @@
 /** Accepted knitting-code tables. Display only — never recomputed. */
 
+import { bedKnitTokens } from "./excel-map.js";
+import { stitchForMapCell } from "./readable-map.js";
+
 export const KNIT_CODE_CAPTION =
   "前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 0–12。";
 
@@ -169,4 +172,76 @@ export function knitCellTravel(winding, code) {
   return toRight
     ? { kind: "right", text: "向右", arrow: "→" }
     : { kind: "left", text: "向左", arrow: "←" };
+}
+
+function liveKnitCells(knit) {
+  const cells = [];
+  for (const row of knit?.rows || []) {
+    const live = [];
+    row.cells.forEach((code, needleIndex) => {
+      if (code !== 1 && code !== 2) return;
+      const travel = knitCellTravel(row.winding, code);
+      const phys = knit.needles?.[needleIndex];
+      live.push({
+        rowIndex: row.index,
+        needleIndex,
+        bed: code === 1 ? "F" : "B",
+        phys: Number.isInteger(phys) ? phys : null,
+        travel: travel?.kind === "left" || travel?.kind === "right" ? travel.kind : null,
+      });
+    });
+    if (!live.length) continue;
+    const kinds = new Set(live.map((cell) => cell.travel));
+    if (kinds.size !== 1 || kinds.has(null) || live.some((cell) => cell.phys == null)) {
+      for (const cell of live) cells.push({ ...cell, ordered: false });
+      continue;
+    }
+    const dir = live[0].travel;
+    live.sort((a, b) =>
+      dir === "right" ? a.phys - b.phys || a.needleIndex - b.needleIndex : b.phys - a.phys || b.needleIndex - a.needleIndex,
+    );
+    for (const cell of live) cells.push({ ...cell, ordered: true });
+  }
+  return cells;
+}
+
+/**
+ * Pair knitting-code cells with stitches already on the bed chart.
+ * Bed tokens stay in carriage order, one queue per bed, so a needle knitted
+ * twice in one course (a split row) binds to two stitches in that order.
+ * A cell whose next token is a different needle stays unbound.
+ * Empty cells are not entries. The returned stitch is the growth-map stitch.
+ */
+export function bindKnitCodeStitches(knit, map, stitches = null, bind = null) {
+  const byKey = new Map();
+  const unmatched = [];
+  const cells = liveKnitCells(knit);
+  const queues = { F: [], B: [] };
+  for (const token of bedKnitTokens(map)) {
+    if ((token.bed !== "F" && token.bed !== "B") || !Number.isInteger(token.phys)) continue;
+    queues[token.bed].push(token);
+  }
+  const cursor = { F: 0, B: 0 };
+  for (const cell of cells) {
+    const key = `${cell.rowIndex},${cell.needleIndex}`;
+    const queue = queues[cell.bed];
+    const token = cell.ordered ? queue?.[cursor[cell.bed]] : null;
+    if (!cell.ordered || !token || token.phys !== cell.phys) {
+      unmatched.push({ rowIndex: cell.rowIndex, needleIndex: cell.needleIndex, bed: cell.bed, phys: cell.phys });
+      continue;
+    }
+    cursor[cell.bed] += 1;
+    const stitch = stitchForMapCell(token.row, token.col, bind, stitches, map);
+    if (!stitch) {
+      unmatched.push({ rowIndex: cell.rowIndex, needleIndex: cell.needleIndex, bed: cell.bed, phys: cell.phys });
+      continue;
+    }
+    byKey.set(key, stitch);
+  }
+  return {
+    byKey,
+    unmatched,
+    knitCells: cells.length,
+    bedTokens: queues.F.length + queues.B.length,
+  };
 }
