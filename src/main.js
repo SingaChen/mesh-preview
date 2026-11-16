@@ -73,6 +73,7 @@ import {
 } from "./readable-map.js";
 import { ReadableMapView } from "./map-view.js";
 import {
+  bindKnitCodeStitches,
   describeKnitCell,
   knitCodeCaption,
   knitCodeDisplayRows,
@@ -227,6 +228,7 @@ function paintPhysicalCell(row, col, stitch) {
   viewer.setSelectedStitch(stitch || null);
   showPhysChip(parts, physPickKeys);
   paintMapHighlight();
+  highlightKnitCodeForPick();
 }
 
 function paintPhysicalStitch(stitch) {
@@ -246,6 +248,7 @@ function paintPhysicalStitch(stitch) {
   viewer.setSelectedStitch(stitch);
   showPhysChip(formatPhysicalNeedles(records), keys);
   paintMapHighlight();
+  highlightKnitCodeForPick();
 }
 
 function onMapCellPick(hit) {
@@ -287,6 +290,7 @@ function paintStitchPick(stitch) {
   if (stitchPickEl && pickedStitch) {
     stitchPickEl.dataset.mapCells = [...mapKeysForStitch(pickedStitch)].join(" ");
   }
+  highlightKnitCodeForPick();
 }
 
 function pressed(btn, on) {
@@ -837,6 +841,9 @@ async function showOutput(index, { fit = false } = {}) {
 
     const readableMap = stitches?.map || (await loadReadableMap(output));
     const knitCode = output.columnExtract ? null : await loadKnitCode(output);
+    const knitBind = knitCode
+      ? bindKnitCodeStitches(knitCode, readableMap, stitches?.bound?.stitches, stitches?.stitchBind)
+      : null;
     viewer.setKnitBeds(knitBedsByFace(readableMap));
     scene = {
       models,
@@ -852,6 +859,7 @@ async function showOutput(index, { fit = false } = {}) {
       cutName,
       readableMap,
       knitCode,
+      knitBind,
     };
     paintReadableMap();
 
@@ -1571,6 +1579,8 @@ function renderKnitCode(knit) {
       button.dataset.winding = row.winding || "";
       button.dataset.travel = travel?.kind || "";
       if (travel?.text) button.dataset.travelText = travel.text;
+      const bound = scene?.knitBind?.byKey?.get(`${rowIndex},${needleIndex}`) || null;
+      if (Number.isInteger(bound?.index)) button.dataset.face = String(bound.index);
       button.setAttribute("aria-pressed", "false");
       const showTravel = () => {
         if (travel) showKnitTravel(button, travel);
@@ -1585,11 +1595,19 @@ function renderKnitCode(knit) {
         if (knitTravelAnchor === button) hideKnitTravel();
       });
       button.addEventListener("click", () => {
-        for (const cell of table.querySelectorAll(".knit-cell[aria-pressed='true']")) {
-          cell.setAttribute("aria-pressed", "false");
-        }
-        button.setAttribute("aria-pressed", "true");
         if (knitDetail) knitDetail.textContent = detail;
+        if (code === 0) {
+          paintStitchPick(null);
+          pressKnitCell(button);
+          return;
+        }
+        if (!bound) {
+          pressKnitCell(button);
+          return;
+        }
+        if (showPhysNeedle) paintPhysicalStitch(bound);
+        else paintStitchPick(bound);
+        highlightKnitCodeForPick(button);
       });
       td.append(button);
       tr.append(td);
@@ -1599,7 +1617,54 @@ function renderKnitCode(knit) {
   table.append(thead, tbody);
   knitScroll.replaceChildren(table);
   knitRenderKey = knit;
-  pinKnitCodeScroll();
+  if (pickedStitch) highlightKnitCodeForPick();
+  else pinKnitCodeScroll();
+}
+
+function pressKnitCell(button) {
+  for (const cell of knitScroll?.querySelectorAll(".knit-cell") || []) {
+    cell.setAttribute("aria-pressed", cell === button ? "true" : "false");
+  }
+}
+
+function scrollKnitCellIntoView(button) {
+  const scroller = knitScroll;
+  if (!scroller || !button || mapMode !== "knit") return;
+  for (let pass = 0; pass < 4; pass++) {
+    const scRect = scroller.getBoundingClientRect();
+    const elRect = button.getBoundingClientRect();
+    if (scRect.height < 1 || elRect.height < 1) return;
+    const head = scroller.querySelector("thead");
+    const headBottom = head ? head.getBoundingClientRect().bottom : scRect.top;
+    const desc = button.closest("tr")?.querySelector(".desc");
+    const descRight = desc ? desc.getBoundingClientRect().right : scRect.left;
+    let dx = 0;
+    let dy = 0;
+    const margin = 6;
+    if (elRect.top < headBottom + margin) dy -= headBottom + margin - elRect.top;
+    if (elRect.bottom > scRect.bottom - margin) dy += elRect.bottom - (scRect.bottom - margin);
+    if (elRect.left < descRight + margin) dx -= descRight + margin - elRect.left;
+    if (elRect.right > scRect.right - margin) dx += elRect.right - (scRect.right - margin);
+    if (dx === 0 && dy === 0) return;
+    scroller.scrollTop += dy;
+    scroller.scrollLeft += dx;
+  }
+}
+
+function highlightKnitCodeForPick(prefer) {
+  const face = Number.isInteger(pickedStitch?.index) ? String(pickedStitch.index) : null;
+  const pressed = [];
+  for (const cell of knitScroll?.querySelectorAll(".knit-cell") || []) {
+    const on = face != null && cell.dataset.face === face;
+    cell.setAttribute("aria-pressed", on ? "true" : "false");
+    if (on) pressed.push(cell);
+  }
+  if (mapMode !== "knit" || !pressed.length) return;
+  const target = prefer && pressed.includes(prefer) ? prefer : pressed[0];
+  scrollKnitCellIntoView(target);
+  requestAnimationFrame(() => {
+    if (target.getAttribute("aria-pressed") === "true") scrollKnitCellIntoView(target);
+  });
 }
 
 function pinKnitCodeScroll() {
@@ -1655,6 +1720,8 @@ function setMapMode(mode) {
       paintReadableMap();
       mapView?.resize();
     });
+  } else {
+    requestAnimationFrame(() => highlightKnitCodeForPick());
   }
 }
 

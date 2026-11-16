@@ -478,6 +478,25 @@ export function parseExcelReadableMap(data, { workbook } = {}) {
  * cells — stitch_map_bind.json is the desktop pairing. Kept for callers
  * that only need a knit-token walk.
  */
+/**
+ * Knit-row tokens in carriage order. R walks columns upward, L walks them
+ * downward. Transfer (X / X+) and flip rows are not knit passes.
+ * The cell objects keep the sheet's bed, physical needle, and face.
+ */
+export function bedKnitTokens(map) {
+  const tokens = [];
+  for (const row of map?.rows || []) {
+    if (!isKnitDir(row.dir)) continue;
+    const occupied = (row.cells || []).filter((cell) => tokenString(cell.token));
+    const ordered =
+      row.dir === "L"
+        ? [...occupied].sort((a, b) => b.col - a.col)
+        : [...occupied].sort((a, b) => a.col - b.col);
+    for (const cell of ordered) tokens.push(cell);
+  }
+  return tokens;
+}
+
 export function excelMapAsBindMap(map) {
   const cells = [];
   const knitRows = [];

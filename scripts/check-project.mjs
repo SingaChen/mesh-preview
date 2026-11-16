@@ -70,6 +70,7 @@ import {
 import {
   KNIT_CODE_CAPTION,
   KNIT_CODE_LEGEND,
+  bindKnitCodeStitches,
   describeKnitCell,
   knitCellTravel,
   knitCodeCaption,
@@ -1325,6 +1326,33 @@ assert(
         KNIT_CODE_LEGEND.map((item) => `${item.code}:${item.name}`).join("|"),
     "Standrad caption and legend still name needles 0–12 and the empty B0",
   );
+  {
+    const standradObj = parseColoredObj(readFileSync(join(cylDir, "standrad_cylinder_KnittingStitches.obj"), "utf8"));
+    const standradStitches = standradObj.faces.map((face, index) => ({ index, verts: face.verts }));
+    const standradLayout = parseFacesRingLayout(readFileSync(join(cylDir, "standrad_cylinder_rings.json"), "utf8"));
+    facesRingChunksFromStitches(standradStitches, {
+      nRings: standradLayout.nFacesRing,
+      termCounts: standradLayout.termCounts,
+      ringTypes: standradLayout.ringTypes,
+      colors: standradLayout.colors,
+    });
+    const standradBedMap = parseExcelReadableMap(readFileSync(join(cylDir, "standrad_cylinder_bed.xls")));
+    const standradBind = bindKnitCodeStitches(knit, standradBedMap, standradStitches, null);
+    const standradLive = knit.rows.reduce((sum, row) => sum + row.cells.filter((code) => code === 1 || code === 2).length, 0);
+    const standradF0 = standradBind.byKey.get("0,0");
+    assert(
+      standradBind.bedTokens === standradLive &&
+        standradBind.knitCells === standradLive &&
+        standradBind.unmatched.length === 0 &&
+        standradBind.byKey.size === standradLive &&
+        standradLive === 175 &&
+        !standradBind.byKey.has("1,0") &&
+        standradF0?.index === 0 &&
+        standradF0.ring === 0 &&
+        standradF0.termInRing === 0,
+      "Standrad knitting code binds every knit cell, and first-ring F0 is ring 0's first stitch",
+    );
+  }
   assert(
     knitCodeInitialScrollTop(400, 400) === 0 &&
       knitCodeInitialScrollTop(900, 400) === 500 &&
@@ -1673,6 +1701,41 @@ assert(
       !knitCodeCaption(otherEmpty).includes("矫正稿"),
     "the draft note stays on Decrease Cylinder",
   );
+  {
+    const decreaseObj = parseColoredObj(readFileSync(join(decDir, "decrease_cylinder_KnittingStitches.obj"), "utf8"));
+    const decreaseStitches = decreaseObj.faces.map((face, index) => ({ index, verts: face.verts }));
+    const decreaseLayout = parseFacesRingLayout(readFileSync(join(decDir, "decrease_cylinder_faces_ring_layout.json"), "utf8"));
+    facesRingChunksFromStitches(decreaseStitches, {
+      nRings: decreaseLayout.nFacesRing,
+      termCounts: decreaseLayout.termCounts,
+      ringTypes: decreaseLayout.ringTypes,
+      colors: decreaseLayout.colors,
+    });
+    const decreaseBedMap = parseExcelReadableMap(readFileSync(join(decDir, "decrease_cylinder_bed.xls")));
+    const decreaseBind = bindKnitCodeStitches(decreaseKnit, decreaseBedMap, decreaseStitches, null);
+    const plainF3 = decreaseKnit.rows.find((row) => row.label.startsWith("第3环 前床  F0→F3"));
+    const turnF3 = decreaseKnit.rows.find((row) => row.label.startsWith("第3环 前床  F3（"));
+    const spanA = decreaseBind.byKey.get(`${plainF3.index},2`);
+    const spanB = decreaseBind.byKey.get(`${plainF3.index},3`);
+    const splitA = decreaseBind.byKey.get(`${plainF3.index},3`);
+    const splitB = decreaseBind.byKey.get(`${turnF3.index},3`);
+    const shared = new Map();
+    for (const stitch of decreaseBind.byKey.values()) shared.set(stitch.index, (shared.get(stitch.index) || 0) + 1);
+    assert(
+      decreaseBind.bedTokens === 148 &&
+        decreaseBind.knitCells === 148 &&
+        decreaseBind.unmatched.length === 0 &&
+        decreaseBind.byKey.size === 148 &&
+        spanA &&
+        spanB &&
+        spanA.index === spanB.index &&
+        splitA &&
+        splitB &&
+        splitA.index !== splitB.index &&
+        [...shared.values()].some((count) => count > 1),
+      `Decrease knitting code binds the 148 knit cells: ${JSON.stringify(decreaseBind.unmatched)}`,
+    );
+  }
   assert(
     decreaseShown.length === 32 &&
       decreaseShown[31].row === decreaseKnit.rows[0] &&
@@ -1950,6 +2013,8 @@ assert(
     mainSrc.includes("knitCodeLegend") &&
     mainSrc.includes("pinKnitCodeScroll") &&
     mainSrc.includes("knitCellTravel(row.winding, code)") &&
+    mainSrc.includes("bindKnitCodeStitches") &&
+    mainSrc.includes("highlightKnitCodeForPick") &&
     mainSrc.includes('knitDir.id = "knit-dir"') &&
     !mainSrc.includes("向右") &&
     !mainSrc.includes("向左"),
@@ -2137,6 +2202,37 @@ assert(
       knitCodeLegend(denseKnit).map((item) => `${item.code}:${item.name}`).join("|") === "1:1 前床平针|2:2 后床平针",
     "Dense Standrad caption names needles 0–24 and does not claim an empty B0",
   );
+  {
+    const denseObj = parseColoredObj(readFileSync(join(denseDir, "dense_standrad_cylinder_KnittingStitches.obj"), "utf8"));
+    const denseStitches = denseObj.faces.map((face, index) => ({ index, verts: face.verts }));
+    const denseLayout = parseFacesRingLayout(readFileSync(join(denseDir, "dense_standrad_cylinder_faces_ring_layout.json"), "utf8"));
+    facesRingChunksFromStitches(denseStitches, {
+      nRings: denseLayout.nFacesRing,
+      termCounts: denseLayout.termCounts,
+      ringTypes: denseLayout.ringTypes,
+      colors: denseLayout.colors,
+    });
+    const denseBedMap = parseExcelReadableMap(readFileSync(join(denseDir, "dense_standrad_cylinder_bed.xls")));
+    const denseBind = bindKnitCodeStitches(denseKnit, denseBedMap, denseStitches, null);
+    const denseF0 = denseBind.byKey.get("0,0");
+    const denseBack = denseBind.byKey.get("1,24");
+    const denseLive = denseKnit.rows.reduce((sum, row) => sum + row.cells.filter((code) => code === 1 || code === 2).length, 0);
+    assert(
+      denseBind.bedTokens === denseLive &&
+        denseBind.knitCells === denseLive &&
+        denseBind.unmatched.length === 0 &&
+        denseBind.byKey.size === denseLive &&
+        denseLive === 750 &&
+        denseF0?.index === 0 &&
+        denseF0.ring === 0 &&
+        denseF0.termInRing === 0 &&
+        denseBack?.index === 25 &&
+        denseBack.ring === 0 &&
+        denseBack.termInRing === 25 &&
+        denseBack.index !== denseF0.index,
+      "Dense Standrad knitting code binds every knit cell, including the first back-bed stitch",
+    );
+  }
   assert(
     describeKnitCell(denseKnit, 0, 0) === "第1环 前床  F0→F24 · 物理针 0 · 1 前床平针" &&
       describeKnitCell(denseKnit, 1, 0) === "第1环 后床  B24→B0 · 物理针 0 · 2 后床平针" &&
