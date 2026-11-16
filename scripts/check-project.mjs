@@ -159,12 +159,13 @@ function liveKnitCount(knit) {
  * short-row winding reversal (ccw ↔ cw). Front ↔ back with the same winding,
  * and a later row of that same winding, stay 1 or 2. Empty 0 is skipped.
  */
-function assertShortRowTurnCodes(knit, label) {
+function assertShortRowTurnCodes(knit, label, { frame = false } = {}) {
+  const allowed = frame ? [0, 1, 2, 11, 12, 13] : [0, 1, 2, 11, 12];
   let prev = null;
   for (const row of knit.rows) {
     const live = [];
     row.cells.forEach((code, index) => {
-      assert([0, 1, 2, 11, 12].includes(code), `${label} row ${row.index} has code ${code}`);
+      assert(allowed.includes(code), `${label} row ${row.index} has code ${code}`);
       const bed = code === 1 || code === 11 ? "F" : code === 2 || code === 12 ? "B" : null;
       if (!bed) return;
       assert(row.winding === "ccw" || row.winding === "cw", `${label} row ${row.index} has a travel winding`);
@@ -398,7 +399,7 @@ function railCell(knit, rowIndex, side, pair, slot) {
 
 function assertStandradOpening(knit, raw) {
   const front = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
-  const back = [0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+  const back = [13, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
   const pattern = knitTableColumns(knit).filter((col) => col.role === "pattern");
   assert(
     raw.n_rows === 48 &&
@@ -447,7 +448,9 @@ function assertStandradOpening(knit, raw) {
           row.winding === "ccw" &&
           slice.join(",") === expect.join(",") &&
           row.cells.every((code, col) => {
-            if (col === 2 || col === 16) return code === 13;
+            const backRow = index % 2 === 1;
+            if (col === 16) return code === 13;
+            if (col === 2) return code === (backRow ? 0 : 13);
             if (col >= 3 && col <= 15) return true;
             return code === 0;
           })
@@ -462,9 +465,9 @@ function assertStandradOpening(knit, raw) {
       raw.row_bind.slice(0, 34).every((flag) => flag === false) &&
       !raw.rules.row_turn.includes("每一行都算一次换行") &&
       raw.rules.row_turn.includes("没有短行折返") &&
-      raw.rules.knit_frames.includes("边框列 2 与 16") &&
+      raw.rules.knit_frames.includes("空针 0") &&
       raw.rules.knit_frames.includes("开头 11–12"),
-    "14 body rows keep the live work slice, frame 13s at columns 2 and 16, ccw winding, and generator rails",
+    "14 body rows keep the live work slice, with 13 tight against the knitted cells, ccw winding, and generator rails",
   );
   assert(
     railCell(knit, 4, "L", 12, "mark").text === "10" &&
@@ -533,14 +536,15 @@ function assertStandradOpening(knit, raw) {
   assert(
     knitCellTravel(knit.rows[34].winding, knit.rows[34].cells[3])?.text === "向右" &&
       knitCellTravel(knit.rows[35].winding, knit.rows[35].cells[15])?.text === "向左" &&
-      knit.rows[35].cells[3] === 0 &&
-      knitCellTravel(knit.rows[35].winding, knit.rows[35].cells[3]) == null &&
+      knit.rows[35].cells[2] === 0 &&
+      knit.rows[35].cells[3] === 13 &&
+      knit.rows[35].cells[4] === 2 &&
       knitCellTravel(knit.rows[0].winding, 1)?.text === "向右" &&
       knitCellTravel(knit.rows[0].winding, 2)?.text === "向左" &&
       knitCellTravel(knit.rows[10].winding, 6)?.text === "操作行，无方向" &&
       knitCellTravel(knit.rows[0].winding, 0) == null &&
       describeKnitCell(knit, 34, 3) === "第1环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
-      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1 · 物理针 0 · 0 空针" &&
+      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1 · 物理针 0 · 13" &&
       describeKnitCell(knit, 0, 0).includes("空位"),
     "body travel is unchanged, and opening non-zero cells can show that row's direction",
   );
@@ -551,7 +555,7 @@ function assertStandradOpening(knit, raw) {
       cells: pattern.filter((col) => col.kind === "needle").map((col) => row.cells[col.needleIndex]),
     })),
   };
-  assertShortRowTurnCodes(bodyKnit, "Standrad body");
+  assertShortRowTurnCodes(bodyKnit, "Standrad body", { frame: true });
   assert(
     knit.rows.every((row) => !row.cells.includes(11) && !row.cells.includes(12)),
     "Standrad has no 11 or 12",
@@ -599,8 +603,8 @@ function assertStandradOpening(knit, raw) {
     const raw = JSON.parse(readFileSync(path, "utf8"));
     if (label === "Standrad") {
       assert(
-        knitBodyWorkHash(raw.matrix) === "2fe3fee0c4cfa429ac52fccd7923e354ba0c7b3bfe783fcd28b030738f009ffc",
-        "Standrad body work-slice sha256 stays the plain-tube table",
+        knitBodyWorkHash(raw.matrix) === "89099fb437ade1bec61ab04cd3ae12e0def7c1360faf966ae9a7846dfad4f867",
+        "Standrad body work-slice sha256 keeps the back 13 against the 2s",
       );
     } else {
       assert(knitMatrixSuffixHash(path) === hash, `${label} matrix-suffix sha256 stays ${hash}`);
@@ -1859,8 +1863,8 @@ assert(
   const standradRaw = JSON.parse(readFileSync(standradKnitPath, "utf8"));
   assert(
     knitBodyWorkHash(standradRaw.matrix) ===
-      "2fe3fee0c4cfa429ac52fccd7923e354ba0c7b3bfe783fcd28b030738f009ffc",
-    "Standrad body work-slice sha256 stays the plain-tube table",
+      "89099fb437ade1bec61ab04cd3ae12e0def7c1360faf966ae9a7846dfad4f867",
+    "Standrad body work-slice sha256 keeps the back 13 against the 2s",
   );
   const knit = parseKnitCode(standradRaw);
   assert(knit?.model === "Standrad Cylinder", "Standrad knitting code keeps its model name");
@@ -1899,7 +1903,7 @@ assert(
   assert(
     describeKnitCell(knit, 34, 3) === "第1环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
       describeKnitCell(knit, 36, 3) === "第2环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
-      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1 · 物理针 0 · 0 空针" &&
+      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1 · 物理针 0 · 13" &&
       describeKnitCell(knit, 35, 15) === "第1环 后床  B12→B1 · 物理针 12 · 2 后床平针",
     "a knitting-code cell names its pass, physical needle, and code",
   );
