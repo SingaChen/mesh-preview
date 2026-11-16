@@ -490,6 +490,12 @@ input {
   cursor: pointer;
 }
 
+.knit-grid .knit-cell.is-wide-code,
+.knit-grid .rail-cell.is-wide-code {
+  font-size: 11px;
+  letter-spacing: -0.04em;
+}
+
 /* Function rails and the 5-unit gaps are not stitches. Empty needle 0 stays #000000 on .knit-cell only. */
 .knit-grid thead th.fn,
 .knit-grid thead th.gap {

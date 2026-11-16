@@ -1522,7 +1522,12 @@ function renderKnitCode(knit) {
   if (!knitScroll || !knit) return;
   if (knitTitle) knitTitle.textContent = `${knit.model || "Knitting"} knitting code`;
   if (knitNote) knitNote.textContent = knitCodeCaption(knit);
-  if (knitRailNote) knitRailNote.textContent = KNIT_FUNCTION_RAIL_NOTE;
+  if (knitRailNote) {
+    const opening = knit.rows?.some((row) => row.functionRails);
+    knitRailNote.textContent = opening
+      ? `${KNIT_FUNCTION_RAIL_NOTE} 开头功能行抄自模板，主体功能行不变。`
+      : KNIT_FUNCTION_RAIL_NOTE;
+  }
   if (knitLegend) {
     knitLegend.replaceChildren();
     for (const item of knitCodeLegend(knit)) {
@@ -1562,7 +1567,8 @@ function renderKnitCode(knit) {
     } else if (col.role === "gap") {
       th.dataset.side = col.side;
     } else {
-      th.dataset.needle = String(col.needle);
+      if (col.kind) th.dataset.kind = col.kind;
+      if (Number.isInteger(col.needle)) th.dataset.needle = String(col.needle);
     }
     th.textContent = col.header;
     headRow.append(th);
@@ -1591,6 +1597,7 @@ function renderKnitCode(knit) {
         }
         const spacer = document.createElement("span");
         spacer.className = "rail-cell";
+        if (String(cell.text).length > 2) spacer.classList.add("is-wide-code");
         spacer.textContent = cell.text;
         if (cell.fill) {
           td.style.background = cell.fill;
@@ -1604,7 +1611,8 @@ function renderKnitCode(knit) {
       }
       td.className = "pattern";
       td.dataset.role = "pattern";
-      td.dataset.needle = String(cell.needle);
+      if (cell.kind) td.dataset.kind = cell.kind;
+      if (Number.isInteger(cell.needle)) td.dataset.needle = String(cell.needle);
       const code = cell.code;
       const needleIndex = cell.needleIndex;
       const ink = knitCodeInk(code, knit.colors);
@@ -1613,13 +1621,15 @@ function renderKnitCode(knit) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "knit-cell";
+      if (String(ink.label).length > 2) button.classList.add("is-wide-code");
       button.style.background = ink.fill;
       button.style.color = ink.text;
       button.textContent = ink.label;
       button.setAttribute("aria-label", travel ? `${detail}，${travel.text}` : detail);
       button.dataset.rowIndex = String(rowIndex);
-      button.dataset.needle = String(knit.needles[needleIndex]);
+      if (Number.isInteger(cell.needle)) button.dataset.needle = String(cell.needle);
       button.dataset.code = String(code);
+      if (row.bind === false) button.dataset.opening = "true";
       button.dataset.winding = row.winding || "";
       button.dataset.travel = travel?.kind || "";
       if (travel?.text) button.dataset.travelText = travel.text;
@@ -1640,12 +1650,8 @@ function renderKnitCode(knit) {
       });
       button.addEventListener("click", () => {
         if (knitDetail) knitDetail.textContent = detail;
-        if (code === 0) {
+        if (code === 0 || !bound) {
           paintStitchPick(null);
-          pressKnitCell(button);
-          return;
-        }
-        if (!bound) {
           pressKnitCell(button);
           return;
         }
@@ -1715,7 +1721,9 @@ function pinKnitCodeScroll() {
   if (!knitScroll) return;
   const pin = () => {
     knitScroll.scrollTop = knitCodeInitialScrollTop(knitScroll.scrollHeight, knitScroll.clientHeight);
-    const pattern = knitScroll.querySelector("tbody td.pattern");
+    const pattern =
+      knitScroll.querySelector('tbody td.pattern[data-needle="0"]') ||
+      knitScroll.querySelector("tbody td.pattern");
     const desc = knitScroll.querySelector("tbody td.desc");
     if (!pattern || !desc) return;
     const delta = pattern.getBoundingClientRect().left - desc.getBoundingClientRect().right;
