@@ -76,6 +76,10 @@ function hasCopiedOpening(knit) {
 const DECREASE_DRAFT_NOTE =
   "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。矫正稿。";
 
+/** Experiment tables use the same omission. They are not the Decrease draft. */
+const EXPERIMENT_DRAW_NOTE =
+  "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。";
+
 /** Standrad opening sits under the body. Rails on those rows are a template copy. */
 export const KNIT_OPENING_NOTE =
   "主体下方是按幅宽适配的开头；开头功能行抄自模板，主体功能行不变。";
@@ -89,6 +93,7 @@ export function knitCodeCaption(knit) {
     caption = `${BED_CLAUSE}；空位为 0。列是物理针 ${span}。`;
   }
   if (knit?.model === "Decrease Cylinder") caption += DECREASE_DRAFT_NOTE;
+  else if (String(knit?.model || "").includes("实验")) caption += EXPERIMENT_DRAW_NOTE;
   if (hasCopiedOpening(knit)) caption += KNIT_OPENING_NOTE;
   return caption;
 }

@@ -368,14 +368,16 @@ function rulesFor(spec, info) {
     colors_tiffany_display: TIFFANY,
     row_turn: rowTurn,
     palette_source: "SingaLab single-knitting-compiler dependence/datfile.py getDefaultPalette, displayed with func_tiffany.py byte-swap",
-    source_bed: `${spec.dir}/${spec.prefix}_bed.txt sha256 ${info.bedSha}`,
+    source_bed: `${spec.sourceBed || `${spec.dir}/${spec.prefix}_bed.txt`} sha256 ${info.bedSha}`,
     operations_omitted: "移针、翻针、整床移位（床图 X / Flip 行）整行省略，不插入全 0 占位行；若去掉操作后该编织码行为空则丢弃",
     knit_frames: "每一编织行的 13 紧贴该行实际编织格子的左右两端，不留空档，也不另画外侧第二道 13。色 13 不绑定。开头行的 13 保持适配器原样，主体不回填开头指示。",
     winding: "床图 R → ccw（前床向右、后床向左）；床图 L → cw（前床向左、后床向右）。同一床图行拆成前、后两行时，两行继承该行绕向",
     display: "matrix 按编织时间顺序，index 0 为最先织的一行；彩色表视觉上自下而上（最先织的一行在底部）；物理针号小的在左。空针（代号 0）不是织针也不是操作行，没有方向",
-    status: spec.draft
-      ? "矫正稿，已接入预览供矫正，未生成 .dat / .k"
-      : "由当前床图按编织顺序画出，未生成 .dat / .k",
+    status: spec.experiment
+      ? "由实验床图按编织顺序画出，未生成 .dat / .k"
+      : spec.draft
+        ? "矫正稿，已接入预览供矫正，未生成 .dat / .k"
+        : "由当前床图按编织顺序画出，未生成 .dat / .k",
   };
   if (!plain) {
     rules.short_row_turns =
@@ -391,9 +393,25 @@ function rulesFor(spec, info) {
   return rules;
 }
 
+function sourcePaths(spec) {
+  if (spec.experiment) {
+    const dir = join(root, "experiments", spec.dirName);
+    return {
+      bedPath: join(dir, "exp-readable-map.txt"),
+      xlsPath: join(dir, "exp-readable-map.xls"),
+      layoutPath: join(root, spec.layoutRel),
+    };
+  }
+  return {
+    bedPath: join(sampleDir, spec.dir, `${spec.prefix}_bed.txt`),
+    xlsPath: join(sampleDir, spec.dir, `${spec.prefix}_bed.xls`),
+    layoutPath: join(sampleDir, spec.dir, `${spec.prefix}_faces_ring_layout.json`),
+  };
+}
+
 function buildModel(spec, standradOpening) {
-  const bedPath = join(sampleDir, spec.dir, `${spec.prefix}_bed.txt`);
-  const bedText = readFileSync(bedPath, "utf8");
+  const paths = sourcePaths(spec);
+  const bedText = readFileSync(paths.bedPath, "utf8");
   const bed = parseBedTxt(bedText);
   const visual = visualRows(bed);
   if (!visual.length) throw new Error(`${spec.model} has no knit rows`);
@@ -409,7 +427,7 @@ function buildModel(spec, standradOpening) {
   const origin = needle0Col - 3;
   const canvas = Math.max(origin + (W + 10), needle0Col + maxP + 2);
   const opening = buildOpeningMatrix(W);
-  const xls = parseExcelReadableMap(readFileSync(join(sampleDir, spec.dir, `${spec.prefix}_bed.xls`)));
+  const xls = parseExcelReadableMap(readFileSync(paths.xlsPath));
   if (xls.rows.length !== bed.rows.length) {
     throw new Error(`${spec.model} xls rows ${xls.rows.length} != txt rows ${bed.rows.length}`);
   }
@@ -422,7 +440,7 @@ function buildModel(spec, standradOpening) {
       byCell.set(key, cell);
     }
   }
-  const layout = parseFacesRingLayout(readFileSync(join(sampleDir, spec.dir, `${spec.prefix}_faces_ring_layout.json`), "utf8"));
+  const layout = parseFacesRingLayout(readFileSync(paths.layoutPath, "utf8"));
   const labels = [];
   const ringsUsed = new Set();
   for (const row of visual) {
@@ -544,8 +562,14 @@ function buildModel(spec, standradOpening) {
   const xlsTokens = bedKnitTokens(xls).length;
   if (bound.bedTokens !== xlsTokens) throw new Error(`${spec.model} token count`);
   const seenRings = [...ringsUsed].sort((a, b) => a - b);
-  const expectedRings = bed.stopped ? seenRings : [...Array(layout.termCounts.length).keys()];
-  if (!bed.stopped && seenRings.join(",") !== expectedRings.join(",")) {
+  const layoutRings = [...Array(layout.termCounts.length).keys()];
+  const partial = Boolean(spec.partial || bed.stopped);
+  if (partial) {
+    if (seenRings.some((ring) => !layoutRings.includes(ring))) {
+      throw new Error(`${spec.model} drew a ring outside the layout: ${seenRings.join(",")}`);
+    }
+    doc.n_rings = seenRings.length ? Math.max(...seenRings) + 1 : 0;
+  } else if (seenRings.join(",") !== layoutRings.join(",")) {
     throw new Error(`${spec.model} rings drawn ${seenRings.join(",")} layout 0..${layout.termCounts.length - 1}`);
   }
   return {
@@ -673,4 +697,130 @@ function main() {
   console.log("wrote /tmp/knitcode-report.json");
 }
 
-main();
+const EXPERIMENT_SHEETS = [
+  ["official-standrad-readable-row-schedule", "Standrad Cylinder 实验（新时序）", "standrad-exp-readable-row-schedule"],
+  ["official-increase-readable-row-schedule", "Increase Cylinder 实验（新时序）", "increase-exp-readable-row-schedule"],
+  ["official-decrease-readable-row-schedule", "Decrease Cylinder 实验（新时序）", "decrease-exp-readable-row-schedule"],
+  ["official-thin-readable-row-schedule", "Thin Cylinder 实验（新时序）", "thin-exp-readable-row-schedule"],
+  ["official-fat-readable-row-schedule", "Fat Cylinder 实验（新时序）", "fat-exp-readable-row-schedule"],
+  ["official-dense-standrad-readable-row-schedule", "Dense Standrad Cylinder 实验（新时序）", "dense-standrad-exp-readable-row-schedule"],
+  ["official-dense-increase-readable-row-schedule", "Dense Increase Cylinder 实验（新时序）", "dense-increase-exp-readable-row-schedule"],
+  ["official-dense-decrease-readable-row-schedule", "Dense Decrease Cylinder 实验（新时序）", "dense-decrease-exp-readable-row-schedule"],
+  ["official-dense-thin-readable-row-schedule", "Dense Thin Cylinder 实验（新时序）", "dense-thin-exp-readable-row-schedule"],
+  ["official-dense-fat-readable-row-schedule", "Dense Fat Cylinder 实验（新时序）", "dense-fat-exp-readable-row-schedule"],
+];
+
+const SKIPPED_KNIT_SHEETS = [
+  {
+    sheetId: "bunny-exp-readable-row-schedule",
+    reason: "Bunny 实验表不在这次范围内",
+  },
+  {
+    id: "dense-bunny-4split",
+    reason: "Dense Bunny 没有 faces_ring，也没有实验床图",
+  },
+  {
+    id: "dense-bunny-le",
+    reason: "Dense Bunny 没有 faces_ring，也没有实验床图",
+  },
+  {
+    sheetId: "bunny-corridor-field-swallow",
+    reason: "走廊抽列只有三维列线，没有床图，不生成编织码",
+  },
+];
+
+function assertBodyCodes(spec, built) {
+  const bodyCodes = new Set([0, 1, 2, 11, 12, 13]);
+  built.bodyMatrix.forEach((row, index) => {
+    for (const code of row) {
+      if (!bodyCodes.has(code)) throw new Error(`${spec.model} body row ${index} has code ${code}`);
+    }
+    const live = [];
+    row.forEach((code, col) => {
+      if (code === 1 || code === 2 || code === 11 || code === 12) live.push(col);
+    });
+    if (!live.length) throw new Error(`${spec.model} body row ${index} has no knit`);
+    if (row[live[0] - 1] !== 13 || row[live[live.length - 1] + 1] !== 13) {
+      throw new Error(`${spec.model} body row ${index} 13 is not tight against the knit span`);
+    }
+  });
+  built.visual.forEach((row, index) => {
+    const turns = row.tokens.filter((token) => token.code === 11 || token.code === 12);
+    if (row.turn) {
+      if (turns.length !== 1 || row.tokens[0].code !== (row.bed === "F" ? 11 : 12)) {
+        throw new Error(`${spec.model} turn row ${index} does not mark only its first stitch`);
+      }
+    } else if (turns.length) {
+      throw new Error(`${spec.model} row ${index} has 11/12 without a winding reversal`);
+    }
+  });
+  if (built.doc.n_opening_rows !== 34) throw new Error(`${spec.model} opening rows`);
+  if (built.doc.function_rails.slice(34).some((rails) => rails != null)) {
+    throw new Error(`${spec.model} copied opening rails onto a body row`);
+  }
+  if (built.doc.row_winding.slice(34).some((wind) => wind !== "ccw" && wind !== "cw")) {
+    throw new Error(`${spec.model} body row has no travel direction`);
+  }
+}
+
+function buildExperiments() {
+  const standradPath = join(sampleDir, "cylinder/standrad_cylinder_knitcode.json");
+  const standradBefore = readFileSync(standradPath);
+  const standrad = JSON.parse(standradBefore.toString("utf8"));
+  const check = buildOpeningMatrix(13);
+  check.rows.forEach((row, index) => {
+    if (row.matrix.join(",") !== standrad.matrix[index].join(",")) {
+      throw new Error(`W=13 opening row ${index} ${row.kind} does not match Standrad`);
+    }
+  });
+  const officialHashes = new Map();
+  for (const spec of MODELS) {
+    const path = join(sampleDir, spec.dir, `${spec.prefix}_knitcode.json`);
+    officialHashes.set(path, sha256(readFileSync(path)));
+  }
+  officialHashes.set(standradPath, sha256(standradBefore));
+  const reports = [];
+  for (const [dirName, model, sheetId] of EXPERIMENT_SHEETS) {
+    const schedulePath = join(root, "experiments", dirName, "exp-readable-map.json");
+    const schedule = JSON.parse(readFileSync(schedulePath, "utf8"));
+    const spec = {
+      model,
+      experiment: true,
+      partial: Boolean(schedule.partialStop),
+      sheetId,
+      dirName,
+      layoutRel: schedule.input.path,
+      sourceBed: `experiments/${dirName}/exp-readable-map.txt`,
+    };
+    const built = buildModel(spec, standrad);
+    assertBodyCodes(spec, built);
+    const text = `${JSON.stringify(built.doc, null, 2)}\n`;
+    writeFileSync(join(root, "experiments", dirName, "exp-knitcode.json"), text);
+    reports.push({
+      sheetId,
+      added: true,
+      partial: spec.partial,
+      W: built.W,
+      openingRows: built.doc.n_opening_rows,
+      bodyRows: built.doc.n_body_rows,
+      rows: built.doc.n_rows,
+      rings: built.doc.n_rings,
+      turn11: built.turns11,
+      turn12: built.turns12,
+      bindCells: built.bound.knitCells,
+    });
+    console.log(`${sheetId}: opening 34 + body ${built.doc.n_body_rows} = ${built.doc.n_rows} rows`);
+  }
+  for (const [path, hash] of officialHashes) {
+    if (sha256(readFileSync(path)) !== hash) throw new Error(`official knit code changed: ${path}`);
+  }
+  if (sha256(readFileSync(standradPath)) !== sha256(standradBefore)) {
+    throw new Error("Standrad knitting code changed");
+  }
+  const summary = { reports, skipped: SKIPPED_KNIT_SHEETS };
+  writeFileSync("/tmp/exp-knitcode-report.json", `${JSON.stringify(summary, null, 2)}\n`);
+  console.log("wrote /tmp/exp-knitcode-report.json");
+}
+
+if (process.argv.includes("--experiments")) buildExperiments();
+else main();

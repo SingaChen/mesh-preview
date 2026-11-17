@@ -1365,6 +1365,7 @@ async function loadCylinderExp(spec) {
     delete output.knit_code;
     delete output.knittingCode;
     delete output.knitting_code;
+    if (spec.knitUrl) output.knitCode = "exp-knitcode.json";
     delete output.stitchMapBind;
     delete output.stitch_map_bind;
     data.name = spec.chrome.label;
@@ -1390,6 +1391,15 @@ async function loadCylinderExp(spec) {
       path: `${spec.directory}/exp-readable-map.txt`,
       text: await txtRes.text(),
     });
+    if (spec.knitUrl) {
+      const knitRes = await fetch(spec.knitUrl);
+      if (!knitRes.ok) throw new Error("实验编织码不可用 / Experimental knitting code missing");
+      entries.push({
+        name: "exp-knitcode.json",
+        path: `${spec.directory}/exp-knitcode.json`,
+        text: await knitRes.text(),
+      });
+    }
     await openEntries(entries, { sheet: spec.sheetId });
     if (project) project.banner = spec.chrome.banner;
     updateChrome();
