@@ -1,0 +1,864 @@
+{
+  "skipped": [
+    {
+      "id": "dense-bunny-4split",
+      "reason": "public/sample/dense-bunny-4split 只有 columns（polyline、type、field、order），没有 faces_ring，也没有可落座的床图。"
+    },
+    {
+      "id": "dense-bunny-le",
+      "reason": "public/sample/dense-bunny-le 只有 columns（polyline、type、field、order），没有 faces_ring，也没有可落座的床图。"
+    }
+  ],
+  "officialBunnySheet": "bunny-exp-readable-row-schedule",
+  "officialFilesUnchanged": true,
+  "officialFileCount": 99,
+  "models": [
+    {
+      "sheetId": "standrad-exp-readable-row-schedule",
+      "menuLabel": "Standrad 实验（新时序）",
+      "directory": "experiments/official-standrad-readable-row-schedule",
+      "deepLink": "?sheet=standrad-exp-readable-row-schedule",
+      "status": "complete",
+      "completed": true,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "cac28e6045a711aed09805366dfc242e88c9c2e03da5febc6f2ba30052357cfc",
+      "courses": {
+        "experimentCourses": 7,
+        "officialCourses": 7,
+        "experimentKnitRows": 7,
+        "officialKnitRows": 7,
+        "experimentSheetRows": 7,
+        "officialSheetRows": 7
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 0,
+        "decreases": 0
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 3,
+          "course": 3,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 4,
+          "course": 4,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 5,
+          "course": 5,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 6,
+          "course": 6,
+          "start": "F0",
+          "schedule": "knit"
+        }
+      ],
+      "partialStop": null,
+      "statusLine": "生成完成。实验 7 课，官方 7 课；实验 7 个织行，官方 7 个织行。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 standrad_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后，和官方床图的织针序没有差异。 整张表没有减针课。"
+    },
+    {
+      "sheetId": "dense-standrad-exp-readable-row-schedule",
+      "menuLabel": "Dense Standrad 实验（新时序）",
+      "directory": "experiments/official-dense-standrad-readable-row-schedule",
+      "deepLink": "?sheet=dense-standrad-exp-readable-row-schedule",
+      "status": "complete",
+      "completed": true,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "22560c0bdf4e1dd98e0aecffc61e959452c724f046c85c66078abc51275d52c5",
+      "courses": {
+        "experimentCourses": 15,
+        "officialCourses": 15,
+        "experimentKnitRows": 15,
+        "officialKnitRows": 15,
+        "experimentSheetRows": 15,
+        "officialSheetRows": 15
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 0,
+        "decreases": 0
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 3,
+          "course": 3,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 4,
+          "course": 4,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 5,
+          "course": 5,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 6,
+          "course": 6,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 7,
+          "course": 7,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 8,
+          "course": 8,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 9,
+          "course": 9,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 10,
+          "course": 10,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 11,
+          "course": 11,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 12,
+          "course": 12,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 13,
+          "course": 13,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 14,
+          "course": 14,
+          "start": "F0",
+          "schedule": "knit"
+        }
+      ],
+      "partialStop": null,
+      "statusLine": "生成完成。实验 15 课，官方 15 课；实验 15 个织行，官方 15 个织行。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_standrad_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后，和官方床图的织针序没有差异。 整张表没有减针课。"
+    },
+    {
+      "sheetId": "increase-exp-readable-row-schedule",
+      "menuLabel": "Increase 实验（新时序）",
+      "directory": "experiments/official-increase-readable-row-schedule",
+      "deepLink": "?sheet=increase-exp-readable-row-schedule",
+      "status": "complete",
+      "completed": true,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "ae01fb07254b37e70dbbf6556f104c850bfb474cfc2ddae85a1f405f7b44dfcf",
+      "courses": {
+        "experimentCourses": 17,
+        "officialCourses": 17,
+        "experimentKnitRows": 17,
+        "officialKnitRows": 17,
+        "experimentSheetRows": 39,
+        "officialSheetRows": 30
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 1,
+        "decreases": 0
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 3,
+          "course": 3,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 4,
+          "course": 16,
+          "start": "F0",
+          "schedule": "knit"
+        }
+      ],
+      "partialStop": null,
+      "statusLine": "生成完成。实验 17 课，官方 17 课；实验 17 个织行，官方 17 个织行。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 increase_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后最早的针位差异在织针序 23：项 21 ·。官方 B6（表行 4，course 1）。实验 B8（表行 11，course 1，线圈 carried:7）。 整张表没有减针课。"
+    },
+    {
+      "sheetId": "decrease-exp-readable-row-schedule",
+      "menuLabel": "Decrease 实验（新时序）",
+      "directory": "experiments/official-decrease-readable-row-schedule",
+      "deepLink": "?sheet=decrease-exp-readable-row-schedule",
+      "status": "complete",
+      "completed": true,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "89b54afc2afbf1cbd14eae10197170389fbacdd971243154a7d0370fac3a449f",
+      "courses": {
+        "experimentCourses": 15,
+        "officialCourses": 15,
+        "experimentKnitRows": 15,
+        "officialKnitRows": 23,
+        "experimentSheetRows": 38,
+        "officialSheetRows": 46
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 0,
+        "decreases": 1
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 3,
+          "course": 13,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 4,
+          "course": 14,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        }
+      ],
+      "partialStop": null,
+      "statusLine": "生成完成。实验 15 课，官方 15 课；实验 15 个织行，官方 23 个织行。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 decrease_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后最早的针位差异在织针序 50：项 49 vR。官方 F3（表行 5，course 2）。实验 F4（表行 2，course 2，线圈 carried:4）。 第一处减针是 course 2 项 48 -R1（表行 2，只有减针）。减针移圈排在这一课全部织行之后。"
+    },
+    {
+      "sheetId": "thin-exp-readable-row-schedule",
+      "menuLabel": "Thin 实验（新时序）",
+      "directory": "experiments/official-thin-readable-row-schedule",
+      "deepLink": "?sheet=thin-exp-readable-row-schedule",
+      "status": "partial",
+      "completed": false,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "eb7a79f6c77c1d331165bbeac0638497bdec6de55edc328d3aaf02cab4e46d45",
+      "courses": {
+        "experimentCourses": 22,
+        "officialCourses": 31,
+        "experimentKnitRows": 23,
+        "officialKnitRows": 41,
+        "experimentSheetRows": 40,
+        "officialSheetRows": 87
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 0,
+        "decreases": 0
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 3,
+          "course": 21,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 4,
+          "course": 22,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        }
+      ],
+      "partialStop": {
+        "ring": 4,
+        "course": 22,
+        "dir": "R",
+        "sentence": "实验停在第 5 环 course 22 R（course 22: 项 6 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 6，全表项 139。"
+      },
+      "statusLine": "未完成。实验停在第 5 环 course 22 R（course 22: 项 6 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 6，全表项 139。 已生成 22 课 / 官方 31 课，织 156 针、项 146 / 288。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 thin_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后最早的针位差异在织针序 117：项 116 ·。官方 F3（表行 24，course 21）。实验 F4（表行 21，course 21，线圈 carried:4）。 第一处减针是 course 21 项 115 -R1（表行 21，只有减针）。减针移圈排在这一课全部织行之后。"
+    },
+    {
+      "sheetId": "fat-exp-readable-row-schedule",
+      "menuLabel": "Fat 实验（新时序）",
+      "directory": "experiments/official-fat-readable-row-schedule",
+      "deepLink": "?sheet=fat-exp-readable-row-schedule",
+      "status": "partial",
+      "completed": false,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "c43bd80541363b6ce9758e4bf1810793251b073fa5d57562e3b2fd2ec76506d3",
+      "courses": {
+        "experimentCourses": 49,
+        "officialCourses": 52,
+        "experimentKnitRows": 50,
+        "officialKnitRows": 63,
+        "experimentSheetRows": 95,
+        "officialSheetRows": 106
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 2,
+        "decreases": 0
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 3,
+          "course": 3,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 4,
+          "course": 4,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 5,
+          "course": 21,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 6,
+          "course": 32,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 7,
+          "course": 43,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 8,
+          "course": 48,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        }
+      ],
+      "partialStop": {
+        "ring": 8,
+        "course": 49,
+        "dir": "L",
+        "sentence": "实验停在第 9 环 course 49 L（course 49: 项 15 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 15，全表项 296。"
+      },
+      "statusLine": "未完成。实验停在第 9 环 course 49 L（course 49: 项 15 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 15，全表项 296。 已生成 49 课 / 官方 52 课，织 320 针、项 299 / 333。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 fat_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后最早的针位差异在织针序 39：项 32 ·。官方 F12（表行 11，course 2）。实验 B11（表行 27，course 2，线圈 hole:c2:t6:g1）。 第一处减针是 course 43 项 253 -R1（表行 68，只有减针）。减针移圈排在这一课全部织行之后。"
+    },
+    {
+      "sheetId": "dense-increase-exp-readable-row-schedule",
+      "menuLabel": "Dense Increase 实验（新时序）",
+      "directory": "experiments/official-dense-increase-readable-row-schedule",
+      "deepLink": "?sheet=dense-increase-exp-readable-row-schedule",
+      "status": "complete",
+      "completed": true,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "ace720eb6de98759c2064b27f5213ea6c01c998db9fc5e295a44e5bbc027251b",
+      "courses": {
+        "experimentCourses": 64,
+        "officialCourses": 64,
+        "experimentKnitRows": 64,
+        "officialKnitRows": 64,
+        "experimentSheetRows": 106,
+        "officialSheetRows": 98
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 5,
+        "decreases": 0
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 3,
+          "course": 3,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 4,
+          "course": 4,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 5,
+          "course": 5,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 6,
+          "course": 6,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 7,
+          "course": 19,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 8,
+          "course": 30,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 9,
+          "course": 43,
+          "start": "F0",
+          "schedule": "knit"
+        }
+      ],
+      "partialStop": null,
+      "statusLine": "生成完成。实验 64 课，官方 64 课；实验 64 个织行，官方 64 个织行。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_increase_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后最早的针位差异在织针序 69：项 68 ·。官方 B13（表行 4，course 2）。实验 B14（表行 5，course 2，线圈 carried:14）。 整张表没有减针课。"
+    },
+    {
+      "sheetId": "dense-decrease-exp-readable-row-schedule",
+      "menuLabel": "Dense Decrease 实验（新时序）",
+      "directory": "experiments/official-dense-decrease-readable-row-schedule",
+      "deepLink": "?sheet=dense-decrease-exp-readable-row-schedule",
+      "status": "partial",
+      "completed": false,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "5e282f8a98d1c192beec39fcf937af6c7948042339acd5e7aea2c401f91f5ce6",
+      "courses": {
+        "experimentCourses": 56,
+        "officialCourses": 66,
+        "experimentKnitRows": 57,
+        "officialKnitRows": 83,
+        "experimentSheetRows": 69,
+        "officialSheetRows": 131
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 0,
+        "decreases": 0
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 3,
+          "course": 3,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 4,
+          "course": 4,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 5,
+          "course": 31,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 6,
+          "course": 56,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        }
+      ],
+      "partialStop": {
+        "ring": 6,
+        "course": 56,
+        "dir": "R",
+        "sentence": "实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。"
+      },
+      "statusLine": "未完成。实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。 已生成 56 课 / 官方 66 课，织 458 针、项 452 / 648。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_decrease_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后最早的针位差异在织针序 320：项 319 ·。官方 F5（表行 35，course 31）。实验 F6（表行 31，course 31，线圈 carried:6）。 第一处减针是 course 31 项 318 -R1（表行 31，只有减针）。减针移圈排在这一课全部织行之后。"
+    },
+    {
+      "sheetId": "dense-thin-exp-readable-row-schedule",
+      "menuLabel": "Dense Thin 实验（新时序）",
+      "directory": "experiments/official-dense-thin-readable-row-schedule",
+      "deepLink": "?sheet=dense-thin-exp-readable-row-schedule",
+      "status": "partial",
+      "completed": false,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "6ba9f8b4cbc93d571a2fe2a51bb39310b7cb94086579a044e0e23eb9e5eb1ac0",
+      "courses": {
+        "experimentCourses": 57,
+        "officialCourses": 148,
+        "experimentKnitRows": 58,
+        "officialKnitRows": 170,
+        "experimentSheetRows": 99,
+        "officialSheetRows": 276
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 0,
+        "decreases": 1
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 3,
+          "course": 3,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 4,
+          "course": 4,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 5,
+          "course": 5,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 6,
+          "course": 40,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 7,
+          "course": 57,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        }
+      ],
+      "partialStop": {
+        "ring": 7,
+        "course": 57,
+        "dir": "R",
+        "sentence": "实验停在第 8 环 course 57 R（course 57: 项 15 在织的时候同床，平衡之后变成跨床。不改减针落点。）。 环内项 15，全表项 454。"
+      },
+      "statusLine": "未完成。实验停在第 8 环 course 57 R（course 57: 项 15 在织的时候同床，平衡之后变成跨床。不改减针落点。）。 环内项 15，全表项 454。 已生成 57 课 / 官方 148 课，织 486 针、项 467 / 1271。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_thin_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后最早的针位差异在织针序 362：项 361 ·。官方 B3（表行 44，course 39）。实验 B4（表行 39，course 39，线圈 carried:43）。 第一处减针是 course 39 项 360 -L1（表行 39，只有减针）。减针移圈排在这一课全部织行之后。"
+    },
+    {
+      "sheetId": "dense-fat-exp-readable-row-schedule",
+      "menuLabel": "Dense Fat 实验（新时序）",
+      "directory": "experiments/official-dense-fat-readable-row-schedule",
+      "deepLink": "?sheet=dense-fat-exp-readable-row-schedule",
+      "status": "partial",
+      "completed": false,
+      "firstRingIdentical": true,
+      "officialUnchanged": true,
+      "officialXlsSha256": "24348e293d7b23d4ec8b21e9232a66818493e8fe015a23232554d3ece5fff906",
+      "courses": {
+        "experimentCourses": 205,
+        "officialCourses": 214,
+        "experimentKnitRows": 206,
+        "officialKnitRows": 234,
+        "experimentSheetRows": 293,
+        "officialSheetRows": 332
+      },
+      "postponed": [],
+      "omittedNoOpBalances": {
+        "increaseOpenings": 4,
+        "decreases": 0
+      },
+      "ringStarts": [
+        {
+          "ring": 0,
+          "course": 0,
+          "start": "F0",
+          "schedule": "official-seatRing"
+        },
+        {
+          "ring": 1,
+          "course": 1,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 2,
+          "course": 2,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 3,
+          "course": 3,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 4,
+          "course": 4,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 5,
+          "course": 5,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 6,
+          "course": 8,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 7,
+          "course": 39,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 8,
+          "course": 50,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 9,
+          "course": 59,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 10,
+          "course": 92,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 11,
+          "course": 123,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 12,
+          "course": 142,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 13,
+          "course": 161,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 14,
+          "course": 180,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 15,
+          "course": 201,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        }
+      ],
+      "partialStop": {
+        "ring": 15,
+        "course": 205,
+        "dir": "R",
+        "sentence": "实验停在第 16 环 course 205 R（course 205: 项 23 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 23，全表项 1219。"
+      },
+      "statusLine": "未完成。实验停在第 16 环 course 205 R（course 205: 项 23 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 23，全表项 1219。 已生成 205 课 / 官方 214 课，织 1273 针、项 1233 / 1387。",
+      "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_fat_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+      "divergenceLine": "第一环之后最早的针位差异在织针序 38：项 37 ·。官方 F13（表行 2，course 1）。实验 B12（表行 4，course 1，线圈 carried:12）。 第一处减针是 course 181 项 1066 -L1（表行 240，只有减针）。减针移圈排在这一课全部织行之后。"
+    }
+  ]
+}

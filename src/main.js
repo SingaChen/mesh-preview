@@ -1,6 +1,7 @@
 import expReadableMapUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.xls?url";
 import expReadableMapTxtUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.txt?url";
 import expChrome from "../experiments/official-bunny-readable-row-schedule/preview-chrome.json";
+import { CYLINDER_EXP_SHEETS, cylinderExpBySheet } from "./cylinder-exp-sheets.js";
 import { MeshViewer } from "./viewer.js";
 import {
   clickInput,
@@ -112,6 +113,12 @@ const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedul
 if (bunnyExpBtn) {
   bunnyExpBtn.textContent = BUNNY_EXP_LABEL;
   bunnyExpBtn.title = expChrome.menuTitle;
+}
+for (const spec of CYLINDER_EXP_SHEETS) {
+  const btn = document.querySelector(`#${spec.buttonId}`);
+  if (!btn) continue;
+  btn.textContent = spec.chrome.label;
+  btn.title = spec.chrome.menuTitle;
 }
 const standradBtn = document.querySelector("#load-standrad-cylinder");
 const denseStandradBtn = document.querySelector("#load-dense-standrad-cylinder");
@@ -1271,6 +1278,65 @@ function isBunnyExpReadableSheet(sheet = sheetQuery()) {
   return String(sheet || "").trim().toLowerCase() === BUNNY_EXP_SHEET;
 }
 
+function activeCylinderExp(sheet = sheetQuery()) {
+  return cylinderExpBySheet(sheet);
+}
+
+async function loadCylinderExp(spec) {
+  if (!spec) return;
+  if (sheetQuery() !== spec.sheetId) setSheetQuery(spec.sheetId);
+  setStatus(`加载 ${spec.chrome.label}…`);
+  const base = import.meta.env.BASE_URL;
+  try {
+    const res = await fetch(`${base}sample/${spec.manifest}`, { cache: "reload" });
+    if (!res.ok) throw new Error(`缺少 ${spec.officialName} / Missing ${spec.officialName}`);
+    const data = await res.json();
+    const official = data.outputs?.[0];
+    if (!official?.mesh) throw new Error(`${spec.officialName} 网格不在清单里`);
+    const output = {
+      ...official,
+      label: spec.chrome.label,
+      readableMap: "exp-readable-map.xls",
+      readableMapTxt: "exp-readable-map.txt",
+    };
+    delete output.knitCode;
+    delete output.knit_code;
+    delete output.knittingCode;
+    delete output.knitting_code;
+    delete output.stitchMapBind;
+    delete output.stitch_map_bind;
+    data.name = spec.chrome.label;
+    data.outputs = [output];
+    const paths = collectManifestRefs(data).filter((rel) => rel.includes("/"));
+    const entries = [{ name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) }];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const file = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!file.ok) throw new Error(`缺少 ${spec.officialName} / Missing ${rel}`);
+        entries.push(await sampleEntry(rel, file));
+      }),
+    );
+    const [xlsRes, txtRes] = await Promise.all([fetch(spec.xlsUrl), fetch(spec.txtUrl)]);
+    if (!xlsRes.ok || !txtRes.ok) throw new Error("实验床图不可用 / Experimental readable map missing");
+    entries.push({
+      name: "exp-readable-map.xls",
+      path: `${spec.directory}/exp-readable-map.xls`,
+      buffer: await xlsRes.arrayBuffer(),
+    });
+    entries.push({
+      name: "exp-readable-map.txt",
+      path: `${spec.directory}/exp-readable-map.txt`,
+      text: await txtRes.text(),
+    });
+    await openEntries(entries, { sheet: spec.sheetId });
+    if (project) project.banner = spec.chrome.banner;
+    updateChrome();
+    if (!statusEl.classList.contains("error")) setStatus(spec.chrome.status);
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
 async function loadBunnyExpReadableRow() {
   if (!isBunnyExpReadableSheet()) setSheetQuery(BUNNY_EXP_SHEET);
   setStatus(`加载 ${BUNNY_EXP_LABEL}…`);
@@ -1417,6 +1483,13 @@ bunnyExpBtn?.addEventListener("click", () => {
   setSheetQuery(BUNNY_EXP_SHEET);
   loadBunnyExpReadableRow();
 });
+for (const spec of CYLINDER_EXP_SHEETS) {
+  document.querySelector(`#${spec.buttonId}`)?.addEventListener("click", () => {
+    setOpenMenu(false);
+    setSheetQuery(spec.sheetId);
+    loadCylinderExp(spec);
+  });
+}
 standradBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("standrad-cylinder");
@@ -1952,8 +2025,11 @@ function paintMapChrome() {
   }
   if (mapHeading) {
     mapHeading.replaceChildren();
+    const cylinderExp = !showingKnit ? activeCylinderExp() : null;
     if (!showingKnit && isBunnyExpReadableSheet()) {
       mapHeading.append(document.createTextNode(BUNNY_EXP_LABEL));
+    } else if (cylinderExp) {
+      mapHeading.append(document.createTextNode(cylinderExp.chrome.label));
     } else {
       mapHeading.append(document.createTextNode(showingKnit ? "编织码 " : "生长图 "));
       const en = document.createElement("span");
@@ -2010,9 +2086,12 @@ function paintReadableMap() {
   mapView?.setGrid(grid);
   const h = map.header;
   if (mapMeta) {
+    const cylinderExp = activeCylinderExp();
     mapMeta.textContent =
       map.source === "excel" && isBunnyExpReadableSheet()
         ? `${expChrome.metaPrefix} · ${map.rows.length} 行 · 列 ${map.colMin}…${map.colMax} · 不是官方 Bunny`
+        : map.source === "excel" && cylinderExp
+        ? `${cylinderExp.chrome.metaPrefix} · ${map.rows.length} 行 · 列 ${map.colMin}…${map.colMax} · 不是官方 ${cylinderExp.officialName}`
         : map.source === "excel"
         ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "Bunny" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${stoppedMapSuffix(map)}`
         : h
@@ -2251,7 +2330,8 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 updateChrome();
 syncExportButton();
-if (isDenseBunny4SplitSheet(sheetQuery())) loadDenseBunny4Split();
+if (activeCylinderExp(sheetQuery())) loadCylinderExp(activeCylinderExp(sheetQuery()));
+else if (isDenseBunny4SplitSheet(sheetQuery())) loadDenseBunny4Split();
 else if (isDenseBunnyLeSheet(sheetQuery())) loadDenseBunnyLe();
 else if (isDenseFatSheet(sheetQuery())) loadDenseFatCylinder();
 else if (isFatSheet(sheetQuery())) loadFatCylinder();

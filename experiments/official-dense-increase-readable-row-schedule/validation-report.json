@@ -1,0 +1,301 @@
+{
+  "experiment": "official-dense-increase-readable-row-schedule",
+  "sheetId": "dense-increase-exp-readable-row-schedule",
+  "menuLabel": "Dense Increase 实验（新时序）",
+  "input": {
+    "path": "public/sample/dense-increase/dense_increase_cylinder_faces_ring_layout.json",
+    "sha256": "0b683d01b7b01400cf8a06c55387d5113824e7504a93ed3e73a146ea56c96f96",
+    "source": "Dense Increase Cylinder, scale_mode=propagate. rings[].types is Term.Type. rings[].hangs is Term.remain / n_extra. path_generate skips first_rows index 0, so first_rows_index = row + 1. SingaLab algorithm 561ae6c18c0fe2c8d92be1c9433770cfc5d915a4.",
+    "model": "dense-increase",
+    "nFacesRing": 10,
+    "termTotal": 635,
+    "termCounts": [
+      27,
+      27,
+      27,
+      29,
+      29,
+      33,
+      127,
+      66,
+      138,
+      132
+    ]
+  },
+  "baseline": {
+    "xls": "public/sample/dense-increase/dense_increase_cylinder_bed.xls",
+    "xlsSha256": "ace720eb6de98759c2064b27f5213ea6c01c998db9fc5e295a44e5bbc027251b",
+    "xlsSha256After": "ace720eb6de98759c2064b27f5213ea6c01c998db9fc5e295a44e5bbc027251b",
+    "txt": "public/sample/dense-increase/dense_increase_cylinder_bed.txt",
+    "txtSha256": "cfa076929d041a6031d5112d9e0972e750f8150d3523df59f9f8f3b2c5f5a74a",
+    "txtSha256After": "cfa076929d041a6031d5112d9e0972e750f8150d3523df59f9f8f3b2c5f5a74a",
+    "unchanged": true,
+    "rebuild": "full",
+    "rebuildError": null
+  },
+  "officialAssets": {
+    "dense_increase_cylinder_faces_ring_layout.json": "0b683d01b7b01400cf8a06c55387d5113824e7504a93ed3e73a146ea56c96f96",
+    "dense_increase_cylinder_bed.xls": "ace720eb6de98759c2064b27f5213ea6c01c998db9fc5e295a44e5bbc027251b",
+    "dense_increase_cylinder_bed.txt": "cfa076929d041a6031d5112d9e0972e750f8150d3523df59f9f8f3b2c5f5a74a",
+    "public/sample/dense-increase/dense_increase_cylinder.dat": null,
+    "public/sample/dense-increase/dense_increase_cylinder.k": null,
+    "public/sample/dense-increase/dense_increase_cylinder_knitcode.json": "ddbab3eeb2ba01bfad13fdc1798e3656b9d8683e647fc9fd884da2ea257387e6",
+    "public/sample/dense-increase/dense_increase_cylinder_KnittingStitches.obj": "7d5f59fd92f7f6714d1d4348a09bde5aba52e90e3e4bf54949db0aecc7236af2"
+  },
+  "output": {
+    "directory": "experiments/official-dense-increase-readable-row-schedule",
+    "files": [
+      "exp-readable-map.txt",
+      "exp-readable-map.xls",
+      "exp-readable-map.json",
+      "validation-report.json",
+      "compare.html",
+      "preview-chrome.json"
+    ],
+    "dat": null,
+    "knitCode": null
+  },
+  "status": "complete",
+  "statusLine": "生成完成。实验 64 课，官方 64 课；实验 64 个织行，官方 64 个织行。",
+  "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_increase_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+  "divergenceLine": "第一环之后最早的针位差异在织针序 69：项 68 ·。官方 B13（表行 4，course 2）。实验 B14（表行 5，course 2，线圈 carried:14）。 整张表没有减针课。",
+  "firstRing": {
+    "courses": 1,
+    "rows": 1,
+    "identical": true,
+    "mismatch": null,
+    "txtMismatch": null,
+    "seatRingError": null,
+    "noDecreasePrefix": null
+  },
+  "firstDecrease": null,
+  "postponedBalances": [],
+  "omittedNoOpBalances": {
+    "increaseOpenings": 5,
+    "decreases": 0
+  },
+  "ringStarts": [
+    {
+      "ring": 0,
+      "course": 0,
+      "start": "F0",
+      "schedule": "official-seatRing"
+    },
+    {
+      "ring": 1,
+      "course": 1,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 2,
+      "course": 2,
+      "start": "F0",
+      "schedule": "inc-then-knit"
+    },
+    {
+      "ring": 3,
+      "course": 3,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 4,
+      "course": 4,
+      "start": "F0",
+      "schedule": "inc-then-knit"
+    },
+    {
+      "ring": 5,
+      "course": 5,
+      "start": "F0",
+      "schedule": "inc-then-knit"
+    },
+    {
+      "ring": 6,
+      "course": 6,
+      "start": "F0",
+      "schedule": "inc-then-knit"
+    },
+    {
+      "ring": 7,
+      "course": 19,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 8,
+      "course": 30,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 9,
+      "course": 43,
+      "start": "F0",
+      "schedule": "knit"
+    }
+  ],
+  "partialStop": null,
+  "divergence": {
+    "knitIndex": 69,
+    "kind": "needle",
+    "baseline": {
+      "sheetRow": 4,
+      "cellIndex": 15,
+      "course": 2,
+      "dir": "R",
+      "tIdx": 68,
+      "label": "·",
+      "token": "B·",
+      "bed": "B",
+      "phys": 13,
+      "id": 14,
+      "origin": null,
+      "hole": false
+    },
+    "experiment": {
+      "sheetRow": 5,
+      "cellIndex": 15,
+      "course": 2,
+      "dir": "R",
+      "tIdx": 68,
+      "label": "·",
+      "token": "B·",
+      "bed": "B",
+      "phys": 14,
+      "id": 14,
+      "origin": "carried:14",
+      "hole": false
+    }
+  },
+  "extent": {
+    "courses": 64,
+    "baselineCourses": 64,
+    "knitRows": 64,
+    "baselineKnitRows": 64,
+    "knitCells": 654,
+    "termsKnitted": 635,
+    "termsTotal": 635,
+    "sharedTermCells": [
+      {
+        "tIdx": 58,
+        "cells": 2
+      },
+      {
+        "tIdx": 75,
+        "cells": 2
+      },
+      {
+        "tIdx": 117,
+        "cells": 2
+      },
+      {
+        "tIdx": 125,
+        "cells": 2
+      },
+      {
+        "tIdx": 128,
+        "cells": 2
+      },
+      {
+        "tIdx": 130,
+        "cells": 2
+      },
+      {
+        "tIdx": 148,
+        "cells": 2
+      },
+      {
+        "tIdx": 150,
+        "cells": 2
+      },
+      {
+        "tIdx": 152,
+        "cells": 2
+      },
+      {
+        "tIdx": 153,
+        "cells": 3
+      },
+      {
+        "tIdx": 157,
+        "cells": 2
+      },
+      {
+        "tIdx": 161,
+        "cells": 2
+      },
+      {
+        "tIdx": 163,
+        "cells": 2
+      },
+      {
+        "tIdx": 179,
+        "cells": 2
+      },
+      {
+        "tIdx": 211,
+        "cells": 2
+      },
+      {
+        "tIdx": 219,
+        "cells": 2
+      },
+      {
+        "tIdx": 228,
+        "cells": 2
+      },
+      {
+        "tIdx": 293,
+        "cells": 2
+      }
+    ],
+    "completed": false,
+    "generatorFinished": true,
+    "decreaseRegionsReached": false,
+    "mixedRegionsReached": false
+  },
+  "compare": {
+    "experimentCourses": 64,
+    "officialCourses": 64,
+    "experimentKnitRows": 64,
+    "officialKnitRows": 64,
+    "experimentSheetRows": 106,
+    "officialSheetRows": 98
+  },
+  "checks": {
+    "problems": [],
+    "decreaseEvents": 0,
+    "unresolvedPending": [],
+    "loop": {
+      "baselineKnitCells": 654,
+      "experimentKnitCells": 654,
+      "experimentTerms": 635,
+      "baselineTerms": 635,
+      "finalLive": 46,
+      "baselineFinalLive": 46
+    },
+    "binding": {
+      "prefixCells": 69,
+      "identicalToBaseline": false,
+      "note": "已织前缀的项号、标签、针位和线圈 id 与基线一致。开口空针还没织到，所以不在这个前缀里。"
+    },
+    "pendingIncreaseHoles": [],
+    "rowKindCounts": {
+      "knit": 64,
+      "increase": 18,
+      "balance": 16,
+      "flip": 8
+    },
+    "baselineRowKindCounts": {
+      "knit": 64,
+      "increase": 19,
+      "balance": 12,
+      "flip": 3
+    },
+    "renderError": null
+  },
+  "timing": "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针不再插在课的中途。床已经合法时省略空平衡行。",
+  "deepLink": "?sheet=dense-increase-exp-readable-row-schedule"
+}
