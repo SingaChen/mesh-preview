@@ -1,18 +1,15 @@
 /**
  * Opt-in experiment for the official Bunny readable map only.
  *
- * Scheduling, not targets: for each readable-map knit row (a live-needle
- * row, not a knitting-code bed row and not a whole course),
- *   1. open that row's increase sites in traversal order;
- *   2. balance after each completed opening and keep the new holes;
- *   3. knit the whole row, including decrease-group stitches and holes;
- *   4. then stack each decrease in traversal order, re-finding the
- *      remaining sites by stitch id, and balance after each one.
+ * The unit is one 课 (course), not one drawn 行. Locked 2026-11-17:
+ *   1. increases and no decreases: open each site, balance after each, then knit the whole course;
+ *   2. decreases and no increases: knit the whole course, then each decrease in traversal order, balance after each;
+ *   3. both: all increase openings (balance after each), then the whole knit, then the decreases.
+ * Ring 0 is the official seatRing path, including when balance runs. A pre-knit
+ * balance that still sees an unclaimed planned needle is postponed until that
+ * course has been knitted. This does not write knitting code or DAT.
  *
- * Default Step4 output is not written. Official Bunny inputs are read
- * only. This file does not regenerate faces_ring, cols, or any other model.
- *
- *   node scripts/exp-readable-row-schedule.mjs
+ *   npm run exp:bunny-readable-row
  *   node scripts/exp-readable-row-schedule.mjs --check
  */
 
@@ -46,6 +43,7 @@ import {
   renderReport,
   rightFoldPair,
   rowsByLiveNeedle,
+  buildFromFacesRing,
   seatRing,
   settleColumns,
   shapeBedOf,
@@ -135,16 +133,15 @@ function cloneState(state) {
 
 function headerInc(cell) {
   const n = incAdded(cell.label);
-  if (!n) return 0;
-  if (cell.kind !== "inc" && cell.kind !== "wrapInc") return 0;
-  if (!String(cell.label).includes("+")) return 0;
+  if (!n || !String(cell.label).includes("+")) return 0;
+  if (cell.kind && cell.kind !== "inc" && cell.kind !== "wrapInc") return 0;
   return n;
 }
 
 function headerDec(cell) {
   const n = decAdded(cell.label);
-  if (!n) return 0;
-  if (cell.kind !== "dec" && cell.kind !== "wrapDec") return 0;
+  if (!n || !String(cell.label).includes("-")) return 0;
+  if (cell.kind && cell.kind !== "dec" && cell.kind !== "wrapDec") return 0;
   return n;
 }
 
@@ -333,7 +330,7 @@ function openSite(state, marker, cell, added, dirSign, step, where, course) {
       course,
       cells: xferCells(moves, token, "increase"),
       beds,
-      note: `${where}: 实验：织这一行之前，把 ${marker.origin || marker.id} 所在的 ${markerBed}${markerPhys} 往后开口。空针先记下，这一行里只织一次。`,
+      note: `${where}: 实验：织这一课之前，在 ${marker.origin || marker.id} 所在的 ${markerBed}${markerPhys} 开口。空针先记下，这一课里只织一次。`,
     });
   }
   for (let g = 1; g <= added; g++) {
@@ -354,7 +351,7 @@ function openSite(state, marker, cell, added, dirSign, step, where, course) {
       wale,
       base: false,
       hole: true,
-      origin: `hole:t${cell.tIdx}:g${g}`,
+      origin: `hole:c${course}:t${cell.tIdx}:g${g}`,
       markerId: marker.id,
     };
     const prior = state.waleToId.get(wale);
@@ -507,7 +504,7 @@ function applyDecrease(state, group, where, course) {
         };
       }
       const stacked = stackCrossBedGroup(state.stitches, members, state.waleToId, course, where);
-      rows.push(...stacked.transfers.map((row) => ({ ...row, course, note: `实验：整行织完后，按线圈身份套项 ${group.term}。${row.note}` })));
+      rows.push(...stacked.transfers.map((row) => ({ ...row, course, note: `实验：整课织完后，按线圈身份套项 ${group.term}。${row.note}` })));
     } else if (!relationHolds(members, group.side)) {
       restoreState(state, snap);
       return {
@@ -627,7 +624,7 @@ function sameBedPasses(state, group, members, where, course) {
       course,
       cells: moved.cells,
       beds,
-      note: `${where}: 实验：整行织完后，第 ${k + 1} 次从 ${recvBed}${recvPhys} 套到 ${first.bed}${first.phys}（${first.origin || first.id}）。`,
+      note: `${where}: 实验：整课织完后，第 ${k + 1} 次从 ${recvBed}${recvPhys} 套到 ${first.bed}${first.phys}（${first.origin || first.id}）。`,
     });
   }
   if (allowed.size) {
@@ -638,11 +635,22 @@ function sameBedPasses(state, group, members, where, course) {
 
 function knitCellsOf(plan, groups) {
   const sideOf = new Map(groups.map((group) => [group.ids[0], group.side]));
+  const spanOf = new Map();
+  for (const group of groups) {
+    group.ids.forEach((id, index) => spanOf.set(id, { index, len: group.ids.length }));
+  }
+  const seenHeader = new Set();
   return plan.map(({ item, st }) => {
     let label = item.cell.label;
     const nDec = headerDec(item.cell);
+    if (nDec && item.cell.kind !== "dec" && item.cell.kind !== "wrapDec" && !String(label).includes("-")) {
+      label = item.cell.label;
+    }
     if (nDec) label = `-${sideOf.get(st.id) || "R"}${nDec}`;
     const painted = paint(st.bed, label, item.cell.kind);
+    const span = spanOf.get(st.id);
+    const spanStart = Boolean(span && span.index === 0 && !seenHeader.has(st.id));
+    if (span) seenHeader.add(st.id);
     return {
       col: columnForPhys(st.bed, st.phys),
       token: painted.token,
@@ -655,7 +663,9 @@ function knitCellsOf(plan, groups) {
       label,
       kind: item.cell.kind,
       tIdx: item.cell.tIdx,
-      hole: Boolean(st.hole),
+      hole: Boolean(item.hole),
+      spanStart,
+      spanLen: spanStart ? span.len : 0,
     };
   });
 }
@@ -668,13 +678,80 @@ function rowEndId(state, knitCells, groups) {
   return null;
 }
 
+function splitKeepingSpans(cells, where) {
+  const rows = [];
+  let row = [];
+  const key = (cell) => `${cell.bed}:${cell.phys}`;
+  let i = 0;
+  while (i < cells.length) {
+    const take = cells[i].spanStart ? cells[i].spanLen : 1;
+    if (take < 1) return { ok: false, error: `${where}: 减针跨度长度不对` };
+    const chunk = cells.slice(i, i + take);
+    if (chunk.length !== take) return { ok: false, error: `${where}: 减针跨度超出这一课` };
+    const keys = chunk.map(key);
+    if (new Set(keys).size !== keys.length) {
+      return { ok: false, error: `${where}: 减针跨度 ${keys.join(" ")} 自己重复了活针` };
+    }
+    const occupied = new Set(row.map(key));
+    if (row.length && keys.some((item) => occupied.has(item))) {
+      rows.push(row);
+      row = [];
+    }
+    row.push(...chunk);
+    i += take;
+  }
+  if (row.length) rows.push(row);
+  if (!rows.length) return { ok: false, error: `${where}: 这一课没有织针` };
+  return { ok: true, rows };
+}
+
+function openCourseIncreases(state, walked, dirSign, step, where, courseNo) {
+  const sites = walked.placed.filter((item) => headerInc(item.cell));
+  const rows = [];
+  const holeIds = [];
+  const postponed = [];
+  for (const site of sites.slice().reverse()) {
+    const marker = state.stitches.get(site.id);
+    if (!marker) {
+      return { ok: false, phase: "increase-open", error: `${where}: 加针项 ${site.cell.tIdx} 没有线圈`, term: site.cell.tIdx };
+    }
+    const before = bedSnapshot(state.stitches);
+    const opened = openSite(state, marker, site.cell, headerInc(site.cell), dirSign, step, where, courseNo);
+    if (!opened.ok) return { ...opened, before, term: site.cell.tIdx, marker: membersOf(state.stitches, [site.id]) };
+    rows.push(...opened.rows);
+    holeIds.push(...opened.holes);
+    const balanced = tryBalance(state, where, courseNo, `项 ${site.cell.tIdx} 加针开口之后平衡。`);
+    if (!balanced.ok) {
+      if (balanced.collision?.unusedPlan?.length) {
+        postponed.push({
+          term: site.cell.tIdx,
+          label: site.cell.label,
+          collision: balanced.collision,
+          before: balanced.before,
+          error: balanced.error,
+        });
+        continue;
+      }
+      return {
+        ...balanced,
+        term: site.cell.tIdx,
+        marker: { id: marker.id, origin: marker.origin || null },
+        holes: opened.holes,
+      };
+    }
+    rows.push(...balanced.rows);
+  }
+  return { ok: true, rows, holeIds, postponed };
+}
+
 /**
- * Later rings. One knit row is the longest prefix that can be knitted,
- * after that prefix's own increase openings, without visiting a live
- * needle twice. A decrease or increase span stays on one row. Decrease
- * transfers wait until that row has been knitted.
+ * Later rings. One 课 at a time, using the 2026-11-17 schedule.
+ * Increase sites still open later-first so each split stays on the next needle.
+ * Balance after each completed increase, unless that balance would put a live
+ * stitch on an unclaimed planned needle: that balance waits until the course
+ * has been knitted. Decreases wait until every knit row of the course is drawn.
  */
-function seatContinuationExperiment(courses, carried, prevDirIn, courseOffset, termOffset) {
+function seatContinuationExperiment(courses, carried, prevDirIn, courseOffset) {
   const state = {
     stitches: carried.stitches,
     waleToId: carried.waleToId,
@@ -695,177 +772,230 @@ function seatContinuationExperiment(courses, carried, prevDirIn, courseOffset, t
     const course = courses[ci];
     const courseNo = courseOffset + ci;
     const where = `course ${courseNo}`;
+    const step = course.dir === 0 ? 1 : -1;
+    const dirSign = step;
     const fold = isFoldReturn(course, prevDir);
-    let index = 0;
-    let rowInCourse = 0;
-    let courseStart = null;
-    let knitted = 0;
-    while (index < course.cells.length) {
-      const cuts = cutPoints(course.cells, index);
-      let chosen = null;
-      let firstFail = null;
-      for (const end of cuts) {
-        const probe = cloneState(state);
-        const tried = prepareRow(probe, course, index, end, fold, where, courseNo);
-        if (!tried.ok) {
-          if (!firstFail) firstFail = { ...tried, end, term: course.cells[index].tIdx };
-          break;
-        }
-        chosen = end;
-      }
-      if (chosen == null) {
-        stop = blockerFrom(firstFail, courseNo, course, index, bedSnapshot(state.stitches));
-        break;
-      }
-      const snap = snapState(state);
-      const beforeOpen = bedSnapshot(state.stitches);
-      const prepared = prepareRow(state, course, index, chosen, fold, where, courseNo);
-      if (!prepared.ok) {
-        restoreState(state, snap);
-        stop = blockerFrom(prepared, courseNo, course, index, bedSnapshot(state.stitches));
-        break;
-      }
-      const more = chosen < course.cells.length;
-      const splitNote = more && firstFail && firstFail.phase === "duplicate-needle" ? `${where}: ${LIVE_ROW_NOTE}` : "";
-      for (const row of prepared.rows) sheet.push(row);
-      const cells = knitCellsOf(prepared.knitPlan, prepared.groups);
-      try {
-        settleColumns(cells, prepared.dirSign, where);
-      } catch (err) {
+    const beforeCourse = bedSnapshot(state.stitches);
+    const snap = snapState(state);
+    const walked = walkRow(state, course.cells, step, dirSign, fold, true, where);
+    if (!walked.ok) {
+      restoreState(state, snap);
+      stop = blockerFrom(walked, courseNo, course, 0, bedSnapshot(state.stitches));
+      break;
+    }
+    if (ci === 0) {
+      const first = walked.placed.find((item) => !item.hole);
+      const st = first ? state.stitches.get(first.id) : null;
+      if (!st || st.bed !== "F" || st.phys !== 0) {
         restoreState(state, snap);
         stop = blockerFrom(
-          { phase: "columns", error: err instanceof Error ? err.message : String(err) },
+          {
+            phase: "ring-start",
+            error: `${where}: 开口之前，这一环的第一针在 ${st ? `${st.bed}${st.phys}` : "空"}，不是 F0`,
+            before: beforeCourse,
+            term: first?.cell?.tIdx ?? course.cells[0]?.tIdx ?? null,
+          },
           courseNo,
           course,
-          index,
+          0,
           bedSnapshot(state.stitches),
         );
         break;
       }
-      const seenId = new Set();
-      for (const cell of cells) {
-        if (seenId.has(cell.id)) {
-          restoreState(state, snap);
-          stop = blockerFrom(
-            { phase: "duplicate-stitch", error: `${where}: 线圈 ${cell.origin || cell.id} 在同一织行织了两次`, term: cell.tIdx },
-            courseNo,
-            course,
-            index,
-            bedSnapshot(state.stitches),
-          );
-          break;
-        }
-        seenId.add(cell.id);
-      }
-      if (stop) break;
-      if (ci === 0 && index === 0) {
-        const startSt = prepared.knitPlan[0].st;
-        if (startSt.bed !== "F" || startSt.phys !== 0) {
-          stop = blockerFrom(
-            {
-              phase: "ring-start",
-              error: `${where}: 开口并平衡之后，这一环的第一针在 ${startSt.bed}${startSt.phys}，不是 F0`,
-              before: beforeOpen,
-              after: bedSnapshot(state.stitches),
-              term: prepared.knitPlan[0].item.cell.tIdx,
-            },
-            courseNo,
-            course,
-            index,
-            bedSnapshot(state.stitches),
-          );
-          break;
-        }
-      }
-      const dirName = course.dir === 0 ? "R" : "L";
-      const note = [
-        `${where}: 实验织行。先做这一行的加针开口，每完成一处就平衡；然后整行织完，包括减针组和开口空针；减针等这一行织完再按走向逐个处理。`,
-        splitNote,
-      ]
-        .filter(Boolean)
-        .join(" ");
-      sheet.push({
-        dir: dirName,
-        kind: "knit",
-        course: courseNo,
-        cells,
-        beds: prepared.beds,
-        note,
-      });
-      if (!courseStart) courseStart = cells[0];
-      knitted += cells.length;
-      remember({
-        type: "knit-row",
-        course: courseNo,
-        dir: dirName,
-        from: index,
-        to: chosen,
-        holes: prepared.holeIds,
-        cells: cells.map((cell) => ({
-          tIdx: cell.tIdx,
-          label: cell.label,
-          id: cell.id,
-          origin: cell.origin,
-          bed: cell.bed,
-          phys: cell.phys,
-          hole: cell.hole,
-        })),
-      });
-      let decreaseFailed = false;
-      for (const group of prepared.groups) {
-        const decreased = applyDecrease(state, group, where, courseNo);
-        if (!decreased.ok) {
-          stop = blockerFrom(decreased, courseNo, course, index, bedSnapshot(state.stitches));
-          stop.term = group.term;
-          stop.groupAtKnit = group.atKnit;
-          decreaseFailed = true;
-          break;
-        }
-        for (const row of decreased.rows) sheet.push(row);
-        const balanced = tryBalance(state, where, courseNo, `项 ${group.term} 减针之后平衡。`);
-        if (!balanced.ok) {
-          stop = blockerFrom({ ...balanced, term: group.term, atKnit: group.atKnit }, courseNo, course, index, bedSnapshot(state.stitches));
-          decreaseFailed = true;
-          break;
-        }
-        for (const row of balanced.rows) sheet.push(row);
-        remember({
-          type: "decrease",
-          course: courseNo,
-          term: group.term,
-          ids: group.ids,
-          side: group.side,
-          crossAtKnit: group.crossAtKnit,
-          atKnit: group.atKnit,
-          after: membersOf(state.stitches, group.ids.filter((id) => state.stitches.has(id))),
-          balance: balanced.after.text,
-        });
-      }
-      if (decreaseFailed) break;
-      const endId = rowEndId(state, cells, prepared.groups);
-      const endSt = endId == null ? null : state.stitches.get(endId);
-      if (!endSt) {
+    }
+    const incHeaders = walked.placed.filter((item) => headerInc(item.cell)).length;
+    const decHeaders = walked.groups.length;
+    const schedule = incHeaders && decHeaders ? "inc-then-knit-then-dec" : incHeaders ? "inc-then-knit" : decHeaders ? "knit-then-dec" : "knit";
+    const opened = openCourseIncreases(state, walked, dirSign, step, where, courseNo);
+    if (!opened.ok) {
+      stop = blockerFrom(opened, courseNo, course, 0, bedSnapshot(state.stitches));
+      break;
+    }
+    for (const row of opened.rows) sheet.push(row);
+    for (const group of walked.groups) {
+      const members = group.ids.map((id) => state.stitches.get(id));
+      if (members.some((st) => !st)) {
         stop = blockerFrom(
-          { phase: "row-end", error: `${where}: 织完并移圈之后，这一行的终点线圈不在床上` },
+          { phase: "decrease-bind", error: `${where}: 减针项 ${group.term} 在开口之后丢了线圈`, term: group.term },
           courseNo,
           course,
-          index,
+          0,
           bedSnapshot(state.stitches),
         );
         break;
       }
-      state.cursor = endSt;
-      index = chosen;
-      rowInCourse += 1;
+      const towardHigh = (members[0].bed === "F" ? dirSign : -dirSign) > 0;
+      group.side = towardHigh ? "R" : "L";
+      group.crossAtKnit = crossesFold(state.stitches, members);
+      group.atKnit = membersOf(state.stitches, group.ids);
+      group.dirSign = dirSign;
     }
     if (stop) break;
-    const endSt = state.cursor;
+    const knitPlan = [];
+    for (const item of walked.placed) {
+      const st = item.hole ? state.stitches.get(state.waleToId.get(item.cell.wale)) : state.stitches.get(item.id);
+      if (!st) {
+        stop = blockerFrom(
+          { phase: "knit", error: `${where}: 项 ${item.cell.tIdx} 开口之后找不到线圈`, term: item.cell.tIdx },
+          courseNo,
+          course,
+          0,
+          bedSnapshot(state.stitches),
+        );
+        break;
+      }
+      if (item.hole && !st.hole) {
+        stop = blockerFrom(
+          { phase: "knit", error: `${where}: 项 ${item.cell.tIdx} 的空针不是这次开口记下的新圈`, term: item.cell.tIdx },
+          courseNo,
+          course,
+          0,
+          bedSnapshot(state.stitches),
+        );
+        break;
+      }
+      knitPlan.push({ item, st });
+    }
+    if (stop) break;
+    const knitCells = knitCellsOf(knitPlan, walked.groups);
+    const split = splitKeepingSpans(knitCells, where);
+    if (!split.ok) {
+      stop = blockerFrom({ phase: "duplicate-needle", error: split.error }, courseNo, course, 0, bedSnapshot(state.stitches));
+      break;
+    }
+    const knitBeds = liveWindow(state.stitches);
+    const dirName = course.dir === 0 ? "R" : "L";
+    const scheduleNote =
+      schedule === "inc-then-knit-then-dec"
+        ? "先做完全部加针开口，每完成一处就平衡；然后整课织一次，包括开口空针和将要减掉的针；再按走向逐个减针，每减完一处就平衡。"
+        : schedule === "inc-then-knit"
+          ? "先做完全部加针开口，每完成一处就平衡；然后整课织一次，包括开口空针。"
+          : schedule === "knit-then-dec"
+            ? "先把整课织完，包括将要减掉的针，减针移圈不插在织的过程中；再按走向逐个减针，每减完一处就平衡。"
+            : "这一课没有加减针，整课织一次。";
+    const postponeNote = opened.postponed.length
+      ? `项 ${opened.postponed.map((item) => item.term).join("、")} 的开口平衡碰到了还没认领的计划针，这次平衡改到整课织完之后。`
+      : "";
+    try {
+      split.rows.forEach((segment, segIndex) => {
+        settleColumns(segment, dirSign, where);
+        const needles = new Set();
+        const ids = new Set();
+        for (const cell of segment) {
+          const key = `${cell.bed}:${cell.phys}`;
+          if (needles.has(key) || ids.has(cell.id)) {
+            throw new Error(`${where}: ${key} 会在同一织行里被织两次`);
+          }
+          needles.add(key);
+          ids.add(cell.id);
+        }
+        const bits = [`${where}: 实验课。${scheduleNote}`];
+        if (postponeNote) bits.push(postponeNote);
+        if (segIndex < split.rows.length - 1) bits.push(LIVE_ROW_NOTE);
+        sheet.push({
+          dir: dirName,
+          kind: "knit",
+          course: courseNo,
+          cells: segment,
+          beds: knitBeds,
+          note: bits.join(""),
+        });
+      });
+    } catch (err) {
+      stop = blockerFrom(
+        { phase: "columns", error: err instanceof Error ? err.message : String(err) },
+        courseNo,
+        course,
+        0,
+        bedSnapshot(state.stitches),
+      );
+      break;
+    }
+    const courseStart = knitCells[0];
+    remember({
+      type: "course-schedule",
+      course: courseNo,
+      dir: dirName,
+      schedule,
+      increases: incHeaders,
+      decreases: decHeaders,
+      postponed: opened.postponed,
+      knitRows: split.rows.length,
+      start: `${courseStart.bed}${courseStart.phys}`,
+    });
+    if (opened.postponed.length) {
+      const balanced = tryBalance(state, where, courseNo, "这一课的计划针已经随整课织完认领，补做开口时推迟的平衡。");
+      if (!balanced.ok) {
+        stop = blockerFrom(
+          { ...balanced, term: opened.postponed[0].term, postponed: opened.postponed },
+          courseNo,
+          course,
+          0,
+          bedSnapshot(state.stitches),
+        );
+        break;
+      }
+      for (const row of balanced.rows) sheet.push(row);
+      remember({
+        type: "postponed-balance",
+        course: courseNo,
+        terms: opened.postponed.map((item) => item.term),
+        after: balanced.after.text,
+      });
+    }
+    for (const group of walked.groups) {
+      const decreased = applyDecrease(state, group, where, courseNo);
+      if (!decreased.ok) {
+        stop = blockerFrom(decreased, courseNo, course, 0, bedSnapshot(state.stitches));
+        stop.term = group.term;
+        stop.groupAtKnit = group.atKnit;
+        break;
+      }
+      for (const row of decreased.rows) sheet.push(row);
+      const balanced = tryBalance(state, where, courseNo, `项 ${group.term} 减针之后平衡。`);
+      if (!balanced.ok) {
+        stop = blockerFrom(
+          { ...balanced, term: group.term, atKnit: group.atKnit },
+          courseNo,
+          course,
+          0,
+          bedSnapshot(state.stitches),
+        );
+        break;
+      }
+      for (const row of balanced.rows) sheet.push(row);
+      remember({
+        type: "decrease",
+        course: courseNo,
+        term: group.term,
+        ids: group.ids,
+        side: group.side,
+        crossAtKnit: group.crossAtKnit,
+        atKnit: group.atKnit,
+        after: membersOf(state.stitches, group.ids.filter((id) => state.stitches.has(id))),
+        balance: balanced.after.text,
+      });
+    }
+    if (stop) break;
+    const endId = rowEndId(state, knitCells, walked.groups);
+    const endSt = endId == null ? null : state.stitches.get(endId);
+    if (!endSt) {
+      stop = blockerFrom(
+        { phase: "row-end", error: `${where}: 整课织完并移圈之后，终点线圈不在床上` },
+        courseNo,
+        course,
+        0,
+        bedSnapshot(state.stitches),
+      );
+      break;
+    }
+    state.cursor = endSt;
     coursesOut.push({
       course: courseNo,
-      dir: course.dir === 0 ? "R" : "L",
+      dir: dirName,
       start: `${courseStart.bed}${courseStart.phys}`,
       end: `${endSt.bed}${endSt.phys}`,
-      n: knitted,
+      n: knitCells.length,
     });
     prevDir = course.dir;
   }
@@ -890,7 +1020,7 @@ function blockerFrom(reason, courseNo, course, index, bedNow) {
     dir: course?.dir === 0 ? "R" : "L",
     index,
     term: reason?.term ?? cell?.tIdx ?? null,
-    label: cell?.label || null,
+    label: reason?.label || cell?.label || null,
     before: reason?.before || bedNow,
     after: reason?.after || null,
     aborted: reason?.aborted || null,
@@ -900,6 +1030,7 @@ function blockerFrom(reason, courseNo, course, index, bedNow) {
     marker: reason?.marker || null,
     holes: reason?.holes || null,
     collision: reason?.collision || null,
+    postponed: reason?.postponed || null,
   };
 }
 
@@ -909,324 +1040,16 @@ function rowSig(row) {
 }
 
 function seatRingExperiment(courses, planInfo) {
-  const plan = planInfo.plan;
-  let live = new Map();
-  const stitches = new Map();
-  const sheet = [];
-  const coursesOut = [];
-  const events = [];
-  let nextId = 0;
-  let prevEnd = null;
-  let stop = null;
-
-  const birth = (placed, wale, base) => {
-    const id = nextId;
-    nextId += 1;
-    const st = {
-      id,
-      bed: placed.bed,
-      phys: placed.phys,
-      wale,
-      base: Boolean(base),
-      origin: base ? `base:w${wale}` : `hole:r0:w${wale}`,
-      hole: !base,
-    };
-    stitches.set(id, st);
-    live.set(wale, id);
-    return st;
-  };
-
-  const state = () => ({ stitches, waleToId: live, plan, nextId, cursor: prevEnd ? stitches.get(prevEnd.id) : null });
-
-  let prevDir = null;
-  for (let ci = 0; ci < courses.length && !stop; ci++) {
-    const course = courses[ci];
-    const fold = isFoldReturn(course, prevDir);
-    const step = course.dir === 0 ? 1 : -1;
-    const where = `course ${ci}`;
-    const incs = course.cells.filter((cell) => incAdded(cell.label));
-    const decs = course.cells.filter((cell) => decAdded(cell.label) && (cell.kind === "dec" || cell.kind === "wrapDec"));
-    if (decs.length) {
-      stop = blockerFrom({ phase: "ring0-decrease", error: `${where}: 第一环出现减针，落座规则没有这一步` }, ci, course, 0, bedSnapshot(stitches));
-      break;
-    }
-    const fresh = new Set();
-    const seatedAtStart = new Set(live.keys());
-    const transferIncs = incs.filter((cell) => seatedAtStart.has(cell.wale));
-    if (transferIncs.length && live.size > 0) {
-      for (const cell of transferIncs.slice().reverse()) {
-        const added = incAdded(cell.label);
-        const pivot = cell.wale + step;
-        const siteWales = [];
-        for (let g = 1; g <= added; g++) {
-          const wale = cell.wale + step * g;
-          fresh.add(wale);
-          siteWales.push(wale);
-        }
-        const before = bedSnapshot(stitches);
-        for (let k = 0; k < added; k++) {
-          let moved;
-          try {
-            const shapeBed = shapeBedOf(fresh, live, stitches, where);
-            const beds = liveWindow(stitches);
-            moved = applyIncrease(live, stitches, pivot, step, shapeBed);
-            live = moved.live;
-            if (!moved.moves.length) fail(`${where}: increase did not move the shaping bed`);
-            const token = moveToken(shapeBed, moved.moves[0].from, moved.moves[0].to);
-            if (moved.moves.some((m) => moveToken(m.bed, m.from, m.to) !== token || m.bed !== shapeBed)) {
-              fail(`${where}: increase moves are not one partial shift of ${shapeBed}`);
-            }
-            assertNoShare(stitches, where);
-            sheet.push({
-              dir: "X+",
-              kind: "increase",
-              course: ci,
-              cells: moved.moves.map((m) => ({
-                col: columnForPhys(m.bed, m.from),
-                token,
-                fill: FILL.xfer,
-                phys: m.from,
-                bed: m.bed,
-                id: m.id,
-                role: "increase",
-              })),
-              beds,
-              note: `${where}: 实验：织这一行之前开口（项 ${cell.tIdx}）。开口完成后再平衡，不把后面的减针插进来。`,
-            });
-          } catch (err) {
-            stop = blockerFrom(
-              { phase: "ring0-increase", error: err instanceof Error ? err.message : String(err), before, term: cell.tIdx },
-              ci,
-              course,
-              course.cells.findIndex((item) => item.tIdx === cell.tIdx),
-              bedSnapshot(stitches),
-            );
-            break;
-          }
-        }
-        if (stop) break;
-        for (const wale of siteWales) {
-          if (live.has(wale)) continue;
-          try {
-            const { left, right } = neighbors(live, stitches, wale);
-            const placed = physInHole(left, right, `${where} wale ${wale}`);
-            const st = birth(placed, wale, false);
-            st.hole = true;
-            st.origin = `hole:r0:t${cell.tIdx}:w${wale}`;
-            assertNoShare(stitches, where);
-          } catch (err) {
-            stop = blockerFrom(
-              { phase: "ring0-hole", error: err instanceof Error ? err.message : String(err), before, term: cell.tIdx },
-              ci,
-              course,
-              course.cells.findIndex((item) => item.tIdx === cell.tIdx),
-              bedSnapshot(stitches),
-            );
-            break;
-          }
-        }
-        if (stop) break;
-        const balanced = tryBalance(state(), where, ci, `第一环项 ${cell.tIdx} 开口之后平衡。`);
-        live = state().waleToId;
-        nextId = state().nextId;
-        if (!balanced.ok) {
-          stop = blockerFrom({ ...balanced, term: cell.tIdx }, ci, course, course.cells.findIndex((item) => item.tIdx === cell.tIdx), bedSnapshot(stitches));
-          break;
-        }
-        for (const row of balanced.rows) sheet.push(row);
-        events.push({ type: "ring0-increase", course: ci, term: cell.tIdx, after: balanced.after.text });
-      }
-    }
-    if (stop) break;
-
-    try {
-    const dirSign = course.dir === 0 ? 1 : -1;
-    const knitBeds = liveWindow(stitches);
-    for (const wale of [...fresh].sort((a, b) => a - b)) {
-      if (live.has(wale)) continue;
-      const { left, right } = neighbors(live, stitches, wale);
-      const placed = physInHole(left, right, `${where} wale ${wale}`);
-      birth(placed, wale, false);
-      assertNoShare(stitches, where);
-    }
-    const knitCells = [];
-    const used = new Set();
-    let prevKnit = null;
-    for (let index = 0; index < course.cells.length; index++) {
-      const cell = course.cells[index];
-      let st = null;
-      if (index === 0 && prevEnd) {
-        const endSt = stitches.get(prevEnd.id);
-        if (!endSt) fail(`${where}: previous end stitch left the bed`);
-        st = fold ? endSt : stepCircle(endSt, dirSign, stitches);
-        claimWale(live, stitches, st, cell.wale);
-      } else {
-        let id = live.get(cell.wale);
-        if (id != null && used.has(id)) id = null;
-        if (id == null && fresh.has(cell.wale) && prevKnit) {
-          st = stepCircle(prevKnit, dirSign, stitches);
-          claimWale(live, stitches, st, cell.wale);
-        }
-        if (!st && id == null) {
-          let placed;
-          const slot = plan.get(cell.wale);
-          if (!placed && slot && !slot.used) {
-            slot.used = true;
-            placed = { bed: slot.bed, phys: slot.phys, base: true };
-          } else if (!placed && fresh.has(cell.wale) && !live.has(cell.wale)) {
-            const pair = neighbors(live, stitches, cell.wale);
-            placed = physInHole(pair.left, pair.right, `${where} wale ${cell.wale}`);
-          } else if (!placed && prevKnit) {
-            st = stepCircle(prevKnit, dirSign, stitches);
-            claimWale(live, stitches, st, cell.wale);
-          } else if (!placed) fail(`${where} wale ${cell.wale} is neither a base stitch nor this increase`);
-          if (!st && placed) {
-            st = birth(placed, cell.wale, placed.base);
-            if (placed.base) st.hole = false;
-            assertNoShare(stitches, where);
-          }
-        }
-        if (!st && id != null) st = stitches.get(id);
-      }
-      if (!st || !stitches.has(st.id)) fail(`${where}: wale ${cell.wale} has no stitch`);
-      const slotNow = plan.get(cell.wale);
-      if (slotNow && !slotNow.used && st.bed === slotNow.bed && st.phys === slotNow.phys) slotNow.used = true;
-      if (used.has(st.id)) fail(`${where}: stitch ${st.id} is knitted twice`);
-      used.add(st.id);
-      prevKnit = st;
-      const painted = paint(st.bed, cell.label, cell.kind);
-      knitCells.push({
-        col: columnForPhys(st.bed, st.phys),
-        token: painted.token,
-        fill: painted.fill,
-        phys: st.phys,
-        bed: st.bed,
-        id: st.id,
-        origin: st.origin || null,
-        role: "knit",
-        label: cell.label,
-        kind: cell.kind,
-        tIdx: cell.tIdx,
-        hole: Boolean(st.hole),
-      });
-    }
-    const segments = rowsByLiveNeedle(knitCells);
-    for (const segment of segments) settleColumns(segment, dirSign, where);
-    const start = knitCells[0];
-    const end = knitCells.at(-1);
-    if (prevEnd && fold) {
-      const endSt = stitches.get(prevEnd.id);
-      if (!endSt) fail(`${where}: fold-return lost the previous end stitch`);
-      if (start.id !== endSt.id) {
-        fail(`${where}: fold-return starts at ${start.bed}${start.phys}, not the end stitch ${endSt.bed}${endSt.phys}`);
-      }
-    } else if (prevEnd) {
-      const endSt = stitches.get(prevEnd.id);
-      if (!endSt) fail(`${where}: previous end stitch left the bed`);
-      if (start.id === endSt.id) fail(`${where}: a course that is not a fold-return stays on the end stitch ${endSt.bed}${endSt.phys}`);
-      const further = stepCircle(endSt, dirSign, stitches);
-      if (start.id !== further.id) {
-        fail(`${where}: start ${start.bed}${start.phys} is not one needle further than ${endSt.bed}${endSt.phys} (${further.bed}${further.phys})`);
-      }
-    }
-    const dirName = course.dir === 0 ? "R" : "L";
-    segments.forEach((segment, segIndex) => {
-      const row = { dir: dirName, kind: "knit", course: ci, cells: segment, beds: knitBeds };
-      if (segIndex < segments.length - 1) row.note = `${where}: ${LIVE_ROW_NOTE}`;
-      sheet.push(row);
-    });
-    coursesOut.push({
-      course: ci,
-      dir: dirName,
-      start: `${start.bed}${start.phys}`,
-      end: `${end.bed}${end.phys}`,
-      n: knitCells.length,
-    });
-    prevEnd = { id: end.id, bed: end.bed, phys: end.phys };
-    if (incs.length && !transferIncs.length) {
-      try {
-        const fixes = balanceBeds(stitches, plan, where);
-        for (const fix of fixes) {
-          sheet.push({
-            dir: fix.dir,
-            kind: fix.kind,
-            course: ci,
-            cells: fix.cells,
-            beds: fix.beds,
-            note: fix.note,
-          });
-        }
-      } catch (err) {
-        stop = blockerFrom(
-          { phase: "balance", error: err instanceof Error ? err.message : String(err), before: bedSnapshot(stitches) },
-          ci,
-          course,
-          0,
-          bedSnapshot(stitches),
-        );
-        break;
-      }
-    } else if (incs.length && transferIncs.length) {
-      const balanced = tryBalance(state(), where, ci, "这一行织完后再次核对床位。");
-      if (!balanced.ok) {
-        stop = blockerFrom(balanced, ci, course, 0, bedSnapshot(stitches));
-        break;
-      }
-      for (const row of balanced.rows) sheet.push(row);
-    }
-    if (stop) break;
-    const endSt = stitches.get(prevEnd.id);
-    if (endSt) prevEnd = { id: endSt.id, bed: endSt.bed, phys: endSt.phys };
-    prevDir = course.dir;
-    events.push({
-      type: "ring0-knit",
-      course: ci,
-      n: knitCells.length,
-      segments: segments.length,
-      bed: bedSnapshot(stitches).text,
-    });
-    } catch (err) {
-      stop = blockerFrom(
-        { phase: "ring0-knit", error: err instanceof Error ? err.message : String(err), before: bedSnapshot(stitches) },
-        ci,
-        course,
-        0,
-        bedSnapshot(stitches),
-      );
-      break;
-    }
-  }
-
-  const produced = seatRing(courses, planBeds(baseWalesOf(courses)));
-  const early = (rows) => rows.filter((row) => row.course < 2).map(rowSig);
-  const got = early(sheet);
-  const expect = early(produced.sheet);
-  if (got.length !== expect.length || got.some((line, i) => line !== expect[i])) {
-    const at = got.findIndex((line, i) => line !== expect[i]);
-    fail(`ring 0 courses 0-1 drifted from the production seater at row ${at}: ${got[at]} != ${expect[at]}`);
-  }
-
-  if (stop) {
-    return {
-      partial: true,
-      stop,
-      sheet,
-      courses: coursesOut,
-      events,
-      bed: { stitches, waleToId: live, cursor: prevEnd ? stitches.get(prevEnd.id) : null, nextId },
-      prevDir,
-    };
-  }
-  for (const slot of plan.values()) {
-    if (!slot.used) fail(`a base stitch was never knitted (${slot.bed}${slot.phys})`);
-  }
+  const produced = seatRing(courses, planInfo);
+  const last = produced.courses.at(-1);
   return {
     partial: false,
-    sheet,
-    courses: coursesOut,
-    events,
-    prevDir,
-    bed: { stitches, waleToId: live, cursor: stitches.get(prevEnd.id), nextId },
+    stop: null,
+    sheet: produced.sheet,
+    courses: produced.courses,
+    events: [],
+    prevDir: last ? (last.dir === "R" ? 0 : 1) : null,
+    bed: produced.bed,
     seated: produced.seated,
   };
 }
@@ -1285,7 +1108,7 @@ function buildExperiment(path) {
       const ring = layout.rings[index];
       const local = coursesFromTypes(ring.types, ring.hangs);
       ringBreaks.push(termOffset);
-      const seated = seatContinuationExperiment(local, carried, prevDir, courseOffset, termOffset);
+      const seated = seatContinuationExperiment(local, carried, prevDir, courseOffset);
       const shifted = seated.sheet.map((row) => ({
         ...row,
         cells: row.cells.map((cell) => ({
@@ -1348,9 +1171,9 @@ function buildExperiment(path) {
       hangs,
       ringBreaks,
       sheetName: "bed",
-      title: "官方 Bunny 实验床图：织行先开口并逐次平衡，整行织完再逐个减针",
+      title: "官方 Bunny 实验床图：第一环用官方落座，之后按 2026-11-17 的课级时序",
       inputLine:
-        "实验调度，只读 public/sample/cylinder/faces_ring_layout.json 的官方 Bunny rings（types 和 hangs）。没有重算 mesh、faces_ring、cols_resample，没有用 Dense Bunny。每一行先做本行的加针开口，每完成一处就平衡，并记下开口空针；然后整行织完，减针组和新空针都在这一行里织，减针移圈不插在织的过程中；整行结束后按走向逐个减针，每减完一处就平衡，剩下的减针按线圈身份重新找针，不沿用旧针号。",
+        "实验调度，只读 public/sample/cylinder/faces_ring_layout.json 的官方 Bunny rings（types 和 hangs）。没有重算 mesh、faces_ring、cols_resample，没有用 Dense Bunny，也没有编织码或 DAT。第一环的加针开口和平衡时机与官方 seatRing 相同，不在计划针还没认领时先平衡。后面的课：只有加针就逐处开口并逐次平衡再整课织一次；只有减针就先整课织完再按走向逐个减针、逐次平衡；又有加针又有减针就先做完全部加针，再整课织一次，再逐个减针。同一活针不会在一行里织两次。减针剩下的位点按线圈身份找，不沿用旧针号。",
       scopeLine: partialStop
         ? `${partialStop.sentence} Later rows were not invented.`
         : "Official Bunny only. Experimental readable-map row schedule. Production bed files were not written.",
@@ -1665,12 +1488,15 @@ function renderHtml(report) {
   const exp = report.experimentSheet;
   const base = report.baselineSheet;
   const div = report.divergence;
+  const ringCourses = report.firstRing?.courses ?? 0;
   const expIncrease = focusRows(exp, (row) => row.cells.some((cell) => headerInc(cell)));
   const expDecrease = focusRows(exp, (row) => row.cells.some((cell) => headerDec(cell)));
   const expMixed = focusRows(exp, (row) => row.cells.some((cell) => headerInc(cell)) && row.cells.some((cell) => headerDec(cell)));
+  const firstRingRows = exp.map((row, index) => (row.course < ringCourses ? index : -1)).filter((index) => index >= 0);
   const openings = rowIndexes(exp, (row) => row.kind === "increase");
-  const divRows = div?.experiment?.sheetRow != null ? [div.experiment.sheetRow] : openings.slice(-1);
+  const divRows = div?.experiment?.sheetRow != null ? [div.experiment.sheetRow] : [];
   const baseDiv = div?.baseline?.sheetRow != null ? [div.baseline.sheetRow] : [];
+  const stopRow = report.partialStop ? exp.length - 1 : -1;
   const blocker = report.partialStop?.detail || null;
   const clash = blocker?.collision;
   const clashText = clash
@@ -1704,18 +1530,21 @@ function renderHtml(report) {
 </head>
 <body>
 <header>
-  <strong>官方 Bunny · 实验织行时序</strong>
-  <p>只读现有 faces_ring。每一织行先开口并在每处开口后平衡，整行织完再逐个减针、逐次平衡。这不是 knitting code，也不改官方床图。</p>
+  <strong>官方 Bunny · 实验课级时序</strong>
+  <p>只读现有 faces_ring。第一环沿用官方落座和平衡时机。之后按课：加针逐处开口并逐次平衡，整课织完，再逐个减针、逐次平衡。这不是 knitting code，也不改官方床图。</p>
 </header>
 <main>
-  <div class="banner ${report.extent.generatorFinished ? "ok" : ""}" id="status">${escapeHtml(report.statusLine)}</div>
+  <div class="banner ${report.extent.generatorFinished && report.firstRing?.identical ? "ok" : ""}" id="status">${escapeHtml(report.statusLine)}</div>
+  <div class="banner" id="first-ring">${escapeHtml(report.firstRingLine || "")}</div>
   <div class="banner" id="divergence-note">${escapeHtml(report.divergenceLine)}</div>
   <div class="banner" id="blocker">${escapeHtml(blockerText)}</div>
-  <div id="focus-divergence">${tableHtml(exp, divRows, "实验：停住之前的开口")}${tableHtml(base, baseDiv.length ? [Math.max(0, baseDiv[0] - 1), baseDiv[0]] : [], "基线：同一处开口，以及实验没织到的下一针")}</div>
-  <div id="focus-opening">${tableHtml(exp, openings, "实验：移圈加针开口（平衡在这一行之后失败）")}</div>
-  <div id="focus-increase">${tableHtml(exp, expIncrease.slice(0, 1), "实验：第一处加针织行（空床出生，和基线相同）")}</div>
-  <div id="focus-decrease">${tableHtml(exp, expDecrease.slice(0, 1), "实验：第一处减针织行")}</div>
-  <div id="focus-mixed">${tableHtml(exp, expMixed.slice(0, 1), "实验：同一织行里既有加针也有减针")}</div>
+  <div id="focus-first-ring">${tableHtml(exp, firstRingRows, "实验：第一环 course 0–2。这几行应与官方床图相同；表里再往下是第二环。")}</div>
+  <div id="focus-divergence">${tableHtml(exp, divRows, "实验：和官方床图最早不同的织针")}${tableHtml(base, baseDiv, "官方：同一织针")}</div>
+  <div id="focus-opening">${tableHtml(exp, openings.slice(0, 2), "实验：加针开口")}</div>
+  <div id="focus-increase">${tableHtml(exp, expIncrease.slice(0, 1), "实验：第一处加针织行")}</div>
+  <div id="focus-decrease">${tableHtml(exp, expDecrease.slice(0, 2), "实验：第一处减针所在的课")}</div>
+  <div id="focus-mixed">${tableHtml(exp, expMixed.slice(0, 2), "实验：同一课里既有加针也有减针")}</div>
+  <div id="focus-stop">${stopRow >= 0 ? tableHtml(exp, [stopRow], "实验：停住的位置") : "<section class=\"focus\"><h2>实验跑完了，没有提前停住的行。</h2></section>"}</div>
   <section class="focus"><h2>实验全表（${exp.length} 行）</h2>${fullTable(exp)}</section>
   <section class="focus"><h2>基线全表（${base.length} 行）</h2>${fullTable(base)}</section>
 </main>
@@ -1784,6 +1613,89 @@ function hashFile(path) {
   return sha256(readFileSync(path));
 }
 
+function sheetRowBlocks(text) {
+  const rows = [];
+  const lines = String(text || "").split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^  row \d+ /.test(lines[i])) continue;
+    const block = [lines[i]];
+    while (i + 1 < lines.length && lines[i + 1].startsWith("    ")) block.push(lines[++i]);
+    rows.push(block.join("\n"));
+  }
+  return rows;
+}
+
+function firstSheetMismatch(expSheet, baseSheet, ringCourses) {
+  const exp = expSheet.filter((row) => row.course < ringCourses);
+  const base = baseSheet.filter((row) => row.course < ringCourses);
+  const n = Math.max(exp.length, base.length);
+  for (let i = 0; i < n; i++) {
+    const e = exp[i];
+    const b = base[i];
+    if (!e || !b) {
+      return { row: i, kind: "row-count", experiment: e ? rowSig(e) : null, baseline: b ? rowSig(b) : null };
+    }
+    if (rowSig(e) !== rowSig(b)) {
+      const cells = Math.max(e.cells.length, b.cells.length);
+      let cell = null;
+      for (let c = 0; c < cells; c++) {
+        const ec = e.cells[c];
+        const bc = b.cells[c];
+        const es = ec ? `${ec.token}@${ec.bed}${ec.phys}` : null;
+        const bs = bc ? `${bc.token}@${bc.bed}${bc.phys}` : null;
+        if (es !== bs) {
+          cell = { index: c, experiment: es, baseline: bs };
+          break;
+        }
+      }
+      return {
+        row: i,
+        course: e.course,
+        kind: cell ? "cell" : e.beds !== b.beds ? "beds" : "note",
+        cell,
+        experimentBeds: e.beds,
+        baselineBeds: b.beds,
+        experimentNote: e.note || "",
+        baselineNote: b.note || "",
+      };
+    }
+  }
+  return null;
+}
+
+function decreaseSchedule(sheet) {
+  const byCourse = new Map();
+  sheet.forEach((row, index) => {
+    const list = byCourse.get(row.course) || [];
+    list.push({ index, row });
+    byCourse.set(row.course, list);
+  });
+  const courses = [...byCourse.keys()].sort((a, b) => a - b);
+  for (const course of courses) {
+    const rows = byCourse.get(course);
+    const knits = rows.filter((item) => item.row.kind === "knit");
+    const hasDec = knits.some((item) => item.row.cells.some((cell) => headerDec(cell)));
+    if (!hasDec) continue;
+    const hasInc = knits.some((item) => item.row.cells.some((cell) => headerInc(cell)));
+    const lastKnit = Math.max(...knits.map((item) => item.index));
+    const transfers = rows.filter((item) => item.row.kind === "decrease" || item.row.cells.some((cell) => cell.role === "decrease"));
+    const postKnit = transfers.length > 0 && transfers.every((item) => item.index > lastKnit);
+    const first = knits.find((item) => item.row.cells.some((cell) => headerDec(cell)));
+    const header = first.row.cells.find((cell) => headerDec(cell));
+    return {
+      course,
+      mixed: hasInc,
+      sheetRow: first.index,
+      term: header?.tIdx ?? null,
+      label: header?.label || header?.token || "",
+      postKnitDecrease: postKnit,
+      knitRows: knits.length,
+      decreaseRows: transfers.length,
+    };
+  }
+  return null;
+}
+
 async function shoot(htmlPath, outDir) {
   let chromium;
   try {
@@ -1796,12 +1708,14 @@ async function shoot(htmlPath, outDir) {
   await page.goto(`file://${htmlPath}`, { waitUntil: "load" });
   const shots = [
     ["status", "status"],
+    ["first-ring", "first-ring-note"],
     ["blocker", "blocker"],
+    ["focus-first-ring", "first-ring-region"],
     ["focus-increase", "increase-region"],
-    ["focus-opening", "blocked-opening"],
     ["focus-decrease", "decrease-region"],
     ["focus-mixed", "mixed-region"],
     ["focus-divergence", "earliest-difference"],
+    ["focus-stop", "stop-location"],
   ];
   const written = [];
   for (const [id, name] of shots) {
@@ -1847,20 +1761,60 @@ async function run(argv) {
   }
   const validation = validate(built, baseline, events, { termTotal: layout.term_total });
   const div = validation.divergence;
+  const officialRing = buildFromFacesRing(INPUT);
+  const ringCourses = officialRing.courses.length;
+  const firstRing = firstSheetMismatch(built.sheet, officialRing.sheet, ringCourses) || firstSheetMismatch(built.sheet, baseline.sheet, ringCourses);
+  const firstDecrease = decreaseSchedule(built.sheet);
+  const officialBlocks = sheetRowBlocks(readFileSync(BASE_TXT, "utf8"));
+  const experimentBlocks = sheetRowBlocks(text);
+  const ringRows = officialRing.sheet.length;
+  let txtMismatch = null;
+  for (let i = 0; i < ringRows; i++) {
+    if (experimentBlocks[i] !== officialBlocks[i]) {
+      txtMismatch = { row: i, experiment: experimentBlocks[i] || null, official: officialBlocks[i] || null };
+      break;
+    }
+  }
+  const firstRingIdentical = !firstRing && !txtMismatch;
+  let firstRingLine = firstRingIdentical
+    ? `第一环 ${ringCourses} 课、${ringRows} 行与官方 seatRing 以及 faces_ring0_step4_bed.txt 的对应行相同（针号、记号、行注）。`
+    : firstRing
+      ? `第一环不一致。第 ${firstRing.row} 行 course ${firstRing.course ?? "?"}：${firstRing.cell ? `实验 ${firstRing.cell.experiment}，官方 ${firstRing.cell.baseline}` : firstRing.kind}。没有改认领规则去凑齐。`
+      : `第一环床图文字不一致。官方 txt 第 ${txtMismatch.row} 行：\n${txtMismatch.official}\n实验：\n${txtMismatch.experiment}`;
   const statusLine = built.partialStop
-    ? `未完成。${built.partialStop.sentence} 已织 ${validation.extent.knitCells} 针、项 ${validation.extent.termsKnitted} / ${layout.term_total}。减针行和加减针同一行都还没走到。`
-    : `生成器跑完了 ${validation.extent.courses} 课、${validation.extent.knitRows} 个织行。`;
-  let divergenceLine = "和基线的织针序没有差异。";
-  if (div?.kind === "needle") {
-    divergenceLine = `最早针位差异在织针序 ${div.knitIndex}：项 ${div.experiment.tIdx} ${div.experiment.label}。基线 ${div.baseline.bed}${div.baseline.phys}（表行 ${div.baseline.sheetRow}，course ${div.baseline.course}）。实验 ${div.experiment.bed}${div.experiment.phys}（表行 ${div.experiment.sheetRow}，course ${div.experiment.course}，线圈 ${div.experiment.origin || div.experiment.id}）。时序把这一针放到了另一枚针上，项序还在。`;
+    ? `未完成。${built.partialStop.sentence} 已生成 ${validation.extent.courses} 课 / 官方 ${validation.extent.baselineCourses} 课，织 ${validation.extent.knitCells} 针、项 ${validation.extent.termsKnitted} / ${layout.term_total}。`
+    : `生成完成。实验 ${validation.extent.courses} 课，官方 ${validation.extent.baselineCourses} 课；实验 ${validation.extent.knitRows} 个织行，官方 ${validation.extent.baselineKnitRows} 个织行。`;
+  let divergenceLine = "第一环之后，和官方床图的织针序没有差异。";
+  if (!firstRingIdentical) {
+    divergenceLine = "第一环已经和官方床图不同，后面的差异先不算。";
+  } else if (div?.kind === "needle") {
+    divergenceLine = `第一环之后最早的针位差异在织针序 ${div.knitIndex}：项 ${div.experiment.tIdx} ${div.experiment.label}。官方 ${div.baseline.bed}${div.baseline.phys}（表行 ${div.baseline.sheetRow}，course ${div.baseline.course}）。实验 ${div.experiment.bed}${div.experiment.phys}（表行 ${div.experiment.sheetRow}，course ${div.experiment.course}，线圈 ${div.experiment.origin || div.experiment.id}）。`;
   } else if (div?.kind === "term-or-label") {
-    divergenceLine = `最早项序差异在织针序 ${div.knitIndex}：基线项 ${div.baseline?.tIdx} ${div.baseline?.label}，实验项 ${div.experiment?.tIdx} ${div.experiment?.label}。`;
+    divergenceLine = `第一环之后最早的项序差异在织针序 ${div.knitIndex}：官方项 ${div.baseline?.tIdx} ${div.baseline?.label}，实验项 ${div.experiment?.tIdx} ${div.experiment?.label}。`;
   } else if (div?.kind === "length") {
     const next = div.baseline
-      ? `基线下一针是 course ${div.baseline.course} 项 ${div.baseline.tIdx} ${div.baseline.label}，在 ${div.baseline.bed}${div.baseline.phys}（表行 ${div.baseline.sheetRow}）。`
+      ? `官方下一针是 course ${div.baseline.course} 项 ${div.baseline.tIdx} ${div.baseline.label}，在 ${div.baseline.bed}${div.baseline.phys}（表行 ${div.baseline.sheetRow}）。`
       : "";
-    divergenceLine = `已织的 ${div.experimentCount} 针和基线一致，项号、标签、针位、线圈 id 都没变。实验在下一针之前停住。${next}基线一共 ${div.baselineCount} 针。分歧不在针位，而在 course 2 开口之后立刻平衡：基线把这次平衡留到整行织完。`;
+    divergenceLine = `已织的 ${div.experimentCount} 针和官方前缀一致。实验在下一针之前停住。${next}官方一共 ${div.baselineCount} 针。`;
   }
+  if (firstDecrease) {
+    divergenceLine += firstDecrease.postKnitDecrease
+      ? ` 第一处减针是 course ${firstDecrease.course} 项 ${firstDecrease.term} ${firstDecrease.label}（表行 ${firstDecrease.sheetRow}，${firstDecrease.mixed ? "加减针同一课" : "只有减针"}）。减针移圈排在这一课全部织行之后。`
+      : ` 第一处减针是 course ${firstDecrease.course}，但减针移圈没有排在整课织完之后。`;
+  } else if (!built.partialStop) {
+    divergenceLine += " 整张表没有减针课。";
+  } else {
+    divergenceLine += " 还没有走到减针课。";
+  }
+  const postponed = events.filter((event) => event.type === "postponed-balance" || (event.postponed && event.postponed.length));
+  const officialAssets = {
+    "faces_ring_layout.json": hashFile(INPUT),
+    "faces_ring0_step4_bed.xls": beforeXls,
+    "faces_ring0_step4_bed.txt": beforeTxt,
+    "stitch_map_bind.json": hashFile(join(root, "public/sample/cylinder/stitch_map_bind.json")),
+    "faces_ring0_v2.dat": hashFile(join(root, "public/sample/cylinder/faces_ring0_v2.dat")),
+    "cut_iteration_0.obj": hashFile(join(root, "public/sample/cylinder/cut_iteration_0.obj")),
+  };
   const report = {
     experiment: "official-bunny-readable-row-schedule",
     input: {
@@ -1878,13 +1832,24 @@ async function run(argv) {
       txt: "public/sample/cylinder/faces_ring0_step4_bed.txt",
       txtSha256: beforeTxt,
     },
+    officialAssets,
     output: {
       directory: "experiments/official-bunny-readable-row-schedule",
       files: ["exp-readable-map.txt", "exp-readable-map.xls", "exp-readable-map.json", "validation-report.json", "compare.html"],
     },
-    status: built.partialStop ? "partial" : "complete",
+    status: !firstRingIdentical ? "first-ring-mismatch" : built.partialStop ? "partial" : "complete",
     statusLine,
+    firstRingLine,
     divergenceLine,
+    firstRing: {
+      courses: ringCourses,
+      rows: ringRows,
+      identical: firstRingIdentical,
+      mismatch: firstRing,
+      txtMismatch,
+    },
+    firstDecrease,
+    postponedBalances: postponed,
     partialStop: built.partialStop,
     divergence: div,
     extent: validation.extent,
@@ -1900,7 +1865,19 @@ async function run(argv) {
       renderError,
     },
     timing:
-      "基线在减针跨度织完后立刻移圈并平衡，余下的针在平衡后的床上织。实验把本行加针开口提前到织之前，并且每开口一次就平衡；减针留到整行织完，再按线圈身份逐个移圈、逐次平衡。所以同一项可能织在开口/平衡之后的针上，减针组后面的项也不再吃到前一个减针的挪移。",
+      "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针不再插在课的中途。",
+  };
+  const chromeLabel = built.partialStop || !firstRingIdentical ? "Bunny 实验（新时序，未跑完）" : "Bunny 实验（新时序）";
+  const chrome = {
+    label: chromeLabel,
+    menuTitle: built.partialStop
+      ? `实验课级时序，停在 ${built.partialStop.sentence} 不是官方 Bunny`
+      : "实验课级时序的 readable map，不是官方 Bunny",
+    banner: built.partialStop || !firstRingIdentical ? "实验时序 · 未跑完 · 右侧不是官方床图" : "实验时序 · 不是官方床图",
+    status: built.partialStop
+      ? `${chromeLabel} · 左侧是官方 Bunny 网格 · ${built.partialStop.sentence}`
+      : `${chromeLabel} · 左侧是官方 Bunny 网格 · 右侧是实验课级时序，不是官方床图`,
+    metaPrefix: built.partialStop || !firstRingIdentical ? "未跑完" : "实验时序",
   };
   const mapJson = {
     input: report.input,
@@ -1935,14 +1912,17 @@ async function run(argv) {
   writeFileSync(paths.json, JSON.stringify(mapJson));
   writeFileSync(paths.report, `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(paths.html, html);
+  writeFileSync(join(OUT_DIR, "preview-chrome.json"), `${JSON.stringify(chrome, null, 2)}\n`);
   let shots = { ok: false, reason: "skipped" };
   if (!noShot) shots = await shoot(paths.html, OUT_DIR);
   report.screenshots = shots;
   writeFileSync(paths.report, `${JSON.stringify(report, null, 2)}\n`);
   console.log(statusLine);
+  console.log(firstRingLine);
   console.log(divergenceLine);
   if (built.partialStop) console.log(built.partialStop.message);
   console.log(shots.ok ? `screenshots ${shots.written.length}` : `screenshots skipped: ${shots.reason}`);
+  if (!firstRingIdentical) fail(firstRingLine);
   return report;
 }
 

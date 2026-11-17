@@ -1863,15 +1863,18 @@ assert(
 assert(manifest.outputs[0].label === "Bunny", "faces-ring0 output label is Bunny");
 assert(
   html.includes('id="load-bunny-exp-readable-row-schedule"') &&
-    html.includes("Bunny 实验（新时序，未跑完）") &&
+    html.includes("Bunny 实验（新时序）") &&
+    !html.includes("未跑完") &&
     html.indexOf('id="load-bunny-exp-readable-row-schedule"') > html.indexOf('id="load-faces-ring0"') &&
     mainSrc.includes('const BUNNY_EXP_SHEET = "bunny-exp-readable-row-schedule"') &&
     mainSrc.includes("loadBunnyExpReadableRow") &&
     mainSrc.includes("exp-readable-map.xls") &&
+    mainSrc.includes("preview-chrome.json") &&
     !existsSync(join(cylDir, "exp-readable-map.xls")) &&
     !existsSync(join(cylDir, "exp-readable-map.txt")) &&
-    existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.xls")),
-  "the incomplete timing experiment is its own sheet and does not replace the official Bunny bed",
+    existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.xls")) &&
+    !existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.dat")),
+  "the timing experiment is its own sheet and does not replace the official Bunny bed",
 );
 assert(html.includes('id="load-faces-ring0"') && !html.includes('id="load-faces-ring1"') && mainSrc.includes("faces-ring0") && mainSrc.includes("isFacesRing0BedChart"), "Open menu loads the joined faces-ring bed chart");
 assert(!mainSrc.includes("#load-sample") && !mainSrc.includes("load-sample"), "main no longer wires 示例");
