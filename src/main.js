@@ -1,6 +1,11 @@
 import expReadableMapUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.xls?url";
 import expReadableMapTxtUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.txt?url";
 import expChrome from "../experiments/official-bunny-readable-row-schedule/preview-chrome.json";
+import corridorManifest from "../experiments/bunny-corridor-field-swallow/manifest.json";
+import corridorMeshUrl from "../experiments/bunny-corridor-field-swallow/official_bunny_cut_smoothed.obj?url";
+import corridorPolylineUrl from "../experiments/bunny-corridor-field-swallow/columns_polyline.obj?url";
+import corridorTypeUrl from "../experiments/bunny-corridor-field-swallow/columns_type.obj?url";
+import corridorOrderUrl from "../experiments/bunny-corridor-field-swallow/columns_order.json?url";
 import { CYLINDER_EXP_SHEETS, cylinderExpBySheet } from "./cylinder-exp-sheets.js";
 import { MeshViewer } from "./viewer.js";
 import {
@@ -69,7 +74,7 @@ import {
   registerDisplayModel,
   stitchesVisibleForSliders,
 } from "./range.js";
-import { applyBaseChoice, defaultBaseLayers, isBaseHidden } from "./display.js";
+import { applyBaseChoice, defaultBaseLayers, facesBaseLayers, isBaseHidden } from "./display.js";
 import {
   buildReadableMapGrid,
   highlightKeysForStitch,
@@ -109,7 +114,18 @@ const openFilesBtn = document.querySelector("#open-files");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
 const BUNNY_EXP_SHEET = "bunny-exp-readable-row-schedule";
 const BUNNY_EXP_LABEL = expChrome.label;
+const BUNNY_CORRIDOR_SHEET = "bunny-corridor-field-swallow";
+const BUNNY_CORRIDOR_LABEL = "Bunny 走廊抽列（实验）";
+const BUNNY_CORRIDOR_MENU_TITLE = "实验走廊抽列预览，不是官方 Bunny";
+const BUNNY_CORRIDOR_BANNER = "实验 · 走廊抽列 · 不是官方 Bunny";
+const BUNNY_CORRIDOR_STATUS =
+  "Bunny 走廊抽列（实验） · 10 FULL · 33 短柱 · 43 列 · 平滑切口 · 没有针床 · 不是官方 Bunny";
 const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedule");
+const bunnyCorridorBtn = document.querySelector("#load-bunny-corridor-field-swallow");
+if (bunnyCorridorBtn) {
+  bunnyCorridorBtn.textContent = BUNNY_CORRIDOR_LABEL;
+  bunnyCorridorBtn.title = BUNNY_CORRIDOR_MENU_TITLE;
+}
 if (bunnyExpBtn) {
   bunnyExpBtn.textContent = BUNNY_EXP_LABEL;
   bunnyExpBtn.title = expChrome.menuTitle;
@@ -1274,6 +1290,52 @@ async function loadDenseBunnyLe() {
   }
 }
 
+function isBunnyCorridorSheet(sheet = sheetQuery()) {
+  return String(sheet || "").trim().toLowerCase() === BUNNY_CORRIDOR_SHEET;
+}
+
+async function loadBunnyCorridorFieldSwallow() {
+  if (!isBunnyCorridorSheet()) setSheetQuery(BUNNY_CORRIDOR_SHEET);
+  setStatus(`加载 ${BUNNY_CORRIDOR_LABEL}…`);
+  try {
+    const data = {
+      name: BUNNY_CORRIDOR_LABEL,
+      outputs: [
+        {
+          ...corridorManifest.outputs[0],
+          label: BUNNY_CORRIDOR_LABEL,
+        },
+      ],
+    };
+    const dir = "experiments/bunny-corridor-field-swallow";
+    const files = [
+      ["official_bunny_cut_smoothed.obj", corridorMeshUrl],
+      ["columns_polyline.obj", corridorPolylineUrl],
+      ["columns_type.obj", corridorTypeUrl],
+      ["columns_order.json", corridorOrderUrl],
+    ];
+    const entries = [{ name: "manifest.json", path: `${dir}/manifest.json`, text: JSON.stringify(data) }];
+    await Promise.all(
+      files.map(async ([name, url]) => {
+        const file = await fetch(url);
+        if (!file.ok) throw new Error(`缺少走廊抽列 / Missing ${name}`);
+        entries.push({ name, path: `${dir}/${name}`, text: await file.text() });
+      }),
+    );
+    baseLayers = facesBaseLayers();
+    await openEntries(entries);
+    if (project) {
+      project.name = BUNNY_CORRIDOR_LABEL;
+      project.banner = BUNNY_CORRIDOR_BANNER;
+    }
+    updateChrome();
+    paintBaseChecks();
+    if (!statusEl.classList.contains("error")) setStatus(BUNNY_CORRIDOR_STATUS);
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
 function isBunnyExpReadableSheet(sheet = sheetQuery()) {
   return String(sheet || "").trim().toLowerCase() === BUNNY_EXP_SHEET;
 }
@@ -1549,6 +1611,11 @@ denseBunnyLeBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("dense-bunny-le");
   loadDenseBunnyLe();
+});
+bunnyCorridorBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery(BUNNY_CORRIDOR_SHEET);
+  loadBunnyCorridorFieldSwallow();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -2331,6 +2398,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 updateChrome();
 syncExportButton();
 if (activeCylinderExp(sheetQuery())) loadCylinderExp(activeCylinderExp(sheetQuery()));
+else if (isBunnyCorridorSheet(sheetQuery())) loadBunnyCorridorFieldSwallow();
 else if (isDenseBunny4SplitSheet(sheetQuery())) loadDenseBunny4Split();
 else if (isDenseBunnyLeSheet(sheetQuery())) loadDenseBunnyLe();
 else if (isDenseFatSheet(sheetQuery())) loadDenseFatCylinder();

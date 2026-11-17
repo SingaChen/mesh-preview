@@ -1075,6 +1075,12 @@ function countTypes(columns) {
  * index_column and type when each record lines up with that chain.
  * This is not cols_resample and does not build faces, rings, or a mesh.
  */
+function columnOrderRecords(order) {
+  if (Array.isArray(order)) return order;
+  if (order && Array.isArray(order.columns)) return order.columns;
+  return null;
+}
+
 export function parseExtractColumns({ polylineText, typeText = "", fieldText = "", order = null } = {}) {
   const problems = [];
   const poly = polylineText ? parseColsResampleField(polylineText) : [];
@@ -1090,7 +1096,7 @@ export function parseExtractColumns({ polylineText, typeText = "", fieldText = "
     problems.push(`columns_field 对不上折线 / columns_field chains=${fieldCols.length} polylines=${poly.length}`);
   }
 
-  const records = order && Array.isArray(order.columns) ? order.columns : null;
+  const records = columnOrderRecords(order);
   if (order && !records) problems.push("columns_order 没有 columns[] / columns_order has no columns[]");
   let aligned = Boolean(records && records.length === poly.length && poly.length);
   if (records && records.length !== poly.length) {

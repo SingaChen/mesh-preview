@@ -131,7 +131,7 @@ export class MeshViewer {
   };
 
   parseObj(text, name = "mesh") {
-    const obj = this.loader.parse(text);
+    const obj = this.loader.parse(textForBodyFaces(text));
     const geom = mergeObjectGeometry(obj);
     if (!geom) {
       throw new Error(`OBJ 无可用面 / ${name} has no faces`);
@@ -782,6 +782,17 @@ function ringSliderN(bound) {
   const rings = (bound?.stitches || []).map((s) => s.ring).filter((r) => r != null && Number.isFinite(r));
   if (rings.length) return Math.max(...rings) + 1;
   return bound?.stitches?.length ?? 0;
+}
+
+// VTK cuts often append the boundary as `l` records in the same object.
+// Three's OBJLoader then treats the whole object as lines and drops the faces.
+function textForBodyFaces(text) {
+  const src = String(text ?? "");
+  if (!/^f\s/m.test(src) || !/^l\s/m.test(src)) return src;
+  return src
+    .split(/\r?\n/)
+    .filter((line) => !line.startsWith("l ") && !line.startsWith("l\t"))
+    .join("\n");
 }
 
 function mergeObjectGeometry(root) {
