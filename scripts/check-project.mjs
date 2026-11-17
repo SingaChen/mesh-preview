@@ -98,7 +98,7 @@ import {
   knitTableColumns,
   parseKnitCode,
 } from "../src/knit-code.js";
-import { excelBedsWidth, hitTestContent, MAP_BEDS_W, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel } from "../src/map-view.js";
+import { excelBedsWidth, hitTestContent, MAP_BEDS_W, MAP_CELL, MAP_CLICK_SLOP, MAP_HEAD_H, MAP_LABEL_W, panToKeepRectVisible, rowDirLabel, rowPurposeLabel, rowSideLabel } from "../src/map-view.js";
 import { parseXlsWorkbook, rgbForIcv } from "../src/xls.js";
 import {
   excelLegendKind,
@@ -1448,7 +1448,7 @@ assert(bound.stitches[51].mapCells.length === 2, "decrease face keeps hang+1 spa
   assert(contentHit?.row === 0 && contentHit?.col === 20, "hitTestContent maps Excel content coords to 0,20");
   assert(hitTestContent(excelGrid, 10, 10) == null, "header / dir label is not a map cell");
   assert(MAP_CLICK_SLOP === 8, "map click slop matches the 3D canvas");
-  assert(MAP_LABEL_W >= 56, "label column fits 3-digit display_row + dir");
+  assert(MAP_LABEL_W >= 96, "label column fits 3-digit row, Flip, and a two-character purpose");
   assert(rowDirLabel(0, "R") === "0 R", "Excel first column uses 0-based display_row + dir");
   assert(rowDirLabel(7, "X") === "7 X" && rowDirLabel(8, "R") === "8 R", "mid-row X stays on its own display_row");
   assert(rowDirLabel(12, "X+") === "12 X+" && rowDirLabel(120, "X+") === "120 X+", "3-digit row + X+ still has a space");
@@ -3842,5 +3842,174 @@ assertDenseBunnyColumns({
   },
   status: ["985 columns", "index 0–984", "FULL=5", "SHORT_INNER=877", "SHORT_BEGIN=78", "SHORT_END=25", "smooth_points", "scale_ran=false", "merges=449"],
 });
+
+function purposeFromSheetKind(row) {
+  const tokens = (row?.cells || []).map((cell) => cell?.token).filter(Boolean);
+  if (!tokens.length) return "";
+  if (row.kind === "knit") return "织针";
+  if (row.kind === "increase" || row.kind === "decrease") return "移针";
+  if (row.kind === "balance") return "平衡";
+  if (row.kind === "flip") return /right-fold flip/i.test(row.note || "") ? "平衡" : "移针";
+  return "";
+}
+
+{
+  const thinExp = parseExcelReadableMap(
+    readFileSync(join(root, "experiments/official-thin-readable-row-schedule/exp-readable-map.xls")),
+  );
+  const thinExpect = {
+    22: "移针",
+    23: "平衡",
+    42: "移针",
+    69: "织针",
+    70: "移针",
+    71: "平衡",
+    72: "平衡",
+  };
+  for (const [index, purpose] of Object.entries(thinExpect)) {
+    const row = thinExp.rows[index];
+    assert(rowPurposeLabel(row) === purpose, `Thin experiment row ${index} purpose is ${rowPurposeLabel(row)}, expected ${purpose}`);
+    assert(
+      rowSideLabel(Number(index), row) === `${index} ${row.dir} ${purpose}`,
+      `Thin experiment row ${index} reads ${rowSideLabel(Number(index), row)}`,
+    );
+  }
+  assert(rowSideLabel(70, thinExp.rows[70]) === "70 X+ 移针", "Thin experiment row 70 keeps X+ and adds 移针");
+  assert(rowSideLabel(71, thinExp.rows[71]) === "71 X 平衡", "Thin experiment row 71 is a balance rack, not a transfer");
+  assert(rowSideLabel(72, thinExp.rows[72]) === "72 Flip 平衡", "Thin experiment row 72 flip restores the bed");
+  assert(thinExp.rows[42].dir === "Flip" && rowPurposeLabel(thinExp.rows[42]) === "移针", "a decrease Flip is 移针");
+  assert(thinExp.rows[22].dir === "X" && thinExp.rows[23].dir === "X", "rows 22 and 23 are both X");
+  assert(rowPurposeLabel(thinExp.rows[22]) === "移针" && rowPurposeLabel(thinExp.rows[23]) === "平衡", "X alone does not choose 移针 or 平衡");
+}
+
+{
+  const officialThin = parseExcelReadableMap(readFileSync(join(sampleDir, "thin/thin_cylinder_bed.xls")));
+  const officialExpect = { 21: "织针", 22: "移针", 23: "平衡", 26: "平衡", 29: "移针", 62: "移针", 70: "平衡", 75: "移针" };
+  for (const [index, purpose] of Object.entries(officialExpect)) {
+    assert(
+      rowPurposeLabel(officialThin.rows[index]) === purpose && rowSideLabel(Number(index), officialThin.rows[index]).endsWith(purpose),
+      `official Thin row ${index} ${officialThin.rows[index].dir} is ${rowPurposeLabel(officialThin.rows[index])}, expected ${purpose}`,
+    );
+  }
+}
+
+assert(rowPurposeLabel({ dir: "R", cells: [] }) === "", "a row with no operation has no purpose");
+assert(rowPurposeLabel({ dir: "X", cells: [{ token: "" }] }) === "", "an empty transfer cell is not labeled");
+assert(
+  rowPurposeLabel({ dir: "X", kind: "balance", beds: "20针 · 前10[0…9] · 后10[0…9]", cells: [{ token: "B→" }] }) === "平衡",
+  "row kind balance wins over a live-window beds string",
+);
+assert(
+  rowPurposeLabel({ dir: "X", kind: "decrease", beds: "F10[0…9] / B10[0…9]", cells: [{ token: "F←" }] }) === "移针",
+  "row kind decrease wins over a balance-shaped window",
+);
+assert(
+  rowPurposeLabel({
+    dir: "Flip",
+    kind: "flip",
+    note: "course 27: right-fold flip B10→F10 (same index).",
+    beds: "16针 · 前8[0…7] · 后8[0…7]",
+    cells: [{ token: "⬇" }],
+  }) === "平衡",
+  "a right-fold flip note is 平衡",
+);
+assert(
+  rowPurposeLabel({
+    dir: "Flip",
+    note: "course 22: 第 1 次移圈前，折点 B8 翻到 F8。",
+    beds: "16针 · 前8[0…7] · 后8[0…7]",
+    cells: [{ token: "⬇" }],
+  }) === "移针",
+  "a decrease flip note is 移针",
+);
+assert(
+  rowPurposeLabel({ dir: "X", beds: "", cells: [{ token: "←1" }] }) === "",
+  "an X row with no window, kind, or note is not labeled from the letter",
+);
+assert(
+  rowPurposeLabel({ dir: "X+", beds: "", cells: [{ token: "←1" }] }) === "移针",
+  "an X+ opening without a bed window is still the shaping transfer",
+);
+
+{
+  const expDirs = readdirSync(join(root, "experiments")).filter((name) =>
+    existsSync(join(root, "experiments", name, "exp-readable-map.json")),
+  );
+  assert(expDirs.length >= 11, `expected the cylinder and bunny experiment sheets, got ${expDirs.length}`);
+  for (const name of expDirs) {
+    const sheet = JSON.parse(readFileSync(join(root, "experiments", name, "exp-readable-map.json"), "utf8")).sheet;
+    const map = parseExcelReadableMap(readFileSync(join(root, "experiments", name, "exp-readable-map.xls")));
+    assert(map.rows.length === sheet.length, `${name} xls rows ${map.rows.length} != json ${sheet.length}`);
+    for (let i = 0; i < sheet.length; i++) {
+      const got = rowPurposeLabel(map.rows[i]);
+      const expected = purposeFromSheetKind(sheet[i]);
+      assert(got === expected, `${name} row ${i} ${map.rows[i].dir} purpose ${got} != sheet kind ${sheet[i].kind} (${expected})`);
+    }
+  }
+}
+
+function bedTxtRows(text) {
+  const lines = String(text).split("\n");
+  const rows = [];
+  for (let i = 0; i < lines.length; i++) {
+    const header = lines[i].match(/^  row (\d+) (\S+)  /);
+    if (!header) continue;
+    const notes = [];
+    let cells = "";
+    let j = i + 1;
+    while (j < lines.length && lines[j].startsWith("    ")) {
+      const textLine = lines[j].trim();
+      if (/^(?:[FB]|[⬆⬇←→])/.test(textLine)) cells = textLine;
+      else notes.push(textLine);
+      j++;
+    }
+    rows.push({ index: Number(header[1]), dir: header[2], cells, note: notes.join(" ") });
+  }
+  return rows;
+}
+
+function purposeFromBedNote(row) {
+  if (!row.cells) return "";
+  if (row.dir === "R" || row.dir === "L") return "织针";
+  const note = row.note || "";
+  if (/right-fold flip|\bRack\b|\brack\b|fold gap|counts match|seats toward|steps to|same-index flip|one needle apart|left junction/i.test(note)) {
+    return "平衡";
+  }
+  if (/移圈|套到|开口|翻到|increase/i.test(note)) return "移针";
+  return "UNPARSED";
+}
+
+{
+  const beds = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (!existsSync(path)) continue;
+      if (name.endsWith("_bed.txt") || name.endsWith("step4_bed.txt")) beds.push(path);
+      else if (name !== "node_modules" && !name.includes(".")) {
+        try {
+          if (readdirSync(path).length) walk(path);
+        } catch {
+          /* file */
+        }
+      }
+    }
+  };
+  walk(sampleDir);
+  assert(beds.length >= 10, `official bed texts found: ${beds.length}`);
+  for (const txtPath of beds) {
+    const rows = bedTxtRows(readFileSync(txtPath, "utf8"));
+    const map = parseExcelReadableMap(readFileSync(txtPath.replace(/\.txt$/, ".xls")));
+    assert(rows.length === map.rows.length, `${txtPath} txt rows ${rows.length} != xls ${map.rows.length}`);
+    for (let i = 0; i < rows.length; i++) {
+      const expected = purposeFromBedNote(rows[i]);
+      assert(expected !== "UNPARSED", `${txtPath} row ${i} note was not classified: ${rows[i].note}`);
+      assert(
+        rowPurposeLabel(map.rows[i]) === expected,
+        `${txtPath} row ${i} ${rows[i].dir} purpose ${rowPurposeLabel(map.rows[i])} != note ${expected}`,
+      );
+    }
+  }
+}
 
 console.log("project checks ok");
