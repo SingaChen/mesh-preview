@@ -57,8 +57,8 @@
     "dat": null,
     "knitCode": null
   },
-  "status": "partial",
-  "statusLine": "未完成。实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。 已生成 56 课 / 官方 66 课，织 458 针、项 452 / 648。",
+  "status": "complete",
+  "statusLine": "生成完成。实验 66 课，官方 66 课；实验 66 个织行，官方 83 个织行。",
   "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_decrease_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
   "divergenceLine": "第一环之后最早的针位差异在织针序 320：项 319 ·。官方 F5（表行 35，course 31）。实验 F6（表行 31，course 31，线圈 carried:6）。 第一处减针是 course 31 项 318 -R1（表行 31，只有减针）。减针移圈排在这一课全部织行之后。",
   "firstRing": {
@@ -83,7 +83,7 @@
   "postponedBalances": [],
   "omittedNoOpBalances": {
     "increaseOpenings": 0,
-    "decreases": 0
+    "decreases": 3
   },
   "ringStarts": [
     {
@@ -127,384 +127,39 @@
       "course": 56,
       "start": "F0",
       "schedule": "knit-then-dec"
+    },
+    {
+      "ring": 7,
+      "course": 57,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 8,
+      "course": 62,
+      "start": "F0",
+      "schedule": "knit-then-dec"
+    },
+    {
+      "ring": 9,
+      "course": 63,
+      "start": "F0",
+      "schedule": "knit-then-dec"
+    },
+    {
+      "ring": 10,
+      "course": 64,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 11,
+      "course": 65,
+      "start": "F0",
+      "schedule": "knit"
     }
   ],
-  "partialStop": {
-    "ring": 6,
-    "course": 56,
-    "dir": "R",
-    "message": "course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。",
-    "sentence": "实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。",
-    "detail": {
-      "phase": "decrease-geometry",
-      "error": "course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。",
-      "course": 56,
-      "dir": "R",
-      "index": 0,
-      "term": 19,
-      "label": "·",
-      "before": {
-        "n": 42,
-        "text": "F21[0…20] / B21[0…20]",
-        "live": "42针 · 前21[0…20] · 后21[0…20]",
-        "front": [
-          {
-            "id": 0,
-            "origin": "carried:0",
-            "bed": "F",
-            "phys": 0,
-            "wale": 0
-          },
-          {
-            "id": 1,
-            "origin": "carried:1",
-            "bed": "F",
-            "phys": 1,
-            "wale": 1
-          },
-          {
-            "id": 2,
-            "origin": "carried:2",
-            "bed": "F",
-            "phys": 2,
-            "wale": 2
-          },
-          {
-            "id": 3,
-            "origin": "carried:3",
-            "bed": "F",
-            "phys": 3,
-            "wale": 3
-          },
-          {
-            "id": 4,
-            "origin": "carried:4",
-            "bed": "F",
-            "phys": 4,
-            "wale": 4
-          },
-          {
-            "id": 6,
-            "origin": "carried:6",
-            "bed": "F",
-            "phys": 5,
-            "wale": 5
-          },
-          {
-            "id": 7,
-            "origin": "carried:7",
-            "bed": "F",
-            "phys": 6,
-            "wale": 6
-          },
-          {
-            "id": 8,
-            "origin": "carried:8",
-            "bed": "F",
-            "phys": 7,
-            "wale": 7
-          },
-          {
-            "id": 10,
-            "origin": "carried:10",
-            "bed": "F",
-            "phys": 8,
-            "wale": 9
-          },
-          {
-            "id": 11,
-            "origin": "carried:11",
-            "bed": "F",
-            "phys": 9,
-            "wale": 10
-          },
-          {
-            "id": 12,
-            "origin": "carried:12",
-            "bed": "F",
-            "phys": 10,
-            "wale": 11
-          },
-          {
-            "id": 13,
-            "origin": "carried:13",
-            "bed": "F",
-            "phys": 11,
-            "wale": 12
-          },
-          {
-            "id": 15,
-            "origin": "carried:15",
-            "bed": "F",
-            "phys": 12,
-            "wale": 14
-          },
-          {
-            "id": 16,
-            "origin": "carried:16",
-            "bed": "F",
-            "phys": 13,
-            "wale": 15
-          },
-          {
-            "id": 17,
-            "origin": "carried:17",
-            "bed": "F",
-            "phys": 14,
-            "wale": 16
-          },
-          {
-            "id": 18,
-            "origin": "carried:18",
-            "bed": "F",
-            "phys": 15,
-            "wale": 17
-          },
-          {
-            "id": 19,
-            "origin": "carried:19",
-            "bed": "F",
-            "phys": 16,
-            "wale": 18
-          },
-          {
-            "id": 20,
-            "origin": "carried:20",
-            "bed": "F",
-            "phys": 17,
-            "wale": 19
-          },
-          {
-            "id": 21,
-            "origin": "carried:21",
-            "bed": "F",
-            "phys": 18,
-            "wale": 20
-          },
-          {
-            "id": 22,
-            "origin": "carried:22",
-            "bed": "F",
-            "phys": 19,
-            "wale": 21
-          },
-          {
-            "id": 23,
-            "origin": "carried:23",
-            "bed": "F",
-            "phys": 20,
-            "wale": 22
-          }
-        ],
-        "back": [
-          {
-            "id": 45,
-            "origin": "carried:45",
-            "bed": "B",
-            "phys": 0,
-            "wale": 43
-          },
-          {
-            "id": 44,
-            "origin": "carried:44",
-            "bed": "B",
-            "phys": 1,
-            "wale": 42
-          },
-          {
-            "id": 43,
-            "origin": "carried:43",
-            "bed": "B",
-            "phys": 2,
-            "wale": 41
-          },
-          {
-            "id": 42,
-            "origin": "carried:42",
-            "bed": "B",
-            "phys": 3,
-            "wale": 40
-          },
-          {
-            "id": 41,
-            "origin": "carried:41",
-            "bed": "B",
-            "phys": 4,
-            "wale": 39
-          },
-          {
-            "id": 39,
-            "origin": "carried:39",
-            "bed": "B",
-            "phys": 5,
-            "wale": 38
-          },
-          {
-            "id": 38,
-            "origin": "carried:38",
-            "bed": "B",
-            "phys": 6,
-            "wale": 37
-          },
-          {
-            "id": 37,
-            "origin": "carried:37",
-            "bed": "B",
-            "phys": 7,
-            "wale": 36
-          },
-          {
-            "id": 36,
-            "origin": "carried:36",
-            "bed": "B",
-            "phys": 8,
-            "wale": 35
-          },
-          {
-            "id": 35,
-            "origin": "carried:35",
-            "bed": "B",
-            "phys": 9,
-            "wale": 34
-          },
-          {
-            "id": 34,
-            "origin": "carried:34",
-            "bed": "B",
-            "phys": 10,
-            "wale": 33
-          },
-          {
-            "id": 33,
-            "origin": "carried:33",
-            "bed": "B",
-            "phys": 11,
-            "wale": 32
-          },
-          {
-            "id": 32,
-            "origin": "carried:32",
-            "bed": "B",
-            "phys": 12,
-            "wale": 31
-          },
-          {
-            "id": 31,
-            "origin": "carried:31",
-            "bed": "B",
-            "phys": 13,
-            "wale": 30
-          },
-          {
-            "id": 30,
-            "origin": "carried:30",
-            "bed": "B",
-            "phys": 14,
-            "wale": 29
-          },
-          {
-            "id": 29,
-            "origin": "carried:29",
-            "bed": "B",
-            "phys": 15,
-            "wale": 28
-          },
-          {
-            "id": 28,
-            "origin": "carried:28",
-            "bed": "B",
-            "phys": 16,
-            "wale": 27
-          },
-          {
-            "id": 27,
-            "origin": "carried:27",
-            "bed": "B",
-            "phys": 17,
-            "wale": 26
-          },
-          {
-            "id": 26,
-            "origin": "carried:26",
-            "bed": "B",
-            "phys": 18,
-            "wale": 25
-          },
-          {
-            "id": 25,
-            "origin": "carried:25",
-            "bed": "B",
-            "phys": 19,
-            "wale": 24
-          },
-          {
-            "id": 24,
-            "origin": "carried:24",
-            "bed": "B",
-            "phys": 20,
-            "wale": 23
-          }
-        ]
-      },
-      "after": null,
-      "aborted": null,
-      "atKnit": [
-        {
-          "id": 22,
-          "origin": "carried:22",
-          "bed": "F",
-          "phys": 21,
-          "wale": 21
-        },
-        {
-          "id": 23,
-          "origin": "carried:23",
-          "bed": "B",
-          "phys": 21,
-          "wale": 22
-        }
-      ],
-      "atNow": [
-        {
-          "id": 22,
-          "origin": "carried:22",
-          "bed": "F",
-          "phys": 19,
-          "wale": 21
-        },
-        {
-          "id": 23,
-          "origin": "carried:23",
-          "bed": "F",
-          "phys": 20,
-          "wale": 22
-        }
-      ],
-      "needle": null,
-      "marker": null,
-      "holes": null,
-      "collision": null,
-      "postponed": null,
-      "groupAtKnit": [
-        {
-          "id": 22,
-          "origin": "carried:22",
-          "bed": "F",
-          "phys": 21,
-          "wale": 21
-        },
-        {
-          "id": 23,
-          "origin": "carried:23",
-          "bed": "B",
-          "phys": 21,
-          "wale": 22
-        }
-      ]
-    },
-    "localTerm": 19,
-    "globalTerm": 431
-  },
+  "partialStop": null,
   "divergence": {
     "knitIndex": 320,
     "kind": "needle",
@@ -538,12 +193,12 @@
     }
   },
   "extent": {
-    "courses": 56,
+    "courses": 66,
     "baselineCourses": 66,
-    "knitRows": 57,
+    "knitRows": 66,
     "baselineKnitRows": 83,
-    "knitCells": 458,
-    "termsKnitted": 452,
+    "knitCells": 667,
+    "termsKnitted": 648,
     "termsTotal": 648,
     "sharedTermCells": [
       {
@@ -569,31 +224,79 @@
       {
         "tIdx": 443,
         "cells": 2
+      },
+      {
+        "tIdx": 481,
+        "cells": 2
+      },
+      {
+        "tIdx": 482,
+        "cells": 2
+      },
+      {
+        "tIdx": 484,
+        "cells": 2
+      },
+      {
+        "tIdx": 486,
+        "cells": 2
+      },
+      {
+        "tIdx": 487,
+        "cells": 3
+      },
+      {
+        "tIdx": 489,
+        "cells": 2
+      },
+      {
+        "tIdx": 490,
+        "cells": 2
+      },
+      {
+        "tIdx": 492,
+        "cells": 2
+      },
+      {
+        "tIdx": 493,
+        "cells": 2
+      },
+      {
+        "tIdx": 494,
+        "cells": 2
+      },
+      {
+        "tIdx": 543,
+        "cells": 2
+      },
+      {
+        "tIdx": 588,
+        "cells": 2
       }
     ],
     "completed": false,
-    "generatorFinished": false,
+    "generatorFinished": true,
     "decreaseRegionsReached": true,
     "mixedRegionsReached": false
   },
   "compare": {
-    "experimentCourses": 56,
+    "experimentCourses": 66,
     "officialCourses": 66,
-    "experimentKnitRows": 57,
+    "experimentKnitRows": 66,
     "officialKnitRows": 83,
-    "experimentSheetRows": 69,
+    "experimentSheetRows": 114,
     "officialSheetRows": 131
   },
   "checks": {
     "problems": [],
-    "decreaseEvents": 4,
+    "decreaseEvents": 18,
     "unresolvedPending": [],
     "loop": {
       "baselineKnitCells": 667,
-      "experimentKnitCells": 458,
-      "experimentTerms": 452,
+      "experimentKnitCells": 667,
+      "experimentTerms": 648,
       "baselineTerms": 648,
-      "finalLive": 42,
+      "finalLive": 27,
       "baselineFinalLive": 27
     },
     "binding": {
@@ -603,10 +306,10 @@
     },
     "pendingIncreaseHoles": [],
     "rowKindCounts": {
-      "knit": 57,
-      "decrease": 4,
-      "flip": 3,
-      "balance": 5
+      "knit": 66,
+      "decrease": 18,
+      "flip": 12,
+      "balance": 18
     },
     "baselineRowKindCounts": {
       "knit": 83,
@@ -616,6 +319,173 @@
     },
     "renderError": null
   },
-  "timing": "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针不再插在课的中途。床已经合法时省略空平衡行。",
+  "currentBedLandings": [
+    {
+      "ring": 6,
+      "course": 56,
+      "localTerm": 19,
+      "globalTerm": 431,
+      "atKnit": [
+        {
+          "id": 22,
+          "origin": "carried:22",
+          "bed": "F",
+          "phys": 21,
+          "wale": 21
+        },
+        {
+          "id": 23,
+          "origin": "carried:23",
+          "bed": "B",
+          "phys": 21,
+          "wale": 22
+        }
+      ],
+      "atDecrease": [
+        {
+          "id": 22,
+          "origin": "carried:22",
+          "bed": "F",
+          "phys": 19,
+          "wale": 21
+        },
+        {
+          "id": 23,
+          "origin": "carried:23",
+          "bed": "F",
+          "phys": 20,
+          "wale": 22
+        }
+      ],
+      "bedsBefore": "F21[0…20] / B21[0…20]",
+      "bedsAfterBalance": "F21[0…20] / B20[1…20]",
+      "crossAtKnit": true,
+      "crossNow": false,
+      "sideAtKnit": "R",
+      "sideUsed": "R",
+      "balanceRows": 2,
+      "transfers": [
+        {
+          "dir": "X",
+          "kind": "decrease",
+          "cells": "F←@F20",
+          "note": "course 56: 实验：织的时候跨床，现在都在前床，按当前床做减针。整课织完后，第 1 次从 F20 套到 F19（carried:22）。"
+        }
+      ],
+      "balance": "F21[0…20] / B20[1…20]",
+      "sentence": "course 56: 项 19 织的时候跨床（carried:22@F21，carried:23@B21），减针时同在前床（carried:22@F19，carried:23@F20）。按当前床、R 向，从第二格套到第一格。"
+    },
+    {
+      "ring": 7,
+      "course": 59,
+      "localTerm": 37,
+      "globalTerm": 489,
+      "atKnit": [
+        {
+          "id": 25,
+          "origin": "carried:25",
+          "bed": "B",
+          "phys": 18,
+          "wale": 21
+        },
+        {
+          "id": 26,
+          "origin": "carried:26",
+          "bed": "B",
+          "phys": 17,
+          "wale": 22
+        }
+      ],
+      "atDecrease": [
+        {
+          "id": 25,
+          "origin": "carried:25",
+          "bed": "F",
+          "phys": 15,
+          "wale": 21
+        },
+        {
+          "id": 26,
+          "origin": "carried:26",
+          "bed": "F",
+          "phys": 16,
+          "wale": 22
+        }
+      ],
+      "bedsBefore": "F17[0…16] / B17[0…16]",
+      "bedsAfterBalance": "F17[0…16] / B16[1…16]",
+      "crossAtKnit": false,
+      "crossNow": false,
+      "sideAtKnit": "L",
+      "sideUsed": "R",
+      "balanceRows": 2,
+      "transfers": [
+        {
+          "dir": "X",
+          "kind": "decrease",
+          "cells": "F←@F16",
+          "note": "course 59: 实验：织的时候同床 L 向，现在都在前床，按当前床 R 向从第二格套到第一格。整课织完后，第 1 次从 F16 套到 F15（carried:25）。"
+        }
+      ],
+      "balance": "F17[0…16] / B16[1…16]",
+      "sentence": "course 59: 项 37 织的时候同床（carried:25@B18，carried:26@B17），减针时同在前床（carried:25@F15，carried:26@F16）。按当前床、R 向，从第二格套到第一格。"
+    },
+    {
+      "ring": 7,
+      "course": 59,
+      "localTerm": 38,
+      "globalTerm": 490,
+      "atKnit": [
+        {
+          "id": 27,
+          "origin": "carried:27",
+          "bed": "B",
+          "phys": 16,
+          "wale": 23
+        },
+        {
+          "id": 28,
+          "origin": "carried:28",
+          "bed": "B",
+          "phys": 15,
+          "wale": 24
+        }
+      ],
+      "atDecrease": [
+        {
+          "id": 27,
+          "origin": "carried:27",
+          "bed": "F",
+          "phys": 16,
+          "wale": 23
+        },
+        {
+          "id": 28,
+          "origin": "carried:28",
+          "bed": "B",
+          "phys": 16,
+          "wale": 24
+        }
+      ],
+      "bedsBefore": "F17[0…16] / B16[1…16]",
+      "bedsAfterBalance": "F16[0…15] / B16[0…15]",
+      "crossAtKnit": false,
+      "crossNow": true,
+      "sideAtKnit": "L",
+      "sideUsed": "L",
+      "balanceRows": 2,
+      "transfers": [
+        {
+          "dir": "Flip",
+          "kind": "flip",
+          "cells": "⬇@B16",
+          "note": "实验：织的时候同床，现在这两针跨床，按当前床套圈。整课织完后，按线圈身份套项 38。course 59: B16 翻到前床，套到 F16。"
+        }
+      ],
+      "balance": "F16[0…15] / B16[0…15]",
+      "sentence": "course 59: 项 38 织的时候同床（carried:27@B16，carried:28@B15），减针时跨床（carried:27@F16，carried:28@B16）。按当前床套圈。"
+    }
+  ],
+  "timing": "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针落点按减针当时的床位，不冻结织当时的跨床关系。床已经合法时省略空平衡行。",
   "deepLink": "?sheet=dense-decrease-exp-readable-row-schedule"
 }

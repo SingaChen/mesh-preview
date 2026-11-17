@@ -1,6 +1,4 @@
 Fat 实验床图：第一环用官方落座，之后按 2026-11-17 的课级时序
-实验停在第 9 环 course 49 L（course 49: 项 15 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 15，全表项 296。
-这一张表只含抛出之前已经画出的行。失败之后的平衡和后面的环都没有补。
 实验调度，只读 public/sample/fat/fat_cylinder_faces_ring_layout.json 的 rings（types 和 hangs）。没有重算 mesh、faces_ring、cols_resample，没有改官方床图、编织码、.dat 或 .k。第一环的加针开口和平衡时机与官方 seatRing 相同，不在计划针还没认领时先平衡。后面的课：只有加针就逐处开口并逐次平衡再整课织一次；只有减针就先整课织完再按走向逐个减针、逐次平衡；又有加针又有减针就先做完全部加针，再整课织一次，再逐个减针。同一活针不会在一行里织两次。减针剩下的位点按线圈身份找，不沿用旧针号。床已经合法（F≥B、|F−B|≤1、前床低端 F0）时省略空平衡行，需要的横移和翻针不省略。
 Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。
 底圈 N=13，拆成 F=7、B=6。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
@@ -12,9 +10,10 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
 第 6 环结束 N=24，窗 24针 · 前12[0…11] · 后12[0…11]。
 第 7 环结束 N=24，窗 24针 · 前12[0…11] · 后12[0…11]。
 第 8 环结束 N=23，窗 23针 · 前12[0…11] · 后11[1…11]。
-实验停在第 9 环 course 49 N=16，窗 16针 · 前8[0…7] · 后8[0…7]。
+第 9 环结束 N=13，窗 13针 · 前7[0…6] · 后6[1…6]。
+第 10 环结束 N=13，窗 13针 · 前7[0…6] · 后6[1…6]。
 针号是 F# / B#。表宽 25，由占用列最宽的一课决定：course 2 R 占 24 列，跨度 24。前床列 = 物理针，后床列 = 23 − 物理针。短课中间可以空。
-完整画到 ring 7。ring 8 只画到 course 49 抛出之前的行。
+10 环都在这一张表上。每一环都用这一份 faces_ring 自己落座的针。
 
 行程（织行）起点针、终点针：
   course 0 R  start F0  end B1  （13 针）
@@ -66,6 +65,9 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   course 46 L  start B1  end B2  （2 针）
   course 47 R  start B2  end B1  （2 针）
   course 48 R  start F0  end F4  （8 针）
+  course 49 L  start F4  end F6  （19 针）
+  course 50 R  start F6  end B1  （22 针）
+  course 51 R  start F0  end B1  （13 针）
 
 表行（格子按织的顺序，不是按表列从左到右）：
   row 0 R  这一行开始时 0针 · 前空 · 后空
@@ -352,6 +354,36 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   row 94 X  这一行开始时 F8[0…7] / B8[1…8]
     B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
     实验：项 14 减针之后平衡。course 49: counts match and the beds are one needle apart. Rack B -1 (F8[0…7] / B8[1…8] → F8[0…7] / B8[0…7]).
+  row 95 X  这一行开始时 16针 · 前8[0…7] · 后8[0…7]
+    B←@B7 B←@B6
+    course 49: 实验：织的时候跨床，现在都在后床，按当前床做减针。整课织完后，第 1 次从 B6 套到 B5（hole:c2:t7:g1）。
+  row 96 X  这一行开始时 F8[0…7] / B7[0…6]
+    B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    实验：项 15 减针之后平衡。course 49: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F8[0…7] / B7[1…7]).
+  row 97 Flip  这一行开始时 15针 · 前8[0…7] · 后7[1…7]
+    ⬆@F7
+    实验：织的时候同床，现在这两针跨床，按当前床套圈。整课织完后，按线圈身份套项 16。course 49: F7 翻到后床，套到 B7。
+  row 98 X  这一行开始时 F7[0…6] / B7[1…7]
+    B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    实验：项 16 减针之后平衡。course 49: counts match and the beds are one needle apart. Rack B -1 (F7[0…6] / B7[1…7] → F7[0…6] / B7[0…6]).
+  row 99 R  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    F^L@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4
+    course 50: 实验课。先把整课织完，包括将要减掉的针，减针移圈不插在织的过程中；再按走向逐个减针，每减完一处就平衡。同一课继续会重复这一行里的活针，先结束这一行。
+  row 100 R  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    F-R1@F5 F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+    course 50: 实验课。先把整课织完，包括将要减掉的针，减针移圈不插在织的过程中；再按走向逐个减针，每减完一处就平衡。
+  row 101 X  这一行开始时 14针 · 前7[0…6] · 后7[0…6]
+    F←@F6
+    course 50: 实验：整课织完后，第 1 次从 F6 套到 F5（hole:c2:t5:g1）。
+  row 102 Flip  这一行开始时 F6[0…5] / B7[0…6]
+    ⬇@B6
+    实验：项 31 减针之后平衡。course 50: right-fold flip B6→F6 (same index).
+  row 103 X  这一行开始时 F7[0…6] / B6[0…5]
+    B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    实验：项 31 减针之后平衡。course 50: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F7[0…6] / B6[1…6]).
+  row 104 R  这一行开始时 13针 · 前7[0…6] · 后6[1…6]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+    course 51: 实验课。这一课没有加减针，整课织一次。
 
 每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。
 第一环 加减针 hang（n_extra）：无。
@@ -370,6 +402,8 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
 第七环里没有 hang 不是 1 的项。
 第8环 加减针 hang（n_extra）：term 253 Type 3 hang 1。
 第8环里没有 hang 不是 1 的项。
-第9环 加减针 hang（n_extra）：term 283 Type 3 hang 1，term 284 Type 3 hang 1，term 285 Type 5 hang 1，term 291 Type 3 hang 1，term 293 Type 3 hang 1，term 294 Type 3 hang 1，term 295 Type 3 hang 1，term 296 Type 3 hang 1，term 297 Type 3 hang 1。
+第9环 加减针 hang（n_extra）：term 283 Type 3 hang 1，term 284 Type 3 hang 1，term 285 Type 5 hang 1，term 291 Type 3 hang 1，term 293 Type 3 hang 1，term 294 Type 3 hang 1，term 295 Type 3 hang 1，term 296 Type 3 hang 1，term 297 Type 3 hang 1，term 312 Type 3 hang 1。
 第9环里没有 hang 不是 1 的项。
-其余 280 项不是加减针，hang 为 0。
+第10环 加减针 hang（n_extra）：无。
+第10环里没有 hang 不是 1 的项。
+其余 313 项不是加减针，hang 为 0。

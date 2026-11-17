@@ -36,6 +36,7 @@
         "increaseOpenings": 0,
         "decreases": 0
       },
+      "currentBedLandings": [],
       "ringStarts": [
         {
           "ring": 0,
@@ -108,6 +109,7 @@
         "increaseOpenings": 0,
         "decreases": 0
       },
+      "currentBedLandings": [],
       "ringStarts": [
         {
           "ring": 0,
@@ -228,6 +230,7 @@
         "increaseOpenings": 1,
         "decreases": 0
       },
+      "currentBedLandings": [],
       "ringStarts": [
         {
           "ring": 0,
@@ -288,6 +291,7 @@
         "increaseOpenings": 0,
         "decreases": 1
       },
+      "currentBedLandings": [],
       "ringStarts": [
         {
           "ring": 0,
@@ -330,24 +334,44 @@
       "menuLabel": "Thin 实验（新时序）",
       "directory": "experiments/official-thin-readable-row-schedule",
       "deepLink": "?sheet=thin-exp-readable-row-schedule",
-      "status": "partial",
-      "completed": false,
+      "status": "complete",
+      "completed": true,
       "firstRingIdentical": true,
       "officialUnchanged": true,
       "officialXlsSha256": "eb7a79f6c77c1d331165bbeac0638497bdec6de55edc328d3aaf02cab4e46d45",
       "courses": {
-        "experimentCourses": 22,
+        "experimentCourses": 31,
         "officialCourses": 31,
-        "experimentKnitRows": 23,
+        "experimentKnitRows": 31,
         "officialKnitRows": 41,
-        "experimentSheetRows": 40,
+        "experimentSheetRows": 83,
         "officialSheetRows": 87
       },
       "postponed": [],
       "omittedNoOpBalances": {
-        "increaseOpenings": 0,
-        "decreases": 0
+        "increaseOpenings": 2,
+        "decreases": 2
       },
+      "currentBedLandings": [
+        {
+          "ring": 4,
+          "course": 22,
+          "localTerm": 6,
+          "globalTerm": 139,
+          "sentence": "course 22: 项 6 织的时候跨床（carried:11@F9，carried:12@B9），减针时同在前床（carried:11@F6，carried:12@F7）。按当前床、R 向，从第二格套到第一格。",
+          "bedsBefore": "F9[0…8] / B8[1…8]",
+          "bedsAfterBalance": "F8[0…7] / B8[0…7]"
+        },
+        {
+          "ring": 4,
+          "course": 22,
+          "localTerm": 7,
+          "globalTerm": 140,
+          "sentence": "course 22: 项 7 织的时候同床（carried:13@B8，carried:14@B7），减针时跨床（carried:13@F7，carried:14@B7）。按当前床套圈。",
+          "bedsBefore": "F8[0…7] / B8[0…7]",
+          "bedsAfterBalance": "F8[0…7] / B7[1…7]"
+        }
+      ],
       "ringStarts": [
         {
           "ring": 0,
@@ -378,15 +402,58 @@
           "course": 22,
           "start": "F0",
           "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 5,
+          "course": 23,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 6,
+          "course": 24,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 7,
+          "course": 25,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 8,
+          "course": 26,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 9,
+          "course": 27,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 10,
+          "course": 28,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 11,
+          "course": 29,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 12,
+          "course": 30,
+          "start": "F0",
+          "schedule": "knit-then-dec"
         }
       ],
-      "partialStop": {
-        "ring": 4,
-        "course": 22,
-        "dir": "R",
-        "sentence": "实验停在第 5 环 course 22 R（course 22: 项 6 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 6，全表项 139。"
-      },
-      "statusLine": "未完成。实验停在第 5 环 course 22 R（course 22: 项 6 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 6，全表项 139。 已生成 22 课 / 官方 31 课，织 156 针、项 146 / 288。",
+      "partialStop": null,
+      "statusLine": "生成完成。实验 31 课，官方 31 课；实验 31 个织行，官方 41 个织行。",
       "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 thin_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
       "divergenceLine": "第一环之后最早的针位差异在织针序 117：项 116 ·。官方 F3（表行 24，course 21）。实验 F4（表行 21，course 21，线圈 carried:4）。 第一处减针是 course 21 项 115 -R1（表行 21，只有减针）。减针移圈排在这一课全部织行之后。"
     },
@@ -395,17 +462,17 @@
       "menuLabel": "Fat 实验（新时序）",
       "directory": "experiments/official-fat-readable-row-schedule",
       "deepLink": "?sheet=fat-exp-readable-row-schedule",
-      "status": "partial",
-      "completed": false,
+      "status": "complete",
+      "completed": true,
       "firstRingIdentical": true,
       "officialUnchanged": true,
       "officialXlsSha256": "c43bd80541363b6ce9758e4bf1810793251b073fa5d57562e3b2fd2ec76506d3",
       "courses": {
-        "experimentCourses": 49,
+        "experimentCourses": 52,
         "officialCourses": 52,
-        "experimentKnitRows": 50,
+        "experimentKnitRows": 53,
         "officialKnitRows": 63,
-        "experimentSheetRows": 95,
+        "experimentSheetRows": 105,
         "officialSheetRows": 106
       },
       "postponed": [],
@@ -413,6 +480,26 @@
         "increaseOpenings": 2,
         "decreases": 0
       },
+      "currentBedLandings": [
+        {
+          "ring": 8,
+          "course": 49,
+          "localTerm": 15,
+          "globalTerm": 296,
+          "sentence": "course 49: 项 15 织的时候跨床（hole:c2:t7:g1@B9，carried:7@F9），减针时同在后床（hole:c2:t7:g1@B5，carried:7@B6）。按当前床、R 向，从第二格套到第一格。",
+          "bedsBefore": "F8[0…7] / B8[0…7]",
+          "bedsAfterBalance": "F8[0…7] / B7[1…7]"
+        },
+        {
+          "ring": 8,
+          "course": 49,
+          "localTerm": 16,
+          "globalTerm": 297,
+          "sentence": "course 49: 项 16 织的时候同床（hole:c2:t6:g1@F8，carried:6@F7），减针时跨床（hole:c2:t6:g1@B7，carried:6@F7）。按当前床套圈。",
+          "bedsBefore": "F8[0…7] / B7[1…7]",
+          "bedsAfterBalance": "F7[0…6] / B7[0…6]"
+        }
+      ],
       "ringStarts": [
         {
           "ring": 0,
@@ -467,15 +554,16 @@
           "course": 48,
           "start": "F0",
           "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 9,
+          "course": 51,
+          "start": "F0",
+          "schedule": "knit"
         }
       ],
-      "partialStop": {
-        "ring": 8,
-        "course": 49,
-        "dir": "L",
-        "sentence": "实验停在第 9 环 course 49 L（course 49: 项 15 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 15，全表项 296。"
-      },
-      "statusLine": "未完成。实验停在第 9 环 course 49 L（course 49: 项 15 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 15，全表项 296。 已生成 49 课 / 官方 52 课，织 320 针、项 299 / 333。",
+      "partialStop": null,
+      "statusLine": "生成完成。实验 52 课，官方 52 课；实验 53 个织行，官方 63 个织行。",
       "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 fat_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
       "divergenceLine": "第一环之后最早的针位差异在织针序 39：项 32 ·。官方 F12（表行 11，course 2）。实验 B11（表行 27，course 2，线圈 hole:c2:t6:g1）。 第一处减针是 course 43 项 253 -R1（表行 68，只有减针）。减针移圈排在这一课全部织行之后。"
     },
@@ -502,6 +590,7 @@
         "increaseOpenings": 5,
         "decreases": 0
       },
+      "currentBedLandings": [],
       "ringStarts": [
         {
           "ring": 0,
@@ -574,24 +663,53 @@
       "menuLabel": "Dense Decrease 实验（新时序）",
       "directory": "experiments/official-dense-decrease-readable-row-schedule",
       "deepLink": "?sheet=dense-decrease-exp-readable-row-schedule",
-      "status": "partial",
-      "completed": false,
+      "status": "complete",
+      "completed": true,
       "firstRingIdentical": true,
       "officialUnchanged": true,
       "officialXlsSha256": "5e282f8a98d1c192beec39fcf937af6c7948042339acd5e7aea2c401f91f5ce6",
       "courses": {
-        "experimentCourses": 56,
+        "experimentCourses": 66,
         "officialCourses": 66,
-        "experimentKnitRows": 57,
+        "experimentKnitRows": 66,
         "officialKnitRows": 83,
-        "experimentSheetRows": 69,
+        "experimentSheetRows": 114,
         "officialSheetRows": 131
       },
       "postponed": [],
       "omittedNoOpBalances": {
         "increaseOpenings": 0,
-        "decreases": 0
+        "decreases": 3
       },
+      "currentBedLandings": [
+        {
+          "ring": 6,
+          "course": 56,
+          "localTerm": 19,
+          "globalTerm": 431,
+          "sentence": "course 56: 项 19 织的时候跨床（carried:22@F21，carried:23@B21），减针时同在前床（carried:22@F19，carried:23@F20）。按当前床、R 向，从第二格套到第一格。",
+          "bedsBefore": "F21[0…20] / B21[0…20]",
+          "bedsAfterBalance": "F21[0…20] / B20[1…20]"
+        },
+        {
+          "ring": 7,
+          "course": 59,
+          "localTerm": 37,
+          "globalTerm": 489,
+          "sentence": "course 59: 项 37 织的时候同床（carried:25@B18，carried:26@B17），减针时同在前床（carried:25@F15，carried:26@F16）。按当前床、R 向，从第二格套到第一格。",
+          "bedsBefore": "F17[0…16] / B17[0…16]",
+          "bedsAfterBalance": "F17[0…16] / B16[1…16]"
+        },
+        {
+          "ring": 7,
+          "course": 59,
+          "localTerm": 38,
+          "globalTerm": 490,
+          "sentence": "course 59: 项 38 织的时候同床（carried:27@B16，carried:28@B15），减针时跨床（carried:27@F16，carried:28@B16）。按当前床套圈。",
+          "bedsBefore": "F17[0…16] / B16[1…16]",
+          "bedsAfterBalance": "F16[0…15] / B16[0…15]"
+        }
+      ],
       "ringStarts": [
         {
           "ring": 0,
@@ -634,15 +752,40 @@
           "course": 56,
           "start": "F0",
           "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 7,
+          "course": 57,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 8,
+          "course": 62,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 9,
+          "course": 63,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 10,
+          "course": 64,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 11,
+          "course": 65,
+          "start": "F0",
+          "schedule": "knit"
         }
       ],
-      "partialStop": {
-        "ring": 6,
-        "course": 56,
-        "dir": "R",
-        "sentence": "实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。"
-      },
-      "statusLine": "未完成。实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。 已生成 56 课 / 官方 66 课，织 458 针、项 452 / 648。",
+      "partialStop": null,
+      "statusLine": "生成完成。实验 66 课，官方 66 课；实验 66 个织行，官方 83 个织行。",
       "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_decrease_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
       "divergenceLine": "第一环之后最早的针位差异在织针序 320：项 319 ·。官方 F5（表行 35，course 31）。实验 F6（表行 31，course 31，线圈 carried:6）。 第一处减针是 course 31 项 318 -R1（表行 31，只有减针）。减针移圈排在这一课全部织行之后。"
     },
@@ -651,24 +794,35 @@
       "menuLabel": "Dense Thin 实验（新时序）",
       "directory": "experiments/official-dense-thin-readable-row-schedule",
       "deepLink": "?sheet=dense-thin-exp-readable-row-schedule",
-      "status": "partial",
-      "completed": false,
+      "status": "complete",
+      "completed": true,
       "firstRingIdentical": true,
       "officialUnchanged": true,
       "officialXlsSha256": "6ba9f8b4cbc93d571a2fe2a51bb39310b7cb94086579a044e0e23eb9e5eb1ac0",
       "courses": {
-        "experimentCourses": 57,
+        "experimentCourses": 148,
         "officialCourses": 148,
-        "experimentKnitRows": 58,
+        "experimentKnitRows": 148,
         "officialKnitRows": 170,
-        "experimentSheetRows": 99,
+        "experimentSheetRows": 266,
         "officialSheetRows": 276
       },
       "postponed": [],
       "omittedNoOpBalances": {
-        "increaseOpenings": 0,
-        "decreases": 1
+        "increaseOpenings": 3,
+        "decreases": 3
       },
+      "currentBedLandings": [
+        {
+          "ring": 7,
+          "course": 57,
+          "localTerm": 15,
+          "globalTerm": 454,
+          "sentence": "course 57: 项 15 织的时候同床（carried:26@B16，carried:27@B15），减针时跨床（carried:26@F15，carried:27@B15）。按当前床套圈。",
+          "bedsBefore": "F16[0…15] / B16[0…15]",
+          "bedsAfterBalance": "F16[0…15] / B15[1…15]"
+        }
+      ],
       "ringStarts": [
         {
           "ring": 0,
@@ -717,15 +871,106 @@
           "course": 57,
           "start": "F0",
           "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 8,
+          "course": 58,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 9,
+          "course": 59,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 10,
+          "course": 60,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 11,
+          "course": 61,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 12,
+          "course": 62,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 13,
+          "course": 63,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 14,
+          "course": 64,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 15,
+          "course": 65,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 16,
+          "course": 66,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 17,
+          "course": 67,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 18,
+          "course": 68,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 19,
+          "course": 69,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 20,
+          "course": 70,
+          "start": "F0",
+          "schedule": "inc-then-knit"
+        },
+        {
+          "ring": 21,
+          "course": 91,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 22,
+          "course": 110,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 23,
+          "course": 131,
+          "start": "F0",
+          "schedule": "knit"
         }
       ],
-      "partialStop": {
-        "ring": 7,
-        "course": 57,
-        "dir": "R",
-        "sentence": "实验停在第 8 环 course 57 R（course 57: 项 15 在织的时候同床，平衡之后变成跨床。不改减针落点。）。 环内项 15，全表项 454。"
-      },
-      "statusLine": "未完成。实验停在第 8 环 course 57 R（course 57: 项 15 在织的时候同床，平衡之后变成跨床。不改减针落点。）。 环内项 15，全表项 454。 已生成 57 课 / 官方 148 课，织 486 针、项 467 / 1271。",
+      "partialStop": null,
+      "statusLine": "生成完成。实验 148 课，官方 148 课；实验 148 个织行，官方 170 个织行。",
       "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_thin_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
       "divergenceLine": "第一环之后最早的针位差异在织针序 362：项 361 ·。官方 B3（表行 44，course 39）。实验 B4（表行 39，course 39，线圈 carried:43）。 第一处减针是 course 39 项 360 -L1（表行 39，只有减针）。减针移圈排在这一课全部织行之后。"
     },
@@ -734,24 +979,44 @@
       "menuLabel": "Dense Fat 实验（新时序）",
       "directory": "experiments/official-dense-fat-readable-row-schedule",
       "deepLink": "?sheet=dense-fat-exp-readable-row-schedule",
-      "status": "partial",
-      "completed": false,
+      "status": "complete",
+      "completed": true,
       "firstRingIdentical": true,
       "officialUnchanged": true,
       "officialXlsSha256": "24348e293d7b23d4ec8b21e9232a66818493e8fe015a23232554d3ece5fff906",
       "courses": {
-        "experimentCourses": 205,
+        "experimentCourses": 214,
         "officialCourses": 214,
-        "experimentKnitRows": 206,
+        "experimentKnitRows": 214,
         "officialKnitRows": 234,
-        "experimentSheetRows": 293,
+        "experimentSheetRows": 327,
         "officialSheetRows": 332
       },
       "postponed": [],
       "omittedNoOpBalances": {
         "increaseOpenings": 4,
-        "decreases": 0
+        "decreases": 3
       },
+      "currentBedLandings": [
+        {
+          "ring": 15,
+          "course": 205,
+          "localTerm": 23,
+          "globalTerm": 1219,
+          "sentence": "course 205: 项 23 织的时候跨床（carried:13@F20，hole:c7:t24:g1@B20），减针时同在前床（carried:13@F15，hole:c7:t24:g1@F16）。按当前床、R 向，从第二格套到第一格。",
+          "bedsBefore": "F18[0…17] / B18[0…17]",
+          "bedsAfterBalance": "F18[0…17] / B17[1…17]"
+        },
+        {
+          "ring": 15,
+          "course": 205,
+          "localTerm": 24,
+          "globalTerm": 1220,
+          "sentence": "course 205: 项 24 织的时候同床（carried:14@B19，hole:c7:t25:g1@B18），减针时同在前床（carried:14@F16，hole:c7:t25:g1@F17）。按当前床、R 向，从第二格套到第一格。",
+          "bedsBefore": "F18[0…17] / B17[1…17]",
+          "bedsAfterBalance": "F17[0…16] / B17[0…16]"
+        }
+      ],
       "ringStarts": [
         {
           "ring": 0,
@@ -848,15 +1113,34 @@
           "course": 201,
           "start": "F0",
           "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 16,
+          "course": 206,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 17,
+          "course": 211,
+          "start": "F0",
+          "schedule": "knit"
+        },
+        {
+          "ring": 18,
+          "course": 212,
+          "start": "F0",
+          "schedule": "knit-then-dec"
+        },
+        {
+          "ring": 19,
+          "course": 213,
+          "start": "F0",
+          "schedule": "knit"
         }
       ],
-      "partialStop": {
-        "ring": 15,
-        "course": 205,
-        "dir": "R",
-        "sentence": "实验停在第 16 环 course 205 R（course 205: 项 23 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 23，全表项 1219。"
-      },
-      "statusLine": "未完成。实验停在第 16 环 course 205 R（course 205: 项 23 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 23，全表项 1219。 已生成 205 课 / 官方 214 课，织 1273 针、项 1233 / 1387。",
+      "partialStop": null,
+      "statusLine": "生成完成。实验 214 课，官方 214 课；实验 214 个织行，官方 234 个织行。",
       "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_fat_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
       "divergenceLine": "第一环之后最早的针位差异在织针序 38：项 37 ·。官方 F13（表行 2，course 1）。实验 B12（表行 4，course 1，线圈 carried:12）。 第一处减针是 course 181 项 1066 -L1（表行 240，只有减针）。减针移圈排在这一课全部织行之后。"
     }
