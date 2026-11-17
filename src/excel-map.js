@@ -122,6 +122,15 @@ export function isDenseFatCylinderBedChart(name) {
   return /^dense_fat_cylinder_bed\.xlsx?$/i.test(base);
 }
 
+/** Official-Bunny timing experiment. Explicit sheet only — folder discovery stays on step4-ring0. */
+export function isBunnyExpReadableMap(name) {
+  const base = String(name || "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop();
+  return /^exp-readable-map\.xlsx?$/i.test(base);
+}
+
 /** faces_ring ring-0 bed chart. Explicit sample only — folder discovery stays on step4-ring0. */
 export function isFacesRing0BedChart(name) {
   const base = String(name || "")

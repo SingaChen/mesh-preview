@@ -1,3 +1,5 @@
+import expReadableMapUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.xls?url";
+import expReadableMapTxtUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.txt?url";
 import { MeshViewer } from "./viewer.js";
 import {
   clickInput,
@@ -39,6 +41,7 @@ import {
   formatPhysicalNeedle,
   formatPhysicalNeedles,
   isFacesRing0BedChart,
+  isBunnyExpReadableMap,
   isDecreaseCylinderBedChart,
   isIncreaseCylinderBedChart,
   isThinCylinderBedChart,
@@ -102,6 +105,9 @@ const exportSlot = document.querySelector("#export-slot");
 const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
+const BUNNY_EXP_SHEET = "bunny-exp-readable-row-schedule";
+const BUNNY_EXP_LABEL = "Bunny 实验（新时序，未跑完）";
+const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedule");
 const standradBtn = document.querySelector("#load-standrad-cylinder");
 const denseStandradBtn = document.querySelector("#load-dense-standrad-cylinder");
 const decreaseBtn = document.querySelector("#load-decrease-cylinder");
@@ -416,6 +422,7 @@ function isMapXlsEntry(entry) {
   return (
     isExcelReadableMapName(name) ||
     isFacesRing0BedChart(name) ||
+    isBunnyExpReadableMap(name) ||
     isDecreaseCylinderBedChart(name) ||
     isIncreaseCylinderBedChart(name) ||
     isThinCylinderBedChart(name) ||
@@ -1255,6 +1262,72 @@ async function loadDenseBunnyLe() {
   }
 }
 
+function isBunnyExpReadableSheet(sheet = sheetQuery()) {
+  return String(sheet || "").trim().toLowerCase() === BUNNY_EXP_SHEET;
+}
+
+async function loadBunnyExpReadableRow() {
+  if (!isBunnyExpReadableSheet()) setSheetQuery(BUNNY_EXP_SHEET);
+  setStatus(`加载 ${BUNNY_EXP_LABEL}…`);
+  const base = import.meta.env.BASE_URL;
+  try {
+    const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
+    if (!res.ok) throw new Error("Bunny 清单不可用 / Bunny manifest missing");
+    const data = await res.json();
+    const official = data.outputs?.[0];
+    if (!official?.mesh) throw new Error("官方 Bunny 网格不在清单里");
+    const output = {
+      ...official,
+      label: BUNNY_EXP_LABEL,
+      readableMap: "exp-readable-map.xls",
+      readableMapTxt: "exp-readable-map.txt",
+    };
+    delete output.stitchMapBind;
+    delete output.stitch_map_bind;
+    delete output.knitCode;
+    delete output.knit_code;
+    delete output.knittingCode;
+    delete output.knitting_code;
+    data.name = BUNNY_EXP_LABEL;
+    data.outputs = [output];
+    const paths = collectManifestRefs(data).filter(
+      (rel) =>
+        rel.includes("/") &&
+        !rel.endsWith("faces_ring0_step4_bed.xls") &&
+        !rel.endsWith("faces_ring0_step4_bed.txt") &&
+        !rel.endsWith("stitch_map_bind.json"),
+    );
+    const entries = [{ name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) }];
+    await Promise.all(
+      paths.map(async (rel) => {
+        const file = await fetch(`${base}sample/${rel}`, { cache: "reload" });
+        if (!file.ok) throw new Error(`缺少官方 Bunny 参照 / Missing Bunny ${rel}`);
+        entries.push(await sampleEntry(rel, file));
+      }),
+    );
+    const [xlsRes, txtRes] = await Promise.all([fetch(expReadableMapUrl), fetch(expReadableMapTxtUrl)]);
+    if (!xlsRes.ok || !txtRes.ok) throw new Error("实验床图不可用 / Experimental readable map missing");
+    entries.push({
+      name: "exp-readable-map.xls",
+      path: "experiments/official-bunny-readable-row-schedule/exp-readable-map.xls",
+      buffer: await xlsRes.arrayBuffer(),
+    });
+    entries.push({
+      name: "exp-readable-map.txt",
+      path: "experiments/official-bunny-readable-row-schedule/exp-readable-map.txt",
+      text: await txtRes.text(),
+    });
+    await openEntries(entries, { sheet: BUNNY_EXP_SHEET });
+    if (project) project.banner = "实验时序 · 未跑完 · 右侧不是官方床图";
+    updateChrome();
+    if (!statusEl.classList.contains("error")) {
+      setStatus(`${BUNNY_EXP_LABEL} · 左侧是官方 Bunny 网格 · 右侧只到 course 2 开口 · B14 被未织计划针挡住`);
+    }
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
 async function loadSample(sheet = sheetQuery()) {
   const want = String(sheet || "").trim() || "faces-ring0";
   if (!sheetQuery()) setSheetQuery(want);
@@ -1333,6 +1406,11 @@ facesRing0Btn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("faces-ring0");
   loadSample("faces-ring0");
+});
+bunnyExpBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery(BUNNY_EXP_SHEET);
+  loadBunnyExpReadableRow();
 });
 standradBtn?.addEventListener("click", () => {
   setOpenMenu(false);
@@ -1869,11 +1947,15 @@ function paintMapChrome() {
   }
   if (mapHeading) {
     mapHeading.replaceChildren();
-    mapHeading.append(document.createTextNode(showingKnit ? "编织码 " : "生长图 "));
-    const en = document.createElement("span");
-    en.className = "en";
-    en.textContent = showingKnit ? "Code" : "Map";
-    mapHeading.append(en);
+    if (!showingKnit && isBunnyExpReadableSheet()) {
+      mapHeading.append(document.createTextNode(BUNNY_EXP_LABEL));
+    } else {
+      mapHeading.append(document.createTextNode(showingKnit ? "编织码 " : "生长图 "));
+      const en = document.createElement("span");
+      en.className = "en";
+      en.textContent = showingKnit ? "Code" : "Map";
+      mapHeading.append(en);
+    }
   }
   if (showingKnit) {
     if (knitRenderKey !== knit) renderKnitCode(knit);
@@ -1924,7 +2006,9 @@ function paintReadableMap() {
   const h = map.header;
   if (mapMeta) {
     mapMeta.textContent =
-      map.source === "excel"
+      map.source === "excel" && isBunnyExpReadableSheet()
+        ? `未跑完 · ${map.rows.length} 行 · 列 ${map.colMin}…${map.colMax} · course 0–1 已织 · course 2 开口后停住 · 不是官方 Bunny`
+        : map.source === "excel"
         ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "Bunny" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${stoppedMapSuffix(map)}`
         : h
           ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
@@ -2174,6 +2258,7 @@ else if (isDenseDecreaseSheet(sheetQuery())) loadDenseDecreaseCylinder();
 else if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
 else if (isDenseStandradSheet(sheetQuery())) loadDenseStandradCylinder();
 else if (isStandradSheet(sheetQuery())) loadStandradCylinder();
+else if (isBunnyExpReadableSheet(sheetQuery())) loadBunnyExpReadableRow();
 else {
   if (!sheetQuery()) setSheetQuery("faces-ring0");
   loadSample(sheetQuery() || "faces-ring0");
