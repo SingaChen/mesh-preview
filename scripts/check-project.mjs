@@ -1861,6 +1861,18 @@ assert(
   "faces-ring0 is labeled Bunny in the Open menu, status, and sheet header",
 );
 assert(manifest.outputs[0].label === "Bunny", "faces-ring0 output label is Bunny");
+assert(
+  html.includes('id="load-bunny-exp-readable-row-schedule"') &&
+    html.includes("Bunny 实验（新时序，未跑完）") &&
+    html.indexOf('id="load-bunny-exp-readable-row-schedule"') > html.indexOf('id="load-faces-ring0"') &&
+    mainSrc.includes('const BUNNY_EXP_SHEET = "bunny-exp-readable-row-schedule"') &&
+    mainSrc.includes("loadBunnyExpReadableRow") &&
+    mainSrc.includes("exp-readable-map.xls") &&
+    !existsSync(join(cylDir, "exp-readable-map.xls")) &&
+    !existsSync(join(cylDir, "exp-readable-map.txt")) &&
+    existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.xls")),
+  "the incomplete timing experiment is its own sheet and does not replace the official Bunny bed",
+);
 assert(html.includes('id="load-faces-ring0"') && !html.includes('id="load-faces-ring1"') && mainSrc.includes("faces-ring0") && mainSrc.includes("isFacesRing0BedChart"), "Open menu loads the joined faces-ring bed chart");
 assert(!mainSrc.includes("#load-sample") && !mainSrc.includes("load-sample"), "main no longer wires 示例");
 assert(
@@ -3536,7 +3548,7 @@ assertDenseCylinderSample({
       datForSheet("fat") === fat,
     "complete cylinder aliases share the same dat",
   );
-  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le"]) {
+  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-exp-readable-row-schedule"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
   }
   const sha256 = (rel) => createHash("sha256").update(readFileSync(join(sampleDir, rel))).digest("hex");
