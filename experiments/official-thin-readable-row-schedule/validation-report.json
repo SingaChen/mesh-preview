@@ -1,0 +1,452 @@
+{
+  "experiment": "official-thin-readable-row-schedule",
+  "sheetId": "thin-exp-readable-row-schedule",
+  "menuLabel": "Thin 实验（新时序）",
+  "input": {
+    "path": "public/sample/thin/thin_cylinder_faces_ring_layout.json",
+    "sha256": "258f7b591b7e89082a8571a1a16fd56731f31800902551b366f31f185d56c020",
+    "source": "Thin Cylinder, scale_mode=propagate. rings[].types is Term.Type. rings[].hangs is Term.remain / n_extra. path_generate skips first_rows index 0, so first_rows_index = row + 1. SingaLab algorithm 4b80d8f4f079929ab6bb203d5d8bc0e2c76d9c04.",
+    "model": "thin",
+    "nFacesRing": 13,
+    "termTotal": 288,
+    "termCounts": [
+      23,
+      23,
+      67,
+      20,
+      13,
+      13,
+      13,
+      13,
+      13,
+      20,
+      23,
+      24,
+      23
+    ]
+  },
+  "baseline": {
+    "xls": "public/sample/thin/thin_cylinder_bed.xls",
+    "xlsSha256": "eb7a79f6c77c1d331165bbeac0638497bdec6de55edc328d3aaf02cab4e46d45",
+    "xlsSha256After": "eb7a79f6c77c1d331165bbeac0638497bdec6de55edc328d3aaf02cab4e46d45",
+    "txt": "public/sample/thin/thin_cylinder_bed.txt",
+    "txtSha256": "4cb112c9c362357c4bcf6fb194cd68b2de4f7b4d1186857b459be6d372b2d944",
+    "txtSha256After": "4cb112c9c362357c4bcf6fb194cd68b2de4f7b4d1186857b459be6d372b2d944",
+    "unchanged": true,
+    "rebuild": "full",
+    "rebuildError": null
+  },
+  "officialAssets": {
+    "thin_cylinder_faces_ring_layout.json": "258f7b591b7e89082a8571a1a16fd56731f31800902551b366f31f185d56c020",
+    "thin_cylinder_bed.xls": "eb7a79f6c77c1d331165bbeac0638497bdec6de55edc328d3aaf02cab4e46d45",
+    "thin_cylinder_bed.txt": "4cb112c9c362357c4bcf6fb194cd68b2de4f7b4d1186857b459be6d372b2d944",
+    "public/sample/thin/thin_cylinder.dat": "06dfb76b5fe20786cda385084fa90a42563114f578d8e81787695ac3522ce5a0",
+    "public/sample/thin/thin_cylinder.k": "9b88134acd72871563b3809bbed8535a7afb1199bf9fd1f34cb0a43e920b03f0",
+    "public/sample/thin/thin_cylinder_knitcode.json": "e7ea8ec5a7cd673eb6ac9a171b81b38b20c9ba673502b1b1b218b52488e6c03b",
+    "public/sample/thin/thin_cylinder_KnittingStitches.obj": "e3952c5a6ac4539108001524778203df752c6a6e3a303461e50507f96c06523d"
+  },
+  "output": {
+    "directory": "experiments/official-thin-readable-row-schedule",
+    "files": [
+      "exp-readable-map.txt",
+      "exp-readable-map.xls",
+      "exp-readable-map.json",
+      "validation-report.json",
+      "compare.html",
+      "preview-chrome.json"
+    ],
+    "dat": null,
+    "knitCode": null
+  },
+  "status": "partial",
+  "statusLine": "未完成。实验停在第 5 环 course 22 R（course 22: 项 6 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 6，全表项 139。 已生成 22 课 / 官方 31 课，织 156 针、项 146 / 288。",
+  "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 thin_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+  "divergenceLine": "第一环之后最早的针位差异在织针序 117：项 116 ·。官方 F3（表行 24，course 21）。实验 F4（表行 21，course 21，线圈 carried:4）。 第一处减针是 course 21 项 115 -R1（表行 21，只有减针）。减针移圈排在这一课全部织行之后。",
+  "firstRing": {
+    "courses": 1,
+    "rows": 1,
+    "identical": true,
+    "mismatch": null,
+    "txtMismatch": null,
+    "seatRingError": null,
+    "noDecreasePrefix": null
+  },
+  "firstDecrease": {
+    "course": 21,
+    "mixed": false,
+    "sheetRow": 21,
+    "term": 115,
+    "label": "-R1",
+    "postKnitDecrease": true,
+    "knitRows": 1,
+    "decreaseRows": 3
+  },
+  "postponedBalances": [],
+  "omittedNoOpBalances": {
+    "increaseOpenings": 0,
+    "decreases": 0
+  },
+  "ringStarts": [
+    {
+      "ring": 0,
+      "course": 0,
+      "start": "F0",
+      "schedule": "official-seatRing"
+    },
+    {
+      "ring": 1,
+      "course": 1,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 2,
+      "course": 2,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 3,
+      "course": 21,
+      "start": "F0",
+      "schedule": "knit-then-dec"
+    },
+    {
+      "ring": 4,
+      "course": 22,
+      "start": "F0",
+      "schedule": "knit-then-dec"
+    }
+  ],
+  "partialStop": {
+    "ring": 4,
+    "course": 22,
+    "dir": "R",
+    "message": "course 22: 项 6 在织的时候跨床，平衡之后变成同床。不改减针落点。",
+    "sentence": "实验停在第 5 环 course 22 R（course 22: 项 6 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 6，全表项 139。",
+    "detail": {
+      "phase": "decrease-geometry",
+      "error": "course 22: 项 6 在织的时候跨床，平衡之后变成同床。不改减针落点。",
+      "course": 22,
+      "dir": "R",
+      "index": 0,
+      "term": 6,
+      "label": "·",
+      "before": {
+        "n": 17,
+        "text": "F9[0…8] / B8[1…8]",
+        "live": "17针 · 前9[0…8] · 后8[1…8]",
+        "front": [
+          {
+            "id": 0,
+            "origin": "carried:0",
+            "bed": "F",
+            "phys": 0,
+            "wale": 0
+          },
+          {
+            "id": 1,
+            "origin": "carried:1",
+            "bed": "F",
+            "phys": 1,
+            "wale": 1
+          },
+          {
+            "id": 2,
+            "origin": "carried:2",
+            "bed": "F",
+            "phys": 2,
+            "wale": 2
+          },
+          {
+            "id": 5,
+            "origin": "carried:5",
+            "bed": "F",
+            "phys": 3,
+            "wale": 4
+          },
+          {
+            "id": 7,
+            "origin": "carried:7",
+            "bed": "F",
+            "phys": 4,
+            "wale": 6
+          },
+          {
+            "id": 9,
+            "origin": "carried:9",
+            "bed": "F",
+            "phys": 5,
+            "wale": 8
+          },
+          {
+            "id": 11,
+            "origin": "carried:11",
+            "bed": "F",
+            "phys": 6,
+            "wale": 9
+          },
+          {
+            "id": 12,
+            "origin": "carried:12",
+            "bed": "F",
+            "phys": 7,
+            "wale": 10
+          },
+          {
+            "id": 13,
+            "origin": "carried:13",
+            "bed": "F",
+            "phys": 8,
+            "wale": 11
+          }
+        ],
+        "back": [
+          {
+            "id": 22,
+            "origin": "carried:22",
+            "bed": "B",
+            "phys": 1,
+            "wale": 19
+          },
+          {
+            "id": 21,
+            "origin": "carried:21",
+            "bed": "B",
+            "phys": 2,
+            "wale": 18
+          },
+          {
+            "id": 19,
+            "origin": "carried:19",
+            "bed": "B",
+            "phys": 3,
+            "wale": 17
+          },
+          {
+            "id": 18,
+            "origin": "carried:18",
+            "bed": "B",
+            "phys": 4,
+            "wale": 16
+          },
+          {
+            "id": 17,
+            "origin": "carried:17",
+            "bed": "B",
+            "phys": 5,
+            "wale": 15
+          },
+          {
+            "id": 16,
+            "origin": "carried:16",
+            "bed": "B",
+            "phys": 6,
+            "wale": 14
+          },
+          {
+            "id": 15,
+            "origin": "carried:15",
+            "bed": "B",
+            "phys": 7,
+            "wale": 13
+          },
+          {
+            "id": 14,
+            "origin": "carried:14",
+            "bed": "B",
+            "phys": 8,
+            "wale": 12
+          }
+        ]
+      },
+      "after": null,
+      "aborted": null,
+      "atKnit": [
+        {
+          "id": 11,
+          "origin": "carried:11",
+          "bed": "F",
+          "phys": 9,
+          "wale": 9
+        },
+        {
+          "id": 12,
+          "origin": "carried:12",
+          "bed": "B",
+          "phys": 9,
+          "wale": 10
+        }
+      ],
+      "atNow": [
+        {
+          "id": 11,
+          "origin": "carried:11",
+          "bed": "F",
+          "phys": 6,
+          "wale": 9
+        },
+        {
+          "id": 12,
+          "origin": "carried:12",
+          "bed": "F",
+          "phys": 7,
+          "wale": 10
+        }
+      ],
+      "needle": null,
+      "marker": null,
+      "holes": null,
+      "collision": null,
+      "postponed": null,
+      "groupAtKnit": [
+        {
+          "id": 11,
+          "origin": "carried:11",
+          "bed": "F",
+          "phys": 9,
+          "wale": 9
+        },
+        {
+          "id": 12,
+          "origin": "carried:12",
+          "bed": "B",
+          "phys": 9,
+          "wale": 10
+        }
+      ]
+    },
+    "localTerm": 6,
+    "globalTerm": 139
+  },
+  "divergence": {
+    "knitIndex": 117,
+    "kind": "needle",
+    "baseline": {
+      "sheetRow": 24,
+      "cellIndex": 0,
+      "course": 21,
+      "dir": "R",
+      "tIdx": 116,
+      "label": "·",
+      "token": "F·",
+      "bed": "F",
+      "phys": 3,
+      "id": 4,
+      "origin": null,
+      "hole": false
+    },
+    "experiment": {
+      "sheetRow": 21,
+      "cellIndex": 4,
+      "course": 21,
+      "dir": "R",
+      "tIdx": 116,
+      "label": "·",
+      "token": "F·",
+      "bed": "F",
+      "phys": 4,
+      "id": 4,
+      "origin": "carried:4",
+      "hole": false
+    }
+  },
+  "extent": {
+    "courses": 22,
+    "baselineCourses": 31,
+    "knitRows": 23,
+    "baselineKnitRows": 41,
+    "knitCells": 156,
+    "termsKnitted": 146,
+    "termsTotal": 288,
+    "sharedTermCells": [
+      {
+        "tIdx": 115,
+        "cells": 2
+      },
+      {
+        "tIdx": 121,
+        "cells": 2
+      },
+      {
+        "tIdx": 130,
+        "cells": 2
+      },
+      {
+        "tIdx": 135,
+        "cells": 2
+      },
+      {
+        "tIdx": 136,
+        "cells": 2
+      },
+      {
+        "tIdx": 137,
+        "cells": 2
+      },
+      {
+        "tIdx": 139,
+        "cells": 2
+      },
+      {
+        "tIdx": 140,
+        "cells": 2
+      },
+      {
+        "tIdx": 141,
+        "cells": 2
+      },
+      {
+        "tIdx": 142,
+        "cells": 2
+      }
+    ],
+    "completed": false,
+    "generatorFinished": false,
+    "decreaseRegionsReached": true,
+    "mixedRegionsReached": false
+  },
+  "compare": {
+    "experimentCourses": 22,
+    "officialCourses": 31,
+    "experimentKnitRows": 23,
+    "officialKnitRows": 41,
+    "experimentSheetRows": 40,
+    "officialSheetRows": 87
+  },
+  "checks": {
+    "problems": [],
+    "decreaseEvents": 6,
+    "unresolvedPending": [],
+    "loop": {
+      "baselineKnitCells": 310,
+      "experimentKnitCells": 156,
+      "experimentTerms": 146,
+      "baselineTerms": 288,
+      "finalLive": 17,
+      "baselineFinalLive": 23
+    },
+    "binding": {
+      "prefixCells": 117,
+      "identicalToBaseline": false,
+      "note": "已织前缀的项号、标签、针位和线圈 id 与基线一致。开口空针还没织到，所以不在这个前缀里。"
+    },
+    "pendingIncreaseHoles": [],
+    "rowKindCounts": {
+      "knit": 23,
+      "decrease": 6,
+      "balance": 7,
+      "flip": 4
+    },
+    "baselineRowKindCounts": {
+      "knit": 41,
+      "decrease": 10,
+      "balance": 18,
+      "flip": 8,
+      "increase": 10
+    },
+    "renderError": null
+  },
+  "timing": "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针不再插在课的中途。床已经合法时省略空平衡行。",
+  "deepLink": "?sheet=thin-exp-readable-row-schedule"
+}

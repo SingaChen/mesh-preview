@@ -1,0 +1,621 @@
+{
+  "experiment": "official-dense-decrease-readable-row-schedule",
+  "sheetId": "dense-decrease-exp-readable-row-schedule",
+  "menuLabel": "Dense Decrease 实验（新时序）",
+  "input": {
+    "path": "public/sample/dense-decrease/dense_decrease_cylinder_faces_ring_layout.json",
+    "sha256": "f6b7a3261340cdd0b2477e4dc9cd11f96f3a73987b023fe8e93811d07396e001",
+    "source": "Dense Decrease Cylinder, scale_mode=propagate. rings[].types is Term.Type. rings[].hangs is Term.remain / n_extra. path_generate skips first_rows index 0, so first_rows_index = row + 1. SingaLab algorithm 561ae6c18c0fe2c8d92be1c9433770cfc5d915a4.",
+    "model": "dense-decrease",
+    "nFacesRing": 12,
+    "termTotal": 648,
+    "termCounts": [
+      46,
+      46,
+      46,
+      46,
+      130,
+      98,
+      40,
+      87,
+      28,
+      27,
+      27,
+      27
+    ]
+  },
+  "baseline": {
+    "xls": "public/sample/dense-decrease/dense_decrease_cylinder_bed.xls",
+    "xlsSha256": "5e282f8a98d1c192beec39fcf937af6c7948042339acd5e7aea2c401f91f5ce6",
+    "xlsSha256After": "5e282f8a98d1c192beec39fcf937af6c7948042339acd5e7aea2c401f91f5ce6",
+    "txt": "public/sample/dense-decrease/dense_decrease_cylinder_bed.txt",
+    "txtSha256": "2dcbaa0f01a96171a610f05e905e40f495df2866f549cd40496586dc23482e28",
+    "txtSha256After": "2dcbaa0f01a96171a610f05e905e40f495df2866f549cd40496586dc23482e28",
+    "unchanged": true,
+    "rebuild": "full",
+    "rebuildError": null
+  },
+  "officialAssets": {
+    "dense_decrease_cylinder_faces_ring_layout.json": "f6b7a3261340cdd0b2477e4dc9cd11f96f3a73987b023fe8e93811d07396e001",
+    "dense_decrease_cylinder_bed.xls": "5e282f8a98d1c192beec39fcf937af6c7948042339acd5e7aea2c401f91f5ce6",
+    "dense_decrease_cylinder_bed.txt": "2dcbaa0f01a96171a610f05e905e40f495df2866f549cd40496586dc23482e28",
+    "public/sample/dense-decrease/dense_decrease_cylinder.dat": null,
+    "public/sample/dense-decrease/dense_decrease_cylinder.k": null,
+    "public/sample/dense-decrease/dense_decrease_cylinder_knitcode.json": "4b9db70218927195314461dacba6cfe778cb2318acc5c9d2b47d76e23410acd5",
+    "public/sample/dense-decrease/dense_decrease_cylinder_KnittingStitches.obj": "b90e0b3bcec127eb061c5176884e110ea71cd41e3f3453305bc58070adc67e6b"
+  },
+  "output": {
+    "directory": "experiments/official-dense-decrease-readable-row-schedule",
+    "files": [
+      "exp-readable-map.txt",
+      "exp-readable-map.xls",
+      "exp-readable-map.json",
+      "validation-report.json",
+      "compare.html",
+      "preview-chrome.json"
+    ],
+    "dat": null,
+    "knitCode": null
+  },
+  "status": "partial",
+  "statusLine": "未完成。实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。 已生成 56 课 / 官方 66 课，织 458 针、项 452 / 648。",
+  "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_decrease_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+  "divergenceLine": "第一环之后最早的针位差异在织针序 320：项 319 ·。官方 F5（表行 35，course 31）。实验 F6（表行 31，course 31，线圈 carried:6）。 第一处减针是 course 31 项 318 -R1（表行 31，只有减针）。减针移圈排在这一课全部织行之后。",
+  "firstRing": {
+    "courses": 1,
+    "rows": 1,
+    "identical": true,
+    "mismatch": null,
+    "txtMismatch": null,
+    "seatRingError": null,
+    "noDecreasePrefix": null
+  },
+  "firstDecrease": {
+    "course": 31,
+    "mixed": false,
+    "sheetRow": 31,
+    "term": 318,
+    "label": "-R1",
+    "postKnitDecrease": true,
+    "knitRows": 1,
+    "decreaseRows": 1
+  },
+  "postponedBalances": [],
+  "omittedNoOpBalances": {
+    "increaseOpenings": 0,
+    "decreases": 0
+  },
+  "ringStarts": [
+    {
+      "ring": 0,
+      "course": 0,
+      "start": "F0",
+      "schedule": "official-seatRing"
+    },
+    {
+      "ring": 1,
+      "course": 1,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 2,
+      "course": 2,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 3,
+      "course": 3,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 4,
+      "course": 4,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 5,
+      "course": 31,
+      "start": "F0",
+      "schedule": "knit-then-dec"
+    },
+    {
+      "ring": 6,
+      "course": 56,
+      "start": "F0",
+      "schedule": "knit-then-dec"
+    }
+  ],
+  "partialStop": {
+    "ring": 6,
+    "course": 56,
+    "dir": "R",
+    "message": "course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。",
+    "sentence": "实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。",
+    "detail": {
+      "phase": "decrease-geometry",
+      "error": "course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。",
+      "course": 56,
+      "dir": "R",
+      "index": 0,
+      "term": 19,
+      "label": "·",
+      "before": {
+        "n": 42,
+        "text": "F21[0…20] / B21[0…20]",
+        "live": "42针 · 前21[0…20] · 后21[0…20]",
+        "front": [
+          {
+            "id": 0,
+            "origin": "carried:0",
+            "bed": "F",
+            "phys": 0,
+            "wale": 0
+          },
+          {
+            "id": 1,
+            "origin": "carried:1",
+            "bed": "F",
+            "phys": 1,
+            "wale": 1
+          },
+          {
+            "id": 2,
+            "origin": "carried:2",
+            "bed": "F",
+            "phys": 2,
+            "wale": 2
+          },
+          {
+            "id": 3,
+            "origin": "carried:3",
+            "bed": "F",
+            "phys": 3,
+            "wale": 3
+          },
+          {
+            "id": 4,
+            "origin": "carried:4",
+            "bed": "F",
+            "phys": 4,
+            "wale": 4
+          },
+          {
+            "id": 6,
+            "origin": "carried:6",
+            "bed": "F",
+            "phys": 5,
+            "wale": 5
+          },
+          {
+            "id": 7,
+            "origin": "carried:7",
+            "bed": "F",
+            "phys": 6,
+            "wale": 6
+          },
+          {
+            "id": 8,
+            "origin": "carried:8",
+            "bed": "F",
+            "phys": 7,
+            "wale": 7
+          },
+          {
+            "id": 10,
+            "origin": "carried:10",
+            "bed": "F",
+            "phys": 8,
+            "wale": 9
+          },
+          {
+            "id": 11,
+            "origin": "carried:11",
+            "bed": "F",
+            "phys": 9,
+            "wale": 10
+          },
+          {
+            "id": 12,
+            "origin": "carried:12",
+            "bed": "F",
+            "phys": 10,
+            "wale": 11
+          },
+          {
+            "id": 13,
+            "origin": "carried:13",
+            "bed": "F",
+            "phys": 11,
+            "wale": 12
+          },
+          {
+            "id": 15,
+            "origin": "carried:15",
+            "bed": "F",
+            "phys": 12,
+            "wale": 14
+          },
+          {
+            "id": 16,
+            "origin": "carried:16",
+            "bed": "F",
+            "phys": 13,
+            "wale": 15
+          },
+          {
+            "id": 17,
+            "origin": "carried:17",
+            "bed": "F",
+            "phys": 14,
+            "wale": 16
+          },
+          {
+            "id": 18,
+            "origin": "carried:18",
+            "bed": "F",
+            "phys": 15,
+            "wale": 17
+          },
+          {
+            "id": 19,
+            "origin": "carried:19",
+            "bed": "F",
+            "phys": 16,
+            "wale": 18
+          },
+          {
+            "id": 20,
+            "origin": "carried:20",
+            "bed": "F",
+            "phys": 17,
+            "wale": 19
+          },
+          {
+            "id": 21,
+            "origin": "carried:21",
+            "bed": "F",
+            "phys": 18,
+            "wale": 20
+          },
+          {
+            "id": 22,
+            "origin": "carried:22",
+            "bed": "F",
+            "phys": 19,
+            "wale": 21
+          },
+          {
+            "id": 23,
+            "origin": "carried:23",
+            "bed": "F",
+            "phys": 20,
+            "wale": 22
+          }
+        ],
+        "back": [
+          {
+            "id": 45,
+            "origin": "carried:45",
+            "bed": "B",
+            "phys": 0,
+            "wale": 43
+          },
+          {
+            "id": 44,
+            "origin": "carried:44",
+            "bed": "B",
+            "phys": 1,
+            "wale": 42
+          },
+          {
+            "id": 43,
+            "origin": "carried:43",
+            "bed": "B",
+            "phys": 2,
+            "wale": 41
+          },
+          {
+            "id": 42,
+            "origin": "carried:42",
+            "bed": "B",
+            "phys": 3,
+            "wale": 40
+          },
+          {
+            "id": 41,
+            "origin": "carried:41",
+            "bed": "B",
+            "phys": 4,
+            "wale": 39
+          },
+          {
+            "id": 39,
+            "origin": "carried:39",
+            "bed": "B",
+            "phys": 5,
+            "wale": 38
+          },
+          {
+            "id": 38,
+            "origin": "carried:38",
+            "bed": "B",
+            "phys": 6,
+            "wale": 37
+          },
+          {
+            "id": 37,
+            "origin": "carried:37",
+            "bed": "B",
+            "phys": 7,
+            "wale": 36
+          },
+          {
+            "id": 36,
+            "origin": "carried:36",
+            "bed": "B",
+            "phys": 8,
+            "wale": 35
+          },
+          {
+            "id": 35,
+            "origin": "carried:35",
+            "bed": "B",
+            "phys": 9,
+            "wale": 34
+          },
+          {
+            "id": 34,
+            "origin": "carried:34",
+            "bed": "B",
+            "phys": 10,
+            "wale": 33
+          },
+          {
+            "id": 33,
+            "origin": "carried:33",
+            "bed": "B",
+            "phys": 11,
+            "wale": 32
+          },
+          {
+            "id": 32,
+            "origin": "carried:32",
+            "bed": "B",
+            "phys": 12,
+            "wale": 31
+          },
+          {
+            "id": 31,
+            "origin": "carried:31",
+            "bed": "B",
+            "phys": 13,
+            "wale": 30
+          },
+          {
+            "id": 30,
+            "origin": "carried:30",
+            "bed": "B",
+            "phys": 14,
+            "wale": 29
+          },
+          {
+            "id": 29,
+            "origin": "carried:29",
+            "bed": "B",
+            "phys": 15,
+            "wale": 28
+          },
+          {
+            "id": 28,
+            "origin": "carried:28",
+            "bed": "B",
+            "phys": 16,
+            "wale": 27
+          },
+          {
+            "id": 27,
+            "origin": "carried:27",
+            "bed": "B",
+            "phys": 17,
+            "wale": 26
+          },
+          {
+            "id": 26,
+            "origin": "carried:26",
+            "bed": "B",
+            "phys": 18,
+            "wale": 25
+          },
+          {
+            "id": 25,
+            "origin": "carried:25",
+            "bed": "B",
+            "phys": 19,
+            "wale": 24
+          },
+          {
+            "id": 24,
+            "origin": "carried:24",
+            "bed": "B",
+            "phys": 20,
+            "wale": 23
+          }
+        ]
+      },
+      "after": null,
+      "aborted": null,
+      "atKnit": [
+        {
+          "id": 22,
+          "origin": "carried:22",
+          "bed": "F",
+          "phys": 21,
+          "wale": 21
+        },
+        {
+          "id": 23,
+          "origin": "carried:23",
+          "bed": "B",
+          "phys": 21,
+          "wale": 22
+        }
+      ],
+      "atNow": [
+        {
+          "id": 22,
+          "origin": "carried:22",
+          "bed": "F",
+          "phys": 19,
+          "wale": 21
+        },
+        {
+          "id": 23,
+          "origin": "carried:23",
+          "bed": "F",
+          "phys": 20,
+          "wale": 22
+        }
+      ],
+      "needle": null,
+      "marker": null,
+      "holes": null,
+      "collision": null,
+      "postponed": null,
+      "groupAtKnit": [
+        {
+          "id": 22,
+          "origin": "carried:22",
+          "bed": "F",
+          "phys": 21,
+          "wale": 21
+        },
+        {
+          "id": 23,
+          "origin": "carried:23",
+          "bed": "B",
+          "phys": 21,
+          "wale": 22
+        }
+      ]
+    },
+    "localTerm": 19,
+    "globalTerm": 431
+  },
+  "divergence": {
+    "knitIndex": 320,
+    "kind": "needle",
+    "baseline": {
+      "sheetRow": 35,
+      "cellIndex": 0,
+      "course": 31,
+      "dir": "R",
+      "tIdx": 319,
+      "label": "·",
+      "token": "F·",
+      "bed": "F",
+      "phys": 5,
+      "id": 6,
+      "origin": null,
+      "hole": false
+    },
+    "experiment": {
+      "sheetRow": 31,
+      "cellIndex": 6,
+      "course": 31,
+      "dir": "R",
+      "tIdx": 319,
+      "label": "·",
+      "token": "F·",
+      "bed": "F",
+      "phys": 6,
+      "id": 6,
+      "origin": "carried:6",
+      "hole": false
+    }
+  },
+  "extent": {
+    "courses": 56,
+    "baselineCourses": 66,
+    "knitRows": 57,
+    "baselineKnitRows": 83,
+    "knitCells": 458,
+    "termsKnitted": 452,
+    "termsTotal": 648,
+    "sharedTermCells": [
+      {
+        "tIdx": 318,
+        "cells": 2
+      },
+      {
+        "tIdx": 402,
+        "cells": 2
+      },
+      {
+        "tIdx": 419,
+        "cells": 2
+      },
+      {
+        "tIdx": 423,
+        "cells": 2
+      },
+      {
+        "tIdx": 431,
+        "cells": 2
+      },
+      {
+        "tIdx": 443,
+        "cells": 2
+      }
+    ],
+    "completed": false,
+    "generatorFinished": false,
+    "decreaseRegionsReached": true,
+    "mixedRegionsReached": false
+  },
+  "compare": {
+    "experimentCourses": 56,
+    "officialCourses": 66,
+    "experimentKnitRows": 57,
+    "officialKnitRows": 83,
+    "experimentSheetRows": 69,
+    "officialSheetRows": 131
+  },
+  "checks": {
+    "problems": [],
+    "decreaseEvents": 4,
+    "unresolvedPending": [],
+    "loop": {
+      "baselineKnitCells": 667,
+      "experimentKnitCells": 458,
+      "experimentTerms": 452,
+      "baselineTerms": 648,
+      "finalLive": 42,
+      "baselineFinalLive": 27
+    },
+    "binding": {
+      "prefixCells": 320,
+      "identicalToBaseline": false,
+      "note": "已织前缀的项号、标签、针位和线圈 id 与基线一致。开口空针还没织到，所以不在这个前缀里。"
+    },
+    "pendingIncreaseHoles": [],
+    "rowKindCounts": {
+      "knit": 57,
+      "decrease": 4,
+      "flip": 3,
+      "balance": 5
+    },
+    "baselineRowKindCounts": {
+      "knit": 83,
+      "decrease": 18,
+      "flip": 12,
+      "balance": 18
+    },
+    "renderError": null
+  },
+  "timing": "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针不再插在课的中途。床已经合法时省略空平衡行。",
+  "deepLink": "?sheet=dense-decrease-exp-readable-row-schedule"
+}

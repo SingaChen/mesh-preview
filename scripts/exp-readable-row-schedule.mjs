@@ -1,5 +1,5 @@
 /**
- * Opt-in experiment for the official Bunny readable map only.
+ * Opt-in readable-map schedule experiment.
  *
  * The unit is one 课 (course), not one drawn 行. Locked 2026-11-17:
  *   1. increases and no decreases: open each site, balance after each, then knit the whole course;
@@ -7,15 +7,18 @@
  *   3. both: all increase openings (balance after each), then the whole knit, then the decreases.
  * Ring 0 is the official seatRing path, including when balance runs. A pre-knit
  * balance that still sees an unclaimed planned needle is postponed until that
- * course has been knitted. This does not write knitting code or DAT.
+ * course has been knitted. This does not write knitting code or DAT, and it
+ * does not write official beds.
  *
  *   npm run exp:bunny-readable-row
  *   node scripts/exp-readable-row-schedule.mjs --check
+ *   node scripts/exp-readable-row-schedule.mjs --cylinders
+ *   node scripts/exp-readable-row-schedule.mjs --check --cylinders
  */
 
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   FILL,
@@ -710,6 +713,7 @@ function openCourseIncreases(state, walked, dirSign, step, where, courseNo) {
   const rows = [];
   const holeIds = [];
   const postponed = [];
+  let omittedBalances = 0;
   for (const site of sites.slice().reverse()) {
     const marker = state.stitches.get(site.id);
     if (!marker) {
@@ -739,9 +743,10 @@ function openCourseIncreases(state, walked, dirSign, step, where, courseNo) {
         holes: opened.holes,
       };
     }
-    rows.push(...balanced.rows);
+    if (balanced.rows.length) rows.push(...balanced.rows);
+    else omittedBalances += 1;
   }
-  return { ok: true, rows, holeIds, postponed };
+  return { ok: true, rows, holeIds, postponed, omittedBalances };
 }
 
 /**
@@ -920,6 +925,7 @@ function seatContinuationExperiment(courses, carried, prevDirIn, courseOffset) {
       increases: incHeaders,
       decreases: decHeaders,
       postponed: opened.postponed,
+      omittedIncreaseBalances: opened.omittedBalances || 0,
       knitRows: split.rows.length,
       start: `${courseStart.bed}${courseStart.phys}`,
     });
@@ -970,10 +976,12 @@ function seatContinuationExperiment(courses, carried, prevDirIn, courseOffset) {
         term: group.term,
         ids: group.ids,
         side: group.side,
+        hang: group.hang,
         crossAtKnit: group.crossAtKnit,
         atKnit: group.atKnit,
         after: membersOf(state.stitches, group.ids.filter((id) => state.stitches.has(id))),
         balance: balanced.after.text,
+        balanceRows: balanced.rows.length,
       });
     }
     if (stop) break;
@@ -1056,7 +1064,7 @@ function seatRingExperiment(courses, planInfo) {
 
 function loadLayout(path) {
   const layout = JSON.parse(readFileSync(path, "utf8"));
-  if (!Array.isArray(layout.rings) || layout.rings.length < 2) fail(`${path} is not the official Bunny faces_ring`);
+  if (!Array.isArray(layout.rings) || layout.rings.length < 2) fail(`${path} needs at least two faces_ring rings`);
   return layout;
 }
 
@@ -1071,7 +1079,7 @@ function coveredFrom(sheet, offset) {
   return n - offset;
 }
 
-function buildExperiment(path) {
+function buildExperiment(path, copy = null) {
   const layout = loadLayout(path);
   const ring0 = layout.rings[0];
   const courses0 = coursesFromTypes(ring0.types, ring0.hangs);
@@ -1108,6 +1116,7 @@ function buildExperiment(path) {
       const ring = layout.rings[index];
       const local = coursesFromTypes(ring.types, ring.hangs);
       ringBreaks.push(termOffset);
+      const ringTerm = termOffset;
       const seated = seatContinuationExperiment(local, carried, prevDir, courseOffset);
       const shifted = seated.sheet.map((row) => ({
         ...row,
@@ -1127,6 +1136,11 @@ function buildExperiment(path) {
       prevDir = seated.prevDir;
       if (seated.partial) {
         partialStop = describeStop(seated.stop, index);
+        if (Number.isInteger(seated.stop?.term)) {
+          partialStop.localTerm = seated.stop.term;
+          partialStop.globalTerm = ringTerm + seated.stop.term;
+          partialStop.sentence += ` 环内项 ${seated.stop.term}，全表项 ${partialStop.globalTerm}。`;
+        }
         ringSeats.push({
           label: `实验停在第 ${index + 1} 环 course ${seated.stop.course}`,
           seated: seatLoose(carried.stitches),
@@ -1171,14 +1185,15 @@ function buildExperiment(path) {
       hangs,
       ringBreaks,
       sheetName: "bed",
-      title: "官方 Bunny 实验床图：第一环用官方落座，之后按 2026-11-17 的课级时序",
+      title: copy?.title || "官方 Bunny 实验床图：第一环用官方落座，之后按 2026-11-17 的课级时序",
       inputLine:
+        copy?.inputLine ||
         "实验调度，只读 public/sample/cylinder/faces_ring_layout.json 的官方 Bunny rings（types 和 hangs）。没有重算 mesh、faces_ring、cols_resample，没有用 Dense Bunny，也没有编织码或 DAT。第一环的加针开口和平衡时机与官方 seatRing 相同，不在计划针还没认领时先平衡。后面的课：只有加针就逐处开口并逐次平衡再整课织一次；只有减针就先整课织完再按走向逐个减针、逐次平衡；又有加针又有减针就先做完全部加针，再整课织一次，再逐个减针。同一活针不会在一行里织两次。减针剩下的位点按线圈身份找，不沿用旧针号。",
       scopeLine: partialStop
         ? `${partialStop.sentence} Later rows were not invented.`
-        : "Official Bunny only. Experimental readable-map row schedule. Production bed files were not written.",
+        : copy?.scopeDone || "Official Bunny only. Experimental readable-map row schedule. Production bed files were not written.",
       partialStop,
-      courseInput: "faces_ring_layout.json",
+      courseInput: copy?.courseInput || "faces_ring_layout.json",
     },
     events,
     partialStop,
@@ -1496,6 +1511,8 @@ function renderHtml(report) {
   const openings = rowIndexes(exp, (row) => row.kind === "increase");
   const divRows = div?.experiment?.sheetRow != null ? [div.experiment.sheetRow] : [];
   const baseDiv = div?.baseline?.sheetRow != null ? [div.baseline.sheetRow] : [];
+  const firstRingTitle =
+    report.firstRingFocusTitle || "实验：第一环 course 0–2。这几行应与官方床图相同；表里再往下是第二环。";
   const stopRow = report.partialStop ? exp.length - 1 : -1;
   const blocker = report.partialStop?.detail || null;
   const clash = blocker?.collision;
@@ -1509,7 +1526,7 @@ function renderHtml(report) {
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"/>
-<title>官方 Bunny 实验织行对照</title>
+<title>${escapeHtml(report.htmlTitle || "官方 Bunny 实验织行对照")}</title>
 <style>
   body { margin: 0; font: 14px/1.4 "Segoe UI", sans-serif; color: #1b1b1b; background: #f6f4ef; }
   header { padding: 16px 20px; background: #1f3a34; color: #fff; }
@@ -1530,15 +1547,15 @@ function renderHtml(report) {
 </head>
 <body>
 <header>
-  <strong>官方 Bunny · 实验课级时序</strong>
-  <p>只读现有 faces_ring。第一环沿用官方落座和平衡时机。之后按课：加针逐处开口并逐次平衡，整课织完，再逐个减针、逐次平衡。这不是 knitting code，也不改官方床图。</p>
+  <strong>${escapeHtml(report.htmlHeader || "官方 Bunny · 实验课级时序")}</strong>
+  <p>${escapeHtml(report.htmlBlurb || "只读现有 faces_ring。第一环沿用官方落座和平衡时机。之后按课：加针逐处开口并逐次平衡，整课织完，再逐个减针、逐次平衡。这不是 knitting code，也不改官方床图。")}</p>
 </header>
 <main>
   <div class="banner ${report.extent.generatorFinished && report.firstRing?.identical ? "ok" : ""}" id="status">${escapeHtml(report.statusLine)}</div>
   <div class="banner" id="first-ring">${escapeHtml(report.firstRingLine || "")}</div>
   <div class="banner" id="divergence-note">${escapeHtml(report.divergenceLine)}</div>
   <div class="banner" id="blocker">${escapeHtml(blockerText)}</div>
-  <div id="focus-first-ring">${tableHtml(exp, firstRingRows, "实验：第一环 course 0–2。这几行应与官方床图相同；表里再往下是第二环。")}</div>
+  <div id="focus-first-ring">${tableHtml(exp, firstRingRows, firstRingTitle)}</div>
   <div id="focus-divergence">${tableHtml(exp, divRows, "实验：和官方床图最早不同的织针")}${tableHtml(base, baseDiv, "官方：同一织针")}</div>
   <div id="focus-opening">${tableHtml(exp, openings.slice(0, 2), "实验：加针开口")}</div>
   <div id="focus-increase">${tableHtml(exp, expIncrease.slice(0, 1), "实验：第一处加针织行")}</div>
@@ -1926,9 +1943,509 @@ async function run(argv) {
   return report;
 }
 
+const CYLINDERS = [
+  ["standrad", "Standrad", "Standrad Cylinder", "standrad-cylinder.json", "public/sample/cylinder/standrad_cylinder_rings.json", "public/sample/cylinder/standrad_cylinder_bed", ["public/sample/cylinder/standrad_cylinder.dat", "public/sample/cylinder/standrad_cylinder.k", "public/sample/cylinder/standrad_cylinder_knitcode.json", "public/sample/cylinder/standrad_cylinder_KnittingStitches.obj", "public/sample/cylinder/standrad_cylinder_readable_map.txt"]],
+  ["dense-standrad", "Dense Standrad", "Dense Standrad Cylinder", "dense-standrad-cylinder.json", "public/sample/dense-standrad/dense_standrad_cylinder_faces_ring_layout.json", "public/sample/dense-standrad/dense_standrad_cylinder_bed", ["public/sample/dense-standrad/dense_standrad_cylinder.dat", "public/sample/dense-standrad/dense_standrad_cylinder.k", "public/sample/dense-standrad/dense_standrad_cylinder_knitcode.json", "public/sample/dense-standrad/dense_standrad_cylinder_KnittingStitches.obj"]],
+  ["increase", "Increase", "Increase Cylinder", "increase-cylinder.json", "public/sample/increase/increase_cylinder_faces_ring_layout.json", "public/sample/increase/increase_cylinder_bed", ["public/sample/increase/increase_cylinder.dat", "public/sample/increase/increase_cylinder.k", "public/sample/increase/increase_cylinder_knitcode.json", "public/sample/increase/increase_cylinder_KnittingStitches.obj"]],
+  ["decrease", "Decrease", "Decrease Cylinder", "decrease-cylinder.json", "public/sample/decrease/decrease_cylinder_faces_ring_layout.json", "public/sample/decrease/decrease_cylinder_bed", ["public/sample/decrease/decrease_cylinder.dat", "public/sample/decrease/decrease_cylinder.k", "public/sample/decrease/decrease_cylinder_knitcode.json", "public/sample/decrease/decrease_cylinder_KnittingStitches.obj"]],
+  ["thin", "Thin", "Thin Cylinder", "thin-cylinder.json", "public/sample/thin/thin_cylinder_faces_ring_layout.json", "public/sample/thin/thin_cylinder_bed", ["public/sample/thin/thin_cylinder.dat", "public/sample/thin/thin_cylinder.k", "public/sample/thin/thin_cylinder_knitcode.json", "public/sample/thin/thin_cylinder_KnittingStitches.obj"]],
+  ["fat", "Fat", "Fat Cylinder", "fat-cylinder.json", "public/sample/fat/fat_cylinder_faces_ring_layout.json", "public/sample/fat/fat_cylinder_bed", ["public/sample/fat/fat_cylinder.dat", "public/sample/fat/fat_cylinder.k", "public/sample/fat/fat_cylinder_knitcode.json", "public/sample/fat/fat_cylinder_KnittingStitches.obj"]],
+  ["dense-increase", "Dense Increase", "Dense Increase Cylinder", "dense-increase-cylinder.json", "public/sample/dense-increase/dense_increase_cylinder_faces_ring_layout.json", "public/sample/dense-increase/dense_increase_cylinder_bed", ["public/sample/dense-increase/dense_increase_cylinder.dat", "public/sample/dense-increase/dense_increase_cylinder.k", "public/sample/dense-increase/dense_increase_cylinder_knitcode.json", "public/sample/dense-increase/dense_increase_cylinder_KnittingStitches.obj"]],
+  ["dense-decrease", "Dense Decrease", "Dense Decrease Cylinder", "dense-decrease-cylinder.json", "public/sample/dense-decrease/dense_decrease_cylinder_faces_ring_layout.json", "public/sample/dense-decrease/dense_decrease_cylinder_bed", ["public/sample/dense-decrease/dense_decrease_cylinder.dat", "public/sample/dense-decrease/dense_decrease_cylinder.k", "public/sample/dense-decrease/dense_decrease_cylinder_knitcode.json", "public/sample/dense-decrease/dense_decrease_cylinder_KnittingStitches.obj"]],
+  ["dense-thin", "Dense Thin", "Dense Thin Cylinder", "dense-thin-cylinder.json", "public/sample/dense-thin/dense_thin_cylinder_faces_ring_layout.json", "public/sample/dense-thin/dense_thin_cylinder_bed", ["public/sample/dense-thin/dense_thin_cylinder.dat", "public/sample/dense-thin/dense_thin_cylinder.k", "public/sample/dense-thin/dense_thin_cylinder_knitcode.json", "public/sample/dense-thin/dense_thin_cylinder_KnittingStitches.obj"]],
+  ["dense-fat", "Dense Fat", "Dense Fat Cylinder", "dense-fat-cylinder.json", "public/sample/dense-fat/dense_fat_cylinder_faces_ring_layout.json", "public/sample/dense-fat/dense_fat_cylinder_bed", ["public/sample/dense-fat/dense_fat_cylinder.dat", "public/sample/dense-fat/dense_fat_cylinder.k", "public/sample/dense-fat/dense_fat_cylinder_knitcode.json", "public/sample/dense-fat/dense_fat_cylinder_KnittingStitches.obj"]],
+].map(([key, shortName, officialName, manifest, inputRel, bedStem, extraRels]) => ({
+  key,
+  shortName,
+  officialName,
+  manifest,
+  sheetId: `${key}-exp-readable-row-schedule`,
+  dirName: `official-${key}-readable-row-schedule`,
+  inputRel,
+  bedXlsRel: `${bedStem}.xls`,
+  bedTxtRel: `${bedStem}.txt`,
+  extraRels,
+}));
+
+const SKIPPED_CYLINDERS = [
+  {
+    id: "dense-bunny-4split",
+    reason: "public/sample/dense-bunny-4split 只有 columns（polyline、type、field、order），没有 faces_ring，也没有可落座的床图。",
+  },
+  {
+    id: "dense-bunny-le",
+    reason: "public/sample/dense-bunny-le 只有 columns（polyline、type、field、order），没有 faces_ring，也没有可落座的床图。",
+  },
+];
+
+function hashIfExists(rel) {
+  const abs = join(root, rel);
+  if (!existsSync(abs)) return null;
+  return hashFile(abs);
+}
+
+function walkFiles(dir, acc = []) {
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) walkFiles(path, acc);
+    else acc.push(path);
+  }
+  return acc;
+}
+
+function snapshotOfficial() {
+  const map = {};
+  for (const path of walkFiles(join(root, "public/sample"))) {
+    const rel = relative(root, path);
+    if (!/(?:_bed\.(?:xls|txt)$|faces_ring|rings\.json|\.dat$|\.k$|knitcode\.json|KnittingStitches\.obj$|cols_resample|columns_)/i.test(rel)) continue;
+    map[rel] = hashFile(path);
+  }
+  return map;
+}
+
+function sameHashes(before, after) {
+  const changed = [];
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const key of keys) if (before[key] !== after[key]) changed.push(key);
+  return changed.sort();
+}
+
+function cylinderCopy(spec) {
+  return {
+    title: `${spec.shortName} 实验床图：第一环用官方落座，之后按 2026-11-17 的课级时序`,
+    inputLine: `实验调度，只读 ${spec.inputRel} 的 rings（types 和 hangs）。没有重算 mesh、faces_ring、cols_resample，没有改官方床图、编织码、.dat 或 .k。第一环的加针开口和平衡时机与官方 seatRing 相同，不在计划针还没认领时先平衡。后面的课：只有加针就逐处开口并逐次平衡再整课织一次；只有减针就先整课织完再按走向逐个减针、逐次平衡；又有加针又有减针就先做完全部加针，再整课织一次，再逐个减针。同一活针不会在一行里织两次。减针剩下的位点按线圈身份找，不沿用旧针号。床已经合法（F≥B、|F−B|≤1、前床低端 F0）时省略空平衡行，需要的横移和翻针不省略。`,
+    scopeDone: `${spec.shortName} only. Experimental readable-map course schedule. Official bed, faces_ring, knitting code, DAT, and .k files were not written.`,
+    courseInput: basename(spec.inputRel),
+  };
+}
+
+function auditLaterSchedule(sheet, ringCourses) {
+  const problems = [];
+  const by = new Map();
+  sheet.forEach((row, index) => {
+    if (!(row.course >= ringCourses)) return;
+    const list = by.get(row.course) || [];
+    list.push({ index, row });
+    by.set(row.course, list);
+  });
+  for (const [course, rows] of by) {
+    const knits = rows.filter((item) => item.row.kind === "knit");
+    if (!knits.length) {
+      problems.push({ check: "courseWithoutKnit", course });
+      continue;
+    }
+    const firstKnit = knits[0].index;
+    const lastKnit = knits[knits.length - 1].index;
+    for (const item of rows) {
+      if (item.row.kind === "increase" && item.index > firstKnit) {
+        problems.push({ check: "increaseAfterKnit", course, sheetRow: item.index });
+      }
+      const decreaseTransfer =
+        item.row.kind === "decrease" || item.row.cells.some((cell) => cell.role === "decrease" || cell.stacked);
+      if (decreaseTransfer && item.index < lastKnit) {
+        problems.push({ check: "decreaseBeforeCourseFinished", course, sheetRow: item.index });
+      }
+    }
+  }
+  return problems;
+}
+
+function ringStartsOf(built, events) {
+  const starts = [];
+  if (built.courses[0]) {
+    starts.push({
+      ring: 0,
+      course: built.courses[0].course,
+      start: built.courses[0].start,
+      schedule: "official-seatRing",
+    });
+  }
+  const seen = new Set();
+  for (const event of events) {
+    if (event.type !== "course-schedule" || event.ring == null || seen.has(event.ring)) continue;
+    seen.add(event.ring);
+    starts.push({ ring: event.ring, course: event.course, start: event.start, schedule: event.schedule });
+  }
+  return starts;
+}
+
+function chromeForCylinder(spec, built, firstRingIdentical) {
+  const unfinished = Boolean(built.partialStop) || !firstRingIdentical;
+  const label = unfinished ? `${spec.shortName} 实验（新时序，未跑完）` : `${spec.shortName} 实验（新时序）`;
+  return {
+    label,
+    menuTitle: built.partialStop
+      ? `实验课级时序，停在 ${built.partialStop.sentence} 不是官方 ${spec.shortName}`
+      : `实验课级时序的 readable map，不是官方 ${spec.shortName}`,
+    banner: unfinished ? "实验时序 · 未跑完 · 右侧不是官方床图" : "实验时序 · 不是官方床图",
+    status: built.partialStop
+      ? `${label} · 左侧是官方 ${spec.officialName} 网格 · ${built.partialStop.sentence}`
+      : `${label} · 左侧是官方 ${spec.officialName} 网格 · 右侧是实验课级时序，不是官方床图`,
+    metaPrefix: unfinished ? "未跑完" : "实验时序",
+    sheetId: spec.sheetId,
+  };
+}
+
+function loadBaseline(input) {
+  try {
+    return { built: buildOwnBedChart(input), mode: "full", error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    try {
+      return { built: buildOwnBedChart(input, { partialOnError: true }), mode: "partial", error: message };
+    } catch (err2) {
+      const second = err2 instanceof Error ? err2.message : String(err2);
+      return { built: null, mode: "unavailable", error: `${message} | ${second}` };
+    }
+  }
+}
+
+async function runCylinder(spec, { check }) {
+  if (spec.dirName.includes("bunny")) fail("the official Bunny experiment sheet is left as it is");
+  const input = join(root, spec.inputRel);
+  const bedXls = join(root, spec.bedXlsRel);
+  const bedTxt = join(root, spec.bedTxtRel);
+  const beforeXls = hashFile(bedXls);
+  const beforeTxt = hashFile(bedTxt);
+  const extraBefore = Object.fromEntries(spec.extraRels.map((rel) => [rel, hashIfExists(rel)]));
+  const inputBuf = readFileSync(input);
+  const inputHash = sha256(inputBuf);
+  const layout = JSON.parse(inputBuf.toString("utf8"));
+  const baselineInfo = loadBaseline(input);
+  if (!baselineInfo.built) fail(`${spec.shortName}: official bed could not be rebuilt in memory (${baselineInfo.error})`);
+  const baseline = baselineInfo.built;
+  const { built, events } = buildExperiment(input, cylinderCopy(spec));
+  let text = "";
+  let bytes = null;
+  let renderError = null;
+  try {
+    text = renderReport(built);
+  } catch (err) {
+    renderError = err instanceof Error ? err.message : String(err);
+    text = `${built.title}\n${renderError}\n`;
+  }
+  if (!renderError) {
+    try {
+      bytes = workbookBytes(built);
+    } catch (err) {
+      renderError = err instanceof Error ? err.message : String(err);
+    }
+  }
+  const validation = validate(built, baseline, events, { termTotal: layout.term_total });
+  const div = validation.divergence;
+  let officialRing = null;
+  let ringSeatError = null;
+  try {
+    officialRing = buildFromFacesRing(input);
+  } catch (err) {
+    ringSeatError = err instanceof Error ? err.message : String(err);
+  }
+  const ringCourses = officialRing ? officialRing.courses.length : built.courses.length ? 1 : 0;
+  const firstRing = officialRing
+    ? firstSheetMismatch(built.sheet, officialRing.sheet, ringCourses) || firstSheetMismatch(built.sheet, baseline.sheet, ringCourses)
+    : { kind: "seatRing-threw", error: ringSeatError };
+  const firstDecrease = decreaseSchedule(built.sheet);
+  const officialBlocks = sheetRowBlocks(readFileSync(bedTxt, "utf8"));
+  const experimentBlocks = sheetRowBlocks(text);
+  const ringRows = officialRing ? officialRing.sheet.length : 0;
+  let txtMismatch = null;
+  if (officialRing) {
+    for (let i = 0; i < ringRows; i++) {
+      if (experimentBlocks[i] !== officialBlocks[i]) {
+        txtMismatch = { row: i, experiment: experimentBlocks[i] || null, official: officialBlocks[i] || null };
+        break;
+      }
+    }
+  }
+  let decreasePrefix = null;
+  if (!officialRing) {
+    const expKnits = flattenKnits(built.sheet);
+    const baseKnits = flattenKnits(baseline.sheet);
+    let i = 0;
+    let mismatch = null;
+    while (i < expKnits.length && i < baseKnits.length) {
+      if (headerDec(expKnits[i].label || "") || headerDec(baseKnits[i].label || "")) break;
+      const same =
+        expKnits[i].tIdx === baseKnits[i].tIdx &&
+        expKnits[i].label === baseKnits[i].label &&
+        expKnits[i].bed === baseKnits[i].bed &&
+        expKnits[i].phys === baseKnits[i].phys &&
+        expKnits[i].token === baseKnits[i].token;
+      if (!same) {
+        mismatch = { knitIndex: i, experiment: expKnits[i], baseline: baseKnits[i] };
+        break;
+      }
+      i += 1;
+    }
+    decreasePrefix = { matchedKnits: i, mismatch };
+  }
+  const bedName = basename(spec.bedTxtRel);
+  const firstRingIdentical = Boolean(officialRing) && !firstRing && !txtMismatch;
+  let firstRingLine = firstRingIdentical
+    ? `第一环 ${ringCourses} 课、${ringRows} 行与官方 seatRing 以及 ${bedName} 的对应行相同（针号、记号、行注）。`
+    : firstRing && firstRing.kind !== "seatRing-threw"
+      ? `第一环不一致。第 ${firstRing.row} 行 course ${firstRing.course ?? "?"}：${firstRing.cell ? `实验 ${firstRing.cell.experiment}，官方 ${firstRing.cell.baseline}` : firstRing.kind}。没有改认领规则去凑齐。`
+      : officialRing
+        ? `第一环床图文字不一致。官方 txt 第 ${txtMismatch.row} 行：\n${txtMismatch.official}\n实验：\n${txtMismatch.experiment}`
+        : decreasePrefix?.mismatch
+          ? `官方第一环 seatRing 不能整环落座（${ringSeatError}）。无减针前缀在织针序 ${decreasePrefix.mismatch.knitIndex} 就和官方床图不同。`
+          : `官方第一环 seatRing 不能整环落座（${ringSeatError}）。无减针前缀 ${decreasePrefix?.matchedKnits ?? 0} 针与官方床图相同，第一处预定分歧在减针。`;
+  const statusLine = built.partialStop
+    ? `未完成。${built.partialStop.sentence} 已生成 ${validation.extent.courses} 课 / 官方 ${validation.extent.baselineCourses} 课，织 ${validation.extent.knitCells} 针、项 ${validation.extent.termsKnitted} / ${layout.term_total}。`
+    : `生成完成。实验 ${validation.extent.courses} 课，官方 ${validation.extent.baselineCourses} 课；实验 ${validation.extent.knitRows} 个织行，官方 ${validation.extent.baselineKnitRows} 个织行。`;
+  let divergenceLine = "第一环之后，和官方床图的织针序没有差异。";
+  if (!firstRingIdentical) {
+    divergenceLine = officialRing
+      ? "第一环已经和官方床图不同，后面的差异先不算。"
+      : firstRingLine;
+  } else if (div?.kind === "needle") {
+    divergenceLine = `第一环之后最早的针位差异在织针序 ${div.knitIndex}：项 ${div.experiment.tIdx} ${div.experiment.label}。官方 ${div.baseline.bed}${div.baseline.phys}（表行 ${div.baseline.sheetRow}，course ${div.baseline.course}）。实验 ${div.experiment.bed}${div.experiment.phys}（表行 ${div.experiment.sheetRow}，course ${div.experiment.course}，线圈 ${div.experiment.origin || div.experiment.id}）。`;
+  } else if (div?.kind === "term-or-label") {
+    divergenceLine = `第一环之后最早的项序差异在织针序 ${div.knitIndex}：官方项 ${div.baseline?.tIdx} ${div.baseline?.label}，实验项 ${div.experiment?.tIdx} ${div.experiment?.label}。`;
+  } else if (div?.kind === "length") {
+    const next = div.baseline
+      ? `官方下一针是 course ${div.baseline.course} 项 ${div.baseline.tIdx} ${div.baseline.label}，在 ${div.baseline.bed}${div.baseline.phys}（表行 ${div.baseline.sheetRow}）。`
+      : "";
+    divergenceLine = `已织的 ${div.experimentCount} 针和官方前缀一致。实验在下一针之前停住。${next}官方一共 ${div.baselineCount} 针。`;
+  }
+  if (firstRingIdentical) {
+    if (firstDecrease) {
+      divergenceLine += firstDecrease.postKnitDecrease
+        ? ` 第一处减针是 course ${firstDecrease.course} 项 ${firstDecrease.term} ${firstDecrease.label}（表行 ${firstDecrease.sheetRow}，${firstDecrease.mixed ? "加减针同一课" : "只有减针"}）。减针移圈排在这一课全部织行之后。`
+        : ` 第一处减针是 course ${firstDecrease.course}，但减针移圈没有排在整课织完之后。`;
+    } else if (!built.partialStop) {
+      divergenceLine += " 整张表没有减针课。";
+    } else {
+      divergenceLine += " 还没有走到减针课。";
+    }
+  }
+  const postponed = events.filter((event) => event.type === "postponed-balance" || (event.postponed && event.postponed.length));
+  const ringStarts = ringStartsOf(built, events);
+  const offF0 = ringStarts.filter((item) => item.start !== "F0");
+  const scheduleProblems = officialRing ? auditLaterSchedule(built.sheet, ringCourses) : [];
+  if (offF0.length) scheduleProblems.push({ check: "ringStart", rings: offF0 });
+  const omittedIncreaseBalances = events
+    .filter((event) => event.type === "course-schedule")
+    .reduce((sum, event) => sum + (event.omittedIncreaseBalances || 0), 0);
+  const omittedDecreaseBalances = events.filter((event) => event.type === "decrease" && event.balanceRows === 0).length;
+  const hardProblems = [...validation.problems, ...scheduleProblems];
+  const extraAfter = Object.fromEntries(spec.extraRels.map((rel) => [rel, hashIfExists(rel)]));
+  const afterXls = hashFile(bedXls);
+  const afterTxt = hashFile(bedTxt);
+  const officialChanged = afterXls !== beforeXls || afterTxt !== beforeTxt || spec.extraRels.some((rel) => extraBefore[rel] !== extraAfter[rel]);
+  if (officialChanged) fail(`${spec.shortName}: official bed or protected files changed while the experiment ran`);
+  const status = !firstRingIdentical ? "first-ring-mismatch" : built.partialStop ? "partial" : hardProblems.length || renderError ? "checks-failed" : "complete";
+  const report = {
+    experiment: spec.dirName,
+    sheetId: spec.sheetId,
+    menuLabel: `${spec.shortName} 实验（新时序）`,
+    input: {
+      path: spec.inputRel,
+      sha256: inputHash,
+      source: layout.source,
+      model: layout.model,
+      nFacesRing: layout.n_faces_ring,
+      termTotal: layout.term_total,
+      termCounts: layout.term_counts,
+    },
+    baseline: {
+      xls: spec.bedXlsRel,
+      xlsSha256: beforeXls,
+      xlsSha256After: afterXls,
+      txt: spec.bedTxtRel,
+      txtSha256: beforeTxt,
+      txtSha256After: afterTxt,
+      unchanged: !officialChanged,
+      rebuild: baselineInfo.mode,
+      rebuildError: baselineInfo.error,
+    },
+    officialAssets: {
+      [basename(spec.inputRel)]: inputHash,
+      [basename(spec.bedXlsRel)]: beforeXls,
+      [basename(spec.bedTxtRel)]: beforeTxt,
+      ...extraBefore,
+    },
+    output: {
+      directory: `experiments/${spec.dirName}`,
+      files: ["exp-readable-map.txt", "exp-readable-map.xls", "exp-readable-map.json", "validation-report.json", "compare.html", "preview-chrome.json"],
+      dat: null,
+      knitCode: null,
+    },
+    status,
+    statusLine,
+    firstRingLine,
+    divergenceLine,
+    firstRing: {
+      courses: ringCourses,
+      rows: ringRows,
+      identical: firstRingIdentical,
+      mismatch: firstRing,
+      txtMismatch,
+      seatRingError: ringSeatError,
+      noDecreasePrefix: decreasePrefix,
+    },
+    firstDecrease,
+    postponedBalances: postponed,
+    omittedNoOpBalances: {
+      increaseOpenings: omittedIncreaseBalances,
+      decreases: omittedDecreaseBalances,
+    },
+    ringStarts,
+    partialStop: built.partialStop,
+    divergence: div,
+    extent: validation.extent,
+    compare: {
+      experimentCourses: validation.extent.courses,
+      officialCourses: validation.extent.baselineCourses,
+      experimentKnitRows: validation.extent.knitRows,
+      officialKnitRows: validation.extent.baselineKnitRows,
+      experimentSheetRows: built.sheet.length,
+      officialSheetRows: baseline.sheet.length,
+    },
+    checks: {
+      problems: hardProblems,
+      decreaseEvents: validation.decreaseEvents,
+      unresolvedPending: validation.unresolvedPending,
+      loop: validation.loop,
+      binding: validation.binding,
+      pendingIncreaseHoles: validation.pendingIncreaseHoles,
+      rowKindCounts: validation.rowKindCounts,
+      baselineRowKindCounts: validation.baselineRowKindCounts,
+      renderError,
+    },
+    timing:
+      "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针不再插在课的中途。床已经合法时省略空平衡行。",
+    deepLink: `?sheet=${spec.sheetId}`,
+  };
+  const chrome = chromeForCylinder(spec, built, firstRingIdentical);
+  const paths = {
+    dir: join(root, "experiments", spec.dirName),
+    txt: join(root, "experiments", spec.dirName, "exp-readable-map.txt"),
+    xls: join(root, "experiments", spec.dirName, "exp-readable-map.xls"),
+    json: join(root, "experiments", spec.dirName, "exp-readable-map.json"),
+    report: join(root, "experiments", spec.dirName, "validation-report.json"),
+    html: join(root, "experiments", spec.dirName, "compare.html"),
+    chrome: join(root, "experiments", spec.dirName, "preview-chrome.json"),
+  };
+  const html = renderHtml({
+    ...report,
+    htmlTitle: `${spec.shortName} 实验织行对照`,
+    htmlHeader: `${spec.officialName} · 实验课级时序`,
+    htmlBlurb:
+      "只读现有 faces_ring。第一环沿用官方落座和平衡时机。之后按课：加针逐处开口并逐次平衡，整课织完，再逐个减针、逐次平衡。这不是 knitting code，也不改官方床图。",
+    firstRingFocusTitle: `实验：第一环 ${ringCourses} 课、${ringRows} 行。这几行应与官方床图相同。`,
+    experimentSheet: sheetJson(built.sheet),
+    baselineSheet: sheetJson(baseline.sheet),
+  });
+  if (check) {
+    const txtOk = existsSync(paths.txt) && readFileSync(paths.txt, "utf8") === text;
+    const xlsOk = Boolean(bytes) && existsSync(paths.xls) && readFileSync(paths.xls).equals(bytes);
+    const reportOnDisk = JSON.parse(readFileSync(paths.report, "utf8"));
+    const reportOk =
+      reportOnDisk.status === report.status &&
+      reportOnDisk.input.sha256 === report.input.sha256 &&
+      reportOnDisk.divergenceLine === report.divergenceLine &&
+      reportOnDisk.firstRingLine === report.firstRingLine &&
+      reportOnDisk.baseline.unchanged === true &&
+      reportOnDisk.baseline.xlsSha256 === beforeXls &&
+      reportOnDisk.baseline.txtSha256 === beforeTxt;
+    if (!txtOk || !xlsOk || !reportOk) {
+      fail(`${spec.shortName}: committed experiment outputs drifted txt=${txtOk} xls=${xlsOk} report=${reportOk}`);
+    }
+    return report;
+  }
+  mkdirSync(paths.dir, { recursive: true });
+  writeFileSync(paths.txt, text);
+  if (bytes) writeFileSync(paths.xls, bytes);
+  writeFileSync(
+    paths.json,
+    JSON.stringify({
+      input: report.input,
+      partialStop: built.partialStop,
+      courses: built.courses,
+      events,
+      sheet: sheetJson(built.sheet),
+    }),
+  );
+  writeFileSync(paths.report, `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(paths.html, html);
+  writeFileSync(paths.chrome, `${JSON.stringify(chrome, null, 2)}\n`);
+  if (hashFile(bedXls) !== beforeXls || hashFile(bedTxt) !== beforeTxt) {
+    fail(`${spec.shortName}: official bed hash changed after writing the experiment`);
+  }
+  return report;
+}
+
+async function runCylinders(argv) {
+  const check = argv.includes("--check");
+  const onlyAt = argv.indexOf("--only");
+  const only = onlyAt >= 0 ? argv[onlyAt + 1] : "";
+  const specs = CYLINDERS.filter((spec) => !only || spec.key === only || spec.sheetId === only);
+  if (!specs.length) fail(`no official cylinder ${only || ""}`);
+  const before = snapshotOfficial();
+  const results = [];
+  for (const spec of specs) {
+    console.log(`\n== ${spec.shortName}`);
+    const report = await runCylinder(spec, { check });
+    results.push({
+      sheetId: spec.sheetId,
+      menuLabel: report.menuLabel,
+      directory: report.output.directory,
+      deepLink: report.deepLink,
+      status: report.status,
+      completed: report.status === "complete",
+      firstRingIdentical: report.firstRing.identical,
+      officialUnchanged: report.baseline.unchanged,
+      officialXlsSha256: report.baseline.xlsSha256,
+      courses: report.compare,
+      postponed: (report.postponedBalances || []).map((event) => ({
+        type: event.type,
+        course: event.course,
+        terms: event.terms || (event.postponed || []).map((item) => item.term),
+      })),
+      omittedNoOpBalances: report.omittedNoOpBalances,
+      ringStarts: report.ringStarts,
+      partialStop: report.partialStop
+        ? { ring: report.partialStop.ring, course: report.partialStop.course, dir: report.partialStop.dir, sentence: report.partialStop.sentence }
+        : null,
+      statusLine: report.statusLine,
+      firstRingLine: report.firstRingLine,
+      divergenceLine: report.divergenceLine,
+    });
+    console.log(report.statusLine);
+    console.log(report.firstRingLine);
+    console.log(report.divergenceLine);
+  }
+  const after = snapshotOfficial();
+  const changed = sameHashes(before, after);
+  if (changed.length) fail(`official sample files changed: ${changed.join(", ")}`);
+  const summary = {
+    skipped: SKIPPED_CYLINDERS,
+    officialBunnySheet: "bunny-exp-readable-row-schedule",
+    officialFilesUnchanged: changed.length === 0,
+    officialFileCount: Object.keys(before).length,
+    models: results,
+  };
+  const summaryDir = join(root, "experiments/official-cylinder-readable-row-schedules");
+  if (!check) {
+    mkdirSync(summaryDir, { recursive: true });
+    writeFileSync(join(summaryDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
+  } else if (existsSync(join(summaryDir, "summary.json"))) {
+    const onDisk = JSON.parse(readFileSync(join(summaryDir, "summary.json"), "utf8"));
+    const brief = (list) => list.map((item) => `${item.sheetId}:${item.status}:${item.firstRingIdentical}`).join(",");
+    if (brief(onDisk.models || []) !== brief(results)) fail("cylinder summary drifted");
+  }
+  console.log(`official hashes unchanged (${Object.keys(before).length} files)`);
+  const bad = results.filter((item) => item.status === "first-ring-mismatch" || item.status === "checks-failed" || item.status === "error");
+  if (bad.length) fail(`cylinder experiment needs attention: ${bad.map((item) => `${item.sheetId} ${item.status}`).join("; ")}`);
+  return summary;
+}
+
 const isCli = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isCli) {
-  run(process.argv.slice(2)).catch((err) => {
+  const argv = process.argv.slice(2);
+  const job = argv.includes("--cylinders") ? runCylinders(argv) : run(argv);
+  job.catch((err) => {
     console.error(err.stack || err.message || err);
     process.exit(1);
   });

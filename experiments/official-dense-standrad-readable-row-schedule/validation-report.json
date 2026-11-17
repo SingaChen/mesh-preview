@@ -1,0 +1,226 @@
+{
+  "experiment": "official-dense-standrad-readable-row-schedule",
+  "sheetId": "dense-standrad-exp-readable-row-schedule",
+  "menuLabel": "Dense Standrad 实验（新时序）",
+  "input": {
+    "path": "public/sample/dense-standrad/dense_standrad_cylinder_faces_ring_layout.json",
+    "sha256": "7da693ff037d129006f8bf016c1bbda6c14e71c67f2d15d8736d349aea562fa3",
+    "source": "Dense Standrad Cylinder, scale_mode=propagate. rings[].types is Term.Type. rings[].hangs is Term.remain / n_extra. path_generate skips first_rows index 0, so first_rows_index = row + 1. SingaLab algorithm 043e93fadc2a6433737528d77438389130828173.",
+    "model": "dense-standrad",
+    "nFacesRing": 15,
+    "termTotal": 750,
+    "termCounts": [
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50,
+      50
+    ]
+  },
+  "baseline": {
+    "xls": "public/sample/dense-standrad/dense_standrad_cylinder_bed.xls",
+    "xlsSha256": "22560c0bdf4e1dd98e0aecffc61e959452c724f046c85c66078abc51275d52c5",
+    "xlsSha256After": "22560c0bdf4e1dd98e0aecffc61e959452c724f046c85c66078abc51275d52c5",
+    "txt": "public/sample/dense-standrad/dense_standrad_cylinder_bed.txt",
+    "txtSha256": "f55e2adb0ea78c8826081b0373d5b56175c7aedee00808f388883b22483aeb0b",
+    "txtSha256After": "f55e2adb0ea78c8826081b0373d5b56175c7aedee00808f388883b22483aeb0b",
+    "unchanged": true,
+    "rebuild": "full",
+    "rebuildError": null
+  },
+  "officialAssets": {
+    "dense_standrad_cylinder_faces_ring_layout.json": "7da693ff037d129006f8bf016c1bbda6c14e71c67f2d15d8736d349aea562fa3",
+    "dense_standrad_cylinder_bed.xls": "22560c0bdf4e1dd98e0aecffc61e959452c724f046c85c66078abc51275d52c5",
+    "dense_standrad_cylinder_bed.txt": "f55e2adb0ea78c8826081b0373d5b56175c7aedee00808f388883b22483aeb0b",
+    "public/sample/dense-standrad/dense_standrad_cylinder.dat": "53b5b4d804454bc2864f156999c95cca3c13958b0001e45d708c36f6e554278d",
+    "public/sample/dense-standrad/dense_standrad_cylinder.k": "21fac25da6fa79ce0ae21e20c8c04303e25fc1d0d3fd4df445b8af7dd8a575d6",
+    "public/sample/dense-standrad/dense_standrad_cylinder_knitcode.json": "594ba7e640b8dd6bda7e0acb633fdcb1cb552038ba783dff703cd56e55a5782e",
+    "public/sample/dense-standrad/dense_standrad_cylinder_KnittingStitches.obj": "8a2192f7794a61369413fffda42720324e61fd9c588dde76188cf09ede8958f3"
+  },
+  "output": {
+    "directory": "experiments/official-dense-standrad-readable-row-schedule",
+    "files": [
+      "exp-readable-map.txt",
+      "exp-readable-map.xls",
+      "exp-readable-map.json",
+      "validation-report.json",
+      "compare.html",
+      "preview-chrome.json"
+    ],
+    "dat": null,
+    "knitCode": null
+  },
+  "status": "complete",
+  "statusLine": "生成完成。实验 15 课，官方 15 课；实验 15 个织行，官方 15 个织行。",
+  "firstRingLine": "第一环 1 课、1 行与官方 seatRing 以及 dense_standrad_cylinder_bed.txt 的对应行相同（针号、记号、行注）。",
+  "divergenceLine": "第一环之后，和官方床图的织针序没有差异。 整张表没有减针课。",
+  "firstRing": {
+    "courses": 1,
+    "rows": 1,
+    "identical": true,
+    "mismatch": null,
+    "txtMismatch": null,
+    "seatRingError": null,
+    "noDecreasePrefix": null
+  },
+  "firstDecrease": null,
+  "postponedBalances": [],
+  "omittedNoOpBalances": {
+    "increaseOpenings": 0,
+    "decreases": 0
+  },
+  "ringStarts": [
+    {
+      "ring": 0,
+      "course": 0,
+      "start": "F0",
+      "schedule": "official-seatRing"
+    },
+    {
+      "ring": 1,
+      "course": 1,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 2,
+      "course": 2,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 3,
+      "course": 3,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 4,
+      "course": 4,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 5,
+      "course": 5,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 6,
+      "course": 6,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 7,
+      "course": 7,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 8,
+      "course": 8,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 9,
+      "course": 9,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 10,
+      "course": 10,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 11,
+      "course": 11,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 12,
+      "course": 12,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 13,
+      "course": 13,
+      "start": "F0",
+      "schedule": "knit"
+    },
+    {
+      "ring": 14,
+      "course": 14,
+      "start": "F0",
+      "schedule": "knit"
+    }
+  ],
+  "partialStop": null,
+  "divergence": null,
+  "extent": {
+    "courses": 15,
+    "baselineCourses": 15,
+    "knitRows": 15,
+    "baselineKnitRows": 15,
+    "knitCells": 750,
+    "termsKnitted": 750,
+    "termsTotal": 750,
+    "sharedTermCells": [],
+    "completed": true,
+    "generatorFinished": true,
+    "decreaseRegionsReached": false,
+    "mixedRegionsReached": false
+  },
+  "compare": {
+    "experimentCourses": 15,
+    "officialCourses": 15,
+    "experimentKnitRows": 15,
+    "officialKnitRows": 15,
+    "experimentSheetRows": 15,
+    "officialSheetRows": 15
+  },
+  "checks": {
+    "problems": [],
+    "decreaseEvents": 0,
+    "unresolvedPending": [],
+    "loop": {
+      "baselineKnitCells": 750,
+      "experimentKnitCells": 750,
+      "experimentTerms": 750,
+      "baselineTerms": 750,
+      "finalLive": 50,
+      "baselineFinalLive": 50
+    },
+    "binding": {
+      "prefixCells": 750,
+      "identicalToBaseline": true,
+      "note": "已织前缀的项号、标签、针位和线圈 id 与基线一致。开口空针还没织到，所以不在这个前缀里。"
+    },
+    "pendingIncreaseHoles": [],
+    "rowKindCounts": {
+      "knit": 15
+    },
+    "baselineRowKindCounts": {
+      "knit": 15
+    },
+    "renderError": null
+  },
+  "timing": "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针不再插在课的中途。床已经合法时省略空平衡行。",
+  "deepLink": "?sheet=dense-standrad-exp-readable-row-schedule"
+}

@@ -1876,6 +1876,41 @@ assert(
     !existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.dat")),
   "the timing experiment is its own sheet and does not replace the official Bunny bed",
 );
+const cylinderExpSheets = [
+  ["standrad", "Standrad", "load-standrad-cylinder"],
+  ["dense-standrad", "Dense Standrad", "load-dense-standrad-cylinder"],
+  ["decrease", "Decrease", "load-decrease-cylinder"],
+  ["dense-decrease", "Dense Decrease", "load-dense-decrease-cylinder"],
+  ["increase", "Increase", "load-increase-cylinder"],
+  ["dense-increase", "Dense Increase", "load-dense-increase-cylinder"],
+  ["thin", "Thin", "load-thin-cylinder"],
+  ["dense-thin", "Dense Thin", "load-dense-thin-cylinder"],
+  ["fat", "Fat", "load-fat-cylinder"],
+  ["dense-fat", "Dense Fat", "load-dense-fat-cylinder"],
+];
+const cylinderExpSrc = readFileSync(join(root, "src", "cylinder-exp-sheets.js"), "utf8");
+for (const [key, label, officialId] of cylinderExpSheets) {
+  const sheetId = `${key}-exp-readable-row-schedule`;
+  const buttonId = `load-${sheetId}`;
+  const dir = join(root, "experiments", `official-${key}-readable-row-schedule`);
+  assert(
+    html.includes(`id="${buttonId}"`) &&
+      html.includes(`${label} 实验（新时序）`) &&
+      html.indexOf(`id="${buttonId}"`) > html.indexOf(`id="${officialId}"`) &&
+      cylinderExpSrc.includes(`sheetId: "${sheetId}"`) &&
+      mainSrc.includes("loadCylinderExp") &&
+      mainSrc.includes("cylinder-exp-sheets.js") &&
+      existsSync(join(dir, "exp-readable-map.xls")) &&
+      existsSync(join(dir, "exp-readable-map.txt")) &&
+      existsSync(join(dir, "validation-report.json")) &&
+      !existsSync(join(dir, "exp-readable-map.dat")) &&
+      !existsSync(join(dir, "exp-readable-map.k")),
+    `${label} timing experiment is its own sheet`,
+  );
+  const report = JSON.parse(readFileSync(join(dir, "validation-report.json"), "utf8"));
+  assert(report.sheetId === sheetId && report.baseline?.unchanged === true, `${label} report keeps the official bed hash`);
+  assert(report.firstRing?.identical === true, `${label} first ring matches the official seating`);
+}
 assert(html.includes('id="load-faces-ring0"') && !html.includes('id="load-faces-ring1"') && mainSrc.includes("faces-ring0") && mainSrc.includes("isFacesRing0BedChart"), "Open menu loads the joined faces-ring bed chart");
 assert(!mainSrc.includes("#load-sample") && !mainSrc.includes("load-sample"), "main no longer wires 示例");
 assert(
@@ -3551,7 +3586,7 @@ assertDenseCylinderSample({
       datForSheet("fat") === fat,
     "complete cylinder aliases share the same dat",
   );
-  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-exp-readable-row-schedule"]) {
+  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-exp-readable-row-schedule", "standrad-exp-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "increase-exp-readable-row-schedule", "decrease-exp-readable-row-schedule", "thin-exp-readable-row-schedule", "fat-exp-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "dense-fat-exp-readable-row-schedule"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
   }
   const sha256 = (rel) => createHash("sha256").update(readFileSync(join(sampleDir, rel))).digest("hex");
