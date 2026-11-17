@@ -1,6 +1,4 @@
 Dense Fat 实验床图：第一环用官方落座，之后按 2026-11-17 的课级时序
-实验停在第 16 环 course 205 R（course 205: 项 23 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 23，全表项 1219。
-这一张表只含抛出之前已经画出的行。失败之后的平衡和后面的环都没有补。
 实验调度，只读 public/sample/dense-fat/dense_fat_cylinder_faces_ring_layout.json 的 rings（types 和 hangs）。没有重算 mesh、faces_ring、cols_resample，没有改官方床图、编织码、.dat 或 .k。第一环的加针开口和平衡时机与官方 seatRing 相同，不在计划针还没认领时先平衡。后面的课：只有加针就逐处开口并逐次平衡再整课织一次；只有减针就先整课织完再按走向逐个减针、逐次平衡；又有加针又有减针就先做完全部加针，再整课织一次，再逐个减针。同一活针不会在一行里织两次。减针剩下的位点按线圈身份找，不沿用旧针号。床已经合法（F≥B、|F−B|≤1、前床低端 F0）时省略空平衡行，需要的横移和翻针不省略。
 Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没有拼接，也没有把它们的列号、负列或标签当成针号。
 底圈 N=25，拆成 F=13、B=12。前床低端是物理针 F0。差 1 针时多出来的那一针是折返空档。
@@ -19,9 +17,13 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
 第 13 环结束 N=47，窗 47针 · 前24[0…23] · 后23[1…23]。
 第 14 环结束 N=47，窗 47针 · 前24[0…23] · 后23[1…23]。
 第 15 环结束 N=46，窗 46针 · 前23[0…22] · 后23[0…22]。
-实验停在第 16 环 course 205 N=36，窗 36针 · 前18[0…17] · 后18[0…17]。
+第 16 环结束 N=29，窗 29针 · 前15[0…14] · 后14[1…14]。
+第 17 环结束 N=26，窗 26针 · 前13[0…12] · 后13[0…12]。
+第 18 环结束 N=26，窗 26针 · 前13[0…12] · 后13[0…12]。
+第 19 环结束 N=25，窗 25针 · 前13[0…12] · 后12[1…12]。
+第 20 环结束 N=25，窗 25针 · 前13[0…12] · 后12[1…12]。
 针号是 F# / B#。表宽 50，由占用列最宽的一课决定：course 4 R 占 36 列，跨度 48。前床列 = 物理针，后床列 = 47 − 物理针。短课中间可以空。
-完整画到 ring 14。ring 15 只画到 course 205 抛出之前的行。
+20 环都在这一张表上。每一环都用这一份 faces_ring 自己落座的针。
 
 行程（织行）起点针、终点针：
   course 0 R  start F0  end B1  （25 针）
@@ -229,6 +231,15 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   course 202 L  start F4  end F3  （2 针）
   course 203 R  start F3  end F8  （10 针）
   course 204 L  start F8  end F7  （2 针）
+  course 205 R  start F7  end B1  （34 针）
+  course 206 R  start F0  end F6  （8 针）
+  course 207 L  start F6  end F12  （23 针）
+  course 208 R  start F12  end F11  （26 针）
+  course 209 L  start F11  end F7  （5 针）
+  course 210 R  start F7  end B0  （19 针）
+  course 211 R  start F0  end B0  （26 针）
+  course 212 R  start F0  end B1  （26 针）
+  course 213 R  start F0  end B1  （25 针）
 
 表行（格子按织的顺序，不是按表列从左到右）：
   row 0 R  这一行开始时 0针 · 前空 · 后空
@@ -1109,6 +1120,108 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
   row 292 X  这一行开始时 F18[0…17] / B18[1…18]
     B←@B18 B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
     实验：项 22 减针之后平衡。course 205: counts match and the beds are one needle apart. Rack B -1 (F18[0…17] / B18[1…18] → F18[0…17] / B18[0…17]).
+  row 293 X  这一行开始时 36针 · 前18[0…17] · 后18[0…17]
+    F←@F16 F←@F17
+    course 205: 实验：织的时候跨床，现在都在前床，按当前床做减针。整课织完后，第 1 次从 F16 套到 F15（carried:13）。
+  row 294 Flip  这一行开始时 F17[0…16] / B18[0…17]
+    ⬇@B17
+    实验：项 23 减针之后平衡。course 205: right-fold flip B17→F17 (same index).
+  row 295 X  这一行开始时 F18[0…17] / B17[0…16]
+    B→@B16 B→@B15 B→@B14 B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    实验：项 23 减针之后平衡。course 205: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F18[0…17] / B17[1…17]).
+  row 296 X  这一行开始时 35针 · 前18[0…17] · 后17[1…17]
+    F←@F17
+    course 205: 实验：织的时候同床 L 向，现在都在前床，按当前床 R 向从第二格套到第一格。整课织完后，第 1 次从 F17 套到 F16（carried:14）。
+  row 297 X  这一行开始时 F17[0…16] / B17[1…17]
+    B←@B17 B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    实验：项 24 减针之后平衡。course 205: counts match and the beds are one needle apart. Rack B -1 (F17[0…16] / B17[1…17] → F17[0…16] / B17[0…16]).
+  row 298 X  这一行开始时 34针 · 前17[0…16] · 后17[0…16]
+    B→@B13 B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: 实验：整课织完后，第 1 次从 B13 套到 B14（hole:c4:t18:g1）。
+  row 299 X  这一行开始时 33针 · 前17[0…16] · 后16[1…16]
+    B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1
+    course 205: 实验：整课织完后，第 1 次从 B11 套到 B12（carried:18）。
+  row 300 X  这一行开始时 F17[0…16] / B15[2…16]
+    B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2
+    实验：项 29 减针之后平衡。course 205: clear B16 with a −1 rack before the same-index flip (F17[0…16] / B15[2…16] → F17[0…16] / B15[1…15]).
+  row 301 Flip  这一行开始时 F17[0…16] / B15[1…15]
+    ⬆@F16
+    实验：项 29 减针之后平衡。course 205: right-fold flip F16→B16 (same index).
+  row 302 X  这一行开始时 F16[0…15] / B16[1…16]
+    B←@B16 B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    实验：项 29 减针之后平衡。course 205: counts match and the beds are one needle apart. Rack B -1 (F16[0…15] / B16[1…16] → F16[0…15] / B16[0…15]).
+  row 303 X  这一行开始时 32针 · 前16[0…15] · 后16[0…15]
+    B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: 实验：整课织完后，第 1 次从 B8 套到 B9（carried:19）。
+  row 304 X  这一行开始时 31针 · 前16[0…15] · 后15[1…15]
+    B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1
+    course 205: 实验：整课织完后，第 1 次从 B7 套到 B8（carried:20）。
+  row 305 X  这一行开始时 F16[0…15] / B14[2…15]
+    B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2
+    实验：项 31 减针之后平衡。course 205: clear B15 with a −1 rack before the same-index flip (F16[0…15] / B14[2…15] → F16[0…15] / B14[1…14]).
+  row 306 Flip  这一行开始时 F16[0…15] / B14[1…14]
+    ⬆@F15
+    实验：项 31 减针之后平衡。course 205: right-fold flip F15→B15 (same index).
+  row 307 X  这一行开始时 F15[0…14] / B15[1…15]
+    B←@B15 B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    实验：项 31 减针之后平衡。course 205: counts match and the beds are one needle apart. Rack B -1 (F15[0…14] / B15[1…15] → F15[0…14] / B15[0…14]).
+  row 308 X  这一行开始时 30针 · 前15[0…14] · 后15[0…14]
+    B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    course 205: 实验：整课织完后，第 1 次从 B4 套到 B5（hole:c3:t21:g1）。
+  row 309 R  这一行开始时 29针 · 前15[0…14] · 后14[1…14]
+    F·@F0 F·@F1 F·@F2 F-R1@F3 F·@F4 F·@F5 F·@F6 FvR@F7
+    course 206: 实验课。先把整课织完，包括将要减掉的针，减针移圈不插在织的过程中；再按走向逐个减针，每减完一处就平衡。
+  row 310 X  这一行开始时 29针 · 前15[0…14] · 后14[1…14]
+    F←@F4 F←@F5 F←@F6 F←@F7 F←@F8 F←@F9 F←@F10 F←@F11 F←@F12 F←@F13 F←@F14
+    course 206: 实验：整课织完后，第 1 次从 F4 套到 F3（carried:3）。
+  row 311 X  这一行开始时 F14[0…13] / B14[1…14]
+    B←@B14 B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    实验：项 3 减针之后平衡。course 206: counts match and the beds are one needle apart. Rack B -1 (F14[0…13] / B14[1…14] → F14[0…13] / B14[0…13]).
+  row 312 L  这一行开始时 28针 · 前14[0…13] · 后14[0…13]
+    F^R@F6 F·@F5 F·@F4 F·@F3 F·@F2 F·@F1 F·@F0 B·@B0 B·@B1 B·@B2 B·@B3 B-R1@B4 B·@B5 B·@B6 B·@B7 B·@B8 B-R1@B9 B·@B10 B·@B11 B·@B12 B·@B13 F·@F13 FvL@F12
+    course 207: 实验课。先把整课织完，包括将要减掉的针，减针移圈不插在织的过程中；再按走向逐个减针，每减完一处就平衡。
+  row 313 X  这一行开始时 28针 · 前14[0…13] · 后14[0…13]
+    B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5
+    course 207: 实验：整课织完后，第 1 次从 B5 套到 B4（hole:c3:t21:g1）。
+  row 314 X  这一行开始时 F14[0…13] / B13[0…12]
+    B→@B12 B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    实验：项 18 减针之后平衡。course 207: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F14[0…13] / B13[1…13]).
+  row 315 X  这一行开始时 27针 · 前14[0…13] · 后13[1…13]
+    B←@B13 B←@B12 B←@B11 B←@B10
+    course 207: 实验：整课织完后，第 1 次从 B10 套到 B9（hole:c4:t18:g1）。
+  row 316 Flip  这一行开始时 F14[0…13] / B12[1…12]
+    ⬆@F13
+    实验：项 22 减针之后平衡。course 207: right-fold flip F13→B13 (same index).
+  row 317 X  这一行开始时 F13[0…12] / B13[1…13]
+    B←@B13 B←@B12 B←@B11 B←@B10 B←@B9 B←@B8 B←@B7 B←@B6 B←@B5 B←@B4 B←@B3 B←@B2 B←@B1
+    实验：项 22 减针之后平衡。course 207: counts match and the beds are one needle apart. Rack B -1 (F13[0…12] / B13[1…13] → F13[0…12] / B13[0…12]).
+  row 318 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F^L@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0 F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 FvR@F11
+    course 208: 实验课。这一课没有加减针，整课织一次。
+  row 319 L  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F^R@F11 F·@F10 F·@F9 F·@F8 FvL@F7
+    course 209: 实验课。这一课没有加减针，整课织一次。
+  row 320 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F^L@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+    course 210: 实验课。这一课没有加减针，整课织一次。
+  row 321 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+    course 211: 实验课。这一课没有加减针，整课织一次。
+  row 322 R  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F-R1@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1 B·@B0
+    course 212: 实验课。先把整课织完，包括将要减掉的针，减针移圈不插在织的过程中；再按走向逐个减针，每减完一处就平衡。
+  row 323 X  这一行开始时 26针 · 前13[0…12] · 后13[0…12]
+    F←@F12
+    course 212: 实验：整课织完后，第 1 次从 F12 套到 F11（carried:11）。
+  row 324 Flip  这一行开始时 F12[0…11] / B13[0…12]
+    ⬇@B12
+    实验：项 11 减针之后平衡。course 212: right-fold flip B12→F12 (same index).
+  row 325 X  这一行开始时 F13[0…12] / B12[0…11]
+    B→@B11 B→@B10 B→@B9 B→@B8 B→@B7 B→@B6 B→@B5 B→@B4 B→@B3 B→@B2 B→@B1 B→@B0
+    实验：项 11 减针之后平衡。course 212: the extra stitch is the fold gap. Rack the back +1 so the empty needle is at the left junction (F13[0…12] / B12[1…12]).
+  row 326 R  这一行开始时 25针 · 前13[0…12] · 后12[1…12]
+    F·@F0 F·@F1 F·@F2 F·@F3 F·@F4 F·@F5 F·@F6 F·@F7 F·@F8 F·@F9 F·@F10 F·@F11 F·@F12 B·@B12 B·@B11 B·@B10 B·@B9 B·@B8 B·@B7 B·@B6 B·@B5 B·@B4 B·@B3 B·@B2 B·@B1
+    course 213: 实验课。这一课没有加减针，整课织一次。
 
 每一环的第一针都在 F0。后一环不重新落座，第一针是前一环结束之后沿本行方向的下一针。一行相对上一行反向才是折返。每一次折返短行单独成课。
 第一环 加减针 hang（n_extra）：无。
@@ -1143,4 +1256,12 @@ Step1、Step2、Step3 的 xls / txt / map 都不是输入，没有读取、没�
 第15环里没有 hang 不是 1 的项。
 第16环 加减针 hang（n_extra）：term 1200 Type 5 hang 1，term 1205 Type 3 hang 1，term 1206 Type 3 hang 1，term 1207 Type 3 hang 1，term 1208 Type 5 hang 1，term 1213 Type 3 hang 1，term 1215 Type 3 hang 1，term 1216 Type 3 hang 1，term 1217 Type 3 hang 1，term 1218 Type 3 hang 1，term 1219 Type 3 hang 1，term 1220 Type 3 hang 1，term 1223 Type 3 hang 1，term 1225 Type 3 hang 1，term 1226 Type 3 hang 1，term 1227 Type 3 hang 1，term 1228 Type 3 hang 1。
 第16环里没有 hang 不是 1 的项。
-其余 1193 项不是加减针，hang 为 0。
+第17环 加减针 hang（n_extra）：term 1236 Type 3 hang 1，term 1251 Type 3 hang 1，term 1255 Type 3 hang 1。
+第17环里没有 hang 不是 1 的项。
+第18环 加减针 hang（n_extra）：无。
+第18环里没有 hang 不是 1 的项。
+第19环 加减针 hang（n_extra）：term 1348 Type 3 hang 1。
+第19环里没有 hang 不是 1 的项。
+第20环 加减针 hang（n_extra）：无。
+第20环里没有 hang 不是 1 的项。
+其余 1343 项不是加减针，hang 为 0。

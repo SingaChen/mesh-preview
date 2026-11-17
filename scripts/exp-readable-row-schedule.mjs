@@ -7,8 +7,10 @@
  *   3. both: all increase openings (balance after each), then the whole knit, then the decreases.
  * Ring 0 is the official seatRing path, including when balance runs. A pre-knit
  * balance that still sees an unclaimed planned needle is postponed until that
- * course has been knitted. This does not write knitting code or DAT, and it
- * does not write official beds.
+ * course has been knitted. After the knit, a decrease uses the beds those
+ * stitches occupy now. A pair that was cross-bed at knit time and is same-bed
+ * after earlier decreases is a same-bed decrease on the current bed. This does
+ * not write knitting code or DAT, and it does not write official beds.
  *
  *   npm run exp:bunny-readable-row
  *   node scripts/exp-readable-row-schedule.mjs --check
@@ -473,6 +475,22 @@ function relationHolds(members, side) {
   return true;
 }
 
+function sideFromCurrent(members) {
+  if (relationHolds(members, "R")) return "R";
+  if (relationHolds(members, "L")) return "L";
+  return null;
+}
+
+function placeLine(items) {
+  return (items || [])
+    .map((item) => `${item.origin || item.id}@${item.missing ? "缺" : `${item.bed}${item.phys}`}`)
+    .join("，");
+}
+
+function bedName(bed) {
+  return bed === "F" ? "前床" : bed === "B" ? "后床" : String(bed || "");
+}
+
 function applyDecrease(state, group, where, course) {
   const snap = snapState(state);
   const before = bedSnapshot(state.stitches);
@@ -482,15 +500,28 @@ function applyDecrease(state, group, where, course) {
   }
   const members = group.ids.map((id) => state.stitches.get(id));
   const nowCross = crossesFold(state.stitches, members);
-  if (nowCross !== group.crossAtKnit) {
-    return {
-      ok: false,
-      phase: "decrease-geometry",
-      error: `${where}: 项 ${group.term} 在织的时候${group.crossAtKnit ? "跨床" : "同床"}，平衡之后变成${nowCross ? "跨床" : "同床"}。不改减针落点。`,
-      before,
-      atKnit: group.atKnit,
-      atNow,
-    };
+  let retargeted = nowCross !== Boolean(group.crossAtKnit);
+  let side = group.side;
+  let landingNote = "";
+  if (!nowCross && !relationHolds(members, side)) {
+    const nowSide = sideFromCurrent(members);
+    if (!nowSide) {
+      return {
+        ok: false,
+        phase: "decrease-geometry",
+        error: `${where}: 项 ${group.term} 现在 ${members.length} 针都在${bedName(members[0].bed)}（${placeLine(atNow)}），不是沿走向相邻的同床减针，不能按当前床从第二格套到第一格。`,
+        before,
+        atKnit: group.atKnit,
+        atNow,
+      };
+    }
+    side = nowSide;
+    retargeted = true;
+    landingNote = `织的时候${group.crossAtKnit ? "跨床" : `同床 ${group.side} 向`}，现在都在${bedName(members[0].bed)}，按当前床 ${side} 向从第二格套到第一格。`;
+  } else if (retargeted && !nowCross) {
+    landingNote = `织的时候跨床，现在都在${bedName(members[0].bed)}，按当前床做减针。`;
+  } else if (retargeted && nowCross) {
+    landingNote = "织的时候同床，现在这两针跨床，按当前床套圈。";
   }
   const rows = [];
   try {
@@ -500,26 +531,24 @@ function applyDecrease(state, group, where, course) {
         return {
           ok: false,
           phase: "decrease-geometry",
-          error: `${where}: 项 ${group.term} 的跨床减针不再是相邻折点`,
+          error: retargeted
+            ? `${where}: 项 ${group.term} 现在跨床（${placeLine(atNow)}），但已经不是相邻折点，不能按当前床套圈。`
+            : `${where}: 项 ${group.term} 的跨床减针不再是相邻折点`,
           before,
           atKnit: group.atKnit,
           atNow,
         };
       }
       const stacked = stackCrossBedGroup(state.stitches, members, state.waleToId, course, where);
-      rows.push(...stacked.transfers.map((row) => ({ ...row, course, note: `实验：整课织完后，按线圈身份套项 ${group.term}。${row.note}` })));
-    } else if (!relationHolds(members, group.side)) {
-      restoreState(state, snap);
-      return {
-        ok: false,
-        phase: "decrease-geometry",
-        error: `${where}: 项 ${group.term} 织完时是 ${group.side} 向同床减针，平衡后的针位不再保持这个落点`,
-        before,
-        atKnit: group.atKnit,
-        atNow,
-      };
+      rows.push(
+        ...stacked.transfers.map((row) => ({
+          ...row,
+          course,
+          note: `实验：${landingNote}整课织完后，按线圈身份套项 ${group.term}。${row.note}`,
+        })),
+      );
     } else {
-      const passed = sameBedPasses(state, group, members, where, course);
+      const passed = sameBedPasses(state, { ...group, side }, members, where, course, landingNote);
       if (!passed.ok) {
         restoreState(state, snap);
         return { ...passed, before, atKnit: group.atKnit, atNow: membersOf(state.stitches, group.ids) };
@@ -540,10 +569,23 @@ function applyDecrease(state, group, where, course) {
       atNow,
     };
   }
-  return { ok: true, rows, before, after: bedSnapshot(state.stitches), atNow };
+  const landingSentence = retargeted
+    ? `${where}: 项 ${group.term} 织的时候${group.crossAtKnit ? "跨床" : "同床"}（${placeLine(group.atKnit)}），减针时${nowCross ? "跨床" : `同在${bedName(members[0].bed)}`}（${placeLine(atNow)}）。按当前床${nowCross ? "套圈" : `、${side} 向，从第二格套到第一格`}。`
+    : "";
+  return {
+    ok: true,
+    rows,
+    before,
+    after: bedSnapshot(state.stitches),
+    atNow,
+    retargeted,
+    crossNow: nowCross,
+    sideUsed: side,
+    landingSentence,
+  };
 }
 
-function sameBedPasses(state, group, members, where, course) {
+function sameBedPasses(state, group, members, where, course, landingNote = "") {
   const first = members[0];
   const recv = members[1];
   const recvPhys = recv.phys;
@@ -578,7 +620,7 @@ function sameBedPasses(state, group, members, where, course) {
           },
         ],
         beds,
-        note: `${where}: 实验：第 ${k + 1} 次移圈前，折点 ${other}${partner.phys} 翻到 ${recvBed}${recvPhys}。`,
+        note: `${where}: 实验：${landingNote}第 ${k + 1} 次移圈前，折点 ${other}${partner.phys} 翻到 ${recvBed}${recvPhys}。`,
       });
       partner.bed = recvBed;
       assertNoShare(state.stitches, `${where} decrease ${k + 1}`);
@@ -609,7 +651,7 @@ function sameBedPasses(state, group, members, where, course) {
           },
         ],
         beds,
-        note: `${where}: 实验：${fromBed}${source.phys} 套到接收圈 ${first.origin || first.id}（${first.bed}${first.phys}）。`,
+        note: `${where}: 实验：${landingNote}${fromBed}${source.phys} 套到接收圈 ${first.origin || first.id}（${first.bed}${first.phys}）。`,
       });
       continue;
     }
@@ -627,7 +669,7 @@ function sameBedPasses(state, group, members, where, course) {
       course,
       cells: moved.cells,
       beds,
-      note: `${where}: 实验：整课织完后，第 ${k + 1} 次从 ${recvBed}${recvPhys} 套到 ${first.bed}${first.phys}（${first.origin || first.id}）。`,
+      note: `${where}: 实验：${landingNote}整课织完后，第 ${k + 1} 次从 ${recvBed}${recvPhys} 套到 ${first.bed}${first.phys}（${first.origin || first.id}）。`,
     });
   }
   if (allowed.size) {
@@ -978,7 +1020,21 @@ function seatContinuationExperiment(courses, carried, prevDirIn, courseOffset) {
         side: group.side,
         hang: group.hang,
         crossAtKnit: group.crossAtKnit,
+        crossNow: decreased.crossNow,
+        sideAtKnit: group.side,
+        sideUsed: decreased.sideUsed,
+        landing: decreased.retargeted ? "current-bed" : group.crossAtKnit ? "cross-bed" : "same-bed",
+        landingSentence: decreased.landingSentence || "",
         atKnit: group.atKnit,
+        atDecrease: decreased.atNow,
+        bedsBefore: decreased.before?.text || "",
+        bedsAfter: balanced.after.text,
+        transfers: decreased.rows.map((row) => ({
+          dir: row.dir,
+          kind: row.kind,
+          cells: row.cells.map((cell) => `${cell.token}@${cell.bed}${cell.phys}`).join(" "),
+          note: row.note,
+        })),
         after: membersOf(state.stitches, group.ids.filter((id) => state.stitches.has(id))),
         balance: balanced.after.text,
         balanceRows: balanced.rows.length,
@@ -1127,7 +1183,13 @@ function buildExperiment(path, copy = null) {
       }));
       sheets.push(shifted);
       courses.push(...seated.courses);
-      events.push(...seated.events.map((event) => ({ ...event, ring: index })));
+      events.push(
+        ...seated.events.map((event) => ({
+          ...event,
+          ring: index,
+          ...(Number.isInteger(event.term) ? { globalTerm: ringTerm + event.term } : {}),
+        })),
+      );
       const drawn = seated.partial ? coveredFrom(shifted, termOffset) : ring.types.length;
       if (seated.partial && drawn > ring.types.length) fail(`ring ${index} names ${drawn} terms`);
       takeTerms(ring.types, ring.hangs, drawn);
@@ -2069,6 +2131,29 @@ function ringStartsOf(built, events) {
   return starts;
 }
 
+function currentBedLandings(events) {
+  return events
+    .filter((event) => event.type === "decrease" && event.landing === "current-bed")
+    .map((event) => ({
+      ring: event.ring ?? null,
+      course: event.course,
+      localTerm: event.term,
+      globalTerm: event.globalTerm ?? null,
+      atKnit: event.atKnit || [],
+      atDecrease: event.atDecrease || [],
+      bedsBefore: event.bedsBefore || "",
+      bedsAfterBalance: event.bedsAfter || "",
+      crossAtKnit: Boolean(event.crossAtKnit),
+      crossNow: Boolean(event.crossNow),
+      sideAtKnit: event.sideAtKnit || "",
+      sideUsed: event.sideUsed || "",
+      balanceRows: event.balanceRows,
+      transfers: event.transfers || [],
+      balance: event.balance || "",
+      sentence: event.landingSentence || "",
+    }));
+}
+
 function chromeForCylinder(spec, built, firstRingIdentical) {
   const unfinished = Boolean(built.partialStop) || !firstRingIdentical;
   const label = unfinished ? `${spec.shortName} 实验（新时序，未跑完）` : `${spec.shortName} 实验（新时序）`;
@@ -2313,8 +2398,9 @@ async function runCylinder(spec, { check }) {
       baselineRowKindCounts: validation.baselineRowKindCounts,
       renderError,
     },
+    currentBedLandings: currentBedLandings(events),
     timing:
-      "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针不再插在课的中途。床已经合法时省略空平衡行。",
+      "第一环使用官方 seatRing：加针开口之后先整课织完，计划针认领了再平衡。后面的课按 2026-11-17：加针逐处开口并逐次平衡，整课织完，再按线圈身份逐个减针、逐次平衡。减针落点按减针当时的床位，不冻结织当时的跨床关系。床已经合法时省略空平衡行。",
     deepLink: `?sheet=${spec.sheetId}`,
   };
   const chrome = chromeForCylinder(spec, built, firstRingIdentical);
@@ -2332,11 +2418,22 @@ async function runCylinder(spec, { check }) {
     htmlTitle: `${spec.shortName} 实验织行对照`,
     htmlHeader: `${spec.officialName} · 实验课级时序`,
     htmlBlurb:
-      "只读现有 faces_ring。第一环沿用官方落座和平衡时机。之后按课：加针逐处开口并逐次平衡，整课织完，再逐个减针、逐次平衡。这不是 knitting code，也不改官方床图。",
+      "只读现有 faces_ring。第一环沿用官方落座和平衡时机。之后按课：加针逐处开口并逐次平衡，整课织完，再逐个减针、逐次平衡。减针落点按此时床位。这不是 knitting code，也不改官方床图。",
     firstRingFocusTitle: `实验：第一环 ${ringCourses} 课、${ringRows} 行。这几行应与官方床图相同。`,
     experimentSheet: sheetJson(built.sheet),
     baselineSheet: sheetJson(baseline.sheet),
   });
+  if (!check && existsSync(paths.report)) {
+    const onDisk = JSON.parse(readFileSync(paths.report, "utf8"));
+    if (onDisk.status === "complete") {
+      const txtOk = existsSync(paths.txt) && readFileSync(paths.txt, "utf8") === text;
+      const xlsOk = Boolean(bytes) && existsSync(paths.xls) && readFileSync(paths.xls).equals(bytes);
+      if (!txtOk || !xlsOk) {
+        fail(`${spec.shortName}: completed experiment sheet would change (txt=${txtOk} xls=${xlsOk}); leaving it in place`);
+      }
+      return onDisk;
+    }
+  }
   if (check) {
     const txtOk = existsSync(paths.txt) && readFileSync(paths.txt, "utf8") === text;
     const xlsOk = Boolean(bytes) && existsSync(paths.xls) && readFileSync(paths.xls).equals(bytes);
@@ -2404,6 +2501,15 @@ async function runCylinders(argv) {
         terms: event.terms || (event.postponed || []).map((item) => item.term),
       })),
       omittedNoOpBalances: report.omittedNoOpBalances,
+      currentBedLandings: (report.currentBedLandings || []).map((item) => ({
+        ring: item.ring,
+        course: item.course,
+        localTerm: item.localTerm,
+        globalTerm: item.globalTerm,
+        sentence: item.sentence,
+        bedsBefore: item.bedsBefore,
+        bedsAfterBalance: item.bedsAfterBalance,
+      })),
       ringStarts: report.ringStarts,
       partialStop: report.partialStop
         ? { ring: report.partialStop.ring, course: report.partialStop.course, dir: report.partialStop.dir, sentence: report.partialStop.sentence }
@@ -2427,10 +2533,17 @@ async function runCylinders(argv) {
     models: results,
   };
   const summaryDir = join(root, "experiments/official-cylinder-readable-row-schedules");
+  const summaryPath = join(summaryDir, "summary.json");
   if (!check) {
+    if (only && existsSync(summaryPath)) {
+      const prior = JSON.parse(readFileSync(summaryPath, "utf8"));
+      const byId = new Map((prior.models || []).map((item) => [item.sheetId, item]));
+      for (const item of results) byId.set(item.sheetId, item);
+      summary.models = CYLINDERS.map((spec) => byId.get(spec.sheetId)).filter(Boolean);
+    }
     mkdirSync(summaryDir, { recursive: true });
-    writeFileSync(join(summaryDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
-  } else if (existsSync(join(summaryDir, "summary.json"))) {
+    writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
+  } else if (existsSync(summaryPath)) {
     const onDisk = JSON.parse(readFileSync(join(summaryDir, "summary.json"), "utf8"));
     const brief = (list) => list.map((item) => `${item.sheetId}:${item.status}:${item.firstRingIdentical}`).join(",");
     if (brief(onDisk.models || []) !== brief(results)) fail("cylinder summary drifted");

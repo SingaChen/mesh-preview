@@ -1,8 +1,8 @@
 {
-  "label": "Dense Decrease 实验（新时序，未跑完）",
-  "menuTitle": "实验课级时序，停在 实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。 不是官方 Dense Decrease",
-  "banner": "实验时序 · 未跑完 · 右侧不是官方床图",
-  "status": "Dense Decrease 实验（新时序，未跑完） · 左侧是官方 Dense Decrease Cylinder 网格 · 实验停在第 7 环 course 56 R（course 56: 项 19 在织的时候跨床，平衡之后变成同床。不改减针落点。）。 环内项 19，全表项 431。",
-  "metaPrefix": "未跑完",
+  "label": "Dense Decrease 实验（新时序）",
+  "menuTitle": "实验课级时序的 readable map，不是官方 Dense Decrease",
+  "banner": "实验时序 · 不是官方床图",
+  "status": "Dense Decrease 实验（新时序） · 左侧是官方 Dense Decrease Cylinder 网格 · 右侧是实验课级时序，不是官方床图",
+  "metaPrefix": "实验时序",
   "sheetId": "dense-decrease-exp-readable-row-schedule"
 }
