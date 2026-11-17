@@ -1,5 +1,6 @@
 import expReadableMapUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.xls?url";
 import expReadableMapTxtUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.txt?url";
+import expChrome from "../experiments/official-bunny-readable-row-schedule/preview-chrome.json";
 import { MeshViewer } from "./viewer.js";
 import {
   clickInput,
@@ -106,8 +107,12 @@ const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
 const BUNNY_EXP_SHEET = "bunny-exp-readable-row-schedule";
-const BUNNY_EXP_LABEL = "Bunny 实验（新时序，未跑完）";
+const BUNNY_EXP_LABEL = expChrome.label;
 const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedule");
+if (bunnyExpBtn) {
+  bunnyExpBtn.textContent = BUNNY_EXP_LABEL;
+  bunnyExpBtn.title = expChrome.menuTitle;
+}
 const standradBtn = document.querySelector("#load-standrad-cylinder");
 const denseStandradBtn = document.querySelector("#load-dense-standrad-cylinder");
 const decreaseBtn = document.querySelector("#load-decrease-cylinder");
@@ -1318,10 +1323,10 @@ async function loadBunnyExpReadableRow() {
       text: await txtRes.text(),
     });
     await openEntries(entries, { sheet: BUNNY_EXP_SHEET });
-    if (project) project.banner = "实验时序 · 未跑完 · 右侧不是官方床图";
+    if (project) project.banner = expChrome.banner;
     updateChrome();
     if (!statusEl.classList.contains("error")) {
-      setStatus(`${BUNNY_EXP_LABEL} · 左侧是官方 Bunny 网格 · 右侧只到 course 2 开口 · B14 被未织计划针挡住`);
+      setStatus(expChrome.status);
     }
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -2007,7 +2012,7 @@ function paintReadableMap() {
   if (mapMeta) {
     mapMeta.textContent =
       map.source === "excel" && isBunnyExpReadableSheet()
-        ? `未跑完 · ${map.rows.length} 行 · 列 ${map.colMin}…${map.colMax} · course 0–1 已织 · course 2 开口后停住 · 不是官方 Bunny`
+        ? `${expChrome.metaPrefix} · ${map.rows.length} 行 · 列 ${map.colMin}…${map.colMax} · 不是官方 Bunny`
         : map.source === "excel"
         ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "Bunny" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${stoppedMapSuffix(map)}`
         : h
