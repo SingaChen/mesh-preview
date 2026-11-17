@@ -146,7 +146,7 @@ export const DEFAULT_PATHS = {
   outTxt: join(cylDir, "faces_ring0_step4_bed.txt"),
 };
 
-const FILL = {
+export const FILL = {
   plain: "rgb(255,255,255)",
   back: "rgb(204,255,255)",
   wrap: "rgb(255,204,0)",
@@ -374,12 +374,12 @@ export function coursesFromTypes(types, hangs) {
   return rows.filter((row) => row.cells.length);
 }
 
-function incAdded(label) {
+export function incAdded(label) {
   const m = String(label).match(/\+[RL](\d+)/);
   return m ? Number(m.group ? m[1] : m[1]) : 0;
 }
 
-function decAdded(label) {
+export function decAdded(label) {
   const tagged = String(label).match(/-[RL](\d+)/);
   if (tagged) return Number(tagged[1]);
   const tail = String(label).match(/-(\d+)$/);
@@ -390,11 +390,11 @@ function decAdded(label) {
  * A row is a fold-return if and only if its travel direction reverses
  * from the previous row. The opening label is not the test.
  */
-function isFoldReturn(course, prevDir) {
+export function isFoldReturn(course, prevDir) {
   return prevDir != null && course.dir !== prevDir;
 }
 
-function decSide(label) {
+export function decSide(label) {
   const tagged = String(label).match(/-([RL])/);
   if (tagged) return tagged[1];
   const wrapped = String(label).match(/[v^]([RL])/);
@@ -402,7 +402,7 @@ function decSide(label) {
 }
 
 /** The seated wales are exactly 0..N-1. */
-function liveIsContiguousFromZero(live) {
+export function liveIsContiguousFromZero(live) {
   if (live.size === 0) return false;
   for (let i = 0; i < live.size; i++) {
     if (!live.has(i)) return false;
@@ -416,7 +416,7 @@ function liveIsContiguousFromZero(live) {
  * while that is true join the base, including needles a transfer opens.
  * A course that stays inside the finished span uses later-course holes.
  */
-function firstRingStillSeating(course, live) {
+export function firstRingStillSeating(course, live) {
   if (!liveIsContiguousFromZero(live)) return true;
   for (const cell of course.cells) {
     if (!live.has(cell.wale)) return true;
@@ -510,7 +510,7 @@ export function columnForPhys(bed, phys) {
  * so those needles do not land on one column. A shorter course keeps
  * the gaps. The sheet then includes every column that placement uses.
  */
-function fitChartWidth(sheet) {
+export function fitChartWidth(sheet) {
   const knits = sheet.filter((row) => row.dir === "R" || row.dir === "L");
   let mirror = 0;
   for (const row of knits) {
@@ -577,7 +577,7 @@ function fitChartWidth(sheet) {
   return { width, mirror, widest };
 }
 
-function assertNoShare(stitches, where) {
+export function assertNoShare(stitches, where) {
   const seen = new Map();
   for (const st of stitches.values()) {
     const key = `${st.bed}:${st.phys}`;
@@ -587,7 +587,7 @@ function assertNoShare(stitches, where) {
   }
 }
 
-function listsOf(stitches) {
+export function listsOf(stitches) {
   const f = [];
   const b = [];
   for (const st of stitches.values()) (st.bed === "F" ? f : b).push(st);
@@ -596,7 +596,7 @@ function listsOf(stitches) {
   return { f, b, N: f.length + b.length };
 }
 
-function spanText(phys) {
+export function spanText(phys) {
   if (!phys.length) return "—";
   return `${phys[0]}…${phys[phys.length - 1]}`;
 }
@@ -615,7 +615,7 @@ function assignedPhys(stitches, plan, bed, where) {
   return phys;
 }
 
-function windowText(stitches, plan, where) {
+export function windowText(stitches, plan, where) {
   const front = assignedPhys(stitches, plan, "F", where);
   const back = assignedPhys(stitches, plan, "B", where);
   const N = front.length + back.length;
@@ -678,7 +678,7 @@ function rackBed(stitches, plan, bed, delta, where) {
 }
 
 /** The arrow points at the bed the stitch lands on. The cell stays on the source needle. */
-function flipToken(fromBed, toBed) {
+export function flipToken(fromBed, toBed) {
   if (fromBed === "B" && toBed === "F") return "⬇";
   if (fromBed === "F" && toBed === "B") return "⬆";
   fail(`flip ${fromBed}→${toBed} is not a bed change`);
@@ -1014,7 +1014,7 @@ export function balanceBeds(stitches, plan, where) {
   fail(`${where}: F${win.tF}/B${win.tB} is not F≥B and |F−B|≤1`);
 }
 
-function neighbors(live, stitches, wale) {
+export function neighbors(live, stitches, wale) {
   let left = null;
   let right = null;
   for (const [w, id] of live) {
@@ -1025,7 +1025,7 @@ function neighbors(live, stitches, wale) {
   return { left, right };
 }
 
-function physInHole(left, right, where) {
+export function physInHole(left, right, where) {
   if (!left || !right) fail(`${where}: new stitch has no neighbors`);
   if (left.bed !== right.bed) fail(`${where}: new stitch sits between ${left.bed}${left.phys} and ${right.bed}${right.phys}`);
   const lo = Math.min(left.phys, right.phys);
@@ -1034,7 +1034,7 @@ function physInHole(left, right, where) {
   return { bed: left.bed, phys: lo + 1 };
 }
 
-function kindFill(kind, bed) {
+export function kindFill(kind, bed) {
   if (kind === "plain") return bed === "B" ? FILL.back : FILL.plain;
   if (kind === "wrap") return FILL.wrap;
   if (kind === "inc") return FILL.inc;
@@ -1044,7 +1044,7 @@ function kindFill(kind, bed) {
   return FILL.plain;
 }
 
-function paint(bed, label, kind) {
+export function paint(bed, label, kind) {
   return { token: `${bed}${label}`, fill: kindFill(kind, bed) };
 }
 
@@ -1175,7 +1175,7 @@ function rightEdgeFromBeds(beds) {
 }
 
 /** Last front needle and the next loop, which sits on the back bed. */
-function rightFoldPair(stitches) {
+export function rightFoldPair(stitches) {
   const fronts = [...stitches.values()].filter((st) => st.bed === "F");
   if (!fronts.length) return null;
   const lastFront = fronts.reduce((a, b) => (a.phys >= b.phys ? a : b));
@@ -1189,7 +1189,7 @@ function rightFoldPair(stitches) {
  * to the first stitch. A same-bed step moves that one loop onto the
  * previous needle. A bed change flips onto that needle. No other needle moves.
  */
-function stackCrossBedGroup(stitches, group, waleToId, course, where) {
+export function stackCrossBedGroup(stitches, group, waleToId, course, where) {
   const transfers = [];
   const notes = [];
   for (let i = group.length - 1; i >= 1; i--) {
@@ -1262,7 +1262,7 @@ function stackCrossBedGroup(stitches, group, waleToId, course, where) {
   return { transfers, notes };
 }
 
-function shapeBedOf(fresh, live, stitches, where) {
+export function shapeBedOf(fresh, live, stitches, where) {
   const beds = new Set();
   for (const wale of fresh) {
     const id = live.get(wale);
@@ -1281,7 +1281,7 @@ function shapeBedOf(fresh, live, stitches, where) {
  * simply sits on the next needle. This is one split, not a shove of
  * every new loop to the low end.
  */
-function shiftTravelTail(stitches, marker, delta, where) {
+export function shiftTravelTail(stitches, marker, delta, where) {
   if (delta !== 1 && delta !== -1) fail(`${where}: increase step ${delta} is not one needle`);
   const bed = marker.bed;
   const tail = [...stitches.values()]
@@ -1302,7 +1302,7 @@ function shiftTravelTail(stitches, marker, delta, where) {
   return moves;
 }
 
-function applyIncrease(live, stitches, pivot, step, shapeBed) {
+export function applyIncrease(live, stitches, pivot, step, shapeBed) {
   const delta = step === 1 ? 1 : -1;
   const next = new Map();
   const moves = [];
@@ -1326,7 +1326,7 @@ function applyIncrease(live, stitches, pivot, step, shapeBed) {
   return { live: next, moves };
 }
 
-function liveWindow(stitches) {
+export function liveWindow(stitches) {
   const { f, b, N } = listsOf(stitches);
   const side = (name, list) => {
     if (!list.length) return `${name}空`;
@@ -1340,20 +1340,20 @@ function liveWindow(stitches) {
  * Increase transfers open every site before the one knit, then balance.
  * This ring has no decrease. A later ring decreases on the seated bed.
  */
-function orderedCircle(stitches) {
+export function orderedCircle(stitches) {
   const front = [...stitches.values()].filter((st) => st.bed === "F").sort((a, b) => a.phys - b.phys);
   const back = [...stitches.values()].filter((st) => st.bed === "B").sort((a, b) => b.phys - a.phys);
   return [...front, ...back];
 }
 
-function stepCircle(stitch, dirSign, stitches) {
+export function stepCircle(stitch, dirSign, stitches) {
   const circle = orderedCircle(stitches);
   const at = circle.findIndex((st) => st.id === stitch.id);
   if (at < 0) fail("previous stitch is no longer on the bed");
   return circle[(at + dirSign + circle.length) % circle.length];
 }
 
-const LIVE_ROW_NOTE = "同一课继续会重复这一行里的活针，先结束这一行。";
+export const LIVE_ROW_NOTE = "同一课继续会重复这一行里的活针，先结束这一行。";
 
 /**
  * Split one knit so each row visits a live needle only once.
@@ -1361,7 +1361,7 @@ const LIVE_ROW_NOTE = "同一课继续会重复这一行里的活针，先结束
  * Callers that must keep a decrease span together decide the break
  * before the span is appended; this helper does not see spans.
  */
-function rowsByLiveNeedle(cells) {
+export function rowsByLiveNeedle(cells) {
   const rows = [];
   let row = [];
   const seen = new Set();
@@ -1380,7 +1380,7 @@ function rowsByLiveNeedle(cells) {
 }
 
 /** Keep each cell on its needle column. A mirror collision draws the later cell onward. */
-function settleColumns(knitCells, dirSign, where) {
+export function settleColumns(knitCells, dirSign, where) {
   const taken = new Set();
   for (const cell of knitCells) {
     let col = cell.col;
@@ -1394,7 +1394,7 @@ function settleColumns(knitCells, dirSign, where) {
   }
 }
 
-function rekeyWale(stitches, live, stitch, wale, where) {
+export function rekeyWale(stitches, live, stitch, wale, where) {
   if (live.get(wale) != null && live.get(wale) !== stitch.id) {
     fail(`${where}: wale ${wale} is already ${live.get(wale)}`);
   }
@@ -1404,7 +1404,7 @@ function rekeyWale(stitches, live, stitch, wale, where) {
 }
 
 /** The course cell takes this stitch. A previous owner of the wale lets go. */
-function claimWale(live, stitches, stitch, wale) {
+export function claimWale(live, stitches, stitch, wale) {
   const prior = live.get(wale);
   if (prior != null && prior !== stitch.id) {
     const other = stitches.get(prior);
