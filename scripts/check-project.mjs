@@ -3586,8 +3586,91 @@ assertDenseCylinderSample({
       datForSheet("fat") === fat,
     "complete cylinder aliases share the same dat",
   );
-  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-exp-readable-row-schedule", "standrad-exp-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "increase-exp-readable-row-schedule", "decrease-exp-readable-row-schedule", "thin-exp-readable-row-schedule", "fat-exp-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "dense-fat-exp-readable-row-schedule"]) {
+  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-readable-row-schedule", "standrad-exp-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "increase-exp-readable-row-schedule", "decrease-exp-readable-row-schedule", "thin-exp-readable-row-schedule", "fat-exp-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "dense-fat-exp-readable-row-schedule"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
+  }
+  {
+    const dir = join(root, "experiments/bunny-corridor-field-swallow");
+    const shaFile = (name) => createHash("sha256").update(readFileSync(join(dir, name))).digest("hex");
+    assert(shaFile("columns_polyline.obj") === "e88302df7dd1fc3cfddd447c4fc577829f7a85b76dea70ec4a7798b652a06cf0", "corridor polyline matches SingaLab f776726");
+    assert(shaFile("columns_type.obj") === "0e320236d7e783b7dbfff3d9b63ac93cbd09c35cf520eb63d46615f814f5c792", "corridor type matches SingaLab f776726");
+    assert(shaFile("columns_order.json") === "56c702d311f4762b6f5d6454f4085e0112560b61ef25d54f308447e239157c2c", "corridor order matches SingaLab f776726");
+    assert(shaFile("official_bunny_cut_smoothed.obj") === "1d4f7163dfcd51de8d44982483797ff5a238d23e7f4d60703ab89172f6f49e23", "corridor smoothed cut matches SingaLab f776726");
+    assert(!existsSync(join(dir, "official_bunny_cut.obj")), "the unsmoothed cut is not copied");
+    const names = readdirSync(dir);
+    assert(!names.some((name) => /\.(dat|k|xls|txt)$/i.test(name)), "corridor preview does not add a bed, dat, or knitting code");
+    assert(!existsSync(join(sampleDir, "bunny-corridor-field-swallow")), "corridor assets stay out of public/sample");
+    const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
+    assert(manifest.name.includes("实验") && manifest.outputs.length === 1, "corridor manifest is one experiment output");
+    const rels = collectManifestRefs(manifest);
+    assert(
+      rels.includes("official_bunny_cut_smoothed.obj") &&
+        rels.includes("columns_polyline.obj") &&
+        rels.includes("columns_type.obj") &&
+        rels.includes("columns_order.json") &&
+        rels.length === 4,
+      "corridor manifest lists the smoothed cut and the three column files",
+    );
+    assert(!rels.some((rel) => /cols_resample|readable_map|faces_ring|KnittingStitches|\.xls|\.dat$|\.k$/i.test(rel)), "corridor manifest does not invent a bed");
+    const entries = [
+      { name: "manifest.json", path: "experiments/bunny-corridor-field-swallow/manifest.json", text: JSON.stringify(manifest) },
+      ...rels.map((rel) => ({
+        name: rel,
+        path: `experiments/bunny-corridor-field-swallow/${rel}`,
+        text: readFileSync(join(dir, rel), "utf8"),
+      })),
+    ];
+    const proj = projectFromManifest(manifest, indexFiles(entries), "experiments/bunny-corridor-field-swallow/manifest.json");
+    assert(proj.warnings.length === 0 && proj.outputs.length === 1, `corridor sheet resolves: ${proj.warnings.join("; ")}`);
+    const out = proj.outputs[0];
+    assert(out.columnExtract === true && /official_bunny_cut_smoothed\.obj$/i.test(out.meshFile?.name || ""), "corridor sheet draws the smoothed cut with the columns");
+    assert(!out.readableMapFile && !out.readableMapTxtFile && !out.knitCodeFile && !out.stitchFile && !out.colsResampleFile && !out.colsResampleXlsFile, "corridor sheet has no bed or knitting code");
+    const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry.text]));
+    const extract = parseExtractColumns({
+      polylineText: byName["columns_polyline.obj"],
+      typeText: byName["columns_type.obj"],
+      order: JSON.parse(byName["columns_order.json"]),
+    });
+    assert(extract.problems.length === 0, `corridor columns disagree: ${extract.problems.join("; ")}`);
+    assert(extract.columns.length === 43 && extract.colors.type && !extract.colors.field, "corridor preview has 43 type-colored columns and no field file");
+    const counts = {};
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (const col of extract.columns) {
+      counts[col.type] = (counts[col.type] || 0) + 1;
+      for (const point of col.points) {
+        y0 = Math.min(y0, point.y);
+        y1 = Math.max(y1, point.y);
+      }
+    }
+    assert(counts.FULL === 10 && counts.SHORT === 33 && Object.keys(counts).length === 2, `corridor types ${JSON.stringify(counts)}`);
+    assert(extract.columns.every((col, i) => col.col === i), "corridor index_column is 0..42");
+    const full = extract.columns.find((col) => col.type === "FULL");
+    assert(full.points.at(-1).y > full.points[0].y, "corridor height stays on Y");
+    let meshY0 = Infinity;
+    let meshY1 = -Infinity;
+    for (const line of byName["official_bunny_cut_smoothed.obj"].split(/\n/)) {
+      if (!line.startsWith("v ")) continue;
+      const y = Number(line.split(/\s+/)[2]);
+      meshY0 = Math.min(meshY0, y);
+      meshY1 = Math.max(meshY1, y);
+    }
+    assert(y0 >= meshY0 - 1e-3 && y1 <= meshY1 + 1e-3, "corridor columns sit on the smoothed cut");
+    assert(
+      html.includes('id="load-bunny-corridor-field-swallow"') &&
+        html.includes("Bunny 走廊抽列（实验）") &&
+        html.includes("实验走廊抽列预览，不是官方 Bunny") &&
+        html.indexOf('id="load-bunny-corridor-field-swallow"') > html.indexOf('id="load-faces-ring0"') &&
+        /id="load-faces-ring0"[^>]*>Bunny<\/button>/.test(html),
+      "Open menu keeps official Bunny and adds the corridor experiment",
+    );
+    assert(
+      mainSrc.includes('const BUNNY_CORRIDOR_SHEET = "bunny-corridor-field-swallow"') &&
+        mainSrc.includes("loadBunnyCorridorFieldSwallow") &&
+        mainSrc.includes("facesBaseLayers") &&
+        mainSrc.includes("没有针床"),
+      "the corridor sheet loads from its own id and shows the cut",
+    );
   }
   const sha256 = (rel) => createHash("sha256").update(readFileSync(join(sampleDir, rel))).digest("hex");
   assert(
@@ -3714,6 +3797,11 @@ assert(!mainSrc.includes("loadCutHeatMesh") && !html.includes("切开热力场")
   assert(toy.columns[0].points[0].r === 0.2 && toy.columns[0].points[1].r === 0.9 && toy.columns[0].points[0].g === 0.15, "field colors come from columns_field");
   assert(formatExtractRangeLabel(toy.columns, 0, 1) === "index_column: idx 0 / 2 · FULL", "a single column shows its type");
   assert(formatExtractRangeLabel(toy.columns, 0, 2) === "index_column: idx 0-1 / 2", "a column range stays index_column, not cols_resample");
+  const bareOrder = parseExtractColumns({ polylineText: toyPoly, typeText: toyType, order: toyOrder.columns });
+  assert(
+    bareOrder.problems.length === 0 && bareOrder.columns[0].type === "FULL" && bareOrder.columns[1].type === "SHORT_BEGIN" && bareOrder.colors.type,
+    "a columns_order array still attaches type",
+  );
   const legend = extractTypeLegend(toy.columns);
   assert(legend.map((row) => `${row.type}:${row.n}`).join(",") === "FULL:1,SHORT_BEGIN:1" && legend[0].color.r === 1, "legend counts types already on the columns");
   assert(formatExtractStatus("Toy", toy).includes("scale_ran=false") && formatExtractStatus("Toy", toy).includes("merges=1"), "status reports the order file's scale and phagocytosis");

@@ -1,0 +1,12 @@
+{
+  "name": "Bunny 走廊抽列（实验）",
+  "outputs": [
+    {
+      "label": "Bunny 走廊抽列（实验）",
+      "mesh": "official_bunny_cut_smoothed.obj",
+      "columnsPolyline": "columns_polyline.obj",
+      "columnsType": "columns_type.obj",
+      "columnsOrder": "columns_order.json"
+    }
+  ]
+}

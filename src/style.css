@@ -714,7 +714,9 @@ body.narrow-split.show-3d .map-pane:not([hidden]) {
 
 .hud-chips {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
   min-width: 0;
   pointer-events: none;
@@ -743,7 +745,8 @@ body.narrow-split.show-3d .map-pane:not([hidden]) {
 }
 
 .chip {
-  max-width: calc(100% - 248px);
+  width: max-content;
+  max-width: 100%;
   padding: 6px 8px;
   border-radius: 10px;
   background: rgba(14, 18, 24, 0.72);
