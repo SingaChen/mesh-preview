@@ -1,15 +1,27 @@
-import { isTransferDir, physicalNeedleGlyph } from "./excel-map.js";
+import { isFlipDir, isKnitDir, isTransferDir, physicalNeedleGlyph } from "./excel-map.js";
 import { cellFill } from "./readable-map.js";
 
 const CELL = 22;
-/** Wide enough for 3-digit display_row + dir, e.g. `120 X+`. */
-const LABEL_W = 56;
+/**
+ * Left dir column: 3-digit row, dir (`Flip` is the widest), and a
+ * two-character purpose. Slots keep 织针 / 移针 / 平衡 in one vertical line
+ * when the bed is tall, and the text stays inside this width.
+ */
+const SIDE_PAD = 4;
+const SIDE_INDEX_W = 22;
+const SIDE_DIR_W = 34;
+const SIDE_PURPOSE_W = 32;
+const LABEL_W = SIDE_PAD + SIDE_INDEX_W + SIDE_DIR_W + SIDE_PURPOSE_W + SIDE_PAD;
 /** Far-right start-of-row window, e.g. `F0…F4,F6…F18 / B1…B18`. */
 const BEDS_W = 248;
 const HEAD_H = 20;
 const XFER_H = 10;
 const PAD = 12;
-const LABEL_FONT = "Calibri, 'Segoe UI', ui-sans-serif, sans-serif";
+const LABEL_FONT =
+  "Calibri, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', ui-sans-serif, sans-serif";
+const PURPOSE_KNIT = "织针";
+const PURPOSE_TRANSFER = "移针";
+const PURPOSE_BALANCE = "平衡";
 /** Same slop as the 3D canvas: only treat pointerup as a click if movement is small. */
 export const MAP_CLICK_SLOP = 8;
 export const MAP_CELL = CELL;
@@ -30,6 +42,116 @@ export function rowDirLabel(row, dir) {
   const d = dir == null || dir === "" ? "" : String(dir);
   if (n && d) return `${n} ${d}`;
   return n || d;
+}
+
+function rowOperationTokens(row) {
+  const fromCells = (row?.cells || []).map((cell) => String(cell?.token || "")).filter(Boolean);
+  if (fromCells.length) return fromCells;
+  return (row?.tokens || []).map((token) => String(token || "")).filter(Boolean);
+}
+
+/**
+ * `此刻活针` is already on the row. A finished-shaping balance stores the
+ * rack/flip window (`F11[0…10] / B10[0…9]`). A knit or shaping transfer
+ * stores the live count (`20针 · 前10[0…9] · 后10[0…9]`).
+ */
+function bedWindowKind(beds) {
+  const text = String(beds ?? "").trim();
+  if (!text) return "";
+  if (/^F\d+\[/.test(text)) return "balance";
+  if (text.includes("针")) return "live";
+  return "";
+}
+
+function purposeFromKind(row) {
+  const kind = row?.kind;
+  if (kind === "knit") return PURPOSE_KNIT;
+  if (kind === "increase" || kind === "decrease") return PURPOSE_TRANSFER;
+  if (kind === "balance") return PURPOSE_BALANCE;
+  if (kind === "flip") {
+    const note = String(row?.note || "");
+    if (/right-fold flip/i.test(note) || bedWindowKind(row?.beds) === "balance") return PURPOSE_BALANCE;
+    return PURPOSE_TRANSFER;
+  }
+  return "";
+}
+
+/** Notes on an X / X+ / Flip row. Knit-row notes also mention 移圈 and 平衡, so they are not used here. */
+function purposeFromNote(row) {
+  const note = String(row?.note || "");
+  if (!note) return "";
+  if (
+    /right-fold flip|\bRack\b|\brack\b|fold gap|counts match|seats toward|steps to|same-index flip|one needle apart|left junction/i.test(
+      note,
+    )
+  ) {
+    return PURPOSE_BALANCE;
+  }
+  if (/移圈|套到|开口|翻到|increase/i.test(note)) return PURPOSE_TRANSFER;
+  return "";
+}
+
+/**
+ * What this bed-map row is doing, beside the dir letter.
+ * 织针 is a knit course with live needles. 移针 is the shaping transfer
+ * itself (an increase opening, or a decrease that stacks / flips a loop).
+ * 平衡 is a whole-bed rack or a right-fold same-index flip after that
+ * shaping is finished. Kind and note win when the row already has them.
+ * Otherwise the bed window distinguishes a balance rack from a decrease
+ * transfer: both can be dir X. An X or Flip with no window, kind, or note
+ * stays blank — the letter alone does not decide. An empty row stays blank.
+ */
+export function rowPurposeLabel(row) {
+  if (!rowOperationTokens(row).length) return "";
+  const fromKind = purposeFromKind(row);
+  if (fromKind) return fromKind;
+  const dir = String(row?.dir || "");
+  if (isKnitDir(dir)) return PURPOSE_KNIT;
+  if (!isTransferDir(dir) && !isFlipDir(dir)) return "";
+  const fromNote = purposeFromNote(row);
+  if (fromNote) return fromNote;
+  const windowKind = bedWindowKind(row?.beds);
+  if (windowKind === "balance") return PURPOSE_BALANCE;
+  if (windowKind === "live") return PURPOSE_TRANSFER;
+  // Step3 openings are X+ and have no bed window. A bare X is not classified from the letter.
+  if (dir === "X+") return PURPOSE_TRANSFER;
+  return "";
+}
+
+/** Dir label plus purpose, e.g. `70 X+ 移针`. The purpose is omitted when the row has none. */
+export function rowSideLabel(rowIndex, row) {
+  const base = rowDirLabel(rowIndex, row?.dir);
+  const purpose = rowPurposeLabel(row);
+  if (base && purpose) return `${base} ${purpose}`;
+  return base || purpose;
+}
+
+function paintRowSideLabel(ctx, meta, rowIndex, top, ink) {
+  const indexText = Number.isFinite(Number(rowIndex)) ? String(Math.trunc(Number(rowIndex))) : "";
+  const dirText = meta?.dir == null || meta.dir === "" ? "" : String(meta.dir);
+  const purpose = rowPurposeLabel(meta);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, top, LABEL_W, CELL);
+  ctx.clip();
+  let size = 9;
+  ctx.font = `${size}px ${LABEL_FONT}`;
+  const indexW = ctx.measureText(indexText).width;
+  const dirW = dirText ? ctx.measureText(dirText).width : 0;
+  const purposeW = purpose ? ctx.measureText(purpose).width : 0;
+  if (indexW > SIDE_INDEX_W - 1 || dirW > SIDE_DIR_W - 6 || purposeW > SIDE_PURPOSE_W - 2) {
+    size = 8;
+    ctx.font = `${size}px ${LABEL_FONT}`;
+  }
+  ctx.fillStyle = ink;
+  ctx.textBaseline = "middle";
+  const cy = top + CELL / 2;
+  ctx.textAlign = "right";
+  ctx.fillText(indexText, SIDE_PAD + SIDE_INDEX_W, cy);
+  ctx.textAlign = "left";
+  if (dirText) ctx.fillText(dirText, SIDE_PAD + SIDE_INDEX_W + 4, cy);
+  if (purpose) ctx.fillText(purpose, SIDE_PAD + SIDE_INDEX_W + SIDE_DIR_W, cy);
+  ctx.restore();
 }
 
 function displayRowIndex(grid, r, meta) {
@@ -405,12 +527,9 @@ export class ReadableMapView {
         ctx.fillStyle = "#c8c8e0";
         ctx.fillRect(0, y, 3, CELL);
       }
-      const rowLabel = rowDirLabel(displayRowIndex(g, r, meta), meta?.dir);
-      ctx.fillStyle = transfer ? "#6b7280" : labelInk;
-      ctx.textAlign = "center";
-      ctx.font = rowLabel.length > 6 ? `8px ${LABEL_FONT}` : `9px ${LABEL_FONT}`;
-      ctx.fillText(rowLabel, LABEL_W / 2, y + CELL / 2);
+      paintRowSideLabel(ctx, meta, displayRowIndex(g, r, meta), y, transfer ? "#6b7280" : labelInk);
       ctx.font = `10px ${LABEL_FONT}`;
+      ctx.textAlign = "center";
 
       for (let c = 0; c < g.nCols; c++) {
         const cell = g.grid[r][c];
@@ -509,10 +628,10 @@ export class ReadableMapView {
       const row = g.rowMin + r;
       const y = this._rowY(row);
       const meta = g.rows.find((rowMeta) => rowMeta.row === row);
-      ctx.fillStyle = "#9aa6b5";
-      ctx.textAlign = "right";
-      ctx.fillText(rowDirLabel(displayRowIndex(g, r, meta), meta?.dir), LABEL_W - 4, y + CELL / 2);
+      paintRowSideLabel(ctx, meta, displayRowIndex(g, r, meta), y, "#9aa6b5");
       ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "10px ui-monospace, SF Mono, Menlo, Consolas, monospace";
 
       for (let c = 0; c < g.nCols; c++) {
         const cell = g.grid[r][c];
