@@ -1873,7 +1873,9 @@ assert(
     !existsSync(join(cylDir, "exp-readable-map.xls")) &&
     !existsSync(join(cylDir, "exp-readable-map.txt")) &&
     existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.xls")) &&
-    !existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.dat")),
+    !existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.dat")) &&
+    !existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-knitcode.json")) &&
+    !existsSync(join(root, "experiments/bunny-corridor-field-swallow/exp-knitcode.json")),
   "the timing experiment is its own sheet and does not replace the official Bunny bed",
 );
 const cylinderExpSheets = [
@@ -1902,9 +1904,12 @@ for (const [key, label, officialId] of cylinderExpSheets) {
       mainSrc.includes("cylinder-exp-sheets.js") &&
       existsSync(join(dir, "exp-readable-map.xls")) &&
       existsSync(join(dir, "exp-readable-map.txt")) &&
+      existsSync(join(dir, "exp-knitcode.json")) &&
       existsSync(join(dir, "validation-report.json")) &&
       !existsSync(join(dir, "exp-readable-map.dat")) &&
-      !existsSync(join(dir, "exp-readable-map.k")),
+      !existsSync(join(dir, "exp-readable-map.k")) &&
+      !existsSync(join(dir, "exp-knitcode.dat")) &&
+      mainSrc.includes('output.knitCode = "exp-knitcode.json"'),
     `${label} timing experiment is its own sheet`,
   );
   const report = JSON.parse(readFileSync(join(dir, "validation-report.json"), "utf8"));
