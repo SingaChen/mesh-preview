@@ -3597,9 +3597,9 @@ assertDenseCylinderSample({
   {
     const dir = join(root, "experiments/bunny-corridor-field-swallow");
     const shaFile = (name) => createHash("sha256").update(readFileSync(join(dir, name))).digest("hex");
-    assert(shaFile("columns_polyline.obj") === "3a7966099cc2ab50b5f285015b047907a945bddb72eb8189da885aa6eea0a13c", "corridor polyline matches the front-majority 0.5-step columns");
-    assert(shaFile("columns_type.obj") === "0029bb0553f517583118a6e237279f991141dd0808a3f251522f5f651ff3bf64", "corridor type matches the front-majority 0.5-step columns");
-    assert(shaFile("columns_order.json") === "92089933bf932ddb44431c9b509df2371ce1b5d28bfbaae9e007ee275e75a876", "corridor order matches the front-majority 0.5-step columns");
+    assert(shaFile("columns_polyline.obj") === "529046efbe2814c568da710f2df9e1eae3950d814777a82f7f0d0d5a27e0b5a0", "corridor polyline matches the unsmoothed no-postprocess columns");
+    assert(shaFile("columns_type.obj") === "6044697ecf6a80429d53cb582328e62c591703bbd06e341acb95afe415c1ef68", "corridor type matches the unsmoothed no-postprocess columns");
+    assert(shaFile("columns_order.json") === "44849615fd2fd8967262418d1b763fd2ebba7917c4cff09da0a4e15b5db784b1", "corridor order matches the unsmoothed no-postprocess columns");
     assert(shaFile("official_bunny_cut_smoothed.obj") === "1d4f7163dfcd51de8d44982483797ff5a238d23e7f4d60703ab89172f6f49e23", "corridor smoothed cut stays the f776726 mesh");
     assert(!existsSync(join(dir, "official_bunny_cut.obj")), "the unsmoothed cut is not copied");
     const names = readdirSync(dir);
@@ -3642,7 +3642,7 @@ assertDenseCylinderSample({
       order: JSON.parse(byName["columns_order.json"]),
     });
     assert(extract.problems.length === 0, `corridor columns disagree: ${extract.problems.join("; ")}`);
-    assert(extract.columns.length === 126 && extract.colors.type && !extract.colors.field, "corridor preview has 126 type-colored columns and no field file");
+    assert(extract.columns.length === 120 && extract.colors.type && !extract.colors.field, "corridor preview has 120 type-colored columns and no field file");
     const counts = {};
     let y0 = Infinity;
     let y1 = -Infinity;
@@ -3653,8 +3653,8 @@ assertDenseCylinderSample({
         y1 = Math.max(y1, point.y);
       }
     }
-    assert(counts.FULL === 10 && counts.SHORT === 116 && Object.keys(counts).length === 2, `corridor types ${JSON.stringify(counts)}`);
-    assert(extract.columns.every((col, i) => col.col === i), "corridor index_column is 0..125");
+    assert(counts.FULL === 9 && counts.SHORT === 111 && Object.keys(counts).length === 2, `corridor types ${JSON.stringify(counts)}`);
+    assert(extract.columns.every((col, i) => col.col === i), "corridor index_column is 0..119");
     const order = JSON.parse(byName["columns_order.json"]);
     const shortRuns = [];
     let shortRun = 0;
@@ -3667,7 +3667,7 @@ assertDenseCylinderSample({
       }
     }
     if (shortRun) shortRuns.push(shortRun);
-    assert(shortRuns.join(",") === "4,9,14,3,13,9,7,17,19,21", `corridor shorts per gap ${shortRuns.join(",")}`);
+    assert(shortRuns.join(",") === "4,10,15,3,14,10,5,14,36", `corridor shorts per gap ${shortRuns.join(",")}`);
     const vertexBlocks = (text) => {
       const blocks = [];
       let cur = null;
@@ -3683,21 +3683,20 @@ assertDenseCylinderSample({
     const polyBlocks = vertexBlocks(byName["columns_polyline.obj"]);
     const typeBlocks = vertexBlocks(byName["columns_type.obj"]);
     const fullRidges = [
-      [0, "9808bf2b6c67350b2c5cd9d156ad3bcbf50eaf942f3c15936a56b5bd61c24ded", "87b82a1f62d40ad5746d6ec41b6f7c20e6ff353fe67d8c08ef3927bbcd2abfe8"],
-      [5, "d48c7f89ed7dfdb7327027ca9e478d67db4ea2bf58e5863840b43b3e1bc62f9f", "ebfbd26c72fdf6bffe7d33e9231b1813ce49bd9b427a35c253f5d563db826e98"],
-      [15, "9821dfa4ec44e9dbf29dde794013005b326906612cc6f7a9d6bb8fe3bf95f7d2", "c2a1e7ac7d95ff22cf23ff81b6a4b28b09289e99a06c9efe100360c0350107e8"],
-      [30, "8df8146f55f30983fa65979c980ac804117a40365bf204107fc2c8a0c035d135", "b8f67ed6ec4d287dbefb09429930f5d5391389551c188052e9a3c13b68089108"],
-      [34, "f829aa4b54ae762387d46eea8492ec0e640cc907acae1a7d3e8ff788459aa50d", "266585f725105297a3e68693cc1097cfed05fa3c9c7486eafff8c829043b90bf"],
-      [48, "22b8c6bdd4c587e3d2ffd99e18793401236b967a6efd27b70ab0c8d415d39a22", "98f9b488059e1ef83d57616b2b3952a25deee8b678483d3de490575ee32ab2e9"],
-      [58, "4e0f69853c1d9aeb80aedb6ad624c4ea02fb4497aef02ceeb4848de31e374cd5", "82e4702808f3718c34379130fbdac5468339864fa14b4fcff2f29f8546c8233b"],
-      [66, "cfbdca569ee96e4dd3e97d3999f430b9848617bd283b21bf19023092f951bb1c", "067e89c26721a11cb037d05d966688cb65833564e56246217aaa4e5e9872d4db"],
-      [84, "5448b41551801ddfedf1316ac8ce3ae35260f02d8ad54b9760c6624e913b56c1", "b33f8647a3b6c3f54b15f65bbdc39b8299f73ecfef6833510e0f012923857645"],
-      [104, "29fc89c3618b851012b32c1a4261e10011be54687fbb6515df477185b8bb3442", "40592881883e2afe52925ddaf3d53942c43bd98730aef623d26213f1ec68ff0b"],
+      [0, "3bea6133d1b5b07c614da0d82481df64b3274426bc44ab665c6a0a76d1f4ea8a", "504d7e62590a7fcee333c423578c032e5344efd6873738c86fa046068ecc8b99"],
+      [5, "315194e7cafabbbf0cbada72b40c5641b024bb4af1c511e552a95a2b043b3b88", "527a6123588446a52db5d46c591b6ad0c32e603366804024f83197aefe777acd"],
+      [16, "a6bb4b91ade47d3ab5e6fbdbdf34ec7a2d674b6f4319f8e50e42585cddafa0c6", "e2073c576309213e681fb5bd8b749e4816959849e738b451c0414abe1223908e"],
+      [32, "714e638305d409b9eaaf751b41263ea0c770ced62002eda6a3105dd99fa0caf8", "8ab6819762634963e2666cffa20ccc2670900a4dd94e0c12581b9f0535c598b9"],
+      [36, "8402db3de4b7f86e5785f8146f7875245b46e5d245947c8dcc92e920f9931dd8", "d39fae72f4f5912f9ff2a343fa019cc81982f01d4c07da65661680add7e134df"],
+      [51, "5105761e89455e87e4a23017b053fcce3e588663ed243a889effcd748a8d9d9d", "2749b012abfda77ada54e4124a140ae084b728ef0f180073a45bd49c449d7131"],
+      [62, "6fb8f936a90c682f55a80ea7427602b8b826e15be3a72fe1ab7ec144f4cdb040", "1ea36940d32d819cbbf90735e6e21abb37152f7e4663323aaee0aafc341454b1"],
+      [68, "c631b983605ebe995ab61a0001c0e49e081dab5800090a0b60762d16c662540e", "3e9efc0278a9cf6231e173f2e6b9daec2bddd17776ccd986b1d43ad2f584dff1"],
+      [83, "3f3b45ce1984c5e5dcbec0852bc2458170dab15fb58778098dc3151647f71223", "450b9b6eb61480189a5a887c09caf5c9b8d40ff5255cd067f261d4a1198a3d16"],
     ];
     for (const [index, polyHash, typeHash] of fullRidges) {
       const ph = createHash("sha256").update(`${polyBlocks[index].join("\n")}\n`).digest("hex");
       const th = createHash("sha256").update(`${typeBlocks[index].join("\n")}\n`).digest("hex");
-      assert(order[index]?.type === "FULL" && ph === polyHash && th === typeHash, `FULL ridge at index ${index} stays the snap-fix geometry`);
+      assert(order[index]?.type === "FULL" && ph === polyHash && th === typeHash, `FULL ridge at index ${index} stays the unsmoothed no-postprocess geometry`);
     }
     const full = extract.columns.find((col) => col.type === "FULL");
     assert(full.points.at(-1).y > full.points[0].y, "corridor height stays on Y");
@@ -3722,7 +3721,7 @@ assertDenseCylinderSample({
       mainSrc.includes('const BUNNY_CORRIDOR_SHEET = "bunny-corridor-field-swallow"') &&
         mainSrc.includes("loadBunnyCorridorFieldSwallow") &&
         mainSrc.includes("facesBaseLayers") &&
-        mainSrc.includes("10 FULL · 116 短柱 · 126 列") &&
+        mainSrc.includes("9 FULL · 111 短柱 · 120 列") &&
         mainSrc.includes("没有针床"),
       "the corridor sheet loads from its own id and shows the cut",
     );

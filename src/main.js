@@ -119,7 +119,7 @@ const BUNNY_CORRIDOR_LABEL = "Bunny 走廊抽列（实验）";
 const BUNNY_CORRIDOR_MENU_TITLE = "实验走廊抽列预览，不是官方 Bunny";
 const BUNNY_CORRIDOR_BANNER = "实验 · 走廊抽列 · 不是官方 Bunny";
 const BUNNY_CORRIDOR_STATUS =
-  "Bunny 走廊抽列（实验） · 10 FULL · 116 短柱 · 126 列 · 平滑切口 · 没有针床 · 不是官方 Bunny";
+  "Bunny 走廊抽列（实验） · 9 FULL · 111 短柱 · 120 列 · 平滑切口 · 没有针床 · 不是官方 Bunny";
 const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedule");
 const bunnyCorridorBtn = document.querySelector("#load-bunny-corridor-field-swallow");
 if (bunnyCorridorBtn) {
