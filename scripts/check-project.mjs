@@ -3597,12 +3597,17 @@ assertDenseCylinderSample({
   {
     const dir = join(root, "experiments/bunny-corridor-field-swallow");
     const shaFile = (name) => createHash("sha256").update(readFileSync(join(dir, name))).digest("hex");
-    assert(shaFile("columns_polyline.obj") === "e88302df7dd1fc3cfddd447c4fc577829f7a85b76dea70ec4a7798b652a06cf0", "corridor polyline matches SingaLab f776726");
-    assert(shaFile("columns_type.obj") === "0e320236d7e783b7dbfff3d9b63ac93cbd09c35cf520eb63d46615f814f5c792", "corridor type matches SingaLab f776726");
-    assert(shaFile("columns_order.json") === "56c702d311f4762b6f5d6454f4085e0112560b61ef25d54f308447e239157c2c", "corridor order matches SingaLab f776726");
-    assert(shaFile("official_bunny_cut_smoothed.obj") === "1d4f7163dfcd51de8d44982483797ff5a238d23e7f4d60703ab89172f6f49e23", "corridor smoothed cut matches SingaLab f776726");
+    assert(shaFile("columns_polyline.obj") === "9cc25f7bf4287f7f28c8ae9c587a09a458d123950bac1f4473c78f9598e339a2", "corridor polyline matches SingaLab f7e2adb");
+    assert(shaFile("columns_type.obj") === "251f9eb0c90f2b9c8e7ec5d97f29e185c82094562d09e684bdb6175e96ff9b4d", "corridor type matches SingaLab f7e2adb");
+    assert(shaFile("columns_order.json") === "626ac532acfee249f4e6d21a3a3393e2a56da8d2a5a7d6e8b0ab299f2e2b918e", "corridor order matches SingaLab f7e2adb");
+    assert(shaFile("official_bunny_cut_smoothed.obj") === "1d4f7163dfcd51de8d44982483797ff5a238d23e7f4d60703ab89172f6f49e23", "corridor smoothed cut stays the f776726 mesh");
     assert(!existsSync(join(dir, "official_bunny_cut.obj")), "the unsmoothed cut is not copied");
     const names = readdirSync(dir);
+    assert(
+      names.slice().sort().join("\n") ===
+        ["columns_order.json", "columns_polyline.obj", "columns_type.obj", "manifest.json", "official_bunny_cut_smoothed.obj"].join("\n"),
+      "corridor sheet keeps the cut mesh and the three column files",
+    );
     assert(!names.some((name) => /\.(dat|k|xls|txt)$/i.test(name)), "corridor preview does not add a bed, dat, or knitting code");
     assert(!existsSync(join(sampleDir, "bunny-corridor-field-swallow")), "corridor assets stay out of public/sample");
     const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
@@ -3637,7 +3642,7 @@ assertDenseCylinderSample({
       order: JSON.parse(byName["columns_order.json"]),
     });
     assert(extract.problems.length === 0, `corridor columns disagree: ${extract.problems.join("; ")}`);
-    assert(extract.columns.length === 43 && extract.colors.type && !extract.colors.field, "corridor preview has 43 type-colored columns and no field file");
+    assert(extract.columns.length === 44 && extract.colors.type && !extract.colors.field, "corridor preview has 44 type-colored columns and no field file");
     const counts = {};
     let y0 = Infinity;
     let y1 = -Infinity;
@@ -3648,8 +3653,40 @@ assertDenseCylinderSample({
         y1 = Math.max(y1, point.y);
       }
     }
-    assert(counts.FULL === 10 && counts.SHORT === 33 && Object.keys(counts).length === 2, `corridor types ${JSON.stringify(counts)}`);
-    assert(extract.columns.every((col, i) => col.col === i), "corridor index_column is 0..42");
+    assert(counts.FULL === 10 && counts.SHORT === 34 && Object.keys(counts).length === 2, `corridor types ${JSON.stringify(counts)}`);
+    assert(extract.columns.every((col, i) => col.col === i), "corridor index_column is 0..43");
+    const order = JSON.parse(byName["columns_order.json"]);
+    assert(
+      order[1]?.type === "SHORT" &&
+        order[1].corridor_full_a === 0 &&
+        order[1].corridor_full_b === 1 &&
+        order[1].n_points === 2 &&
+        order[1].arc_length > 1,
+      "index 1 is the recovered FULL 0–1 short",
+    );
+    const recovered = extract.columns[1].points;
+    assert(
+      recovered.length === 2 &&
+        Math.hypot(recovered[1].x - recovered[0].x, recovered[1].y - recovered[0].y, recovered[1].z - recovered[0].z) > 1,
+      "recovered short index 1 keeps a real length",
+    );
+    assert(
+      order[11]?.type === "SHORT" &&
+        order[11].corridor_full_a === 3 &&
+        order[11].corridor_full_b === 4 &&
+        order[11].n_points === 6,
+      "FULL 3–4 bottom short is index 11",
+    );
+    const target = extract.columns[11].points;
+    assert(target.length === 6, "index 11 no longer has the ten-point loop");
+    for (let i = 0; i < target.length; i++) {
+      for (let j = i + 2; j < target.length; j++) {
+        const a = target[i];
+        const b = target[j];
+        assert(a.x !== b.x || a.y !== b.y || a.z !== b.z, "index 11 has no repeated non-adjacent point");
+      }
+      if (i) assert(target[i].y + 1e-9 >= target[i - 1].y, "index 11 does not turn back down");
+    }
     const full = extract.columns.find((col) => col.type === "FULL");
     assert(full.points.at(-1).y > full.points[0].y, "corridor height stays on Y");
     let meshY0 = Infinity;
@@ -3673,6 +3710,7 @@ assertDenseCylinderSample({
       mainSrc.includes('const BUNNY_CORRIDOR_SHEET = "bunny-corridor-field-swallow"') &&
         mainSrc.includes("loadBunnyCorridorFieldSwallow") &&
         mainSrc.includes("facesBaseLayers") &&
+        mainSrc.includes("10 FULL · 34 短柱 · 44 列") &&
         mainSrc.includes("没有针床"),
       "the corridor sheet loads from its own id and shows the cut",
     );
