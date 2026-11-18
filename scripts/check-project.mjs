@@ -3597,9 +3597,9 @@ assertDenseCylinderSample({
   {
     const dir = join(root, "experiments/bunny-corridor-field-swallow");
     const shaFile = (name) => createHash("sha256").update(readFileSync(join(dir, name))).digest("hex");
-    assert(shaFile("columns_polyline.obj") === "8502f4925495943d3226378c190ebf566d90211d4a053bf4945b01e894719c5d", "corridor polyline matches SingaLab 0f8e80b");
-    assert(shaFile("columns_type.obj") === "19ea97d44c3e8680d605022921e54c78b2451747b09153306dda81cb8ff01446", "corridor type matches SingaLab 0f8e80b");
-    assert(shaFile("columns_order.json") === "da2c95a873ea500c534dca5560db5eb4aaa6ef1e18dde856837597bad686c954", "corridor order matches SingaLab 0f8e80b");
+    assert(shaFile("columns_polyline.obj") === "155a4fc38877b815c59f7031107f713d44296d33719de98c40432bb88d152d80", "corridor polyline matches SingaLab eddc8b1");
+    assert(shaFile("columns_type.obj") === "37a69f4ffdefc517830626caccc70d540dff002a2b470e51283fdb90d1d221f2", "corridor type matches SingaLab eddc8b1");
+    assert(shaFile("columns_order.json") === "3d4fb14dd1b321ef045b8d5dd155d2e182ced2144619120f8d1f5e9aed0ac10f", "corridor order matches SingaLab eddc8b1");
     assert(shaFile("official_bunny_cut_smoothed.obj") === "1d4f7163dfcd51de8d44982483797ff5a238d23e7f4d60703ab89172f6f49e23", "corridor smoothed cut stays the f776726 mesh");
     assert(!existsSync(join(dir, "official_bunny_cut.obj")), "the unsmoothed cut is not copied");
     const names = readdirSync(dir);
@@ -3642,7 +3642,7 @@ assertDenseCylinderSample({
       order: JSON.parse(byName["columns_order.json"]),
     });
     assert(extract.problems.length === 0, `corridor columns disagree: ${extract.problems.join("; ")}`);
-    assert(extract.columns.length === 67 && extract.colors.type && !extract.colors.field, "corridor preview has 67 type-colored columns and no field file");
+    assert(extract.columns.length === 99 && extract.colors.type && !extract.colors.field, "corridor preview has 99 type-colored columns and no field file");
     const counts = {};
     let y0 = Infinity;
     let y1 = -Infinity;
@@ -3653,8 +3653,8 @@ assertDenseCylinderSample({
         y1 = Math.max(y1, point.y);
       }
     }
-    assert(counts.FULL === 10 && counts.SHORT === 57 && Object.keys(counts).length === 2, `corridor types ${JSON.stringify(counts)}`);
-    assert(extract.columns.every((col, i) => col.col === i), "corridor index_column is 0..66");
+    assert(counts.FULL === 10 && counts.SHORT === 89 && Object.keys(counts).length === 2, `corridor types ${JSON.stringify(counts)}`);
+    assert(extract.columns.every((col, i) => col.col === i), "corridor index_column is 0..98");
     const order = JSON.parse(byName["columns_order.json"]);
     const shortRuns = [];
     let shortRun = 0;
@@ -3667,7 +3667,7 @@ assertDenseCylinderSample({
       }
     }
     if (shortRun) shortRuns.push(shortRun);
-    assert(shortRuns.join(",") === "2,5,5,5,1,7,9,7,7,9", `corridor shorts per gap ${shortRuns.join(",")}`);
+    assert(shortRuns.join(",") === "2,9,4,6,11,9,4,16,8,20", `corridor shorts per gap ${shortRuns.join(",")}`);
     const vertexBlocks = (text) => {
       const blocks = [];
       let cur = null;
@@ -3685,14 +3685,14 @@ assertDenseCylinderSample({
     const fullRidges = [
       [0, "9808bf2b6c67350b2c5cd9d156ad3bcbf50eaf942f3c15936a56b5bd61c24ded", "87b82a1f62d40ad5746d6ec41b6f7c20e6ff353fe67d8c08ef3927bbcd2abfe8"],
       [3, "d48c7f89ed7dfdb7327027ca9e478d67db4ea2bf58e5863840b43b3e1bc62f9f", "ebfbd26c72fdf6bffe7d33e9231b1813ce49bd9b427a35c253f5d563db826e98"],
-      [9, "9821dfa4ec44e9dbf29dde794013005b326906612cc6f7a9d6bb8fe3bf95f7d2", "c2a1e7ac7d95ff22cf23ff81b6a4b28b09289e99a06c9efe100360c0350107e8"],
-      [15, "8df8146f55f30983fa65979c980ac804117a40365bf204107fc2c8a0c035d135", "b8f67ed6ec4d287dbefb09429930f5d5391389551c188052e9a3c13b68089108"],
-      [21, "f829aa4b54ae762387d46eea8492ec0e640cc907acae1a7d3e8ff788459aa50d", "266585f725105297a3e68693cc1097cfed05fa3c9c7486eafff8c829043b90bf"],
-      [23, "22b8c6bdd4c587e3d2ffd99e18793401236b967a6efd27b70ab0c8d415d39a22", "98f9b488059e1ef83d57616b2b3952a25deee8b678483d3de490575ee32ab2e9"],
-      [31, "4e0f69853c1d9aeb80aedb6ad624c4ea02fb4497aef02ceeb4848de31e374cd5", "82e4702808f3718c34379130fbdac5468339864fa14b4fcff2f29f8546c8233b"],
-      [41, "cfbdca569ee96e4dd3e97d3999f430b9848617bd283b21bf19023092f951bb1c", "067e89c26721a11cb037d05d966688cb65833564e56246217aaa4e5e9872d4db"],
-      [49, "5448b41551801ddfedf1316ac8ce3ae35260f02d8ad54b9760c6624e913b56c1", "b33f8647a3b6c3f54b15f65bbdc39b8299f73ecfef6833510e0f012923857645"],
-      [57, "29fc89c3618b851012b32c1a4261e10011be54687fbb6515df477185b8bb3442", "40592881883e2afe52925ddaf3d53942c43bd98730aef623d26213f1ec68ff0b"],
+      [13, "9821dfa4ec44e9dbf29dde794013005b326906612cc6f7a9d6bb8fe3bf95f7d2", "c2a1e7ac7d95ff22cf23ff81b6a4b28b09289e99a06c9efe100360c0350107e8"],
+      [18, "8df8146f55f30983fa65979c980ac804117a40365bf204107fc2c8a0c035d135", "b8f67ed6ec4d287dbefb09429930f5d5391389551c188052e9a3c13b68089108"],
+      [25, "f829aa4b54ae762387d46eea8492ec0e640cc907acae1a7d3e8ff788459aa50d", "266585f725105297a3e68693cc1097cfed05fa3c9c7486eafff8c829043b90bf"],
+      [37, "22b8c6bdd4c587e3d2ffd99e18793401236b967a6efd27b70ab0c8d415d39a22", "98f9b488059e1ef83d57616b2b3952a25deee8b678483d3de490575ee32ab2e9"],
+      [47, "4e0f69853c1d9aeb80aedb6ad624c4ea02fb4497aef02ceeb4848de31e374cd5", "82e4702808f3718c34379130fbdac5468339864fa14b4fcff2f29f8546c8233b"],
+      [52, "cfbdca569ee96e4dd3e97d3999f430b9848617bd283b21bf19023092f951bb1c", "067e89c26721a11cb037d05d966688cb65833564e56246217aaa4e5e9872d4db"],
+      [69, "5448b41551801ddfedf1316ac8ce3ae35260f02d8ad54b9760c6624e913b56c1", "b33f8647a3b6c3f54b15f65bbdc39b8299f73ecfef6833510e0f012923857645"],
+      [78, "29fc89c3618b851012b32c1a4261e10011be54687fbb6515df477185b8bb3442", "40592881883e2afe52925ddaf3d53942c43bd98730aef623d26213f1ec68ff0b"],
     ];
     for (const [index, polyHash, typeHash] of fullRidges) {
       const ph = createHash("sha256").update(`${polyBlocks[index].join("\n")}\n`).digest("hex");
@@ -3722,7 +3722,7 @@ assertDenseCylinderSample({
       mainSrc.includes('const BUNNY_CORRIDOR_SHEET = "bunny-corridor-field-swallow"') &&
         mainSrc.includes("loadBunnyCorridorFieldSwallow") &&
         mainSrc.includes("facesBaseLayers") &&
-        mainSrc.includes("10 FULL · 57 短柱 · 67 列") &&
+        mainSrc.includes("10 FULL · 89 短柱 · 99 列") &&
         mainSrc.includes("没有针床"),
       "the corridor sheet loads from its own id and shows the cut",
     );
