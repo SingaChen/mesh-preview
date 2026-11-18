@@ -41,6 +41,34 @@
     "updates_X": true,
     "X_before": null,
     "X_after": 0.4243700902444876,
+    "field_phi_min": 0.34254462461478935,
+    "field_phi_max": 0.39768582993163376,
+    "height_min": 1.2262351109207975e-18,
+    "height_max": 0.01859680505542468,
+    "corridor_full_a": 0,
+    "corridor_full_b": 1,
+    "band_h0": 1.2262351109207975e-18,
+    "band_h1": 0.01859680505542468,
+    "level_u": 5.0,
+    "n_points": 2,
+    "arc_length": 2.321642943027737,
+    "scale0": 0.0,
+    "scale1": 1.0
+  },
+  {
+    "index_column": 2,
+    "index_inner": 1,
+    "type": "SHORT",
+    "born_as": "field_swallow",
+    "full_id": null,
+    "phi_mean": null,
+    "quota_index": 1,
+    "growth_step": 1,
+    "geodesic_dL": 5.0,
+    "swallow_kind": "门槛列（更新X）",
+    "updates_X": true,
+    "X_before": null,
+    "X_after": 0.4243700902444876,
     "field_phi_min": 0.38819725499208085,
     "field_phi_max": 0.4243700902444876,
     "height_min": 0.4569437032049893,
@@ -56,7 +84,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 2,
+    "index_column": 3,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -84,7 +112,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 3,
+    "index_column": 4,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -112,7 +140,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 4,
+    "index_column": 5,
     "index_inner": 1,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -140,7 +168,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 5,
+    "index_column": 6,
     "index_inner": 2,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -168,7 +196,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 6,
+    "index_column": 7,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -196,7 +224,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 7,
+    "index_column": 8,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -224,7 +252,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 8,
+    "index_column": 9,
     "index_inner": 1,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -252,7 +280,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 9,
+    "index_column": 10,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -280,7 +308,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 10,
+    "index_column": 11,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -296,19 +324,19 @@
     "field_phi_min": 0.36020923640564834,
     "field_phi_max": 0.4644319805607085,
     "height_min": 0.0,
-    "height_max": 0.042912590702402546,
+    "height_max": 0.05950287010943815,
     "corridor_full_a": 3,
     "corridor_full_b": 4,
     "band_h0": 0.0,
-    "band_h1": 0.042912590702402546,
+    "band_h1": 0.05950287010943815,
     "level_u": 5.0,
-    "n_points": 10,
-    "arc_length": 12.779343117298938,
+    "n_points": 6,
+    "arc_length": 6.228062184999051,
     "scale0": 0.0,
     "scale1": 1.0
   },
   {
-    "index_column": 11,
+    "index_column": 12,
     "index_inner": 1,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -336,7 +364,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 12,
+    "index_column": 13,
     "index_inner": 2,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -364,7 +392,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 13,
+    "index_column": 14,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -392,7 +420,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 14,
+    "index_column": 15,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -420,7 +448,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 15,
+    "index_column": 16,
     "index_inner": 1,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -448,7 +476,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 16,
+    "index_column": 17,
     "index_inner": 2,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -476,7 +504,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 17,
+    "index_column": 18,
     "index_inner": 3,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -504,7 +532,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 18,
+    "index_column": 19,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -532,7 +560,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 19,
+    "index_column": 20,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -560,7 +588,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 20,
+    "index_column": 21,
     "index_inner": 1,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -588,7 +616,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 21,
+    "index_column": 22,
     "index_inner": 2,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -616,7 +644,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 22,
+    "index_column": 23,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -644,7 +672,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 23,
+    "index_column": 24,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -672,7 +700,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 24,
+    "index_column": 25,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -700,7 +728,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 25,
+    "index_column": 26,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -728,7 +756,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 26,
+    "index_column": 27,
     "index_inner": 1,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -756,7 +784,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 27,
+    "index_column": 28,
     "index_inner": 2,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -784,7 +812,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 28,
+    "index_column": 29,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -812,7 +840,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 29,
+    "index_column": 30,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -840,7 +868,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 30,
+    "index_column": 31,
     "index_inner": 1,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -868,7 +896,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 31,
+    "index_column": 32,
     "index_inner": 2,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -896,7 +924,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 32,
+    "index_column": 33,
     "index_inner": 3,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -924,7 +952,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 33,
+    "index_column": 34,
     "index_inner": 0,
     "type": "FULL",
     "born_as": "full_skeleton",
@@ -952,7 +980,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 34,
+    "index_column": 35,
     "index_inner": 0,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -980,7 +1008,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 35,
+    "index_column": 36,
     "index_inner": 1,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -1008,7 +1036,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 36,
+    "index_column": 37,
     "index_inner": 2,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -1036,7 +1064,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 37,
+    "index_column": 38,
     "index_inner": 3,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -1064,7 +1092,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 38,
+    "index_column": 39,
     "index_inner": 4,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -1092,7 +1120,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 39,
+    "index_column": 40,
     "index_inner": 5,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -1120,7 +1148,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 40,
+    "index_column": 41,
     "index_inner": 6,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -1148,7 +1176,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 41,
+    "index_column": 42,
     "index_inner": 7,
     "type": "SHORT",
     "born_as": "field_swallow",
@@ -1176,7 +1204,7 @@
     "scale1": 1.0
   },
   {
-    "index_column": 42,
+    "index_column": 43,
     "index_inner": 8,
     "type": "SHORT",
     "born_as": "field_swallow",
