@@ -13,7 +13,8 @@
       "colsResampleXls": "cylinder/iteration_0_cut_cols_resample.xls",
       "firstRows": "cylinder/iteration_0_cut_first_rows.xls",
       "facesRingLayout": "cylinder/faces_ring_layout.json",
-      "stitchMapBind": "cylinder/stitch_map_bind.json"
+      "stitchMapBind": "cylinder/stitch_map_bind.json",
+      "knitCode": "cylinder/faces_ring0_knitcode.json"
     }
   ]
 }
