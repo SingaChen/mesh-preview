@@ -74,20 +74,27 @@ function hasCopiedOpening(knit) {
   return Boolean(knit?.rows?.some((row) => row.functionRails));
 }
 
-/**
- * Draft note for Decrease only. 11/12 are the first stitch after a short-row
- * winding reversal, not the first stitch of every visual row. Standrad and
- * Dense captions stay on the shared wording.
- */
-const DECREASE_DRAFT_NOTE =
-  "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。矫正稿。";
-
-/** Experiment tables use the same omission. They are not the Decrease draft. */
+/** Experiment tables still omit transfers. Official tables use the Bunny operation note. */
 const EXPERIMENT_DRAW_NOTE =
   "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。";
 
+/** Official stripe-path tables share Bunny's operation caption. Experiments stay on the omission note. */
+const OFFICIAL_KNIT_MODELS = new Set([
+  "Bunny",
+  "Standrad Cylinder",
+  "Increase Cylinder",
+  "Decrease Cylinder",
+  "Thin Cylinder",
+  "Fat Cylinder",
+  "Dense Standrad Cylinder",
+  "Dense Increase Cylinder",
+  "Dense Decrease Cylinder",
+  "Dense Thin Cylinder",
+  "Dense Fat Cylinder",
+]);
+
 /** Official Bunny draws true flips, loop-move transfers, and balance rows as the same two-row transfer. */
-const BUNNY_FLIP_NOTE =
+export const BUNNY_FLIP_NOTE =
   "翻针已画：前床翻后床 20，后床翻前床 30。移针已画成两行：前床左移 21、前床右移 24、后床左移 31、后床右移 34，下一行是顺着移针方向错一针的回翻（前床移针后为 30，后床移针后为 20）。平衡、整床横移和回座用同样的两行。操作行无方向，不加 13。没有另写结尾。";
 
 /** Standrad opening sits under the body. Rails on those rows are a template copy. */
@@ -102,8 +109,7 @@ export function knitCodeCaption(knit) {
   else if (hasEmptyCell(knit)) {
     caption = `${BED_CLAUSE}；空位为 0。列是物理针 ${span}。`;
   }
-  if (knit?.model === "Decrease Cylinder") caption += DECREASE_DRAFT_NOTE;
-  else if (knit?.model === "Bunny") caption += BUNNY_FLIP_NOTE;
+  if (OFFICIAL_KNIT_MODELS.has(knit?.model)) caption += BUNNY_FLIP_NOTE;
   else if (String(knit?.model || "").includes("实验")) caption += EXPERIMENT_DRAW_NOTE;
   if (hasCopiedOpening(knit)) caption += KNIT_OPENING_NOTE;
   return caption;

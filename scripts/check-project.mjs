@@ -68,8 +68,10 @@ import {
   tokenKind,
 } from "../src/readable-map.js";
 import {
+  BUNNY_FLIP_NOTE,
   KNIT_CODE_CAPTION,
   KNIT_CODE_LEGEND,
+  KNIT_OPENING_NOTE,
   KNIT_FUNCTION_COLORS,
   KNIT_FUNCTION_GAP,
   KNIT_FUNCTION_PAIRS,
@@ -362,6 +364,22 @@ function assertFunctionRails(knit, width, label) {
     const bed = knitRowBed(row);
     const knitting = knitRowHasKnitting(row);
     const body = kind === "right" ? ["6", "#00FFFF"] : kind === "left" ? ["7", "#FFFFFF"] : ["1", "#FF0000"];
+    const l13 = at("L", 13, "mark");
+    const r3 = at("R", 3, "mark");
+    const r5 = at("R", 5, "mark");
+    const indicatorsOk = row.role === "flip"
+      ? l13.text === "0" && l13.fill === "#000000" && r3.text === "0" && r3.fill === "#000000" && paint(r5, "1", "#FF0000")
+      : row.role === "transfer-front" || row.role === "transfer-back"
+        ? paint(l13, row.role === "transfer-front" ? "81" : "82", row.role === "transfer-front" ? "#47869C" : "#6DA5B4") &&
+          r3.text === "0" && r3.fill === "#000000" && paint(r5, "1", "#FF0000")
+        : knitting
+          ? (bed === "F"
+              ? paint(l13, "81", "#47869C")
+              : bed === "B"
+                ? paint(l13, "82", "#6DA5B4")
+                : l13.text === "" && l13.fill == null) &&
+            paint(r3, "6", "#00FFFF") && r5.text === "" && r5.fill == null
+          : l13.text === "" && l13.fill == null && r3.text === "" && r3.fill == null && paint(r5, "1", "#FF0000");
     const bodies = drawn.filter((col) => col.role === "function" && col.slot === "number" && col.pair !== 1);
     const namedMarks = new Set(["L7", "L10", "L11", "L13", "R3", "R5", "R6", "R11"]);
     const unnamed = drawn.filter((col) => col.slot === "mark" && !namedMarks.has(`${col.side}${col.pair}`));
@@ -377,16 +395,7 @@ function assertFunctionRails(knit, width, label) {
         paint(at("L", 11, "mark"), "14", "#CF90C0") &&
         paint(at("R", 6, "mark"), "5", "#FF00FF") &&
         paint(at("R", 11, "mark"), "1", "#FF0000") &&
-        (bed === "F"
-          ? paint(at("L", 13, "mark"), "81", "#47869C")
-          : bed === "B"
-            ? paint(at("L", 13, "mark"), "82", "#6DA5B4")
-            : at("L", 13, "mark").text === "" && at("L", 13, "mark").fill == null) &&
-        (knitting
-          ? paint(at("R", 3, "mark"), "6", "#00FFFF") && at("R", 5, "mark").text === "" && at("R", 5, "mark").fill == null
-          : at("R", 3, "mark").text === "" &&
-            at("R", 3, "mark").fill == null &&
-            paint(at("R", 5, "mark"), "1", "#FF0000")) &&
+        indicatorsOk &&
         unnamed.every((col) => col.text === "" && col.fill == null && col.ink == null && col.code == null && col.drawsEmptyNeedle === false) &&
         gaps.every((col) => col.text === "" && col.fill == null && col.ink == null && col.code == null && col.drawsEmptyNeedle === false) &&
         drawn[patternAt - 6].slot === "number" &&
@@ -487,8 +496,8 @@ function assertStandradOpening(knit, raw) {
       raw.row_bind.slice(0, 34).every((flag) => flag === false) &&
       !raw.rules.row_turn.includes("每一行都算一次换行") &&
       raw.rules.row_turn.includes("没有短行折返") &&
-      raw.rules.knit_frames.includes("空针 0") &&
-      raw.rules.knit_frames.includes("开头 11–12"),
+      raw.rules.knit_frames.includes("紧贴该行实际编织格子") &&
+      raw.rules.knit_frames.includes("翻针行和移针行不加 13"),
     "14 body rows keep the live work slice, with 13 tight against the knitted cells, ccw winding, and generator rails",
   );
   assert(
@@ -520,10 +529,10 @@ function assertStandradOpening(knit, raw) {
   assert(
     shown.length === 48 &&
       shown[0].rowIndex === 47 &&
-      shown[0].row.label === "第7环 后床  B12→B1" &&
+      shown[0].row.label === "第7环 后床  B12→B1（床图 row 6 / course 6 R，逆时针向左）" &&
       shown[47].rowIndex === 0 &&
       shown[47].row.label === "开头 1" &&
-      knit.rows[34].label === "第1环 前床  F0→F12",
+      knit.rows[34].label === "第1环 前床  F0→F12（床图 row 0 / course 0 R，逆时针向右）",
     "opening is drawn under the body, with the first knitted row at the bottom",
   );
   assert(
@@ -565,8 +574,8 @@ function assertStandradOpening(knit, raw) {
       knitCellTravel(knit.rows[0].winding, 2)?.text === "向左" &&
       knitCellTravel(knit.rows[10].winding, 6)?.text === "操作行，无方向" &&
       knitCellTravel(knit.rows[0].winding, 0) == null &&
-      describeKnitCell(knit, 34, 3) === "第1环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
-      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1 · 物理针 0 · 13" &&
+      describeKnitCell(knit, 34, 3) === "第1环 前床  F0→F12（床图 row 0 / course 0 R，逆时针向右） · 物理针 0 · 1 前床平针" &&
+      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1（床图 row 0 / course 0 R，逆时针向左） · 物理针 0 · 13" &&
       describeKnitCell(knit, 0, 0).includes("空位"),
     "body travel is unchanged, and opening non-zero cells can show that row's direction",
   );
@@ -617,7 +626,7 @@ function assertStandradOpening(knit, raw) {
   const railSpecs = [
     ["Standrad", "cylinder/standrad_cylinder_knitcode.json", 23, null],
     ["Dense Standrad", "dense-standrad/dense_standrad_cylinder_knitcode.json", 35, "98b00ea724e9a071aaab4f0bb8f2df4ab9f6f3409746787937677fb01d9e5bb4"],
-    ["Decrease", "decrease/decrease_cylinder_knitcode.json", 22, "1b2db836c95583c68e91a48def50d003d672ab57f4f4d9b79d617c4ec9060ebb"],
+    ["Decrease", "decrease/decrease_cylinder_knitcode.json", 22, "f0c5402bbd8796bccc8e1f0dc6eecdabc504a0945a21bba0e5fe967e95dc6b12"],
   ];
   const widths = [];
   for (const [label, rel, width, hash] of railSpecs) {
@@ -691,10 +700,11 @@ function assertStandradOpening(knit, raw) {
     const bedMark = drawn.find((col) => col.side === "L" && col.pair === 13 && col.slot === "mark");
     return { winding: decrease.rows[rowIndex].winding, body: body.text, fill: body.fill, bed: bedMark.text };
   };
+  const cwFrontIndex = decrease.rows.find((row) => row.label.startsWith("第3环 前床  F3→F0")).index;
   const ccwFront = decreaseBody(34);
-  const cwFront = decreaseBody(40);
+  const cwFront = decreaseBody(cwFrontIndex);
   const ccwBack = decreaseBody(35);
-  const cwBack = decreaseBody(41);
+  const cwBack = decreaseBody(cwFrontIndex + 1);
   assert(
     ccwFront.winding === "ccw" &&
       ccwFront.body === "6" &&
@@ -1243,7 +1253,8 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
       !knitCodeCaption(bunny).includes("平衡不画") &&
       !knitCodeCaption(bunny).includes("移针/翻针未画") &&
       knitCodeCaption(bunny).includes("开头功能行抄自模板") &&
-      knitCodeCaption(decreaseKnit).includes("移针/翻针未画") &&
+      knitCodeCaption(decreaseKnit).includes("平衡、整床横移和回座用同样的两行") &&
+      !knitCodeCaption(decreaseKnit).includes("移针/翻针未画") &&
       knitCodeLegend(bunny)
         .map((item) => item.code)
         .join(",") === "1,11,2,12,20,21,24,30,31,34,0" &&
@@ -1261,6 +1272,116 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
   const discovered = projectFromDiscovery(indexFiles(diskEntries));
   assert(!discovered.outputs[0].knitCodeFile, "folder discovery does not attach Standrad knitting code to Bunny");
 }
+
+function assertOfficialStripeTables() {
+  const bunnyPath = join(sampleDir, "cylinder/faces_ring0_knitcode.json");
+  assert(
+    createHash("sha256").update(readFileSync(bunnyPath)).digest("hex") ===
+      "47b8cf229adfe257eecc169b50a9b757f4e3b590b0730717b7e127abb19d4603",
+    "Official Bunny knitting code stays the audited table",
+  );
+  const standrad = JSON.parse(readFileSync(join(sampleDir, "cylinder/standrad_cylinder_knitcode.json"), "utf8"));
+  const tables = [
+    ["cylinder/standrad_cylinder_knitcode.json", 14, 0, 0, 0, 48, 0, 12, 0],
+    ["increase/increase_cylinder_knitcode.json", 24, 1, 7, 5, 83, -2, 11, 0],
+    ["decrease/decrease_cylinder_knitcode.json", 32, 5, 8, 10, 107, 0, 11, 0],
+    ["thin/thin_cylinder_knitcode.json", 56, 8, 20, 18, 174, -2, 11, 2],
+    ["fat/fat_cylinder_knitcode.json", 83, 7, 19, 17, 196, -4, 12, 0],
+    ["dense-standrad/dense_standrad_cylinder_knitcode.json", 30, 0, 0, 0, 64, 0, 24, 0],
+    ["dense-increase/dense_increase_cylinder_knitcode.json", 86, 3, 19, 12, 185, -2, 22, 0],
+    ["dense-decrease/dense_decrease_cylinder_knitcode.json", 103, 12, 19, 17, 221, 0, 22, 1],
+    ["dense-thin/dense_thin_cylinder_knitcode.json", 214, 22, 44, 40, 438, -4, 23, 2],
+    ["dense-fat/dense_fat_cylinder_knitcode.json", 275, 15, 43, 40, 490, -5, 23, 0],
+  ];
+  for (const [rel, knits, flips, loops, balances, rows, lo, hi, closes] of tables) {
+    const raw = JSON.parse(readFileSync(join(sampleDir, rel), "utf8"));
+    const knit = parseKnitCode(raw);
+    const mark = (row, side, pair) =>
+      knitTableCells(knit, row.index).find((col) => col.role === "function" && col.side === side && col.pair === pair && col.slot === "mark");
+    assert(
+      raw.n_opening_rows === 34 &&
+        raw.n_knit_rows === knits &&
+        raw.n_flip_rows === flips &&
+        raw.n_loop_move_pairs === loops &&
+        raw.n_balance_pairs === balances &&
+        raw.n_transfer_pairs === loops + balances &&
+        raw.n_transfer_rows_omitted === 0 &&
+        raw.n_rows === rows &&
+        raw.n_rows === 34 + knits + flips + (loops + balances) * 2 &&
+        knit.needles[0] === lo &&
+        knit.needles.at(-1) === hi &&
+        (raw.close_calls || []).length === closes &&
+        JSON.stringify(raw.function_rails.slice(0, 34)) === JSON.stringify(standrad.function_rails.slice(0, 34)) &&
+        JSON.stringify(raw.row_winding.slice(0, 34)) === JSON.stringify(standrad.row_winding.slice(0, 34)) &&
+        !raw.row_labels.some((label) => label.includes("收针") || label.includes("结尾")) &&
+        !raw.rules.operations_omitted.includes("整行省略") &&
+        raw.rules.colors_tiffany_display["20"] === "#B276B2" &&
+        raw.rules.colors_tiffany_display["30"] === "#7373B2" &&
+        raw.rules.colors_tiffany_display["81"] === "#47869C" &&
+        raw.rules.colors_tiffany_display["82"] === "#6DA5B4" &&
+        Object.keys(raw.rules.colors_tiffany_display).length === 256,
+      `${raw.model} keeps the locked official counts, opening, and palette`,
+    );
+    const byBed = new Map();
+    for (const row of knit.rows) {
+      if (row.bedRow == null) continue;
+      const list = byBed.get(row.bedRow) || [];
+      list.push(row);
+      byBed.set(row.bedRow, list);
+    }
+    for (const row of knit.rows) {
+      if (row.bedRow == null) continue;
+      if (row.winding === "ccw" || row.winding === "cw") {
+        const live = [];
+        row.cells.forEach((code, index) => {
+          if (code === 1 || code === 2 || code === 11 || code === 12) live.push(index);
+        });
+        const frames = [];
+        row.cells.forEach((code, index) => {
+          if (code === 13) frames.push(index);
+        });
+        assert(
+          row.role == null && live.length > 0 && frames.length === 2 && frames[0] === live[0] - 1 && frames[1] === live.at(-1) + 1,
+          `${raw.model} knit row ${row.index} keeps tight 13s`,
+        );
+        const front = row.cells.includes(1) || row.cells.includes(11);
+        assert(mark(row, "L", 13).text === (front ? "81" : "82") && mark(row, "R", 5).text === "", `${raw.model} knit rails ${row.index}`);
+      } else {
+        assert(row.winding === "none" && row.bind === false && !row.cells.includes(13), `${raw.model} operation row ${row.index} has no direction and no 13`);
+        const code = row.cells.find((value) => value !== 0);
+        if (row.role === "flip") {
+          assert((code === 20 || code === 30) && mark(row, "L", 13).text === "0" && mark(row, "R", 3).text === "0" && mark(row, "R", 5).text === "1", `${raw.model} flip rails ${row.bedRow}`);
+        } else {
+          const shift = byBed.get(row.bedRow).find((item) => item.label.startsWith("移针  "));
+          const companion = byBed.get(row.bedRow).find((item) => item.label.startsWith("移针回翻"));
+          const shiftCode = shift.cells.find((value) => value !== 0);
+          const delta = shiftCode === 21 || shiftCode === 31 ? -1 : 1;
+          const companionCode = shiftCode === 21 || shiftCode === 24 ? 30 : 20;
+          const sources = knit.needles.filter((needle) => shift.cells[knit.columns.find((col) => col.needle === needle).needleIndex] === shiftCode);
+          const landed = sources.every((needle) => companion.cells[knit.columns.find((col) => col.needle === needle + delta).needleIndex] === companionCode);
+          const want = row.role === "transfer-front" ? "81" : "82";
+          assert(
+            byBed.get(row.bedRow).length === 2 &&
+              landed &&
+              companion.cells.filter((value) => value === companionCode).length === sources.length &&
+              mark(row, "L", 13).text === want &&
+              mark(row, "R", 3).text === "0" &&
+              mark(row, "R", 5).text === "1" &&
+              (code === shiftCode || code === companionCode),
+            `${raw.model} transfer pair ${row.bedRow}`,
+          );
+        }
+      }
+    }
+  }
+  const stray = [];
+  for (const entry of readdirSync(sampleDir, { recursive: true })) {
+    if (/knitcode\.(dat|k)$/i.test(String(entry))) stray.push(entry);
+  }
+  assert(stray.length === 0, "no knitting-code .dat or .k was exported");
+}
+
+assertOfficialStripeTables();
 {
   const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
   assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");
@@ -2399,10 +2520,10 @@ assert(
     "knitting-code cells use the Tiffany DAT colors, and empty 0 stays blank",
   );
   assert(
-    describeKnitCell(knit, 34, 3) === "第1环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
-      describeKnitCell(knit, 36, 3) === "第2环 前床  F0→F12 · 物理针 0 · 1 前床平针" &&
-      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1 · 物理针 0 · 13" &&
-      describeKnitCell(knit, 35, 15) === "第1环 后床  B12→B1 · 物理针 12 · 2 后床平针",
+    describeKnitCell(knit, 34, 3) === "第1环 前床  F0→F12（床图 row 0 / course 0 R，逆时针向右） · 物理针 0 · 1 前床平针" &&
+      describeKnitCell(knit, 36, 3) === "第2环 前床  F0→F12（床图 row 1 / course 1 R，逆时针向右） · 物理针 0 · 1 前床平针" &&
+      describeKnitCell(knit, 35, 3) === "第1环 后床  B12→B1（床图 row 0 / course 0 R，逆时针向左） · 物理针 0 · 13" &&
+      describeKnitCell(knit, 35, 15) === "第1环 后床  B12→B1（床图 row 0 / course 0 R，逆时针向左） · 物理针 12 · 2 后床平针",
     "a knitting-code cell names its pass, physical needle, and code",
   );
   assert(
@@ -2417,10 +2538,10 @@ assert(
   assert(KNIT_CODE_CAPTION.includes("空位为 0") && KNIT_CODE_CAPTION.includes("0–12"), "knitting-code caption matches the accepted table");
   const standradShown = knitCodeDisplayRows(knit);
   assert(
-    knit.rows[34].label === "第1环 前床  F0→F12" &&
+    knit.rows[34].label === "第1环 前床  F0→F12（床图 row 0 / course 0 R，逆时针向右）" &&
       standradShown.length === 48 &&
       standradShown[0].rowIndex === 47 &&
-      standradShown[0].row.label === "第7环 后床  B12→B1" &&
+      standradShown[0].row.label === "第7环 后床  B12→B1（床图 row 6 / course 6 R，逆时针向左）" &&
       standradShown[0].row.winding === knit.rows[47].winding &&
       standradShown[47].row === knit.rows[0] &&
       standradShown[47].rowIndex === 0 &&
@@ -2740,7 +2861,7 @@ assert(
   const decreaseKnitPath = join(decDir, "decrease_cylinder_knitcode.json");
   assert(
     knitMatrixSuffixHash(decreaseKnitPath) ===
-      "1b2db836c95583c68e91a48def50d003d672ab57f4f4d9b79d617c4ec9060ebb",
+      "f0c5402bbd8796bccc8e1f0dc6eecdabc504a0945a21bba0e5fe967e95dc6b12",
     "Decrease knitting-code matrix bytes stay the opened short-row table",
   );
   const decreaseRaw = JSON.parse(readFileSync(decreaseKnitPath, "utf8"));
@@ -2759,36 +2880,42 @@ assert(
   const skipFront = decreaseKnit.rows.find((row) => row.label.startsWith("第3环 前床  F4→F10"));
   assert(
     decreaseKnit?.model === "Decrease Cylinder" &&
-      decreaseRaw.n_rows === 66 &&
+      decreaseRaw.n_rows === 107 &&
       decreaseRaw.n_opening_rows === 34 &&
-      decreaseRaw.n_body_rows === 32 &&
+      decreaseRaw.n_knit_rows === 32 &&
+      decreaseRaw.n_body_rows === 73 &&
+      decreaseRaw.n_flip_rows === 5 &&
+      decreaseRaw.n_transfer_pairs === 18 &&
+      decreaseRaw.n_loop_move_pairs === 8 &&
+      decreaseRaw.n_balance_pairs === 10 &&
+      decreaseRaw.n_transfer_rows_omitted === 0 &&
       decreaseRaw.n_cols === 22 &&
       decreaseRaw.n_rings === 5 &&
-      decreaseKnit.rows.length === 66 &&
+      decreaseKnit.rows.length === 107 &&
       decreaseKnit.needles.length === 12 &&
       decreaseKnit.needles.every((n, i) => n === i) &&
       needleCol(0) === 3 &&
       decreaseKnit.colors[11] === "#FF67BD" &&
       decreaseKnit.colors[12] === "#906CB4" &&
-      decreaseRaw.row_winding.length === 66 &&
+      decreaseRaw.row_winding.length === 107 &&
       bodyWind.filter((winding) => winding === "ccw").length === 23 &&
       bodyWind.filter((winding) => winding === "cw").length === 9 &&
       decreaseKnit.rows.every((row, index) => row.winding === decreaseRaw.row_winding[index]) &&
       decreaseKnit.rows.slice(0, 34).every((row) => row.bind === false && row.functionRails) &&
       bodyRows.every((row) => row.bind === true && row.functionRails == null) &&
       decreaseKnit.rows[34].winding === "ccw" &&
-      decreaseKnit.rows[65].winding === "ccw" &&
+      decreaseKnit.rows.at(-1).winding === "ccw" &&
       needlesOf(decreaseKnit.rows[34]) === "1,1,1,1,1,1,1,1,1,1,1,1" &&
       decreaseKnit.rows[34].cells[2] === 13 &&
       decreaseKnit.rows[34].cells[15] === 13 &&
       decreaseKnit.rows[35].cells[2] === 0 &&
       needlesOf(decreaseKnit.rows[35]) === "13,2,2,2,2,2,2,2,2,2,2,2" &&
-      decreaseKnit.rows[40].winding === "cw" &&
-      decreaseKnit.rows[40].cells[needleCol(3)] === 11 &&
-      decreaseKnit.rows[41].winding === "cw" &&
-      decreaseKnit.rows[41].cells[needleCol(0)] === 2 &&
-      decreaseKnit.rows[42].winding === "ccw" &&
-      decreaseKnit.rows[42].cells[needleCol(0)] === 12 &&
+      cwFront.winding === "cw" &&
+      cwFront.cells[needleCol(3)] === 11 &&
+      decreaseKnit.rows[cwFront.index + 1].winding === "cw" &&
+      decreaseKnit.rows[cwFront.index + 1].cells[needleCol(0)] === 2 &&
+      decreaseKnit.rows[cwFront.index + 2].winding === "ccw" &&
+      decreaseKnit.rows[cwFront.index + 2].cells[needleCol(0)] === 12 &&
       bodyRows.slice(0, 4).every((row) => row.cells.every((code) => code === 0 || code === 1 || code === 2 || code === 13)) &&
       bodyRows.slice(24).every((row) => !row.cells.includes(11) && !row.cells.includes(12)) &&
       needlesOf(cwFront) === "1,1,1,11,13,0,0,0,0,0,0,0" &&
@@ -2799,7 +2926,7 @@ assert(
       turnFront === 4 &&
       turnBack === 6 &&
       decreaseKnit.rows.every((row) => row.cells.some((code) => code !== 0)) &&
-      decreaseRaw.rules.status === "矫正稿，已接入预览供矫正，未生成 .dat / .k" &&
+      decreaseRaw.rules.status === "由当前床图按编织顺序画出，未生成 .dat / .k" &&
       decreaseRaw.rules.short_row_turns.includes("11") &&
       decreaseRaw.rules.short_row_turns.includes("仍是普通平针 1 或 2") &&
       decreaseRaw.rules.short_row_turns.includes("ccw") &&
@@ -2812,13 +2939,15 @@ assert(
   assertShortRowTurnCodes(bodyNeedleTable(decreaseKnit), "Decrease", { frame: true });
   assert(
     knitCodeCaption(decreaseKnit) ===
-      "前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 0–11。移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。矫正稿。主体下方是按幅宽适配的开头；开头功能行抄自模板，主体功能行不变。" &&
+      `前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 0–11。${BUNNY_FLIP_NOTE}${KNIT_OPENING_NOTE}` &&
       !knitCodeCaption(decreaseKnit).includes("无B0") &&
       !knitCodeCaption(decreaseKnit).includes("0–12") &&
       !knitCodeCaption(decreaseKnit).includes("暂按普通平针") &&
+      !knitCodeCaption(decreaseKnit).includes("矫正稿") &&
+      !knitCodeCaption(decreaseKnit).includes("移针/翻针未画") &&
       knitCodeLegend(decreaseKnit).map((item) => `${item.code}:${item.name}`).join("|") ===
-        "1:1 前床平针|11:11 前床短行折返首针|2:2 后床平针|12:12 后床短行折返首针|0:0 空针",
-    "Decrease caption names needles 0–11, marks the draft, and calls empty cells 0 空针",
+        "1:1 前床平针|11:11 前床短行折返首针|2:2 后床平针|12:12 后床短行折返首针|20:20 前床翻后床|21:21 前床左移|30:30 后床翻前床|31:31 后床左移|34:34 后床右移|0:0 空针",
+    "Decrease caption names needles 0–11, the drawn transfers, and empty cells 0 空针",
   );
   const otherEmpty = parseKnitCode({
     model: "Other",
@@ -2832,7 +2961,7 @@ assert(
     knitCodeCaption(otherEmpty) ===
       "前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 0–11。" &&
       !knitCodeCaption(otherEmpty).includes("矫正稿"),
-    "the draft note stays on Decrease Cylinder",
+    "a model outside the official tables does not get the draft note",
   );
   {
     const decreaseObj = parseColoredObj(readFileSync(join(decDir, "decrease_cylinder_KnittingStitches.obj"), "utf8"));
@@ -2874,18 +3003,18 @@ assert(
     );
   }
   assert(
-    decreaseShown.length === 66 &&
-      decreaseShown[65].row === decreaseKnit.rows[0] &&
-      decreaseShown[65].rowIndex === 0 &&
-      decreaseShown[65].row.label === "开头 1" &&
-      decreaseShown[31].row === decreaseKnit.rows[34] &&
-      decreaseShown[31].rowIndex === 34 &&
-      decreaseShown[31].row.winding === "ccw" &&
-      needlesOf(decreaseShown[31].row) === "1,1,1,1,1,1,1,1,1,1,1,1" &&
-      decreaseShown[30].row === decreaseKnit.rows[35] &&
-      decreaseShown[30].row.cells[needleCol(0)] === 13 &&
-      decreaseShown[30].row.cells[2] === 0 &&
-      decreaseShown[0].row === decreaseKnit.rows[65] &&
+    decreaseShown.length === 107 &&
+      decreaseShown[106].row === decreaseKnit.rows[0] &&
+      decreaseShown[106].rowIndex === 0 &&
+      decreaseShown[106].row.label === "开头 1" &&
+      decreaseShown[72].row === decreaseKnit.rows[34] &&
+      decreaseShown[72].rowIndex === 34 &&
+      decreaseShown[72].row.winding === "ccw" &&
+      needlesOf(decreaseShown[72].row) === "1,1,1,1,1,1,1,1,1,1,1,1" &&
+      decreaseShown[71].row === decreaseKnit.rows[35] &&
+      decreaseShown[71].row.cells[needleCol(0)] === 13 &&
+      decreaseShown[71].row.cells[2] === 0 &&
+      decreaseShown[0].row === decreaseKnit.rows[106] &&
       decreaseShown[0].row.winding === "ccw" &&
       cwFront?.winding === "cw" &&
       cwFront.cells[needleCol(3)] === 11 &&
@@ -3394,7 +3523,7 @@ assert(
   );
   assert(
     knitCodeCaption(denseKnit) ===
-      "前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 0–24。主体下方是按幅宽适配的开头；开头功能行抄自模板，主体功能行不变。" &&
+      `前床 1（红）一行，换后床新开一行 2（绿）；空位为 0。列是物理针 0–24。${BUNNY_FLIP_NOTE}${KNIT_OPENING_NOTE}` &&
       !knitCodeCaption(denseKnit).includes("无B0") &&
       !knitCodeCaption(denseKnit).includes("0–12") &&
       !knitCodeCaption(denseKnit).includes("每次换行") &&
@@ -3545,13 +3674,13 @@ function assertTightBodyFrames(knit, label) {
 function assertAdaptedKnitCodes() {
   const standrad = JSON.parse(readFileSync(join(sampleDir, "cylinder/standrad_cylinder_knitcode.json"), "utf8"));
   const specs = [
-    ["increase-cylinder", "Increase Cylinder", "increase/increase_cylinder_knitcode.json", "increase/increase_cylinder_KnittingStitches.obj", "increase/increase_cylinder_bed.xls", "b941fd9af1ea6b02ba68a4aa4c7d0b107434fbf2cfd37ecd2fa1d08071312e85", 7, -2, 10, 17, 0, 24, 141, 41, "0,13,1,1,1,1,1,1,11,13,0,0,0", 36, "0,13,1,1,1,1,1,1,1,1,1,13,0"],
-    ["thin-cylinder", "Thin Cylinder", "thin/thin_cylinder_knitcode.json", "thin/thin_cylinder_KnittingStitches.obj", "thin/thin_cylinder_bed.xls", "fe152b64abb3a5915cad84d125caba0646817ecd5aae30d195f16ddb1ac690e6", 12, -2, 11, 22, 0, 56, 310, 39, "0,13,1,1,11,13,0,0,0,0,0,0,0,0", 81, "2,2,2,2,2,2,2,2,2,13,0,0,0,0"],
-    ["fat-cylinder", "Fat Cylinder", "fat/fat_cylinder_knitcode.json", "fat/fat_cylinder_KnittingStitches.obj", "fat/fat_cylinder_bed.xls", "fa3c1082715126bc742f92af1c233213fcbd02ef620303041ca07a22ba421cde", 7, -4, 12, 19, 2, 83, 355, 43, "0,0,0,13,1,1,11,13,0,0,0,0,0,0,0,0,0", 38, "0,0,0,13,1,1,1,1,1,1,1,1,1,1,1,1,1"],
-    ["dense-increase-cylinder", "Dense Increase Cylinder", "dense-increase/dense_increase_cylinder_knitcode.json", "dense-increase/dense_increase_cylinder_KnittingStitches.obj", "dense-increase/dense_increase_cylinder_bed.xls", "6cdab66e9c6640fbf48e1c74ced50252ee40b14ecaa42f1befa7c218214fe94c", 14, -2, 22, 27, 0, 86, 654, 47, "0,13,1,1,1,1,1,1,1,1,11,13,0,0,0,0,0,0,0,0,0,0,0,0,0", 38, "0,13,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,13,0,0,0,0,0,0,0"],
-    ["dense-thin-cylinder", "Dense Thin Cylinder", "dense-thin/dense_thin_cylinder_knitcode.json", "dense-thin/dense_thin_cylinder_KnittingStitches.obj", "dense-thin/dense_thin_cylinder_bed.xls", "bfdf6b79dadb5a7193912470128c50380dff744f71d5b69fabc7aa5b67cb8b09", 24, -4, 23, 36, 2, 214, 1315, 45, "0,0,0,13,1,1,11,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0", 147, "0,0,13,2,2,2,2,2,2,2,2,2,2,2,2,2,2,13,0,0,0,0,0,0,0,0,0,0"],
-    ["dense-fat-cylinder", "Dense Fat Cylinder", "dense-fat/dense_fat_cylinder_knitcode.json", "dense-fat/dense_fat_cylinder_KnittingStitches.obj", "dense-fat/dense_fat_cylinder_bed.xls", "96b860f6dcb3b362d5d30643828ea975183b490de5727085900b20631111a187", 13, -5, 23, 31, 3, 275, 1431, 45, "0,0,0,0,0,0,0,0,0,0,0,0,13,1,1,11,13,0,0,0,0,0,0,0,0,0,0,0,0", 36, "0,0,0,0,13,1,1,1,1,1,1,1,1,1,1,1,1,1,1,13,0,0,0,0,0,0,0,0,0"],
-    ["dense-decrease-cylinder", "Dense Decrease Cylinder", "dense-decrease/dense_decrease_cylinder_knitcode.json", "dense-decrease/dense_decrease_cylinder_KnittingStitches.obj", "dense-decrease/dense_decrease_cylinder_bed.xls", "874cd49bc5a0f53412fd6807ce414ea308427210c67f08e2677f3426abf8288f", 23, 0, 22, 33, 0, 103, 667, 43, "1,1,1,1,11,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0", null, null],
+    ["increase-cylinder", "Increase Cylinder", "increase/increase_cylinder_knitcode.json", "increase/increase_cylinder_KnittingStitches.obj", "increase/increase_cylinder_bed.xls", "f7bc32f6030572db9aede0d6413f26b5448495413789e7c2cb3996fc529fb0ab", 7, -2, 11, 17, 0, 24, 141, 66, "0,13,1,1,1,1,1,1,11,13,0,0,0,0", 42, "0,13,1,1,1,1,1,1,1,1,1,13,0,0"],
+    ["thin-cylinder", "Thin Cylinder", "thin/thin_cylinder_knitcode.json", "thin/thin_cylinder_KnittingStitches.obj", "thin/thin_cylinder_bed.xls", "a57c842a63afb1d8cdfebbf1ff26a5330ae7a1e365cf6bf2e1b803fdeea465f7", 12, -2, 11, 22, 0, 56, 310, 39, "0,13,1,1,11,13,0,0,0,0,0,0,0,0", 141, "2,2,2,2,2,2,2,2,2,13,0,0,0,0"],
+    ["fat-cylinder", "Fat Cylinder", "fat/fat_cylinder_knitcode.json", "fat/fat_cylinder_KnittingStitches.obj", "fat/fat_cylinder_bed.xls", "ebda55d016a0d30e2b3dc5805fdfd7a507163f3dfbbf3cc5e2d65e86afd803be", 7, -4, 12, 19, 2, 83, 355, 74, "0,0,0,13,1,1,11,13,0,0,0,0,0,0,0,0,0", 56, "0,0,0,13,1,1,1,1,1,1,1,1,1,1,1,1,1"],
+    ["dense-increase-cylinder", "Dense Increase Cylinder", "dense-increase/dense_increase_cylinder_knitcode.json", "dense-increase/dense_increase_cylinder_KnittingStitches.obj", "dense-increase/dense_increase_cylinder_bed.xls", "7cb2709a1b59c80705f933ac3172e6258e3e30b3a9b91f5382e562f071f726c2", 14, -2, 22, 27, 0, 86, 654, 100, "0,13,1,1,1,1,1,1,1,1,11,13,0,0,0,0,0,0,0,0,0,0,0,0,0", 42, "0,13,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,13,0,0,0,0,0,0,0"],
+    ["dense-thin-cylinder", "Dense Thin Cylinder", "dense-thin/dense_thin_cylinder_knitcode.json", "dense-thin/dense_thin_cylinder_KnittingStitches.obj", "dense-thin/dense_thin_cylinder_bed.xls", "efbfb8ee87ec25404bc2d752035d6aeca44997ba35fc6f2fdf7c42319ae74e95", 24, -4, 23, 36, 2, 214, 1315, 45, "0,0,0,13,1,1,11,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0", 259, "0,0,13,2,2,2,2,2,2,2,2,2,2,2,2,2,2,13,0,0,0,0,0,0,0,0,0,0"],
+    ["dense-fat-cylinder", "Dense Fat Cylinder", "dense-fat/dense_fat_cylinder_knitcode.json", "dense-fat/dense_fat_cylinder_KnittingStitches.obj", "dense-fat/dense_fat_cylinder_bed.xls", "3875eb748d13af537f37c4fe84eda4534fb09da04748caa13daa216ab8af923b", 13, -5, 23, 31, 3, 275, 1431, 87, "0,0,0,0,0,0,0,0,0,0,0,0,13,1,1,11,13,0,0,0,0,0,0,0,0,0,0,0,0", 38, "0,0,0,0,13,1,1,1,1,1,1,1,1,1,1,1,1,1,1,13,0,0,0,0,0,0,0,0,0"],
+    ["dense-decrease-cylinder", "Dense Decrease Cylinder", "dense-decrease/dense_decrease_cylinder_knitcode.json", "dense-decrease/dense_decrease_cylinder_KnittingStitches.obj", "dense-decrease/dense_decrease_cylinder_bed.xls", "4d5dc3ebf061abb380b0e08e8844b6f85a2ea44d10a153a2636e2a7339e9ab47", 23, 0, 22, 33, 0, 103, 667, 43, "1,1,1,1,11,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0", null, null],
   ];
   for (const [sheet, title, rel, objRel, bedRel, hash, W, minNeedle, maxNeedle, canvas, origin, bodyRows, bindCount, shortIndex, shortNeedles, wideIndex, wideNeedles] of specs) {
     const sheetDoc = JSON.parse(readFileSync(join(sampleDir, `${sheet}.json`), "utf8"));
@@ -3566,8 +3695,10 @@ function assertAdaptedKnitCodes() {
     assert(
       raw.model === title &&
         raw.n_opening_rows === 34 &&
-        raw.n_body_rows === bodyRows &&
-        raw.n_rows === 34 + bodyRows &&
+        raw.n_knit_rows === bodyRows &&
+        raw.n_body_rows === raw.n_rows - 34 &&
+        raw.n_rows === 34 + raw.n_knit_rows + raw.n_flip_rows + raw.n_transfer_pairs * 2 &&
+        raw.n_transfer_rows_omitted === 0 &&
         raw.n_cols === canvas &&
         raw.opening.target_width === W &&
         raw.opening.opening_canvas === openingWidth &&
