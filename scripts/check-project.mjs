@@ -912,9 +912,27 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
     });
   }
   const flips = sheetOps.filter((row) => row.dir === "Flip");
-  const transfers = sheetOps.filter((row) => row.dir === "X" || row.dir === "X+");
+  const transfers = [];
+  for (const part of bedText.split(/\n(?=  row )/)) {
+    const head = part.match(/^  row (\d+) (\S+)/);
+    if (!head || (head[2] !== "X" && head[2] !== "X+")) continue;
+    const note = part.match(/course \d+:.*/)?.[0] || "";
+    const tokens = [...part.matchAll(/([FB][←→])@[FB](-?\d+)/g)].map((match) => ({
+      glyph: match[1],
+      phys: Number(match[2]),
+    }));
+    const move = /移圈|套到/.test(note) || (head[2] === "X+" && /partial increase move|Transfer this increase/.test(note));
+    const rack = /Rack|clear B\d+ with a|front seats toward|counts match and the beds are one needle apart/.test(note);
+    transfers.push({ row: Number(head[1]), dir: head[2], note, tokens, kind: move ? "move" : rack ? "rack" : "other" });
+  }
   const knits = sheetOps.filter((row) => row.dir === "R" || row.dir === "L");
-  const drawnFlips = bunny.rows.filter((row) => row.cells.includes(20) || row.cells.includes(30));
+  const drawnFlips = bunny.rows.filter((row) => row.role === "flip");
+  const shiftOf = {
+    "F←": { code: 21, companion: 30, delta: -1, role: "transfer-front" },
+    "F→": { code: 24, companion: 30, delta: 1, role: "transfer-front" },
+    "B←": { code: 31, companion: 20, delta: -1, role: "transfer-back" },
+    "B→": { code: 34, companion: 20, delta: 1, role: "transfer-back" },
+  };
   const codeAt = (row, phys) => {
     const needleIndex = bunny.columns.findIndex((col) => col.needle === phys);
     return { needleIndex, code: row.cells[needleIndex] };
@@ -929,16 +947,23 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
       flips.length === 16 &&
       drawnFlips.length === 16 &&
       bunnyRaw.n_flip_rows === 16 &&
-      bunnyRaw.n_transfer_rows_omitted === transfers.length &&
+      bunnyRaw.n_transfer_pairs === 33 &&
+      bunnyRaw.n_transfer_rows_omitted === 35 &&
       transfers.length === 68 &&
+      transfers.filter((row) => row.kind === "move").length === 33 &&
+      transfers.filter((row) => row.kind === "rack").length === 35 &&
+      transfers.every((row) => row.kind !== "other") &&
       knits.length > 0 &&
       knits.every((row) => bedRows.has(row.row)) &&
-      transfers.every((row) => !bedRows.has(row.row)) &&
+      transfers.filter((row) => row.kind === "rack").every((row) => !bedRows.has(row.row)) &&
+      transfers.filter((row) => row.kind === "move").every((row) => bedRows.has(row.row)) &&
       flips.every((row) => bedRows.has(row.row)) &&
       bunny.rows.filter((row) => row.bedRow == null).length === 34 &&
       bunny.rows.at(-1).bedRow === Math.max(...sheetOps.map((row) => row.row)) &&
+      bunny.needles[0] === -1 &&
+      bunny.needles.at(-1) === 19 &&
       !bunny.rows.some((row) => row.label.includes("收针") || row.label.includes("结尾")),
-    "Bunny draws every official flip, keeps every knit row, and leaves every transfer row out",
+    "Bunny draws every official flip and loop-move transfer, and leaves every rack out",
   );
   for (const flip of flips) {
     const rows = bunny.rows.filter((row) => row.bedRow === flip.row);
@@ -990,7 +1015,9 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
         !String(knitCellTravel(rows[0].winding, code)?.text || "").includes("向右") &&
         describeKnitCell(bunny, rows[0].index, placed.needleIndex).includes(code === 20 ? "前床翻后床" : "后床翻前床") &&
         ink.label === String(code) &&
-        (code === 20 ? ink.fill === "#B276B2" : ink.fill === "#000000" && ink.text === "#ffffff"),
+        (code === 20
+          ? ink.fill === "#B276B2" && ink.text === "#111111"
+          : ink.fill === "#7373B2" && ink.text === "#ffffff"),
       `flip row ${flip.row} uses the flip rails and shows ${code}`,
     );
   }
@@ -1002,9 +1029,77 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
     [165, 20, 7],
   ];
   for (const [bedRow, code, phys] of examples) {
-    const row = bunny.rows.find((item) => item.bedRow === bedRow);
+    const row = bunny.rows.find((item) => item.bedRow === bedRow && item.role === "flip");
     assert(codeAt(row, phys).code === code, `map flip row ${bedRow} is ${code} on needle ${phys}`);
   }
+  const codeCounts = { 21: 0, 24: 0, 31: 0, 34: 0 };
+  for (const move of transfers.filter((row) => row.kind === "move")) {
+    const pair = bunny.rows.filter((row) => row.bedRow === move.row);
+    const spec = shiftOf[move.tokens[0]?.glyph];
+    const sources = move.tokens.map((token) => token.phys);
+    const same = move.tokens.every((token) => token.glyph === move.tokens[0].glyph);
+    const shift = pair[0];
+    const companion = pair[1];
+    const placed = (row, phys) => (row ? codeAt(row, phys).code : null);
+    const sourceOk = Boolean(spec) && sources.every((phys) => placed(shift, phys) === spec.code);
+    const destOk = Boolean(spec) && sources.every((phys) => placed(companion, phys + spec.delta) === spec.companion);
+    const elsewhere = (row, needles, code) =>
+      bunny.needles.every((phys) => needles.includes(phys) || placed(row, phys) !== code);
+    const l13s = pair.map((row) => railAt(row.index, "L", 13, "mark"));
+    const wanted = spec?.role === "transfer-front" ? "81" : "82";
+    if (spec) codeCounts[spec.code] += 1;
+    assert(
+      pair.length === 2 &&
+        same &&
+        spec &&
+        shift.role === spec.role &&
+        companion.role === spec.role &&
+        shift.winding === "none" &&
+        companion.winding === "none" &&
+        shift.bind === false &&
+        companion.bind === false &&
+        shift.functionRails == null &&
+        !shift.cells.includes(13) &&
+        !companion.cells.includes(13) &&
+        sourceOk &&
+        destOk &&
+        elsewhere(shift, sources, spec.code) &&
+        Boolean(spec) &&
+        elsewhere(companion, sources.map((phys) => phys + spec.delta), spec.companion) &&
+        l13s.every((cell) => cell.text === wanted && (wanted === "81" ? cell.fill === "#47869C" : cell.fill === "#6DA5B4")) &&
+        pair.every((row) => railAt(row.index, "L", 1, "number").text === "1") &&
+        pair.every((row) => railAt(row.index, "R", 1, "number").text === "1") &&
+        pair.every((row) => railAt(row.index, "R", 3, "mark").text === "0" && railAt(row.index, "R", 3, "mark").fill === "#000000") &&
+        pair.every((row) => railAt(row.index, "R", 5, "mark").text === "1") &&
+        pair.every((row) => railAt(row.index, "L", 8, "mark").text === "") &&
+        shift.label.startsWith("移针  ") &&
+        companion.label.startsWith("移针回翻") &&
+        !shift.label.includes("向左") &&
+        !shift.label.includes("向右") &&
+        !companion.label.includes("向左") &&
+        !companion.label.includes("向右") &&
+        knitCellTravel(shift.winding, spec.code)?.text === "操作行，无方向" &&
+        knitCellTravel(companion.winding, spec.companion)?.text === "操作行，无方向",
+      `bed transfer row ${move.row} draws ${spec?.code || "?"} then ${spec?.companion || "?"} one needle along the arrow`,
+    );
+  }
+  assert(
+    codeCounts[21] === 5 && codeCounts[24] === 7 && codeCounts[31] === 5 && codeCounts[34] === 16,
+    "loop moves are 5 front-left, 7 front-right, 5 back-left, and 16 back-right",
+  );
+  const row5 = transfers.find((row) => row.row === 5);
+  const row28 = transfers.find((row) => row.row === 28);
+  const row63 = bunny.rows.filter((row) => row.bedRow === 63);
+  assert(
+    row5.kind === "move" &&
+      row5.tokens[0].glyph === "F←" &&
+      row28.kind === "move" &&
+      row28.tokens[0].glyph === "B→" &&
+      codeAt(row63[1], -1).code === 30 &&
+      codeAt(row63[0], 0).code === 21 &&
+      !bunny.rows.some((row) => row.bedRow === 65 || row.bedRow === 7 || row.bedRow === 54),
+    "chart left/right follows the needle index, and racks including the front reseat stay undrawn",
+  );
   for (const row of bunny.rows) {
     if (row.bedRow == null || (row.winding !== "ccw" && row.winding !== "cw")) continue;
     const live = [];
@@ -1020,6 +1115,10 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
         row.cells[live[live.length - 1] + 1] === 13 &&
         !row.cells.includes(20) &&
         !row.cells.includes(30) &&
+        !row.cells.includes(21) &&
+        !row.cells.includes(24) &&
+        !row.cells.includes(31) &&
+        !row.cells.includes(34) &&
         row.functionRails == null &&
         (l13.text === "81" || l13.text === "82") &&
         (l1.text === "6" || l1.text === "7") &&
@@ -1036,28 +1135,42 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
     JSON.parse(readFileSync(join(sampleDir, "decrease/decrease_cylinder_knitcode.json"), "utf8")),
   );
   assert(
-    KNIT_FUNCTION_COLORS[20] === "#B276B2" &&
-      !Object.prototype.hasOwnProperty.call(KNIT_FUNCTION_COLORS, 30) &&
+    Object.keys(KNIT_FUNCTION_COLORS).length === 256 &&
+      KNIT_FUNCTION_COLORS[20] === "#B276B2" &&
+      KNIT_FUNCTION_COLORS[21] === "#FCB46C" &&
+      KNIT_FUNCTION_COLORS[22] === "#FC9463" &&
+      KNIT_FUNCTION_COLORS[24] === "#FCD8FC" &&
+      KNIT_FUNCTION_COLORS[30] === "#7373B2" &&
+      KNIT_FUNCTION_COLORS[31] === "#90D848" &&
+      KNIT_FUNCTION_COLORS[34] === "#EBEBAC" &&
       knitCodeInk(20).fill === "#B276B2" &&
       knitCodeInk(20).label === "20" &&
+      knitCodeInk(21).fill === "#FCB46C" &&
+      knitCodeInk(24).fill === "#FCD8FC" &&
       knitCodeInk(30).label === "30" &&
-      knitCodeInk(30).fill === "#000000" &&
+      knitCodeInk(30).fill === "#7373B2" &&
+      knitCodeInk(30).text === "#ffffff" &&
+      knitCodeInk(31).fill === "#90D848" &&
+      knitCodeInk(34).fill === "#EBEBAC" &&
       columns.filter((col) => col.role === "gap" && col.side === "left").length === KNIT_FUNCTION_GAP &&
       columns.filter((col) => col.role === "gap" && col.side === "right").length === KNIT_FUNCTION_GAP &&
       KNIT_FUNCTION_GAP === 5 &&
       columns.filter((col) => col.role === "function" && col.side === "L").length === KNIT_FUNCTION_PAIRS * 2 &&
       knitCodeCaption(bunny).includes("翻针已画：前床翻后床 20，后床翻前床 30") &&
-      knitCodeCaption(bunny).includes("移针未画") &&
+      knitCodeCaption(bunny).includes("移针已画成两行") &&
+      !knitCodeCaption(bunny).includes("移针未画") &&
       !knitCodeCaption(bunny).includes("移针/翻针未画") &&
       knitCodeCaption(bunny).includes("开头功能行抄自模板") &&
       knitCodeCaption(decreaseKnit).includes("移针/翻针未画") &&
       knitCodeLegend(bunny)
         .map((item) => item.code)
-        .join(",") === "1,11,2,12,20,30,0" &&
+        .join(",") === "1,11,2,12,20,21,24,30,31,34,0" &&
       bunnyBind.unmatched.length === 0 &&
       bunnyBind.knitCells === bunnyBind.bedTokens &&
       bunnyBind.byKey.size === bunnyBind.knitCells &&
-      drawnFlips.every((row) => ![...bunnyBind.byKey.keys()].some((key) => key.startsWith(`${row.index},`))),
+      bunny.rows
+        .filter((row) => row.role === "flip" || row.role === "transfer-front" || row.role === "transfer-back")
+        .every((row) => ![...bunnyBind.byKey.keys()].some((key) => key.startsWith(`${row.index},`))),
     "flip colours, rails, caption, and stitch binding stay inside the locked knit-code rules",
   );
   const diskEntries = readdirSync(cylDir)
