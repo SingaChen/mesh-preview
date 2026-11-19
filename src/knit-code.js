@@ -13,7 +13,11 @@ const CODE_NAMES = {
   2: "2 后床平针",
   12: "12 后床短行折返首针",
   20: "20 前床翻后床",
+  21: "21 前床左移",
+  24: "24 前床右移",
   30: "30 后床翻前床",
+  31: "31 后床左移",
+  34: "34 后床右移",
 };
 
 export const KNIT_CODE_LEGEND = [
@@ -82,9 +86,9 @@ const DECREASE_DRAFT_NOTE =
 const EXPERIMENT_DRAW_NOTE =
   "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。";
 
-/** Official Bunny draws flip rows and still leaves transfer rows undrawn. */
+/** Official Bunny draws true flips and loop-move transfers. Whole-bed racks stay out. */
 const BUNNY_FLIP_NOTE =
-  "翻针已画：前床翻后床 20，后床翻前床 30；移针未画。翻针是单行操作，无方向，不加 13。没有另写结尾。";
+  "翻针已画：前床翻后床 20，后床翻前床 30。移针已画成两行：前床左移 21、前床右移 24、后床左移 31、后床右移 34，下一行是顺着移针方向错一针的回翻（前床移针后为 30，后床移针后为 20）。整床横移和平衡不画。操作行无方向，不加 13。没有另写结尾。";
 
 /** Standrad opening sits under the body. Rails on those rows are a template copy. */
 export const KNIT_OPENING_NOTE =
@@ -117,7 +121,7 @@ function codesPresent(knit) {
 export function knitCodeLegend(knit) {
   const found = codesPresent(knit);
   const items = [];
-  for (const code of [1, 11, 2, 12, 20, 30]) {
+  for (const code of [1, 11, 2, 12, 20, 21, 24, 30, 31, 34]) {
     if (found.has(code)) items.push({ code, name: CODE_NAMES[code] });
   }
   if (!found.has(0)) return items;
@@ -192,12 +196,14 @@ export const KNIT_FUNCTION_GAP = 5;
 export const KNIT_FUNCTION_RAIL_NOTE = "功能行已按行进方向和床位补全指定格，未指定的问号仍空。";
 
 /**
- * Tiffany display colors for function numbers 1–20.
- * These are DATFile.getDefaultPalette(img_order=True): the file stores pairs
- * swapped, and the preview uses the swapped display order. 1, 2, 11, and 12
- * match the knit-code cells.
+ * Tiffany display colours for every index 0–255.
+ * DATFile.getDefaultPalette(img_order=True): the file stores R, then G, then B
+ * as 256-byte planes, and the preview swaps each even/odd byte pair. 1, 2, 11,
+ * and 12 match the knit-code cells. Codes such as 21, 24, 30, 31, and 34 come
+ * from this same table.
  */
 export const KNIT_FUNCTION_COLORS = {
+  0: "#000000",
   1: "#FF0000",
   2: "#00FF00",
   3: "#FFFF00",
@@ -218,28 +224,241 @@ export const KNIT_FUNCTION_COLORS = {
   18: "#007C91",
   19: "#EBEB24",
   20: "#B276B2",
-  // Same swapped display order for indicator values outside 1–20.
-  // Index 30 is not in this transcribed palette (the table jumps from 22 to 31).
-  // Do not invent a hex for it. Body cells still print the digits 30.
+  21: "#FCB46C",
   22: "#FC9463",
+  23: "#FC6C48",
+  24: "#FCD8FC",
+  25: "#FCB4FC",
+  26: "#D890FC",
+  27: "#64C8C8",
+  28: "#A06600",
+  29: "#EBACEB",
+  30: "#7373B2",
   31: "#90D848",
+  32: "#73B273",
   33: "#A77F01",
+  34: "#EBEBAC",
+  35: "#D8D848",
+  36: "#B4B46C",
   37: "#FF00A0",
+  38: "#D7C3E1",
   39: "#ACACEB",
+  40: "#7F007F",
   41: "#D84890",
+  42: "#906CD8",
+  43: "#D8D8FC",
   44: "#D8B4D8",
+  45: "#CAA7E1",
+  46: "#B49A46",
+  47: "#AE8DF5",
+  48: "#9F7FFF",
+  49: "#8060FF",
+  50: "#DC7675",
   51: "#FF9090",
   52: "#C0FF90",
+  53: "#FCFCB4",
+  54: "#FCFC90",
+  55: "#D8FC48",
+  56: "#FF90CF",
+  57: "#90FFC0",
+  58: "#B49090",
+  59: "#FDEBC7",
+  60: "#A0FFFF",
+  61: "#05FFFF",
+  62: "#32E9E9",
+  63: "#32CAE9",
+  64: "#35AFED",
+  65: "#00D500",
+  66: "#D86CD8",
+  67: "#D86CB4",
+  68: "#C060B4",
+  69: "#A854B4",
+  70: "#9966FF",
+  71: "#FAFFFF",
+  72: "#00A0A0",
   73: "#B7BCBC",
+  74: "#C5AEB7",
+  75: "#E2C5B2",
+  76: "#C0FFCF",
+  77: "#90CFC0",
+  78: "#8DD5F9",
+  79: "#90B4FC",
+  80: "#007099",
   81: "#47869C",
   82: "#6DA5B4",
+  83: "#90C0CF",
+  84: "#0066FF",
+  85: "#0099FF",
+  86: "#33ADFF",
+  87: "#66C1FF",
+  88: "#99D6FF",
+  89: "#857A03",
+  90: "#CA2891",
+  91: "#78309C",
+  92: "#9048B4",
+  93: "#B46CD8",
+  94: "#FF008F",
+  95: "#7D8FA5",
+  96: "#FF66BB",
+  97: "#FF99D2",
+  98: "#693F24",
   99: "#7F0000",
+  100: "#81640C",
+  101: "#FAA3B9",
+  102: "#ACEBAC",
+  103: "#FCD86C",
   104: "#B2B273",
   105: "#7F7F00",
+  106: "#B49048",
   107: "#B46C6C",
+  108: "#D49595",
+  109: "#B4D8D8",
+  110: "#906C6C",
+  111: "#FFBFBF",
+  112: "#C0CF90",
+  113: "#FFCF90",
+  114: "#73B2B2",
+  115: "#C090CF",
   116: "#A9E5E7",
   117: "#D8D8B4",
+  118: "#B4D890",
+  119: "#BF6A69",
   120: "#90D8FC",
+  121: "#FFDDAD",
+  122: "#B27373",
+  123: "#D8B46C",
+  124: "#00007F",
+  125: "#AA0000",
+  126: "#009600",
+  127: "#D89D49",
+  128: "#9065FD",
+  129: "#FBFDFE",
+  130: "#9D5A6F",
+  131: "#81DFA5",
+  132: "#ACACFF",
+  133: "#379D7F",
+  134: "#BFDFBE",
+  135: "#DDF37B",
+  136: "#3F6E11",
+  137: "#B9F7AB",
+  138: "#D7DBFF",
+  139: "#EFFF67",
+  140: "#FDFB55",
+  141: "#DEFFB9",
+  142: "#73AB7F",
+  143: "#FEFB9D",
+  144: "#8DC7DE",
+  145: "#2F31FB",
+  146: "#FFAF7F",
+  147: "#FBFA7F",
+  148: "#EDAFFB",
+  149: "#FE6A7F",
+  150: "#F59D93",
+  151: "#0300F3",
+  152: "#EDEAF5",
+  153: "#EAFEFE",
+  154: "#3D9FBF",
+  155: "#AD0CEB",
+  156: "#FAA75D",
+  157: "#FCDEEF",
+  158: "#FD7DFC",
+  159: "#EFF5F7",
+  160: "#8DC7E8",
+  161: "#632387",
+  162: "#777299",
+  163: "#7FFFFF",
+  164: "#797FBD",
+  165: "#5F773A",
+  166: "#7187BB",
+  167: "#737FDF",
+  168: "#EECE3D",
+  169: "#FFFCF8",
+  170: "#FF2FCF",
+  171: "#A8BFB2",
+  172: "#DBBEFE",
+  173: "#9F6F9E",
+  174: "#FFFDFD",
+  175: "#F5BA5F",
+  176: "#F35FD9",
+  177: "#CDF2F3",
+  178: "#FEDF93",
+  179: "#E02DFF",
+  180: "#797FBD",
+  181: "#C8C8C8",
+  182: "#1FB537",
+  183: "#735BAA",
+  184: "#E56F81",
+  185: "#BF77FD",
+  186: "#F6DBBE",
+  187: "#F38F7F",
+  188: "#DE7E7F",
+  189: "#E092FF",
+  190: "#CC5F91",
+  191: "#F0F0F0",
+  192: "#649D4C",
+  193: "#4BFF4B",
+  194: "#A1BA4B",
+  195: "#404040",
+  196: "#1AECCE",
+  197: "#F7F767",
+  198: "#67FBA9",
+  199: "#E06DFF",
+  200: "#6464FF",
+  201: "#FF647D",
+  202: "#3FE3D3",
+  203: "#F59664",
+  204: "#EFF7F7",
+  205: "#97C76F",
+  206: "#96FFF7",
+  207: "#14D3B4",
+  208: "#677FCF",
+  209: "#D7AFAD",
+  210: "#EEF6E9",
+  211: "#B7F5FC",
+  212: "#EAF77F",
+  213: "#BA73CD",
+  214: "#BD5AAF",
+  215: "#6CB281",
+  216: "#4E88F7",
+  217: "#265F64",
+  218: "#2FB7F5",
+  219: "#648951",
+  220: "#9FFD7D",
+  221: "#BFBCA4",
+  222: "#F3E93F",
+  223: "#7F7FDF",
+  224: "#FF7EF7",
+  225: "#AA7FCF",
+  226: "#BFFAF9",
+  227: "#E62FFD",
+  228: "#EBF7DF",
+  229: "#577C7F",
+  230: "#FEA54D",
+  231: "#1403F0",
+  232: "#E8E5F0",
+  233: "#4FC75F",
+  234: "#EF8DFB",
+  235: "#6AFBFF",
+  236: "#B7FFDF",
+  237: "#62FF4F",
+  238: "#CF5BF0",
+  239: "#DD79A9",
+  240: "#6BE745",
+  241: "#66008A",
+  242: "#7A6796",
+  243: "#B28DBA",
+  244: "#F7ECBD",
+  245: "#5AB9FC",
+  246: "#4CF7B7",
+  247: "#9C5909",
+  248: "#9DBDF2",
+  249: "#960000",
+  250: "#00AF00",
+  251: "#149614",
+  252: "#C80000",
+  253: "#6E0000",
+  254: "#646464",
+  255: "#007D00",
 };
 
 function srgbChannel(hex, index) {
@@ -452,6 +671,7 @@ export function parseKnitCode(data) {
   const rails = Array.isArray(data.function_rails) ? data.function_rails : [];
   const binds = Array.isArray(data.row_bind) ? data.row_bind : null;
   const bedRows = Array.isArray(data.bed_row) ? data.bed_row : [];
+  const roles = Array.isArray(data.row_role) ? data.row_role : [];
   const colors = paletteFrom(data);
   return {
     model: typeof data.model === "string" ? data.model : "",
@@ -465,6 +685,7 @@ export function parseKnitCode(data) {
       cells: row.slice(),
       bind: binds ? binds[index] !== false : true,
       bedRow: Number.isInteger(bedRows[index]) ? bedRows[index] : null,
+      role: typeof roles[index] === "string" ? roles[index] : null,
       functionRails: rails[index] && typeof rails[index] === "object" ? rails[index] : null,
       colors,
     })),
@@ -566,14 +787,22 @@ const RAIL_BLANK = { text: "", fill: null };
  * One function cell. The number slot is the 本体. The "?" slot is the 指示.
  * Only the cells named below change; every other indicator stays empty.
  * L1 and R1 share the row direction: 向右 is 6, 向左 is 7, no direction is 1.
- * L13 follows the bed on knit rows. A flip row (winding none, with a 20 or 30)
- * writes a visible 0 in the L13 indicator and in the R3 indicator. Other
- * operation rows leave both blank. R3 is 6 only while a knit row has knitting.
- * R5 is 1 only when the row has no knitting, which includes every flip row.
+ * L13 follows the bed on knit rows. A true flip (winding none, with a 20 or 30,
+ * and not a transfer companion) writes a visible 0 in the L13 indicator and in
+ * the R3 indicator. A transfer pair writes 81 on both rows when the loops move
+ * on the front bed, and 82 when they move on the back bed. R3 is 6 only while
+ * a knit row has knitting. R5 is 1 only when the row has no knitting.
  */
 function isFlipOperationRow(row) {
+  if (row?.role === "transfer-front" || row?.role === "transfer-back") return false;
   if (knitRowWinding(row?.winding) !== "none") return false;
   return (row?.cells || []).some((code) => code === 20 || code === 30);
+}
+
+function transferRailBed(row) {
+  if (row?.role === "transfer-front") return "F";
+  if (row?.role === "transfer-back") return "B";
+  return null;
 }
 function explicitRailValue(column, row) {
   if (column?.role !== "function" || !Number.isInteger(column.pair)) return RAIL_BLANK;
@@ -605,6 +834,12 @@ export function knitFunctionValue(column, row) {
     return RAIL_BLANK;
   }
   if (slot !== "mark") return RAIL_BLANK;
+  const movedOn = transferRailBed(row);
+  if (movedOn && side === "L" && pair === 13) {
+    const code = movedOn === "F" ? 81 : 82;
+    return railPaint(code, KNIT_FUNCTION_COLORS[code]);
+  }
+  if (movedOn && side === "R" && pair === 3) return railPaint(0, LOCKED_COLORS[0]);
   if (isFlipOperationRow(row)) {
     // 0 is palette black. The digit is a function-rail indicator, not an empty needle.
     if (side === "L" && pair === 13) return railPaint(0, LOCKED_COLORS[0]);
