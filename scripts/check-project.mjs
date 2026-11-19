@@ -947,23 +947,28 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
       flips.length === 16 &&
       drawnFlips.length === 16 &&
       bunnyRaw.n_flip_rows === 16 &&
-      bunnyRaw.n_transfer_pairs === 33 &&
-      bunnyRaw.n_transfer_rows_omitted === 35 &&
+      bunnyRaw.n_transfer_pairs === 68 &&
+      bunnyRaw.n_loop_move_pairs === 33 &&
+      bunnyRaw.n_balance_pairs === 35 &&
+      bunnyRaw.n_transfer_rows_omitted === 0 &&
+      bunnyRaw.n_rows === 291 &&
+      bunnyRaw.n_cols === 29 &&
+      bunnyRaw.n_knit_rows === 105 &&
+      bunnyRaw.n_opening_rows === 34 &&
       transfers.length === 68 &&
       transfers.filter((row) => row.kind === "move").length === 33 &&
       transfers.filter((row) => row.kind === "rack").length === 35 &&
       transfers.every((row) => row.kind !== "other") &&
       knits.length > 0 &&
       knits.every((row) => bedRows.has(row.row)) &&
-      transfers.filter((row) => row.kind === "rack").every((row) => !bedRows.has(row.row)) &&
-      transfers.filter((row) => row.kind === "move").every((row) => bedRows.has(row.row)) &&
+      transfers.every((row) => bunny.rows.filter((item) => item.bedRow === row.row).length === 2) &&
       flips.every((row) => bedRows.has(row.row)) &&
       bunny.rows.filter((row) => row.bedRow == null).length === 34 &&
       bunny.rows.at(-1).bedRow === Math.max(...sheetOps.map((row) => row.row)) &&
       bunny.needles[0] === -1 &&
       bunny.needles.at(-1) === 19 &&
       !bunny.rows.some((row) => row.label.includes("收针") || row.label.includes("结尾")),
-    "Bunny draws every official flip and loop-move transfer, and leaves every rack out",
+    "Bunny draws every official flip and all 68 transfer rows, with no omitted rack",
   );
   for (const flip of flips) {
     const rows = bunny.rows.filter((row) => row.bedRow === flip.row);
@@ -1097,8 +1102,83 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
       row28.tokens[0].glyph === "B→" &&
       codeAt(row63[1], -1).code === 30 &&
       codeAt(row63[0], 0).code === 21 &&
-      !bunny.rows.some((row) => row.bedRow === 65 || row.bedRow === 7 || row.bedRow === 54),
-    "chart left/right follows the needle index, and racks including the front reseat stay undrawn",
+      bunny.rows.find((row) => row.bedRow === 5 && row.label.startsWith("移针  "))?.label ===
+        "移针  前床左移 21 · F2…F18（床图 row 5 / course 3 X，操作行，无方向）" &&
+      bunny.rows.find((row) => row.bedRow === 28 && row.label.startsWith("移针  "))?.label ===
+        "移针  后床右移 34 · B0…B15（床图 row 28 / course 16 X，操作行，无方向）",
+    "the earlier loop-move pairs keep their needle-index direction",
+  );
+  const heads = new Map();
+  for (const part of bedText.split(/\n(?=  row )/)) {
+    const head = part.match(/^  row (\d+) /);
+    if (head) heads.set(Number(head[1]), part.split("\n")[0]);
+  }
+  const spanOf = (line, bed) => {
+    const patterns = bed === "F"
+      ? [/前\d+\[(-?\d+)…(-?\d+)\]/, /F\d+\[(-?\d+)…(-?\d+)\]/]
+      : [/后\d+\[(-?\d+)…(-?\d+)\]/, /B\d+\[(-?\d+)…(-?\d+)\]/];
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (match) return [Number(match[1]), Number(match[2])];
+    }
+    return null;
+  };
+  const balanceCounts = { 21: 0, 24: 0, 31: 0, 34: 0 };
+  for (const rack of transfers.filter((row) => row.kind === "rack")) {
+    const before = { F: spanOf(heads.get(rack.row), "F"), B: spanOf(heads.get(rack.row), "B") };
+    const after = { F: spanOf(heads.get(rack.row + 1), "F"), B: spanOf(heads.get(rack.row + 1), "B") };
+    const changed = ["F", "B"].filter((bed) => before[bed] && after[bed] && (before[bed][0] !== after[bed][0] || before[bed][1] !== after[bed][1]));
+    const bed = changed[0];
+    const delta = after[bed][0] - before[bed][0];
+    const spec = bed === "F"
+      ? delta < 0
+        ? { code: 21, companion: 30, delta, role: "transfer-front" }
+        : { code: 24, companion: 30, delta, role: "transfer-front" }
+      : delta < 0
+        ? { code: 31, companion: 20, delta, role: "transfer-back" }
+        : { code: 34, companion: 20, delta, role: "transfer-back" };
+    const pair = bunny.rows.filter((row) => row.bedRow === rack.row);
+    const sources = [];
+    for (let phys = before[bed][0]; phys <= before[bed][1]; phys += 1) sources.push(phys);
+    const word = /front seats toward/.test(rack.note) ? "回座" : /Rack the back \+1|clear B\d+ with a/.test(rack.note) ? "整床横移" : "平衡";
+    const placed = (row, phys) => codeAt(row, phys).code;
+    balanceCounts[spec.code] += 1;
+    assert(
+      changed.length === 1 &&
+        (delta === 1 || delta === -1) &&
+        delta === after[bed][1] - before[bed][1] &&
+        pair.length === 2 &&
+        pair.every((row) => row.role === spec.role && row.winding === "none" && row.bind === false && !row.cells.includes(13)) &&
+        sources.every((phys) => placed(pair[0], phys) === spec.code) &&
+        sources.every((phys) => placed(pair[1], phys + delta) === spec.companion) &&
+        pair[0].label.includes(word) &&
+        pair[1].label.includes(word) &&
+        !pair[0].label.includes("向左") &&
+        !pair[0].label.includes("向右") &&
+        railAt(pair[0].index, "L", 13, "mark").text === (spec.role === "transfer-front" ? "81" : "82") &&
+        railAt(pair[1].index, "L", 13, "mark").text === (spec.role === "transfer-front" ? "81" : "82"),
+      `balance bed row ${rack.row} follows the window by ${delta} on ${bed}`,
+    );
+  }
+  const row65 = bunny.rows.filter((row) => row.bedRow === 65);
+  assert(
+    balanceCounts[21] === 4 &&
+      balanceCounts[24] === 1 &&
+      balanceCounts[31] === 23 &&
+      balanceCounts[34] === 7 &&
+      row65[0].label.includes("前床右移 24") &&
+      row65[0].label.includes("F-1…F16") &&
+      row65[0].label.includes("回座") &&
+      row65[1].label.includes("落在 F0…F17") &&
+      codeAt(row65[0], -1).code === 24 &&
+      codeAt(row65[0], 16).code === 24 &&
+      codeAt(row65[1], 0).code === 30 &&
+      codeAt(row65[1], 17).code === 30 &&
+      railAt(row65[0].index, "L", 13, "mark").text === "81" &&
+      railAt(row65[1].index, "L", 13, "mark").text === "81" &&
+      railAt(row65[0].index, "R", 3, "mark").text === "0" &&
+      railAt(row65[0].index, "R", 5, "mark").text === "1",
+    "bed row 65 reseats F-1…F16 one needle higher as 24, then 30 on F0…F17",
   );
   for (const row of bunny.rows) {
     if (row.bedRow == null || (row.winding !== "ccw" && row.winding !== "cw")) continue;
@@ -1158,7 +1238,9 @@ if (!facesOut.stitchMapBindFile) throw new Error("expected stitch_map_bind.json"
       columns.filter((col) => col.role === "function" && col.side === "L").length === KNIT_FUNCTION_PAIRS * 2 &&
       knitCodeCaption(bunny).includes("翻针已画：前床翻后床 20，后床翻前床 30") &&
       knitCodeCaption(bunny).includes("移针已画成两行") &&
+      knitCodeCaption(bunny).includes("平衡、整床横移和回座用同样的两行") &&
       !knitCodeCaption(bunny).includes("移针未画") &&
+      !knitCodeCaption(bunny).includes("平衡不画") &&
       !knitCodeCaption(bunny).includes("移针/翻针未画") &&
       knitCodeCaption(bunny).includes("开头功能行抄自模板") &&
       knitCodeCaption(decreaseKnit).includes("移针/翻针未画") &&
