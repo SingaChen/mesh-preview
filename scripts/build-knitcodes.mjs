@@ -3,6 +3,8 @@
  *
  * Body rows walk each bed.txt in knitting order. One bed is one visual row.
  * X / X+ / Flip rows, transfers, flips, and whole-bed racks are omitted.
+ * `node scripts/build-knitcodes.mjs --bunny` is the Official Bunny exception:
+ * it draws that bed's Flip rows and still omits every transfer row.
  * 11/12 mark only the first stitch of the first visual row after a ccw↔cw
  * turn. The opening is the locked width adapter (W = the first body row's
  * needle count), left-aligned on needle 0. Body color 13 sits tight against
@@ -822,5 +824,349 @@ function buildExperiments() {
   console.log("wrote /tmp/exp-knitcode-report.json");
 }
 
-if (process.argv.includes("--experiments")) buildExperiments();
-else main();
+function rowBlocks(text) {
+  const blocks = new Map();
+  for (const part of text.split(/\n(?=  row )/)) {
+    const head = part.match(/^  row (\d+) (\S+)/);
+    if (head) blocks.set(Number(head[1]), part);
+  }
+  return blocks;
+}
+
+/** ⬆@F is front→back (20). ⬇@B is back→front (30). The note has to say the same thing. */
+function flipSpec(token, block) {
+  const courseLine = block.split("\n").find((line) => /course \d+:/.test(line));
+  if (!courseLine) throw new Error(`flip ${token.raw} has no course note`);
+  const course = Number(courseLine.match(/course (\d+):/)[1]);
+  const arrow = courseLine.match(/([FB])(\d+)→([FB])(\d+)/);
+  if (!arrow) throw new Error(`flip note has no bed arrow: ${courseLine.trim()}`);
+  const fromBed = arrow[1];
+  const fromPhys = Number(arrow[2]);
+  const toBed = arrow[3];
+  const toPhys = Number(arrow[4]);
+  if (fromPhys !== token.phys || toPhys !== token.phys) {
+    throw new Error(`flip ${token.raw} note changes needle: ${courseLine.trim()}`);
+  }
+  if (token.glyph === "⬆" && token.bed === "F" && fromBed === "F" && toBed === "B") {
+    return { code: 20, course, motion: `前床翻后床 F${token.phys}→B${token.phys}` };
+  }
+  if (token.glyph === "⬇" && token.bed === "B" && fromBed === "B" && toBed === "F") {
+    return { code: 30, course, motion: `后床翻前床 B${token.phys}→F${token.phys}` };
+  }
+  throw new Error(`unrecognized flip ${token.raw} (${courseLine.trim()})`);
+}
+
+/**
+ * Official Bunny only. Knit rows and the opening stay on the locked builder.
+ * Flip rows are inserted in bed order. X / X+ transfer rows are left out.
+ */
+function buildBunny(standrad) {
+  const bedPath = join(sampleDir, "cylinder/faces_ring0_step4_bed.txt");
+  const xlsPath = join(sampleDir, "cylinder/faces_ring0_step4_bed.xls");
+  const layoutPath = join(sampleDir, "cylinder/faces_ring_layout.json");
+  const bedBytes = readFileSync(bedPath);
+  const xlsBytes = readFileSync(xlsPath);
+  if (sha256(bedBytes) !== "061985c9a5b659ff5b6064997741778a8b3249231c817231f4096f2b31034a6d") {
+    throw new Error("official Bunny bed txt changed");
+  }
+  if (sha256(xlsBytes) !== "170e217b55d30ad35011d2b45c82e25a2f3fe38d9b7f2662324f1a2d85537335") {
+    throw new Error("official Bunny bed xls changed");
+  }
+  const bedText = bedBytes.toString("utf8");
+  const bed = parseBedTxt(bedText);
+  if (bed.stopped) throw new Error(`official Bunny bed is unfinished: ${bed.stopped}`);
+  const visual = visualRows(bed);
+  if (!visual.length) throw new Error("Bunny has no knit rows");
+  const xls = parseExcelReadableMap(xlsBytes);
+  if (xls.rows.length !== bed.rows.length) {
+    throw new Error(`Bunny xls rows ${xls.rows.length} != txt rows ${bed.rows.length}`);
+  }
+  for (let index = 0; index < bed.rows.length; index += 1) {
+    if (bed.rows[index].row !== index) throw new Error(`bed row number ${bed.rows[index].row} is not ${index}`);
+    if (xls.rows[index].dir !== bed.rows[index].dir) {
+      throw new Error(`row ${index} xls ${xls.rows[index].dir} != txt ${bed.rows[index].dir}`);
+    }
+  }
+  const byCell = new Map();
+  for (const sheetRow of xls.rows) {
+    for (const cell of sheetRow.cells) {
+      if (!cell.token || (cell.bed !== "F" && cell.bed !== "B") || !Number.isInteger(cell.phys)) continue;
+      const key = `${cell.row},${cell.bed},${cell.phys}`;
+      if (byCell.has(key)) throw new Error(`Bunny duplicate bed cell ${key}`);
+      byCell.set(key, cell);
+    }
+  }
+  const layout = parseFacesRingLayout(readFileSync(layoutPath, "utf8"));
+  if (bed.statedRings != null && bed.statedRings !== layout.termCounts.length) {
+    throw new Error(`Bunny bed says ${bed.statedRings} rings, layout has ${layout.termCounts.length}`);
+  }
+  const ringsUsed = new Set();
+  for (const row of visual) {
+    const rings = new Set();
+    for (const token of row.tokens) {
+      const cell = byCell.get(`${row.bedRow},${token.bed},${token.phys}`);
+      if (!cell || !Number.isInteger(cell.faceIndex)) {
+        throw new Error(`Bunny row ${row.bedRow} ${token.bed}${token.phys} has no face`);
+      }
+      const ring = ringOf(cell.faceIndex, layout.termCounts);
+      if (ring == null) throw new Error(`Bunny face ${cell.faceIndex} is outside term_counts`);
+      rings.add(ring);
+    }
+    if (rings.size !== 1) throw new Error(`Bunny row ${row.bedRow} spans rings ${[...rings].join(",")}`);
+    row.ring = [...rings][0];
+    ringsUsed.add(row.ring);
+    row.label = labelFor(row, row.ring + 1);
+  }
+  const knitsByRow = new Map();
+  for (const row of visual) {
+    const list = knitsByRow.get(row.bedRow) || [];
+    list.push(row);
+    knitsByRow.set(row.bedRow, list);
+  }
+  const blocks = rowBlocks(bedText);
+  const sequence = [];
+  let transfers = 0;
+  for (const sheetRow of bed.rows) {
+    if (sheetRow.dir === "R" || sheetRow.dir === "L") {
+      const parts = knitsByRow.get(sheetRow.row) || [];
+      if (!parts.length) throw new Error(`knit row ${sheetRow.row} produced no visual row`);
+      for (const part of parts) sequence.push({ kind: "knit", visual: part });
+      continue;
+    }
+    if (sheetRow.dir === "X" || sheetRow.dir === "X+") {
+      transfers += 1;
+      continue;
+    }
+    if (sheetRow.dir !== "Flip") throw new Error(`row ${sheetRow.row} dir ${sheetRow.dir}`);
+    if (sheetRow.tokens.length !== 1) {
+      throw new Error(`flip row ${sheetRow.row} has ${sheetRow.tokens.length} tokens`);
+    }
+    const token = sheetRow.tokens[0];
+    const flip = flipSpec(token, blocks.get(sheetRow.row) || "");
+    const cell = byCell.get(`${sheetRow.row},${token.bed},${token.phys}`);
+    const occupied = xls.rows[sheetRow.row].cells.filter(
+      (item) => item.token && (item.bed === "F" || item.bed === "B"),
+    );
+    if (occupied.length !== 1 || !cell || cell.bed !== token.bed || cell.phys !== token.phys) {
+      throw new Error(`flip row ${sheetRow.row} ${token.raw} is not on the xls`);
+    }
+    if (cell.token !== token.glyph && cell.token !== token.raw) {
+      throw new Error(`flip row ${sheetRow.row} xls token ${cell.token} is not ${token.raw}`);
+    }
+    if (cell.kind !== "flip") throw new Error(`flip row ${sheetRow.row} xls kind ${cell.kind}`);
+    let ring = null;
+    if (Number.isInteger(cell.faceIndex)) {
+      ring = ringOf(cell.faceIndex, layout.termCounts);
+      if (ring == null) throw new Error(`flip face ${cell.faceIndex} is outside the layout`);
+    }
+    const ringText = ring == null ? "" : `第${ring + 1}环 `;
+    sequence.push({
+      kind: "flip",
+      bedRow: sheetRow.row,
+      token,
+      code: flip.code,
+      label: `${ringText}翻针  ${flip.motion}（床图 row ${sheetRow.row} / course ${flip.course} Flip，操作行，无方向）`,
+    });
+  }
+  if (sequence[0]?.kind !== "knit") throw new Error("Bunny knitting code does not start with a knit row");
+  const W = sequence[0].visual.tokens.length;
+  const firstPhys = sequence[0].visual.tokens.map((token) => token.phys);
+  if (firstPhys.some((phys, index) => phys !== index)) {
+    throw new Error(`Bunny first row is not needles 0..${W - 1}: ${firstPhys.join(",")}`);
+  }
+  const phys = [];
+  for (const item of sequence) {
+    if (item.kind === "knit") phys.push(...item.visual.tokens.map((token) => token.phys));
+    else phys.push(item.token.phys);
+  }
+  const minP = Math.min(0, ...phys);
+  const maxP = Math.max(0, ...phys);
+  const needle0Col = Math.max(3, 1 - minP);
+  const origin = needle0Col - 3;
+  const canvas = Math.max(origin + (W + 10), needle0Col + maxP + 2);
+  const opening = buildOpeningMatrix(W);
+  const roles = [];
+  const needles = [];
+  for (let col = 0; col < canvas; col += 1) {
+    const p = col - needle0Col;
+    if (p >= minP && p <= maxP) {
+      roles.push(p);
+      needles.push(p);
+    } else if (col === origin + 2 || col === origin + 3 + W) roles.push("frame");
+    else roles.push("pad");
+  }
+  const matrix = [];
+  const rowLabels = [];
+  const windings = [];
+  const binds = [];
+  const bedRows = [];
+  const rails = [];
+  opening.rows.forEach((row, index) => {
+    const placed = Array(canvas).fill(0);
+    row.matrix.forEach((code, col) => {
+      placed[origin + col] = code;
+    });
+    matrix.push(placed);
+    rowLabels.push(`开头 ${index + 1}`);
+    windings.push(standrad.row_winding[index]);
+    binds.push(false);
+    bedRows.push(null);
+    rails.push(standrad.function_rails[index]);
+  });
+  const bodyMatrix = [];
+  for (const item of sequence) {
+    const line = Array(canvas).fill(0);
+    if (item.kind === "knit") {
+      const row = item.visual;
+      row.tokens.forEach((token) => {
+        line[needle0Col + token.phys] = token.code;
+      });
+      const knitCols = [];
+      line.forEach((code, col) => {
+        if (code === 1 || code === 2 || code === 11 || code === 12) knitCols.push(col);
+      });
+      const lo = knitCols[0];
+      const hi = knitCols[knitCols.length - 1];
+      if (line[lo - 1] !== 0 || line[hi + 1] !== 0) {
+        throw new Error(`Bunny bed row ${row.bedRow} has no empty cell for a tight 13`);
+      }
+      line[lo - 1] = 13;
+      line[hi + 1] = 13;
+      matrix.push(line);
+      bodyMatrix.push(line);
+      rowLabels.push(row.label);
+      windings.push(row.winding);
+      binds.push(true);
+      bedRows.push(row.bedRow);
+      rails.push(null);
+      continue;
+    }
+    line[needle0Col + item.token.phys] = item.code;
+    if (line.some((code) => code === 13 || (code !== 0 && code !== item.code))) {
+      throw new Error(`Bunny flip row ${item.bedRow} is not a single ${item.code}`);
+    }
+    matrix.push(line);
+    bodyMatrix.push(line);
+    rowLabels.push(item.label);
+    windings.push("none");
+    binds.push(false);
+    bedRows.push(item.bedRow);
+    rails.push(null);
+  }
+  const turns11 = visual.reduce((sum, row) => sum + row.tokens.filter((token) => token.code === 11).length, 0);
+  const turns12 = visual.reduce((sum, row) => sum + row.tokens.filter((token) => token.code === 12).length, 0);
+  const spec = {
+    model: "Bunny",
+    dir: "cylinder",
+    prefix: "faces_ring0_step4",
+    sourceBed: "cylinder/faces_ring0_step4_bed.txt",
+  };
+  const info = { bedSha: sha256(bedText), turns: turns11 + turns12, stopped: bed.stopped };
+  const rules = rulesFor(spec, info);
+  rules.operations_omitted =
+    "移针、整床移位（床图 X / X+ 行）整行省略，不插入全 0 占位行。翻针（床图 Flip 行）画成一行操作。";
+  rules.codes.front_to_back = 20;
+  rules.codes.back_to_front = 30;
+  rules.flip_rows =
+    "床图 Flip 行画成一行操作。⬆@F 是前床翻后床，格子为 20。⬇@B 是后床翻前床，格子为 30。前后床翻针不拆行，也没有行进方向。空针保持 0，不加 13。移针（X / X+）仍整行不画。没有收针结尾。";
+  rules.flip_palette =
+    "20 用已抄录的 DAT Tiffany 显示色 #B276B2。这份调色板没有代号 30（已有项从 22 跳到 31），所以不为 30 另造颜色；格子里仍写出 30。";
+  rules.flip_rails =
+    "翻针行沿用织行功能轨，只改五处：L13 指示为 0，L1 本体为 1，R1 本体为 1，R3 指示为 0，R5 指示为 1。0 是功能指示，不是空针。未指定的问号仍空。织行的 L13 仍是 81/82，L1/R1 仍按方向为 6 或 7，有编织时 R3 为 6、R5 为空。";
+  rules.knit_frames += " 翻针行不加 13。";
+  const rightFrame = origin + opening.geometry.right_frame;
+  const flipCount = sequence.filter((item) => item.kind === "flip").length;
+  const doc = {
+    model: "Bunny",
+    opening: {
+      applied: true,
+      n_opening_rows: 34,
+      source_width: 10,
+      target_width: W,
+      opening_canvas: opening.geometry.C,
+      placed_at_column: origin,
+      needle0_column: needle0Col,
+      geometry: opening.geometry,
+      function_rails: "copied exactly from the unified opening template; not scaled",
+      body_alignment: `garment needles ${minP}..${maxP} occupy columns ${needle0Col + minP}..${needle0Col + maxP}; needle 0 is column ${needle0Col}; opening frames stay on the W=${W} block (right frame column ${rightFrame}); later rows may pass that frame`,
+      bind: "opening rows do not bind to the stitch mesh",
+      kinds: opening.rows.map((row) => row.kind),
+    },
+    rules,
+    needles,
+    column_roles: roles,
+    n_rings: layout.termCounts.length,
+    n_opening_rows: 34,
+    n_knit_rows: visual.length,
+    n_flip_rows: flipCount,
+    n_transfer_rows_omitted: transfers,
+    n_body_rows: sequence.length,
+    n_rows: matrix.length,
+    n_cols: canvas,
+    row_labels: rowLabels,
+    row_winding: windings,
+    row_bind: binds,
+    bed_row: bedRows,
+    function_rails: rails,
+    matrix,
+  };
+  const knit = parseKnitCode(doc);
+  const bound = bindKnitCodeStitches(knit, xls, null, null);
+  if (bound.unmatched.length || bound.knitCells !== bound.bedTokens || bound.byKey.size !== bound.knitCells) {
+    throw new Error(
+      `Bunny bind ${bound.byKey.size}/${bound.knitCells} tokens ${bound.bedTokens} unmatched ${JSON.stringify(bound.unmatched.slice(0, 6))}`,
+    );
+  }
+  const xlsTokens = bedKnitTokens(xls).length;
+  if (bound.bedTokens !== xlsTokens) throw new Error("Bunny token count");
+  const seenRings = [...ringsUsed].sort((a, b) => a - b);
+  const layoutRings = [...Array(layout.termCounts.length).keys()];
+  if (seenRings.join(",") !== layoutRings.join(",")) {
+    throw new Error(`Bunny rings drawn ${seenRings.join(",")} layout 0..${layout.termCounts.length - 1}`);
+  }
+  const flipRows = knit.rows.filter((row) => row.cells.some((code) => code === 20 || code === 30));
+  if (flipRows.length !== flipCount) throw new Error("Bunny flip row count drifted");
+  for (const row of flipRows) {
+    const live = row.cells.filter((code) => code !== 0);
+    if (row.winding !== "none" || live.length !== 1 || (live[0] !== 20 && live[0] !== 30) || row.cells.includes(13)) {
+      throw new Error(`Bunny flip bed row ${row.bedRow} is not one 20 or 30`);
+    }
+  }
+  return { doc, flipCount, transfers, knitRows: visual.length, W, minP, maxP, bound };
+}
+
+function writeBunny() {
+  const standradPath = join(sampleDir, "cylinder/standrad_cylinder_knitcode.json");
+  const standradBefore = readFileSync(standradPath);
+  const standrad = JSON.parse(standradBefore.toString("utf8"));
+  const check = buildOpeningMatrix(13);
+  check.rows.forEach((row, index) => {
+    if (row.matrix.join(",") !== standrad.matrix[index].join(",")) {
+      throw new Error(`W=13 opening row ${index} ${row.kind} does not match Standrad`);
+    }
+  });
+  const official = new Map();
+  official.set(standradPath, sha256(standradBefore));
+  for (const spec of MODELS) {
+    const path = join(sampleDir, spec.dir, `${spec.prefix}_knitcode.json`);
+    official.set(path, sha256(readFileSync(path)));
+  }
+  const built = buildBunny(standrad);
+  const outPath = join(sampleDir, "cylinder/faces_ring0_knitcode.json");
+  writeFileSync(outPath, `${JSON.stringify(built.doc, null, 2)}\n`);
+  for (const [path, hash] of official) {
+    if (sha256(readFileSync(path)) !== hash) throw new Error(`official knit code changed: ${path}`);
+  }
+  const flips = built.doc.row_labels.filter((label) => label.includes("翻针"));
+  console.log(
+    `Bunny: opening 34 + knit ${built.knitRows} + flip ${built.flipCount} = ${built.doc.n_rows} rows; omitted ${built.transfers} transfer rows; needles ${built.minP}..${built.maxP}; bind ${built.bound.knitCells}`,
+  );
+  console.log(flips.join("\n"));
+}
+
+const invokedDirectly = process.argv[1]?.endsWith("build-knitcodes.mjs");
+if (invokedDirectly) {
+  if (process.argv.includes("--experiments")) buildExperiments();
+  else if (process.argv.includes("--bunny")) writeBunny();
+  else main();
+}

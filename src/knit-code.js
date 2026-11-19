@@ -12,6 +12,8 @@ const CODE_NAMES = {
   11: "11 前床短行折返首针",
   2: "2 后床平针",
   12: "12 后床短行折返首针",
+  20: "20 前床翻后床",
+  30: "30 后床翻前床",
 };
 
 export const KNIT_CODE_LEGEND = [
@@ -80,6 +82,10 @@ const DECREASE_DRAFT_NOTE =
 const EXPERIMENT_DRAW_NOTE =
   "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。";
 
+/** Official Bunny draws flip rows and still leaves transfer rows undrawn. */
+const BUNNY_FLIP_NOTE =
+  "翻针已画：前床翻后床 20，后床翻前床 30；移针未画。翻针是单行操作，无方向，不加 13。没有另写结尾。";
+
 /** Standrad opening sits under the body. Rails on those rows are a template copy. */
 export const KNIT_OPENING_NOTE =
   "主体下方是按幅宽适配的开头；开头功能行抄自模板，主体功能行不变。";
@@ -93,6 +99,7 @@ export function knitCodeCaption(knit) {
     caption = `${BED_CLAUSE}；空位为 0。列是物理针 ${span}。`;
   }
   if (knit?.model === "Decrease Cylinder") caption += DECREASE_DRAFT_NOTE;
+  else if (knit?.model === "Bunny") caption += BUNNY_FLIP_NOTE;
   else if (String(knit?.model || "").includes("实验")) caption += EXPERIMENT_DRAW_NOTE;
   if (hasCopiedOpening(knit)) caption += KNIT_OPENING_NOTE;
   return caption;
@@ -110,7 +117,7 @@ function codesPresent(knit) {
 export function knitCodeLegend(knit) {
   const found = codesPresent(knit);
   const items = [];
-  for (const code of [1, 11, 2, 12]) {
+  for (const code of [1, 11, 2, 12, 20, 30]) {
     if (found.has(code)) items.push({ code, name: CODE_NAMES[code] });
   }
   if (!found.has(0)) return items;
@@ -212,6 +219,8 @@ export const KNIT_FUNCTION_COLORS = {
   19: "#EBEB24",
   20: "#B276B2",
   // Same swapped display order for indicator values outside 1–20.
+  // Index 30 is not in this transcribed palette (the table jumps from 22 to 31).
+  // Do not invent a hex for it. Body cells still print the digits 30.
   22: "#FC9463",
   31: "#90D848",
   33: "#A77F01",
@@ -557,9 +566,15 @@ const RAIL_BLANK = { text: "", fill: null };
  * One function cell. The number slot is the 本体. The "?" slot is the 指示.
  * Only the cells named below change; every other indicator stays empty.
  * L1 and R1 share the row direction: 向右 is 6, 向左 is 7, no direction is 1.
- * L13 follows the bed on knit rows and on operation rows that still have one.
- * R3 is 6 only while the row has knitting. R5 is 1 only when it does not.
+ * L13 follows the bed on knit rows. A flip row (winding none, with a 20 or 30)
+ * writes a visible 0 in the L13 indicator and in the R3 indicator. Other
+ * operation rows leave both blank. R3 is 6 only while a knit row has knitting.
+ * R5 is 1 only when the row has no knitting, which includes every flip row.
  */
+function isFlipOperationRow(row) {
+  if (knitRowWinding(row?.winding) !== "none") return false;
+  return (row?.cells || []).some((code) => code === 20 || code === 30);
+}
 function explicitRailValue(column, row) {
   if (column?.role !== "function" || !Number.isInteger(column.pair)) return RAIL_BLANK;
   const bagName = column.slot === "number" ? `${column.side}_body` : column.slot === "mark" ? `${column.side}_ind` : "";
@@ -590,6 +605,11 @@ export function knitFunctionValue(column, row) {
     return RAIL_BLANK;
   }
   if (slot !== "mark") return RAIL_BLANK;
+  if (isFlipOperationRow(row)) {
+    // 0 is palette black. The digit is a function-rail indicator, not an empty needle.
+    if (side === "L" && pair === 13) return railPaint(0, LOCKED_COLORS[0]);
+    if (side === "R" && pair === 3) return railPaint(0, LOCKED_COLORS[0]);
+  }
   if (side === "L" && pair === 7) return railPaint(12, KNIT_FUNCTION_COLORS[12]);
   if (side === "L" && pair === 10) return railPaint(4, KNIT_FUNCTION_COLORS[4]);
   if (side === "L" && pair === 11) return railPaint(14, KNIT_FUNCTION_COLORS[14]);
