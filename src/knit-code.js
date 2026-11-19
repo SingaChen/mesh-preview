@@ -86,9 +86,9 @@ const DECREASE_DRAFT_NOTE =
 const EXPERIMENT_DRAW_NOTE =
   "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。";
 
-/** Official Bunny draws true flips and loop-move transfers. Whole-bed racks stay out. */
+/** Official Bunny draws true flips, loop-move transfers, and balance rows as the same two-row transfer. */
 const BUNNY_FLIP_NOTE =
-  "翻针已画：前床翻后床 20，后床翻前床 30。移针已画成两行：前床左移 21、前床右移 24、后床左移 31、后床右移 34，下一行是顺着移针方向错一针的回翻（前床移针后为 30，后床移针后为 20）。整床横移和平衡不画。操作行无方向，不加 13。没有另写结尾。";
+  "翻针已画：前床翻后床 20，后床翻前床 30。移针已画成两行：前床左移 21、前床右移 24、后床左移 31、后床右移 34，下一行是顺着移针方向错一针的回翻（前床移针后为 30，后床移针后为 20）。平衡、整床横移和回座用同样的两行。操作行无方向，不加 13。没有另写结尾。";
 
 /** Standrad opening sits under the body. Rails on those rows are a template copy. */
 export const KNIT_OPENING_NOTE =
