@@ -6,6 +6,11 @@ import corridorMeshUrl from "../experiments/bunny-corridor-field-swallow/officia
 import corridorPolylineUrl from "../experiments/bunny-corridor-field-swallow/columns_polyline.obj?url";
 import corridorTypeUrl from "../experiments/bunny-corridor-field-swallow/columns_type.obj?url";
 import corridorOrderUrl from "../experiments/bunny-corridor-field-swallow/columns_order.json?url";
+import sideNeumannManifest from "../experiments/bunny-exp-side-neumann-swallow/manifest.json";
+import sideNeumannSummary from "../experiments/bunny-exp-side-neumann-swallow/summary.json";
+import sideNeumannPolylineUrl from "../experiments/bunny-exp-side-neumann-swallow/columns_polyline.obj?url";
+import sideNeumannTypeUrl from "../experiments/bunny-exp-side-neumann-swallow/columns_type.obj?url";
+import sideNeumannOrderUrl from "../experiments/bunny-exp-side-neumann-swallow/columns_order.json?url";
 import { CYLINDER_EXP_SHEETS, cylinderExpBySheet } from "./cylinder-exp-sheets.js";
 import { MeshViewer } from "./viewer.js";
 import {
@@ -120,11 +125,31 @@ const BUNNY_CORRIDOR_MENU_TITLE = "实验走廊抽列预览，不是官方 Bunny
 const BUNNY_CORRIDOR_BANNER = "实验 · 走廊抽列 · 不是官方 Bunny";
 const BUNNY_CORRIDOR_STATUS =
   "Bunny 走廊抽列（实验） · 9 FULL · 111 短柱 · 120 列 · 平滑切口 · 没有针床 · 不是官方 Bunny";
+const BUNNY_SIDE_NEUMANN_SHEET = "bunny-exp-side-neumann-swallow";
+const BUNNY_SIDE_NEUMANN_LABEL = "Exp: Side-Neumann swallow";
+const BUNNY_SIDE_NEUMANN_MENU_TITLE = "实验 Side-Neumann 抽列，不是官方 Bunny";
+const BUNNY_SIDE_NEUMANN_BANNER = "实验 · Side-Neumann swallow · 不是官方 Bunny";
+const BUNNY_SIDE_NEUMANN_STATUS = [
+  BUNNY_SIDE_NEUMANN_LABEL,
+  `${sideNeumannSummary.n_columns} columns`,
+  `${sideNeumannSummary.n_full} FULL`,
+  `${sideNeumannSummary.n_short} short`,
+  sideNeumannSummary.column0_is_left_seam ? "column 0 left seam" : "",
+  sideNeumannSummary.last_is_right_seam ? "last column right seam" : "",
+  "不是官方 Bunny",
+]
+  .filter(Boolean)
+  .join(" · ");
 const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedule");
 const bunnyCorridorBtn = document.querySelector("#load-bunny-corridor-field-swallow");
+const bunnySideNeumannBtn = document.querySelector("#load-bunny-exp-side-neumann-swallow");
 if (bunnyCorridorBtn) {
   bunnyCorridorBtn.textContent = BUNNY_CORRIDOR_LABEL;
   bunnyCorridorBtn.title = BUNNY_CORRIDOR_MENU_TITLE;
+}
+if (bunnySideNeumannBtn) {
+  bunnySideNeumannBtn.textContent = BUNNY_SIDE_NEUMANN_LABEL;
+  bunnySideNeumannBtn.title = BUNNY_SIDE_NEUMANN_MENU_TITLE;
 }
 if (bunnyExpBtn) {
   bunnyExpBtn.textContent = BUNNY_EXP_LABEL;
@@ -1294,6 +1319,51 @@ function isBunnyCorridorSheet(sheet = sheetQuery()) {
   return String(sheet || "").trim().toLowerCase() === BUNNY_CORRIDOR_SHEET;
 }
 
+function isBunnySideNeumannSheet(sheet = sheetQuery()) {
+  return String(sheet || "").trim().toLowerCase() === BUNNY_SIDE_NEUMANN_SHEET;
+}
+
+async function loadBunnySideNeumannSwallow() {
+  if (!isBunnySideNeumannSheet()) setSheetQuery(BUNNY_SIDE_NEUMANN_SHEET);
+  setStatus(`加载 ${BUNNY_SIDE_NEUMANN_LABEL}…`);
+  try {
+    const data = {
+      name: BUNNY_SIDE_NEUMANN_LABEL,
+      outputs: [
+        {
+          ...sideNeumannManifest.outputs[0],
+          label: BUNNY_SIDE_NEUMANN_LABEL,
+        },
+      ],
+    };
+    const dir = "experiments/bunny-exp-side-neumann-swallow";
+    const files = [
+      ["columns_polyline.obj", sideNeumannPolylineUrl],
+      ["columns_type.obj", sideNeumannTypeUrl],
+      ["columns_order.json", sideNeumannOrderUrl],
+    ];
+    const entries = [{ name: "manifest.json", path: `${dir}/manifest.json`, text: JSON.stringify(data) }];
+    await Promise.all(
+      files.map(async ([name, url]) => {
+        const file = await fetch(url);
+        if (!file.ok) throw new Error(`缺少 Side-Neumann 抽列 / Missing ${name}`);
+        entries.push({ name, path: `${dir}/${name}`, text: await file.text() });
+      }),
+    );
+    baseLayers = defaultBaseLayers();
+    await openEntries(entries);
+    if (project) {
+      project.name = BUNNY_SIDE_NEUMANN_LABEL;
+      project.banner = BUNNY_SIDE_NEUMANN_BANNER;
+    }
+    updateChrome();
+    paintBaseChecks();
+    if (!statusEl.classList.contains("error")) setStatus(BUNNY_SIDE_NEUMANN_STATUS);
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
 async function loadBunnyCorridorFieldSwallow() {
   if (!isBunnyCorridorSheet()) setSheetQuery(BUNNY_CORRIDOR_SHEET);
   setStatus(`加载 ${BUNNY_CORRIDOR_LABEL}…`);
@@ -1626,6 +1696,11 @@ bunnyCorridorBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery(BUNNY_CORRIDOR_SHEET);
   loadBunnyCorridorFieldSwallow();
+});
+bunnySideNeumannBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery(BUNNY_SIDE_NEUMANN_SHEET);
+  loadBunnySideNeumannSwallow();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -2408,6 +2483,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 updateChrome();
 syncExportButton();
 if (activeCylinderExp(sheetQuery())) loadCylinderExp(activeCylinderExp(sheetQuery()));
+else if (isBunnySideNeumannSheet(sheetQuery())) loadBunnySideNeumannSwallow();
 else if (isBunnyCorridorSheet(sheetQuery())) loadBunnyCorridorFieldSwallow();
 else if (isDenseBunny4SplitSheet(sheetQuery())) loadDenseBunny4Split();
 else if (isDenseBunnyLeSheet(sheetQuery())) loadDenseBunnyLe();
