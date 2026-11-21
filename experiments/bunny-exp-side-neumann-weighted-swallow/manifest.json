@@ -1,0 +1,11 @@
+{
+  "name": "Exp: Side-Neumann σ-weighted swallow",
+  "outputs": [
+    {
+      "label": "Exp: Side-Neumann σ-weighted swallow",
+      "columnsPolyline": "columns_polyline.obj",
+      "columnsType": "columns_type.obj",
+      "columnsOrder": "columns_order.json"
+    }
+  ]
+}
