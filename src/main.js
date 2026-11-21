@@ -16,6 +16,11 @@ import sideNeumannUniformSummary from "../experiments/bunny-exp-side-neumann-uni
 import sideNeumannUniformPolylineUrl from "../experiments/bunny-exp-side-neumann-uniform-swallow/columns_polyline.obj?url";
 import sideNeumannUniformTypeUrl from "../experiments/bunny-exp-side-neumann-uniform-swallow/columns_type.obj?url";
 import sideNeumannUniformOrderUrl from "../experiments/bunny-exp-side-neumann-uniform-swallow/columns_order.json?url";
+import sideNeumannWeightedManifest from "../experiments/bunny-exp-side-neumann-weighted-swallow/manifest.json";
+import sideNeumannWeightedSummary from "../experiments/bunny-exp-side-neumann-weighted-swallow/summary.json";
+import sideNeumannWeightedPolylineUrl from "../experiments/bunny-exp-side-neumann-weighted-swallow/columns_polyline.obj?url";
+import sideNeumannWeightedTypeUrl from "../experiments/bunny-exp-side-neumann-weighted-swallow/columns_type.obj?url";
+import sideNeumannWeightedOrderUrl from "../experiments/bunny-exp-side-neumann-weighted-swallow/columns_order.json?url";
 import { CYLINDER_EXP_SHEETS, cylinderExpBySheet } from "./cylinder-exp-sheets.js";
 import { MeshViewer } from "./viewer.js";
 import {
@@ -160,10 +165,26 @@ const BUNNY_SIDE_NEUMANN_UNIFORM_STATUS = [
 ]
   .filter(Boolean)
   .join(" · ");
+const BUNNY_SIDE_NEUMANN_WEIGHTED_SHEET = "bunny-exp-side-neumann-weighted-swallow";
+const BUNNY_SIDE_NEUMANN_WEIGHTED_LABEL = "Exp: Side-Neumann σ-weighted swallow";
+const BUNNY_SIDE_NEUMANN_WEIGHTED_MENU_TITLE = "实验 Side-Neumann 正σ一次吞列，不是官方 Bunny";
+const BUNNY_SIDE_NEUMANN_WEIGHTED_BANNER = "实验 · Side-Neumann σ-weighted swallow · 不是官方 Bunny";
+const BUNNY_SIDE_NEUMANN_WEIGHTED_STATUS = [
+  BUNNY_SIDE_NEUMANN_WEIGHTED_LABEL,
+  `${sideNeumannWeightedSummary.n_columns} columns`,
+  `${sideNeumannWeightedSummary.n_full_height} full-height`,
+  `${sideNeumannWeightedSummary.n_short} short`,
+  sideNeumannWeightedSummary.column0_is_left_seam ? "column 0 left seam" : "",
+  sideNeumannWeightedSummary.last_is_right_seam ? "last column right seam" : "",
+  "不是官方 Bunny",
+]
+  .filter(Boolean)
+  .join(" · ");
 const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedule");
 const bunnyCorridorBtn = document.querySelector("#load-bunny-corridor-field-swallow");
 const bunnySideNeumannBtn = document.querySelector("#load-bunny-exp-side-neumann-swallow");
 const bunnySideNeumannUniformBtn = document.querySelector("#load-bunny-exp-side-neumann-uniform-swallow");
+const bunnySideNeumannWeightedBtn = document.querySelector("#load-bunny-exp-side-neumann-weighted-swallow");
 if (bunnyCorridorBtn) {
   bunnyCorridorBtn.textContent = BUNNY_CORRIDOR_LABEL;
   bunnyCorridorBtn.title = BUNNY_CORRIDOR_MENU_TITLE;
@@ -175,6 +196,10 @@ if (bunnySideNeumannBtn) {
 if (bunnySideNeumannUniformBtn) {
   bunnySideNeumannUniformBtn.textContent = BUNNY_SIDE_NEUMANN_UNIFORM_LABEL;
   bunnySideNeumannUniformBtn.title = BUNNY_SIDE_NEUMANN_UNIFORM_MENU_TITLE;
+}
+if (bunnySideNeumannWeightedBtn) {
+  bunnySideNeumannWeightedBtn.textContent = BUNNY_SIDE_NEUMANN_WEIGHTED_LABEL;
+  bunnySideNeumannWeightedBtn.title = BUNNY_SIDE_NEUMANN_WEIGHTED_MENU_TITLE;
 }
 if (bunnyExpBtn) {
   bunnyExpBtn.textContent = BUNNY_EXP_LABEL;
@@ -1393,6 +1418,51 @@ async function loadBunnySideNeumannUniformSwallow() {
   }
 }
 
+function isBunnySideNeumannWeightedSheet(sheet = sheetQuery()) {
+  return String(sheet || "").trim().toLowerCase() === BUNNY_SIDE_NEUMANN_WEIGHTED_SHEET;
+}
+
+async function loadBunnySideNeumannWeightedSwallow() {
+  if (!isBunnySideNeumannWeightedSheet()) setSheetQuery(BUNNY_SIDE_NEUMANN_WEIGHTED_SHEET);
+  setStatus(`加载 ${BUNNY_SIDE_NEUMANN_WEIGHTED_LABEL}…`);
+  try {
+    const data = {
+      name: BUNNY_SIDE_NEUMANN_WEIGHTED_LABEL,
+      outputs: [
+        {
+          ...sideNeumannWeightedManifest.outputs[0],
+          label: BUNNY_SIDE_NEUMANN_WEIGHTED_LABEL,
+        },
+      ],
+    };
+    const dir = "experiments/bunny-exp-side-neumann-weighted-swallow";
+    const files = [
+      ["columns_polyline.obj", sideNeumannWeightedPolylineUrl],
+      ["columns_type.obj", sideNeumannWeightedTypeUrl],
+      ["columns_order.json", sideNeumannWeightedOrderUrl],
+    ];
+    const entries = [{ name: "manifest.json", path: `${dir}/manifest.json`, text: JSON.stringify(data) }];
+    await Promise.all(
+      files.map(async ([name, url]) => {
+        const file = await fetch(url);
+        if (!file.ok) throw new Error(`缺少 Side-Neumann 正σ吞列 / Missing ${name}`);
+        entries.push({ name, path: `${dir}/${name}`, text: await file.text() });
+      }),
+    );
+    baseLayers = defaultBaseLayers();
+    await openEntries(entries);
+    if (project) {
+      project.name = BUNNY_SIDE_NEUMANN_WEIGHTED_LABEL;
+      project.banner = BUNNY_SIDE_NEUMANN_WEIGHTED_BANNER;
+    }
+    updateChrome();
+    paintBaseChecks();
+    if (!statusEl.classList.contains("error")) setStatus(BUNNY_SIDE_NEUMANN_WEIGHTED_STATUS);
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
 async function loadBunnySideNeumannSwallow() {
   if (!isBunnySideNeumannSheet()) setSheetQuery(BUNNY_SIDE_NEUMANN_SHEET);
   setStatus(`加载 ${BUNNY_SIDE_NEUMANN_LABEL}…`);
@@ -1776,6 +1846,11 @@ bunnySideNeumannUniformBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery(BUNNY_SIDE_NEUMANN_UNIFORM_SHEET);
   loadBunnySideNeumannUniformSwallow();
+});
+bunnySideNeumannWeightedBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery(BUNNY_SIDE_NEUMANN_WEIGHTED_SHEET);
+  loadBunnySideNeumannWeightedSwallow();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -2558,6 +2633,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 updateChrome();
 syncExportButton();
 if (activeCylinderExp(sheetQuery())) loadCylinderExp(activeCylinderExp(sheetQuery()));
+else if (isBunnySideNeumannWeightedSheet(sheetQuery())) loadBunnySideNeumannWeightedSwallow();
 else if (isBunnySideNeumannUniformSheet(sheetQuery())) loadBunnySideNeumannUniformSwallow();
 else if (isBunnySideNeumannSheet(sheetQuery())) loadBunnySideNeumannSwallow();
 else if (isBunnyCorridorSheet(sheetQuery())) loadBunnyCorridorFieldSwallow();

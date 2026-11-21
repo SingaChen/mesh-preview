@@ -1613,6 +1613,137 @@ function assertSideNeumannUniformSwallow() {
 }
 
 assertSideNeumannUniformSwallow();
+
+function assertSideNeumannWeightedSwallow() {
+  const dir = join(root, "experiments/bunny-exp-side-neumann-weighted-swallow");
+  const uniform = join(root, "experiments/bunny-exp-side-neumann-uniform-swallow");
+  const prior = join(root, "experiments/bunny-exp-side-neumann-swallow");
+  const corridor = join(root, "experiments/bunny-corridor-field-swallow");
+  const shaFile = (folder, name) => createHash("sha256").update(readFileSync(join(folder, name))).digest("hex");
+  assert(
+    shaFile(dir, "columns_polyline.obj") === "b4a7e3b2953571141f23600e80da1823f21289ad0cf4461b9a3e56b98007804c",
+    "σ-weighted Side-Neumann polyline matches the SingaLab extract",
+  );
+  assert(
+    shaFile(dir, "columns_type.obj") === "99b2abbaf961f06622b750f92071ba2133b28a3ecbb3de7661adfd7ec5e9d63f",
+    "σ-weighted Side-Neumann type matches the SingaLab extract",
+  );
+  assert(
+    shaFile(dir, "columns_order.json") === "3ae5dcaa2391db6fed07e06cd9081b7fcf6cbe5a99796c4f902f9a7195b1b3db",
+    "σ-weighted Side-Neumann order matches the SingaLab extract",
+  );
+  assert(
+    shaFile(dir, "summary.json") === "434a1236ffaf8f9ca8670b33d5e6be8ec56b877c43ad33840229c12a82c25fc4",
+    "σ-weighted Side-Neumann summary matches the SingaLab extract",
+  );
+  assert(
+    shaFile(uniform, "columns_polyline.obj") === "782d669e531855f2105a5744d3aa699892545eaae842a487ac58c9ca532d8c5c" &&
+      shaFile(uniform, "summary.json") === "5b03b82adffe3131296a51779a75053489803e974fee222ea39dd6bbc9704a34",
+    "the one-pass Side-Neumann extract stays byte-identical",
+  );
+  assert(
+    shaFile(prior, "columns_polyline.obj") === "57b6f4f0be416ff300cb47c456cfb8f3f62216e3cf0ea9cf7b1cb9f0f6457bd6" &&
+      shaFile(prior, "summary.json") === "30c02bea541b48bad6df3904de20ea3e8a7f5bf10b59e5c167da190d6cbaed7c",
+    "the earlier Side-Neumann swallow extract stays byte-identical",
+  );
+  assert(
+    shaFile(corridor, "columns_polyline.obj") === "529046efbe2814c568da710f2df9e1eae3950d814777a82f7f0d0d5a27e0b5a0",
+    "corridor polyline stays the previous extract",
+  );
+  assert(!existsSync(join(dir, "sha256.txt")) && !existsSync(join(dir, "REPORT.md")), "σ-weighted sheet does not copy sha256.txt or a report");
+  assert(!existsSync(join(sampleDir, "bunny-exp-side-neumann-weighted-swallow")), "σ-weighted assets stay out of public/sample");
+  assert(datForSheet("bunny-exp-side-neumann-weighted-swallow") == null, "σ-weighted sheet has no dat export");
+  const summary = JSON.parse(readFileSync(join(dir, "summary.json"), "utf8"));
+  const order = JSON.parse(readFileSync(join(dir, "columns_order.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
+  assert(
+    summary.n_columns === 97 &&
+      summary.n_full_height === 14 &&
+      summary.n_short === 83 &&
+      summary.n_full === undefined &&
+      summary.type_counts.FULL === 14 &&
+      summary.type_counts.SHORT_BEGIN + summary.type_counts.SHORT_END + summary.type_counts.SHORT_INNER === 83 &&
+      String(summary.full_height_rule).includes("1·unitH") &&
+      summary.column0_is_left_seam === true &&
+      summary.last_is_right_seam === true &&
+      summary.official_output_unchanged === true &&
+      order.length === 97 &&
+      order[0].index_column === 0 &&
+      order[0].type === "FULL" &&
+      order[0].bookend === "left_seam" &&
+      order[96].index_column === 96 &&
+      order[96].type === "FULL" &&
+      order[96].bookend === "right_seam",
+    "σ-weighted summary labels 97 columns, 14 geometric full-height, 83 short, with seam bookends",
+  );
+  const rels = collectManifestRefs(manifest);
+  assert(
+    manifest.name === "Exp: Side-Neumann σ-weighted swallow" &&
+      manifest.outputs.length === 1 &&
+      manifest.outputs[0].label === "Exp: Side-Neumann σ-weighted swallow" &&
+      rels.join(",") === "columns_polyline.obj,columns_type.obj,columns_order.json",
+    "σ-weighted manifest lists only the three column files",
+  );
+  const entries = [
+    { name: "manifest.json", path: "experiments/bunny-exp-side-neumann-weighted-swallow/manifest.json", text: JSON.stringify(manifest) },
+    ...rels.map((rel) => ({
+      name: rel,
+      path: `experiments/bunny-exp-side-neumann-weighted-swallow/${rel}`,
+      text: readFileSync(join(dir, rel), "utf8"),
+    })),
+  ];
+  const proj = projectFromManifest(manifest, indexFiles(entries), entries[0].path);
+  assert(proj.warnings.length === 0 && proj.outputs.length === 1, `σ-weighted sheet resolves: ${proj.warnings.join("; ")}`);
+  const out = proj.outputs[0];
+  assert(out.columnExtract === true && out.meshFile == null, "σ-weighted sheet is columns without a mesh");
+  assert(!out.readableMapFile && !out.knitCodeFile && !out.stitchFile && !out.colsResampleFile && !out.facesRingLayoutFile, "σ-weighted sheet has no bed, knit code, or stitchmesh");
+  const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry.text]));
+  const extract = parseExtractColumns({
+    polylineText: byName["columns_polyline.obj"],
+    typeText: byName["columns_type.obj"],
+    order,
+  });
+  assert(extract.problems.length === 0, `σ-weighted columns disagree: ${extract.problems.join("; ")}`);
+  assert(extract.columns.length === 97 && extract.colors.type && !extract.colors.field, "σ-weighted preview has 97 type-colored columns and no field file");
+  const counts = {};
+  for (const col of extract.columns) counts[col.type] = (counts[col.type] || 0) + 1;
+  assert(
+    counts.FULL === 14 &&
+      counts.SHORT_BEGIN === 34 &&
+      counts.SHORT_END === 2 &&
+      counts.SHORT_INNER === 47 &&
+      Object.keys(counts).length === 4,
+    `σ-weighted types ${JSON.stringify(counts)}`,
+  );
+  assert(extract.columns.every((col, i) => col.col === i), "σ-weighted index_column is 0..96");
+  const page = readFileSync(join(root, "index.html"), "utf8");
+  const app = readFileSync(join(root, "src", "main.js"), "utf8");
+  assert(
+    page.includes('id="load-bunny-exp-side-neumann-weighted-swallow"') &&
+      page.includes("Exp: Side-Neumann σ-weighted swallow") &&
+      page.indexOf('id="load-bunny-exp-side-neumann-weighted-swallow"') > page.indexOf('id="load-bunny-exp-side-neumann-uniform-swallow"') &&
+      page.indexOf('id="load-bunny-exp-side-neumann-uniform-swallow"') > page.indexOf('id="load-bunny-exp-side-neumann-swallow"') &&
+      page.indexOf('id="load-bunny-exp-side-neumann-swallow"') > page.indexOf('id="load-bunny-corridor-field-swallow"') &&
+      /id="load-faces-ring0"[^>]*>Bunny<\/button>/.test(page),
+    "Open menu keeps Bunny and the earlier experiment sheets, then adds σ-weighted swallow",
+  );
+  assert(
+    app.includes('const BUNNY_SIDE_NEUMANN_WEIGHTED_SHEET = "bunny-exp-side-neumann-weighted-swallow"') &&
+      app.includes("sideNeumannWeightedSummary.n_full_height") &&
+      !/sideNeumannWeightedSummary\.n_full(?!_height)/.test(app) &&
+      app.includes("loadBunnySideNeumannWeightedSwallow") &&
+      app.includes("isBunnySideNeumannWeightedSheet(sheetQuery())") &&
+      app.includes("loadBunnySideNeumannUniformSwallow") &&
+      app.includes("loadBunnySideNeumannSwallow") &&
+      app.includes("loadBunnyCorridorFieldSwallow") &&
+      app.includes('if (!sheetQuery()) setSheetQuery("faces-ring0")') &&
+      app.includes("不是官方 Bunny") &&
+      !app.includes("bunny-exp-side-neumann-weighted-swallow.dat"),
+    "σ-weighted loads only from its query and leaves the empty query on faces-ring0",
+  );
+}
+
+assertSideNeumannWeightedSwallow();
 {
   const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
   assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");
@@ -4347,7 +4478,7 @@ assertDenseCylinderSample({
       datForSheet("fat") === fat,
     "complete cylinder aliases share the same dat",
   );
-  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-side-neumann-swallow", "bunny-exp-side-neumann-uniform-swallow", "bunny-exp-readable-row-schedule", "standrad-exp-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "increase-exp-readable-row-schedule", "decrease-exp-readable-row-schedule", "thin-exp-readable-row-schedule", "fat-exp-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "dense-fat-exp-readable-row-schedule"]) {
+  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-side-neumann-swallow", "bunny-exp-side-neumann-uniform-swallow", "bunny-exp-side-neumann-weighted-swallow", "bunny-exp-readable-row-schedule", "standrad-exp-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "increase-exp-readable-row-schedule", "decrease-exp-readable-row-schedule", "thin-exp-readable-row-schedule", "fat-exp-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "dense-fat-exp-readable-row-schedule"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
   }
   {
