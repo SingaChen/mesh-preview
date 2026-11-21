@@ -11,6 +11,11 @@ import sideNeumannSummary from "../experiments/bunny-exp-side-neumann-swallow/su
 import sideNeumannPolylineUrl from "../experiments/bunny-exp-side-neumann-swallow/columns_polyline.obj?url";
 import sideNeumannTypeUrl from "../experiments/bunny-exp-side-neumann-swallow/columns_type.obj?url";
 import sideNeumannOrderUrl from "../experiments/bunny-exp-side-neumann-swallow/columns_order.json?url";
+import sideNeumannUniformManifest from "../experiments/bunny-exp-side-neumann-uniform-swallow/manifest.json";
+import sideNeumannUniformSummary from "../experiments/bunny-exp-side-neumann-uniform-swallow/summary.json";
+import sideNeumannUniformPolylineUrl from "../experiments/bunny-exp-side-neumann-uniform-swallow/columns_polyline.obj?url";
+import sideNeumannUniformTypeUrl from "../experiments/bunny-exp-side-neumann-uniform-swallow/columns_type.obj?url";
+import sideNeumannUniformOrderUrl from "../experiments/bunny-exp-side-neumann-uniform-swallow/columns_order.json?url";
 import { CYLINDER_EXP_SHEETS, cylinderExpBySheet } from "./cylinder-exp-sheets.js";
 import { MeshViewer } from "./viewer.js";
 import {
@@ -140,9 +145,25 @@ const BUNNY_SIDE_NEUMANN_STATUS = [
 ]
   .filter(Boolean)
   .join(" · ");
+const BUNNY_SIDE_NEUMANN_UNIFORM_SHEET = "bunny-exp-side-neumann-uniform-swallow";
+const BUNNY_SIDE_NEUMANN_UNIFORM_LABEL = "Exp: Side-Neumann one-pass swallow";
+const BUNNY_SIDE_NEUMANN_UNIFORM_MENU_TITLE = "实验 Side-Neumann 一次吞列，不是官方 Bunny";
+const BUNNY_SIDE_NEUMANN_UNIFORM_BANNER = "实验 · Side-Neumann one-pass swallow · 不是官方 Bunny";
+const BUNNY_SIDE_NEUMANN_UNIFORM_STATUS = [
+  BUNNY_SIDE_NEUMANN_UNIFORM_LABEL,
+  `${sideNeumannUniformSummary.n_columns} columns`,
+  `${sideNeumannUniformSummary.n_full_height} full-height`,
+  `${sideNeumannUniformSummary.n_short} short`,
+  sideNeumannUniformSummary.column0_is_left_seam ? "column 0 left seam" : "",
+  sideNeumannUniformSummary.last_is_right_seam ? "last column right seam" : "",
+  "不是官方 Bunny",
+]
+  .filter(Boolean)
+  .join(" · ");
 const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedule");
 const bunnyCorridorBtn = document.querySelector("#load-bunny-corridor-field-swallow");
 const bunnySideNeumannBtn = document.querySelector("#load-bunny-exp-side-neumann-swallow");
+const bunnySideNeumannUniformBtn = document.querySelector("#load-bunny-exp-side-neumann-uniform-swallow");
 if (bunnyCorridorBtn) {
   bunnyCorridorBtn.textContent = BUNNY_CORRIDOR_LABEL;
   bunnyCorridorBtn.title = BUNNY_CORRIDOR_MENU_TITLE;
@@ -150,6 +171,10 @@ if (bunnyCorridorBtn) {
 if (bunnySideNeumannBtn) {
   bunnySideNeumannBtn.textContent = BUNNY_SIDE_NEUMANN_LABEL;
   bunnySideNeumannBtn.title = BUNNY_SIDE_NEUMANN_MENU_TITLE;
+}
+if (bunnySideNeumannUniformBtn) {
+  bunnySideNeumannUniformBtn.textContent = BUNNY_SIDE_NEUMANN_UNIFORM_LABEL;
+  bunnySideNeumannUniformBtn.title = BUNNY_SIDE_NEUMANN_UNIFORM_MENU_TITLE;
 }
 if (bunnyExpBtn) {
   bunnyExpBtn.textContent = BUNNY_EXP_LABEL;
@@ -1323,6 +1348,51 @@ function isBunnySideNeumannSheet(sheet = sheetQuery()) {
   return String(sheet || "").trim().toLowerCase() === BUNNY_SIDE_NEUMANN_SHEET;
 }
 
+function isBunnySideNeumannUniformSheet(sheet = sheetQuery()) {
+  return String(sheet || "").trim().toLowerCase() === BUNNY_SIDE_NEUMANN_UNIFORM_SHEET;
+}
+
+async function loadBunnySideNeumannUniformSwallow() {
+  if (!isBunnySideNeumannUniformSheet()) setSheetQuery(BUNNY_SIDE_NEUMANN_UNIFORM_SHEET);
+  setStatus(`加载 ${BUNNY_SIDE_NEUMANN_UNIFORM_LABEL}…`);
+  try {
+    const data = {
+      name: BUNNY_SIDE_NEUMANN_UNIFORM_LABEL,
+      outputs: [
+        {
+          ...sideNeumannUniformManifest.outputs[0],
+          label: BUNNY_SIDE_NEUMANN_UNIFORM_LABEL,
+        },
+      ],
+    };
+    const dir = "experiments/bunny-exp-side-neumann-uniform-swallow";
+    const files = [
+      ["columns_polyline.obj", sideNeumannUniformPolylineUrl],
+      ["columns_type.obj", sideNeumannUniformTypeUrl],
+      ["columns_order.json", sideNeumannUniformOrderUrl],
+    ];
+    const entries = [{ name: "manifest.json", path: `${dir}/manifest.json`, text: JSON.stringify(data) }];
+    await Promise.all(
+      files.map(async ([name, url]) => {
+        const file = await fetch(url);
+        if (!file.ok) throw new Error(`缺少 Side-Neumann 一次吞列 / Missing ${name}`);
+        entries.push({ name, path: `${dir}/${name}`, text: await file.text() });
+      }),
+    );
+    baseLayers = defaultBaseLayers();
+    await openEntries(entries);
+    if (project) {
+      project.name = BUNNY_SIDE_NEUMANN_UNIFORM_LABEL;
+      project.banner = BUNNY_SIDE_NEUMANN_UNIFORM_BANNER;
+    }
+    updateChrome();
+    paintBaseChecks();
+    if (!statusEl.classList.contains("error")) setStatus(BUNNY_SIDE_NEUMANN_UNIFORM_STATUS);
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  }
+}
+
 async function loadBunnySideNeumannSwallow() {
   if (!isBunnySideNeumannSheet()) setSheetQuery(BUNNY_SIDE_NEUMANN_SHEET);
   setStatus(`加载 ${BUNNY_SIDE_NEUMANN_LABEL}…`);
@@ -1701,6 +1771,11 @@ bunnySideNeumannBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery(BUNNY_SIDE_NEUMANN_SHEET);
   loadBunnySideNeumannSwallow();
+});
+bunnySideNeumannUniformBtn?.addEventListener("click", () => {
+  setOpenMenu(false);
+  setSheetQuery(BUNNY_SIDE_NEUMANN_UNIFORM_SHEET);
+  loadBunnySideNeumannUniformSwallow();
 });
 
 folderInput.addEventListener("change", async () => {
@@ -2483,6 +2558,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 updateChrome();
 syncExportButton();
 if (activeCylinderExp(sheetQuery())) loadCylinderExp(activeCylinderExp(sheetQuery()));
+else if (isBunnySideNeumannUniformSheet(sheetQuery())) loadBunnySideNeumannUniformSwallow();
 else if (isBunnySideNeumannSheet(sheetQuery())) loadBunnySideNeumannSwallow();
 else if (isBunnyCorridorSheet(sheetQuery())) loadBunnyCorridorFieldSwallow();
 else if (isDenseBunny4SplitSheet(sheetQuery())) loadDenseBunny4Split();

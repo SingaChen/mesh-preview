@@ -1494,6 +1494,125 @@ function assertSideNeumannSwallow() {
 }
 
 assertSideNeumannSwallow();
+
+function assertSideNeumannUniformSwallow() {
+  const dir = join(root, "experiments/bunny-exp-side-neumann-uniform-swallow");
+  const prior = join(root, "experiments/bunny-exp-side-neumann-swallow");
+  const shaFile = (folder, name) => createHash("sha256").update(readFileSync(join(folder, name))).digest("hex");
+  assert(
+    shaFile(dir, "columns_polyline.obj") === "782d669e531855f2105a5744d3aa699892545eaae842a487ac58c9ca532d8c5c",
+    "one-pass Side-Neumann polyline matches the SingaLab extract",
+  );
+  assert(
+    shaFile(dir, "columns_type.obj") === "ed3ac4726d9561eaf85b15803d5b848f2b0a711fb62e8099ed00ff3ab4da5a9d",
+    "one-pass Side-Neumann type matches the SingaLab extract",
+  );
+  assert(
+    shaFile(dir, "columns_order.json") === "082bd42ba0fdf9693c9f35ac2783307ff665bbfe7ffc84d95f966d8f778f49a5",
+    "one-pass Side-Neumann order matches the SingaLab extract",
+  );
+  assert(
+    shaFile(dir, "summary.json") === "5b03b82adffe3131296a51779a75053489803e974fee222ea39dd6bbc9704a34",
+    "one-pass Side-Neumann summary matches the SingaLab extract",
+  );
+  assert(
+    shaFile(prior, "columns_polyline.obj") === "57b6f4f0be416ff300cb47c456cfb8f3f62216e3cf0ea9cf7b1cb9f0f6457bd6" &&
+      shaFile(prior, "summary.json") === "30c02bea541b48bad6df3904de20ea3e8a7f5bf10b59e5c167da190d6cbaed7c",
+    "the earlier Side-Neumann swallow extract stays byte-identical",
+  );
+  const corridor = join(root, "experiments/bunny-corridor-field-swallow");
+  assert(
+    shaFile(corridor, "columns_polyline.obj") === "529046efbe2814c568da710f2df9e1eae3950d814777a82f7f0d0d5a27e0b5a0",
+    "corridor polyline stays the previous extract",
+  );
+  assert(!existsSync(join(dir, "official_bunny_cut.obj")) && !existsSync(join(dir, "REPORT.md")) && !existsSync(join(dir, "sha256.txt")), "one-pass sheet copies only the four extract files plus its manifest");
+  assert(!existsSync(join(sampleDir, "bunny-exp-side-neumann-uniform-swallow")), "one-pass assets stay out of public/sample");
+  assert(datForSheet("bunny-exp-side-neumann-uniform-swallow") == null, "one-pass sheet has no dat export");
+  const summary = JSON.parse(readFileSync(join(dir, "summary.json"), "utf8"));
+  const order = JSON.parse(readFileSync(join(dir, "columns_order.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
+  assert(
+    summary.n_columns === 89 &&
+      summary.n_full_height === 13 &&
+      summary.n_short === 76 &&
+      summary.type_counts.FULL === 13 &&
+      summary.type_counts.SHORT_BEGIN + summary.type_counts.SHORT_END + summary.type_counts.SHORT_INNER === 76 &&
+      summary.column0_is_left_seam === true &&
+      summary.last_is_right_seam === true &&
+      summary.official_output_unchanged === true &&
+      order.length === 89 &&
+      order[0].index_column === 0 &&
+      order[0].type === "FULL" &&
+      order[0].bookend === "left_seam" &&
+      order[88].index_column === 88 &&
+      order[88].type === "FULL" &&
+      order[88].bookend === "right_seam",
+    "one-pass summary labels 89 columns, 13 full-height, 76 short, with seam bookends",
+  );
+  const rels = collectManifestRefs(manifest);
+  assert(
+    manifest.name === "Exp: Side-Neumann one-pass swallow" &&
+      manifest.outputs.length === 1 &&
+      manifest.outputs[0].label === "Exp: Side-Neumann one-pass swallow" &&
+      rels.join(",") === "columns_polyline.obj,columns_type.obj,columns_order.json",
+    "one-pass manifest lists only the three column files",
+  );
+  const entries = [
+    { name: "manifest.json", path: "experiments/bunny-exp-side-neumann-uniform-swallow/manifest.json", text: JSON.stringify(manifest) },
+    ...rels.map((rel) => ({
+      name: rel,
+      path: `experiments/bunny-exp-side-neumann-uniform-swallow/${rel}`,
+      text: readFileSync(join(dir, rel), "utf8"),
+    })),
+  ];
+  const proj = projectFromManifest(manifest, indexFiles(entries), entries[0].path);
+  assert(proj.warnings.length === 0 && proj.outputs.length === 1, `one-pass sheet resolves: ${proj.warnings.join("; ")}`);
+  const out = proj.outputs[0];
+  assert(out.columnExtract === true && out.meshFile == null, "one-pass sheet is columns without a mesh");
+  assert(!out.readableMapFile && !out.knitCodeFile && !out.stitchFile && !out.colsResampleFile && !out.facesRingLayoutFile, "one-pass sheet has no bed, knit code, or stitchmesh");
+  const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry.text]));
+  const extract = parseExtractColumns({
+    polylineText: byName["columns_polyline.obj"],
+    typeText: byName["columns_type.obj"],
+    order,
+  });
+  assert(extract.problems.length === 0, `one-pass columns disagree: ${extract.problems.join("; ")}`);
+  assert(extract.columns.length === 89 && extract.colors.type && !extract.colors.field, "one-pass preview has 89 type-colored columns and no field file");
+  const counts = {};
+  for (const col of extract.columns) counts[col.type] = (counts[col.type] || 0) + 1;
+  assert(
+    counts.FULL === 13 &&
+      counts.SHORT_BEGIN === 34 &&
+      counts.SHORT_END === 3 &&
+      counts.SHORT_INNER === 39 &&
+      Object.keys(counts).length === 4,
+    `one-pass types ${JSON.stringify(counts)}`,
+  );
+  assert(extract.columns.every((col, i) => col.col === i), "one-pass index_column is 0..88");
+  const page = readFileSync(join(root, "index.html"), "utf8");
+  const app = readFileSync(join(root, "src", "main.js"), "utf8");
+  assert(
+    page.includes('id="load-bunny-exp-side-neumann-uniform-swallow"') &&
+      page.includes("Exp: Side-Neumann one-pass swallow") &&
+      page.includes('id="load-bunny-exp-side-neumann-swallow"') &&
+      page.indexOf('id="load-bunny-exp-side-neumann-uniform-swallow"') > page.indexOf('id="load-bunny-exp-side-neumann-swallow"') &&
+      page.indexOf('id="load-bunny-exp-side-neumann-swallow"') > page.indexOf('id="load-bunny-corridor-field-swallow"') &&
+      /id="load-faces-ring0"[^>]*>Bunny<\/button>/.test(page),
+    "Open menu keeps Bunny, the corridor sheet, and the earlier Side-Neumann item, then adds one-pass",
+  );
+  assert(
+    app.includes('const BUNNY_SIDE_NEUMANN_UNIFORM_SHEET = "bunny-exp-side-neumann-uniform-swallow"') &&
+      app.includes("loadBunnySideNeumannUniformSwallow") &&
+      app.includes("isBunnySideNeumannUniformSheet(sheetQuery())") &&
+      app.includes('if (!sheetQuery()) setSheetQuery("faces-ring0")') &&
+      app.includes("full-height") &&
+      app.includes("不是官方 Bunny") &&
+      !app.includes("bunny-exp-side-neumann-uniform-swallow.dat"),
+    "one-pass loads only from its query and leaves the empty query on faces-ring0",
+  );
+}
+
+assertSideNeumannUniformSwallow();
 {
   const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
   assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");
@@ -4228,7 +4347,7 @@ assertDenseCylinderSample({
       datForSheet("fat") === fat,
     "complete cylinder aliases share the same dat",
   );
-  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-side-neumann-swallow", "bunny-exp-readable-row-schedule", "standrad-exp-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "increase-exp-readable-row-schedule", "decrease-exp-readable-row-schedule", "thin-exp-readable-row-schedule", "fat-exp-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "dense-fat-exp-readable-row-schedule"]) {
+  for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-side-neumann-swallow", "bunny-exp-side-neumann-uniform-swallow", "bunny-exp-readable-row-schedule", "standrad-exp-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "increase-exp-readable-row-schedule", "decrease-exp-readable-row-schedule", "thin-exp-readable-row-schedule", "fat-exp-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "dense-fat-exp-readable-row-schedule"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
   }
   {
