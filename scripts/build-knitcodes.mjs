@@ -1,18 +1,20 @@
 /**
  * Build knitting-code tables from the live bed reports.
  *
- * Body rows walk each bed.txt in knitting order. One bed is one visual row.
- * X / X+ / Flip rows are omitted by the experiment builder.
+ * Body rows walk each bed in knitting order. One bed segment is one visual row.
  * `node scripts/build-knitcodes.mjs --official` draws the ten official
  * stripe-path tables with the same flips, transfers, and balance rows as
  * Official Bunny. `--bunny` rewrites only the Bunny table.
+ * `--experiments` draws the eleven new-schedule experiment tables from each
+ * experiment bed, using that same operation path. It does not rewrite official
+ * tables, official beds, or the experiment beds themselves.
  * 11/12 mark only the first stitch of the first visual row after a ccw↔cw
  * turn. The opening is the locked width adapter (W = the first body row's
  * needle count), left-aligned on needle 0. Body color 13 sits tight against
  * that row's knitted span. Standrad Cylinder is not rewritten.
  */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { bedKnitTokens, parseExcelReadableMap } from "../src/excel-map.js";
 import { KNIT_FUNCTION_COLORS, bindKnitCodeStitches, parseKnitCode } from "../src/knit-code.js";
@@ -335,7 +337,7 @@ function rulesFor(spec, info) {
     winding: "床图 R → ccw（前床向右、后床向左）；床图 L → cw（前床向左、后床向右）。同一床图行拆成前、后两行时，两行继承该行绕向",
     display: "matrix 按编织时间顺序，index 0 为最先织的一行；彩色表视觉上自下而上（最先织的一行在底部）；物理针号小的在左。空针（代号 0）不是织针也不是操作行，没有方向",
     status: spec.experiment
-      ? "由实验床图按编织顺序画出，未生成 .dat / .k"
+      ? "由实验床图按编织顺序画出"
       : spec.draft
         ? "矫正稿，已接入预览供矫正，未生成 .dat / .k"
         : "由当前床图按编织顺序画出，未生成 .dat / .k",
@@ -662,6 +664,7 @@ function main() {
 }
 
 const EXPERIMENT_SHEETS = [
+  ["official-bunny-readable-row-schedule", "Bunny 实验（新时序）", "bunny-exp-readable-row-schedule"],
   ["official-standrad-readable-row-schedule", "Standrad Cylinder 实验（新时序）", "standrad-exp-readable-row-schedule"],
   ["official-increase-readable-row-schedule", "Increase Cylinder 实验（新时序）", "increase-exp-readable-row-schedule"],
   ["official-decrease-readable-row-schedule", "Decrease Cylinder 实验（新时序）", "decrease-exp-readable-row-schedule"],
@@ -676,10 +679,6 @@ const EXPERIMENT_SHEETS = [
 
 const SKIPPED_KNIT_SHEETS = [
   {
-    sheetId: "bunny-exp-readable-row-schedule",
-    reason: "Bunny 实验表不在这次范围内",
-  },
-  {
     id: "dense-bunny-4split",
     reason: "Dense Bunny 没有 faces_ring，也没有实验床图",
   },
@@ -690,6 +689,18 @@ const SKIPPED_KNIT_SHEETS = [
   {
     sheetId: "bunny-corridor-field-swallow",
     reason: "走廊抽列只有三维列线，没有床图，不生成编织码",
+  },
+  {
+    sheetId: "bunny-exp-side-neumann-swallow",
+    reason: "Side-Neumann 抽列没有实验床图",
+  },
+  {
+    sheetId: "bunny-exp-side-neumann-uniform-swallow",
+    reason: "Side-Neumann 一次吞列没有实验床图",
+  },
+  {
+    sheetId: "bunny-exp-side-neumann-weighted-swallow",
+    reason: "Side-Neumann σ 加权吞列没有实验床图",
   },
 ];
 
@@ -727,6 +738,70 @@ function assertBodyCodes(spec, built) {
   }
 }
 
+function remember(map, path) {
+  if (!existsSync(path)) throw new Error(`missing protected file ${path}`);
+  map.set(path, sha256(readFileSync(path)));
+}
+
+/** Official tables, beds, and the experiment beds stay byte-identical. */
+function protectedExperimentInputs() {
+  const kept = new Map();
+  remember(kept, join(sampleDir, "cylinder/faces_ring0_knitcode.json"));
+  remember(kept, join(sampleDir, "cylinder/standrad_cylinder_knitcode.json"));
+  remember(kept, join(sampleDir, "cylinder/standrad_cylinder.dat"));
+  remember(kept, join(sampleDir, "cylinder/standrad_cylinder.k"));
+  remember(kept, join(sampleDir, "cylinder/standrad_cylinder_bed.txt"));
+  remember(kept, join(sampleDir, "cylinder/standrad_cylinder_bed.xls"));
+  remember(kept, join(sampleDir, "cylinder/faces_ring0_v2.dat"));
+  remember(kept, join(sampleDir, "cylinder/faces_ring0_v2.k"));
+  remember(kept, join(sampleDir, "cylinder/faces_ring0_step4_bed.txt"));
+  remember(kept, join(sampleDir, "cylinder/faces_ring0_step4_bed.xls"));
+  remember(kept, join(sampleDir, "cylinder/faces_ring_layout.json"));
+  for (const spec of MODELS) {
+    for (const name of [
+      `${spec.prefix}_knitcode.json`,
+      `${spec.prefix}.dat`,
+      `${spec.prefix}.k`,
+      `${spec.prefix}_bed.txt`,
+      `${spec.prefix}_bed.xls`,
+      `${spec.prefix}_faces_ring_layout.json`,
+    ]) {
+      const path = join(sampleDir, spec.dir, name);
+      if (existsSync(path)) remember(kept, path);
+    }
+  }
+  const datDir = join(root, "public/knitcode-dat");
+  for (const name of readdirSync(datDir)) {
+    if (!name.endsWith(".dat") || name.includes("-exp-readable-row-schedule")) continue;
+    remember(kept, join(datDir, name));
+  }
+  for (const [dirName] of EXPERIMENT_SHEETS) {
+    const dir = join(root, "experiments", dirName);
+    remember(kept, join(dir, "exp-readable-map.txt"));
+    remember(kept, join(dir, "exp-readable-map.xls"));
+    remember(kept, join(dir, "exp-readable-map.json"));
+  }
+  return kept;
+}
+
+function assertUntouched(kept) {
+  for (const [path, hash] of kept) {
+    if (sha256(readFileSync(path)) !== hash) throw new Error(`protected file changed: ${path}`);
+  }
+}
+
+function balanceWords(labels) {
+  const words = { 平衡: 0, 整床横移: 0, 回座: 0, loop: 0 };
+  for (const label of labels) {
+    if (!label.startsWith("移针  ")) continue;
+    if (label.includes("，回座")) words.回座 += 1;
+    else if (label.includes("，整床横移")) words.整床横移 += 1;
+    else if (label.includes("，平衡")) words.平衡 += 1;
+    else words.loop += 1;
+  }
+  return words;
+}
+
 function buildExperiments() {
   const standradPath = join(sampleDir, "cylinder/standrad_cylinder_knitcode.json");
   const standradBefore = readFileSync(standradPath);
@@ -737,12 +812,7 @@ function buildExperiments() {
       throw new Error(`W=13 opening row ${index} ${row.kind} does not match Standrad`);
     }
   });
-  const officialHashes = new Map();
-  for (const spec of MODELS) {
-    const path = join(sampleDir, spec.dir, `${spec.prefix}_knitcode.json`);
-    officialHashes.set(path, sha256(readFileSync(path)));
-  }
-  officialHashes.set(standradPath, sha256(standradBefore));
+  const kept = protectedExperimentInputs();
   const reports = [];
   for (const [dirName, model, sheetId] of EXPERIMENT_SHEETS) {
     const schedulePath = join(root, "experiments", dirName, "exp-readable-map.json");
@@ -750,34 +820,62 @@ function buildExperiments() {
     const spec = {
       model,
       experiment: true,
-      partial: Boolean(schedule.partialStop),
+      allowPartial: Boolean(schedule.partialStop),
+      forbidStopped: !schedule.partialStop,
       sheetId,
       dirName,
+      baseDir: root,
+      bedRel: `experiments/${dirName}/exp-readable-map.txt`,
+      xlsRel: `experiments/${dirName}/exp-readable-map.xls`,
       layoutRel: schedule.input.path,
       sourceBed: `experiments/${dirName}/exp-readable-map.txt`,
     };
-    const built = buildModel(spec, standrad);
-    assertBodyCodes(spec, built);
+    const built = buildOperationTable(standrad, spec);
+    if (built.doc.n_transfer_rows_omitted !== 0) {
+      throw new Error(`${sheetId} omitted ${built.doc.n_transfer_rows_omitted} transfer rows`);
+    }
+    if (built.doc.row_labels.some((label) => label.includes("花色"))) {
+      throw new Error(`${sheetId} invented an ending`);
+    }
+    if (built.doc.n_rows !== 34 + built.knitRows + built.flipCount + built.transfersDrawn * 2) {
+      throw new Error(`${sheetId} row count drifted`);
+    }
+    const words = balanceWords(built.doc.row_labels);
+    const namedBalance = words.平衡 + words.整床横移 + words.回座;
+    if (words.loop !== built.loopMoves || namedBalance !== built.balances) {
+      throw new Error(`${sheetId} balance labels ${namedBalance} loop labels ${words.loop} do not match the pairs`);
+    }
     const text = `${JSON.stringify(built.doc, null, 2)}\n`;
     writeFileSync(join(root, "experiments", dirName, "exp-knitcode.json"), text);
+    const axisExtended = built.minP < 0 || built.maxP >= built.W;
     reports.push({
       sheetId,
-      added: true,
-      partial: spec.partial,
+      model,
+      partial: Boolean(schedule.partialStop),
       W: built.W,
-      openingRows: built.doc.n_opening_rows,
-      bodyRows: built.doc.n_body_rows,
+      openingRows: 34,
+      knitRows: built.knitRows,
+      flipRows: built.flipCount,
+      loopMovePairs: built.loopMoves,
+      balancePairs: built.balances,
+      balanceWords: { 平衡: words.平衡, 整床横移: words.整床横移, 回座: words.回座 },
+      transferPairs: built.transfersDrawn,
+      omitted: built.transfersOmitted,
       rows: built.doc.n_rows,
+      needles: `${built.minP}..${built.maxP}`,
+      axisExtended,
+      openingShifted: built.doc.opening.placed_at_column !== 0,
+      cols: built.canvas,
       rings: built.doc.n_rings,
-      turn11: built.turns11,
-      turn12: built.turns12,
       bindCells: built.bound.knitCells,
+      closeCalls: built.closeCalls,
     });
-    console.log(`${sheetId}: opening 34 + body ${built.doc.n_body_rows} = ${built.doc.n_rows} rows`);
+    console.log(
+      `${sheetId}: opening 34 + knit ${built.knitRows} + flip ${built.flipCount} + transfer ${built.transfersDrawn * 2} = ${built.doc.n_rows}; loop ${built.loopMoves} balance ${built.balances} (平衡 ${words.平衡} 整床 ${words.整床横移} 回座 ${words.回座}) omitted ${built.transfersOmitted}; needles ${built.minP}..${built.maxP}; axis ${axisExtended ? "extended" : "inside 0.." + (built.W - 1)}; cols ${built.canvas}; rings ${built.doc.n_rings}`,
+    );
+    if (built.closeCalls.length) console.log(built.closeCalls.map((line) => `  ${line}`).join("\n"));
   }
-  for (const [path, hash] of officialHashes) {
-    if (sha256(readFileSync(path)) !== hash) throw new Error(`official knit code changed: ${path}`);
-  }
+  assertUntouched(kept);
   if (sha256(readFileSync(standradPath)) !== sha256(standradBefore)) {
     throw new Error("Standrad knitting code changed");
   }
@@ -941,7 +1039,10 @@ function balanceFromWindow(sheetRow, block, nextBlock, noteLine) {
       throw new Error(`row ${sheetRow.row} note landing ${destLo}…${destHi} is outside the next header`);
     }
     chosen = fromNote;
-    close = `床图 row ${sheetRow.row} 的下一行窗不是整床一针横移，按注记落在 ${fromNote.bed}${fromNote.after.lo}…${fromNote.bed}${fromNote.after.hi}`;
+    const landing = `${fromNote.bed}${fromNote.after.lo}…${fromNote.bed}${fromNote.after.hi}`;
+    close = next
+      ? `床图 row ${sheetRow.row} 的下一行窗不是整床一针横移，按注记落在 ${landing}`
+      : `床图 row ${sheetRow.row} 是最后一行，按注记落在 ${landing}`;
   }
   if (!chosen) {
     throw new Error(`row ${sheetRow.row} balance is not a one-needle shift of one bed; not given a new code`);
@@ -979,7 +1080,10 @@ function transferAction(sheetRow, block, nextBlock) {
   if (!shift) throw new Error(`row ${sheetRow.row} arrow ${key} is not a one-needle shift`);
   if ([...beds][0] !== shift.bed) throw new Error(`row ${sheetRow.row} ${key} sits on bed ${[...beds][0]}`);
   const move = /移圈|套到/.test(note.line);
-  const increase = sheetRow.dir === "X+" && /partial increase move|Transfer this increase/.test(note.line);
+  // Official beds say "partial increase move". Experiment beds say 开口 for that
+  // same one-needle opening. Direction still comes from the needle window.
+  const increase =
+    sheetRow.dir === "X+" && /partial increase move|Transfer this increase|开口/.test(note.line);
   const rack = /rack|clear B\d+ with a|front seats toward|counts match and the beds are one needle apart|counts match and the front is already/i.test(note.line);
   const step = note.line.match(/only ([FB])(\d+) steps to ([FB])(\d+)/);
   if (move && rack) throw new Error(`row ${sheetRow.row} is both a loop move and a rack`);
@@ -1056,6 +1160,15 @@ function transferAction(sheetRow, block, nextBlock) {
     if (dests.some((phys) => phys < after.lo || phys > after.hi)) {
       throw new Error(`row ${sheetRow.row} destinations ${dests.join(",")} are outside the next ${drawn.bed} window`);
     }
+  } else if (!followingRow && !move) {
+    const noted = notedAfterWindow(note.line)?.[drawn.bed];
+    const lo = Math.min(...dests);
+    const hi = Math.max(...dests);
+    if (!noted || noted.lo !== lo || noted.hi !== hi) {
+      throw new Error(`row ${sheetRow.row} destinations ${dests.join(",")} are outside the next ${drawn.bed} window`);
+    }
+    const span = lo === hi ? `${drawn.bed}${lo}` : `${drawn.bed}${lo}…${drawn.bed}${hi}`;
+    close = close || `床图 row ${sheetRow.row} 是最后一行，按注记落到 ${span}`;
   } else if (followingRow || !move) {
     throw new Error(`row ${sheetRow.row} destinations ${dests.join(",")} are outside the next ${drawn.bed} window`);
   } else {
@@ -1086,10 +1199,15 @@ function transferAction(sheetRow, block, nextBlock) {
  * whole-bed rack, and a front reseat, becomes the shift row and the companion
  * flip. Official Bunny is this same path with its bed pinned.
  */
+function bedAsset(spec, relKey) {
+  const base = spec.baseDir || sampleDir;
+  return join(base, spec[relKey]);
+}
+
 function buildOperationTable(standrad, spec) {
-  const bedPath = join(sampleDir, spec.bedRel);
-  const xlsPath = join(sampleDir, spec.xlsRel);
-  const layoutPath = join(sampleDir, spec.layoutRel);
+  const bedPath = bedAsset(spec, "bedRel");
+  const xlsPath = bedAsset(spec, "xlsRel");
+  const layoutPath = bedAsset(spec, "layoutRel");
   const bedBytes = readFileSync(bedPath);
   const xlsBytes = readFileSync(xlsPath);
   if (spec.bedTxtHash && sha256(bedBytes) !== spec.bedTxtHash) throw new Error(`${spec.model} bed txt changed`);
@@ -1527,6 +1645,7 @@ function writeOfficial() {
     "official-dense-decrease-readable-row-schedule",
     "official-dense-thin-readable-row-schedule",
     "official-dense-fat-readable-row-schedule",
+    "official-bunny-readable-row-schedule",
   ];
   for (const dirName of experimentDirs) {
     const path = join(root, "experiments", dirName, "exp-knitcode.json");
