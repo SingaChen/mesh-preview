@@ -115,6 +115,7 @@ import {
   parseKnitCode,
 } from "./knit-code.js";
 import { NO_DAT_TITLE, datForSheet } from "./sheet-dat.js";
+import { datForKnitSheet } from "./knitcode-dat.js";
 
 const canvas = document.querySelector("#viewport");
 const folderInput = document.querySelector("#folder-input");
@@ -124,6 +125,7 @@ const openMenuBtn = document.querySelector("#open-menu-btn");
 const openMenuList = document.querySelector("#open-menu-list");
 const exportBtn = document.querySelector("#export-dat");
 const exportSlot = document.querySelector("#export-slot");
+const knitDatBtn = document.querySelector("#knit-dat");
 const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
@@ -554,6 +556,7 @@ function setSheetQuery(sheet) {
   else url.searchParams.delete("sheet");
   history.replaceState(null, "", url);
   syncExportButton();
+  syncKnitDatButton();
 }
 
 function syncExportButton() {
@@ -568,6 +571,27 @@ function syncExportButton() {
 function downloadSheetDat() {
   const spec = datForSheet(sheetQuery());
   if (!spec || exportBtn?.disabled) return;
+  const a = document.createElement("a");
+  a.href = `${import.meta.env.BASE_URL}${spec.path}`;
+  a.download = spec.filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function syncKnitDatButton() {
+  if (!knitDatBtn) return;
+  const showingKnit = mapMode === "knit" && Boolean(scene?.knitCode?.rows?.length);
+  const spec = showingKnit ? datForKnitSheet(sheetQuery()) : null;
+  knitDatBtn.hidden = !spec;
+  knitDatBtn.disabled = !spec;
+  knitDatBtn.title = spec ? spec.filename : "此编织码暂无 .dat";
+}
+
+function downloadKnitDat() {
+  const spec = datForKnitSheet(sheetQuery());
+  if (!spec || knitDatBtn?.hidden || knitDatBtn?.disabled) return;
   const a = document.createElement("a");
   a.href = `${import.meta.env.BASE_URL}${spec.path}`;
   a.download = spec.filename;
@@ -1726,6 +1750,10 @@ exportBtn?.addEventListener("click", () => {
   downloadSheetDat();
 });
 
+knitDatBtn?.addEventListener("click", () => {
+  downloadKnitDat();
+});
+
 document.addEventListener("pointerdown", (ev) => {
   if (openMenu && !openMenu.contains(ev.target)) setOpenMenu(false);
 });
@@ -2340,6 +2368,7 @@ function paintMapChrome() {
       mapHeading.append(en);
     }
   }
+  syncKnitDatButton();
   if (showingKnit) {
     if (knitRenderKey !== knit) renderKnitCode(knit);
     const first = knit.needles[0];
@@ -2632,6 +2661,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 updateChrome();
 syncExportButton();
+syncKnitDatButton();
 if (activeCylinderExp(sheetQuery())) loadCylinderExp(activeCylinderExp(sheetQuery()));
 else if (isBunnySideNeumannWeightedSheet(sheetQuery())) loadBunnySideNeumannWeightedSwallow();
 else if (isBunnySideNeumannUniformSheet(sheetQuery())) loadBunnySideNeumannUniformSwallow();

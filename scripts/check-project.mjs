@@ -96,6 +96,7 @@ import {
   knitRowHasKnitting,
   knitRowTravelKind,
   knitRowWinding,
+  knitDatMatrix,
   knitTableCells,
   knitTableColumns,
   parseKnitCode,
@@ -123,6 +124,7 @@ import {
 import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync } from "../src/viewport.js";
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 import { NO_DAT_TITLE, datForSheet } from "../src/sheet-dat.js";
+import { datForKnitSheet, knitDatCatalog } from "../src/knitcode-dat.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sampleDir = join(root, "public", "sample");
@@ -4480,6 +4482,107 @@ assertDenseCylinderSample({
   );
   for (const sheet of ["", "dense-decrease-cylinder", "dense-increase-cylinder", "dense-thin-cylinder", "dense-fat-cylinder", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-side-neumann-swallow", "bunny-exp-side-neumann-uniform-swallow", "bunny-exp-side-neumann-weighted-swallow", "bunny-exp-readable-row-schedule", "standrad-exp-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "increase-exp-readable-row-schedule", "decrease-exp-readable-row-schedule", "thin-exp-readable-row-schedule", "fat-exp-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "dense-fat-exp-readable-row-schedule"]) {
     assert(datForSheet(sheet) == null, `${sheet || "sample"} has no dat export`);
+  }
+  {
+    const knitAt = html.indexOf('id="knit-dat"');
+    assert(knitAt > html.indexOf('id="knit-title"') && knitAt < html.indexOf('id="knit-note"'), "DAT download sits in the knitting-code title row");
+    assert(/id="knit-dat"[^>]*\shidden\b/.test(html), "knitting-code DAT download starts hidden");
+    assert(mainSrc.includes("syncKnitDatButton") && mainSrc.includes("downloadKnitDat") && mainSrc.includes("datForKnitSheet"), "main downloads the dat for the knitting code on screen");
+    assert(/\.knit-dat\[hidden\]\s*\{[^}]*display:\s*none/.test(css), "a knitting code without a dat hides the download");
+    const paletteHash = "bcd2ff0bd9d1f52f1c0d6e95bcaf169671b0f7a5bed23d780c07aaa4f5dacf74";
+    const displayedDatColor = (palette, code) => {
+      const channel = (plane) => palette[plane + (code % 2 === 0 ? code + 1 : code - 1)];
+      const hex = (n) => n.toString(16).padStart(2, "0").toUpperCase();
+      return `#${hex(channel(0))}${hex(channel(0x100))}${hex(channel(0x200))}`;
+    };
+    const decodeDat = (buf) => {
+      const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+      const minX = view.getUint16(0, true);
+      const minY = view.getUint16(2, true);
+      const maxX = view.getUint16(4, true);
+      const maxY = view.getUint16(6, true);
+      const magic1 = view.getUint16(8, true);
+      const z1 = view.getUint16(10, true);
+      const z2 = view.getUint16(12, true);
+      const z3 = view.getUint16(14, true);
+      const magic2 = view.getUint16(16, true);
+      const width = maxX - minX + 1;
+      const height = maxY - minY + 1;
+      const data = new Uint8Array(width * height);
+      let ptr = 0;
+      let i = 0x600;
+      for (; i + 1 < buf.length && ptr < data.length; i += 2) {
+        const idx = buf[i];
+        const length = buf[i + 1];
+        for (let c = 0; c < length; c += 1) data[ptr++] = idx;
+      }
+      return { minX, minY, maxX, maxY, magic1, z1, z2, z3, magic2, width, height, data, ptr, end: i };
+    };
+    const seen = new Set();
+    for (const item of knitDatCatalog()) {
+      assert(!seen.has(item.path), `duplicate knitting-code dat ${item.path}`);
+      seen.add(item.path);
+      assert(datForKnitSheet(item.id) === item, `${item.id} resolves to its dat`);
+      const file = readFileSync(join(root, "public", item.path));
+      const knit = parseKnitCode(JSON.parse(readFileSync(join(root, item.source), "utf8")));
+      const matrix = knitDatMatrix(knit);
+      const decoded = decodeDat(file);
+      assert(
+        decoded.minX === 0 &&
+          decoded.minY === 0 &&
+          decoded.magic1 === 1000 &&
+          decoded.magic2 === 1000 &&
+          decoded.z1 === 0 &&
+          decoded.z2 === 0 &&
+          decoded.z3 === 0 &&
+          decoded.ptr === decoded.width * decoded.height &&
+          decoded.end === file.length,
+        `${item.filename} is a DATFile image`,
+      );
+      const palette = file.subarray(0x200, 0x500);
+      assert(
+        createHash("sha256").update(palette).digest("hex") === paletteHash,
+        `${item.filename} uses DATFile.getDefaultPalette`,
+      );
+      for (const code of [1, 2, 11, 12, 20, 21, 24, 30, 31, 34, 81, 82]) {
+        assert(
+          displayedDatColor(palette, code) === KNIT_FUNCTION_COLORS[code],
+          `${item.filename} code ${code} matches the knitting-code color`,
+        );
+      }
+      assert(
+        decoded.height === matrix.length &&
+          decoded.width === matrix[0].length &&
+          decoded.height === knit.rows.length,
+        `${item.filename} matches the current table and does not add rows`,
+      );
+      for (let y = 0; y < decoded.height; y += 1) {
+        const row = decoded.data.subarray(y * decoded.width, (y + 1) * decoded.width);
+        const want = matrix[decoded.height - 1 - y];
+        for (let x = 0; x < decoded.width; x += 1) {
+          if (row[x] !== want[x]) {
+            assert(false, `${item.filename} pixel ${x},${y} is ${row[x]}, table wants ${want[x]}`);
+          }
+        }
+      }
+      const patternAt = KNIT_FUNCTION_PAIRS * 2 + KNIT_FUNCTION_GAP;
+      const patternW = knit.rows[0].cells.length;
+      const first = decoded.data.subarray(patternAt, patternAt + patternW);
+      assert(
+        first.every((code, index) => code === knit.rows[0].cells[index]),
+        `${item.filename} keeps the first course, including its current ending, at the bottom`,
+      );
+    }
+    assert(datForKnitSheet("faces-ring0") === datForKnitSheet("faces_ring0") && datForKnitSheet("faces-ring1") === datForKnitSheet("faces-ring0"), "Bunny aliases share the knitting-code dat");
+    assert(datForKnitSheet("standrad")?.filename === "standrad-cylinder.dat" && datForKnitSheet("decrease")?.filename === "decrease-cylinder.dat", "cylinder aliases share the knitting-code dat");
+    const bunnyDat = decodeDat(readFileSync(join(root, "public/knitcode-dat/faces-ring0.dat")));
+    const bunnyCodes = new Set(bunnyDat.data);
+    for (const code of [11, 12, 20, 21, 24, 30, 31, 34]) {
+      assert(bunnyCodes.has(code), `Bunny knitting-code dat keeps code ${code}`);
+    }
+    for (const sheet of ["", "bunny-exp-readable-row-schedule", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-side-neumann-swallow", "bunny-exp-side-neumann-uniform-swallow", "bunny-exp-side-neumann-weighted-swallow"]) {
+      assert(datForKnitSheet(sheet) == null, `${sheet || "empty"} knitting code has no dat`);
+    }
   }
   {
     const dir = join(root, "experiments/bunny-corridor-field-swallow");

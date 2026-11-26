@@ -558,6 +558,26 @@ export function knitRailCellText(column, row) {
 }
 
 /**
+ * Palette indexes for one knitting-code DAT.
+ * Row 0 is the top of the on-screen table (the last course). Pattern cells copy
+ * the locked matrix, including 0. Function cells copy the number drawn in that
+ * rail; a blank rail is 0. Gaps are 0. SingaLab `save_matrix_to_dat` flips Y, so
+ * the first course lands at the bottom of the file.
+ */
+export function knitDatMatrix(knit) {
+  const rows = knitCodeDisplayRows(knit);
+  if (!rows.length) return [];
+  return rows.map(({ rowIndex }) =>
+    knitTableCells(knit, rowIndex).map((cell) => {
+      if (cell.role === "pattern") return Number.isInteger(cell.code) ? cell.code : 0;
+      if (cell.role !== "function" || cell.text == null || cell.text === "") return 0;
+      const n = Number(cell.text);
+      return Number.isInteger(n) ? n : 0;
+    }),
+  );
+}
+
+/**
  * One drawn row. Pattern cells copy the locked matrix. Rail cells copy
  * knitFunctionValue. Gaps and unnamed "?" cells stay empty, and none of them
  * is drawn as knit-code 0.

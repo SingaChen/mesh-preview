@@ -354,10 +354,31 @@ input {
   padding: 10px 12px 6px;
 }
 
+.knit-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .knit-head strong {
   display: block;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 15px;
   font-weight: 650;
+}
+
+.knit-dat {
+  flex: 0 0 auto;
+  min-height: 32px;
+  min-width: 0;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.knit-dat[hidden] {
+  display: none;
 }
 
 .knit-head p {
