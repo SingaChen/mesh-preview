@@ -74,11 +74,7 @@ function hasCopiedOpening(knit) {
   return Boolean(knit?.rows?.some((row) => row.functionRails));
 }
 
-/** Experiment tables still omit transfers. Official tables use the Bunny operation note. */
-const EXPERIMENT_DRAW_NOTE =
-  "移针/翻针未画；短行折返（绕向 ccw↔cw）后，只把新绕向第一行沿行进方向的第一针标成 11（前床 #FF67BD）或 12（后床 #906CB4），其余短行织针仍是 1 或 2。前后床换行不是折返。";
-
-/** Official stripe-path tables share Bunny's operation caption. Experiments stay on the omission note. */
+/** Official stripe-path tables and the new-schedule experiment tables share Bunny's operation caption. */
 const OFFICIAL_KNIT_MODELS = new Set([
   "Bunny",
   "Standrad Cylinder",
@@ -109,8 +105,9 @@ export function knitCodeCaption(knit) {
   else if (hasEmptyCell(knit)) {
     caption = `${BED_CLAUSE}；空位为 0。列是物理针 ${span}。`;
   }
-  if (OFFICIAL_KNIT_MODELS.has(knit?.model)) caption += BUNNY_FLIP_NOTE;
-  else if (String(knit?.model || "").includes("实验")) caption += EXPERIMENT_DRAW_NOTE;
+  if (OFFICIAL_KNIT_MODELS.has(knit?.model) || String(knit?.model || "").includes("实验")) {
+    caption += BUNNY_FLIP_NOTE;
+  }
   if (hasCopiedOpening(knit)) caption += KNIT_OPENING_NOTE;
   return caption;
 }

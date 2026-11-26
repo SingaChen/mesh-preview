@@ -1,5 +1,6 @@
 import expReadableMapUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.xls?url";
 import expReadableMapTxtUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.txt?url";
+import expKnitUrl from "../experiments/official-bunny-readable-row-schedule/exp-knitcode.json?url";
 import expChrome from "../experiments/official-bunny-readable-row-schedule/preview-chrome.json";
 import corridorManifest from "../experiments/bunny-corridor-field-swallow/manifest.json";
 import corridorMeshUrl from "../experiments/bunny-corridor-field-swallow/official_bunny_cut_smoothed.obj?url";
@@ -1665,6 +1666,7 @@ async function loadBunnyExpReadableRow() {
     delete output.knit_code;
     delete output.knittingCode;
     delete output.knitting_code;
+    output.knitCode = "exp-knitcode.json";
     data.name = BUNNY_EXP_LABEL;
     data.outputs = [output];
     const paths = collectManifestRefs(data).filter(
@@ -1693,6 +1695,13 @@ async function loadBunnyExpReadableRow() {
       name: "exp-readable-map.txt",
       path: "experiments/official-bunny-readable-row-schedule/exp-readable-map.txt",
       text: await txtRes.text(),
+    });
+    const knitRes = await fetch(expKnitUrl);
+    if (!knitRes.ok) throw new Error("实验编织码不可用 / Experimental knitting code missing");
+    entries.push({
+      name: "exp-knitcode.json",
+      path: "experiments/official-bunny-readable-row-schedule/exp-knitcode.json",
+      text: await knitRes.text(),
     });
     await openEntries(entries, { sheet: BUNNY_EXP_SHEET });
     if (project) project.banner = expChrome.banner;

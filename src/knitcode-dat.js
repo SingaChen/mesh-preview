@@ -72,6 +72,11 @@ const FILES = [
     source: "public/sample/dense-fat/dense_fat_cylinder_knitcode.json",
   },
   {
+    id: "bunny-exp-readable-row-schedule",
+    filename: "bunny-exp-readable-row-schedule.dat",
+    source: "experiments/official-bunny-readable-row-schedule/exp-knitcode.json",
+  },
+  {
     id: "standrad-exp-readable-row-schedule",
     filename: "standrad-exp-readable-row-schedule.dat",
     source: "experiments/official-standrad-readable-row-schedule/exp-knitcode.json",

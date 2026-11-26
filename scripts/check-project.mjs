@@ -1746,6 +1746,107 @@ function assertSideNeumannWeightedSwallow() {
 }
 
 assertSideNeumannWeightedSwallow();
+
+function assertExperimentOperationTables() {
+  const sheets = [
+    ["official-bunny-readable-row-schedule", "bunny-exp-readable-row-schedule", "Bunny 实验（新时序）", true],
+    ["official-standrad-readable-row-schedule", "standrad-exp-readable-row-schedule", "Standrad Cylinder 实验（新时序）", false],
+    ["official-dense-standrad-readable-row-schedule", "dense-standrad-exp-readable-row-schedule", "Dense Standrad Cylinder 实验（新时序）", false],
+    ["official-increase-readable-row-schedule", "increase-exp-readable-row-schedule", "Increase Cylinder 实验（新时序）", true],
+    ["official-decrease-readable-row-schedule", "decrease-exp-readable-row-schedule", "Decrease Cylinder 实验（新时序）", true],
+    ["official-thin-readable-row-schedule", "thin-exp-readable-row-schedule", "Thin Cylinder 实验（新时序）", true],
+    ["official-fat-readable-row-schedule", "fat-exp-readable-row-schedule", "Fat Cylinder 实验（新时序）", true],
+    ["official-dense-increase-readable-row-schedule", "dense-increase-exp-readable-row-schedule", "Dense Increase Cylinder 实验（新时序）", true],
+    ["official-dense-decrease-readable-row-schedule", "dense-decrease-exp-readable-row-schedule", "Dense Decrease Cylinder 实验（新时序）", true],
+    ["official-dense-thin-readable-row-schedule", "dense-thin-exp-readable-row-schedule", "Dense Thin Cylinder 实验（新时序）", true],
+    ["official-dense-fat-readable-row-schedule", "dense-fat-exp-readable-row-schedule", "Dense Fat Cylinder 实验（新时序）", true],
+  ];
+  const app = readFileSync(join(root, "src/main.js"), "utf8");
+  assert(
+    app.includes('import expKnitUrl from "../experiments/official-bunny-readable-row-schedule/exp-knitcode.json?url"') &&
+      app.includes('output.knitCode = "exp-knitcode.json"'),
+    "Bunny experiment sheet loads its knitting code",
+  );
+  const mark = (side, pair, slot) => ({ role: "function", side, pair, slot });
+  for (const [dir, sheet, model, hasOps] of sheets) {
+    const raw = JSON.parse(readFileSync(join(root, "experiments", dir, "exp-knitcode.json"), "utf8"));
+    assert(raw.model === model, `${sheet} model`);
+    assert(raw.n_opening_rows === 34 && raw.n_transfer_rows_omitted === 0, `${sheet} opening or omitted transfers`);
+    assert(
+      raw.n_rows === 34 + raw.n_knit_rows + raw.n_flip_rows + raw.n_transfer_pairs * 2 &&
+        raw.n_transfer_pairs === raw.n_loop_move_pairs + raw.n_balance_pairs,
+      `${sheet} row equation`,
+    );
+    assert(!raw.row_labels.some((label) => String(label).includes("花色")), `${sheet} invented an ending`);
+    assert(
+      String(raw.rules.operations_omitted).includes("全部画出") && !String(raw.rules.operations_omitted).includes("整行省略"),
+      `${sheet} draws every transfer row`,
+    );
+    assert(raw.rules.colors_tiffany_display["30"] === "#7373B2", `${sheet} palette keeps 30`);
+    const knit = parseKnitCode(raw);
+    const caption = knitCodeCaption(knit);
+    assert(caption.includes("翻针已画") && caption.includes("平衡、整床横移和回座用同样的两行") && !caption.includes("移针/翻针未画"), `${sheet} caption`);
+    const dat = datForKnitSheet(sheet);
+    assert(dat?.filename === `${sheet}.dat` && existsSync(join(root, "public", dat.path)), `${sheet} dat download`);
+    if (hasOps) assert(raw.n_flip_rows + raw.n_transfer_pairs > 0, `${sheet} drew no bed operations`);
+    else assert(raw.n_flip_rows === 0 && raw.n_transfer_pairs === 0, `${sheet} drew operations the bed does not have`);
+    for (let index = 34; index < knit.rows.length; index += 1) {
+      const row = knit.rows[index];
+      const next = knit.rows[index + 1];
+      if (row.role === "flip") {
+        const live = row.cells.filter((code) => code !== 0);
+        assert(
+          row.winding === "none" && live.length === 1 && (live[0] === 20 || live[0] === 30) && !row.cells.includes(13),
+          `${sheet} flip row ${row.bedRow}`,
+        );
+        assert(knitFunctionValue(mark("L", 13, "mark"), row).text === "0", `${sheet} flip L13`);
+        assert(knitFunctionValue(mark("L", 1, "number"), row).text === "1", `${sheet} flip L1`);
+        assert(knitFunctionValue(mark("R", 1, "number"), row).text === "1", `${sheet} flip R1`);
+        assert(knitFunctionValue(mark("R", 3, "mark"), row).text === "0", `${sheet} flip R3`);
+        assert(knitFunctionValue(mark("R", 5, "mark"), row).text === "1", `${sheet} flip R5`);
+      } else if (row.role === "transfer-front" || row.role === "transfer-back") {
+        const live = [...new Set(row.cells.filter((code) => code !== 0))];
+        const companion = next && next.bedRow === row.bedRow && next.role === row.role;
+        assert(live.length === 1 && !row.cells.includes(13) && row.winding === "none" && companion, `${sheet} transfer row ${row.bedRow}`);
+        const l13 = row.role === "transfer-front" ? "81" : "82";
+        assert(knitFunctionValue(mark("L", 13, "mark"), row).text === l13, `${sheet} transfer L13`);
+        assert(knitFunctionValue(mark("L", 13, "mark"), next).text === l13, `${sheet} companion L13`);
+        const code = live[0];
+        const delta = code === 21 || code === 31 ? -1 : 1;
+        const want = row.role === "transfer-front" ? 30 : 20;
+        const sources = [];
+        row.cells.forEach((value, col) => {
+          if (value !== 0) sources.push(col);
+        });
+        const landed = [];
+        next.cells.forEach((value, col) => {
+          if (value !== 0) landed.push(col);
+        });
+        assert(
+          sources.length === landed.length &&
+            landed.every((col, at) => col === sources[at] + delta) &&
+            next.cells.every((value) => value === 0 || value === want),
+          `${sheet} transfer bed row ${row.bedRow} is not one needle then the companion`,
+        );
+        index += 1;
+      }
+    }
+  }
+  assert(
+    createHash("sha256").update(readFileSync(join(cylDir, "faces_ring0_knitcode.json"))).digest("hex") ===
+      "47b8cf229adfe257eecc169b50a9b757f4e3b590b0730717b7e127abb19d4603",
+    "official Bunny knit code changed",
+  );
+  assert(
+    datForKnitSheet("dense-bunny-4split") == null &&
+      datForKnitSheet("dense-bunny-le") == null &&
+      datForKnitSheet("bunny-corridor-field-swallow") == null &&
+      datForKnitSheet("bunny-exp-side-neumann-swallow") == null,
+    "sheets without beds stay without a knitting-code dat",
+  );
+}
+
+assertExperimentOperationTables();
 {
   const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
   assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");
@@ -2749,7 +2850,9 @@ assert(
     !existsSync(join(cylDir, "exp-readable-map.txt")) &&
     existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.xls")) &&
     !existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.dat")) &&
-    !existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-knitcode.json")) &&
+    existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-knitcode.json")) &&
+    existsSync(join(root, "public/knitcode-dat/bunny-exp-readable-row-schedule.dat")) &&
+    mainSrc.includes("official-bunny-readable-row-schedule/exp-knitcode.json") &&
     !existsSync(join(root, "experiments/bunny-corridor-field-swallow/exp-knitcode.json")),
   "the timing experiment is its own sheet and does not replace the official Bunny bed",
 );
@@ -4580,7 +4683,7 @@ assertDenseCylinderSample({
     for (const code of [11, 12, 20, 21, 24, 30, 31, 34]) {
       assert(bunnyCodes.has(code), `Bunny knitting-code dat keeps code ${code}`);
     }
-    for (const sheet of ["", "bunny-exp-readable-row-schedule", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-side-neumann-swallow", "bunny-exp-side-neumann-uniform-swallow", "bunny-exp-side-neumann-weighted-swallow"]) {
+    for (const sheet of ["", "dense-bunny-4split", "dense-bunny-le", "bunny-corridor-field-swallow", "bunny-exp-side-neumann-swallow", "bunny-exp-side-neumann-uniform-swallow", "bunny-exp-side-neumann-weighted-swallow"]) {
       assert(datForKnitSheet(sheet) == null, `${sheet || "empty"} knitting code has no dat`);
     }
   }
