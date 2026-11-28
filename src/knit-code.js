@@ -74,6 +74,12 @@ function hasCopiedOpening(knit) {
   return Boolean(knit?.rows?.some((row) => row.functionRails));
 }
 
+/** Title shown for a table. The stored model name can still say 实验（新时序）. */
+export function displayKnitModel(model) {
+  const name = String(model || "").replace(/ 实验（新时序）$/, "");
+  return name || "Knitting";
+}
+
 /** Official stripe-path tables and the new-schedule experiment tables share Bunny's operation caption. */
 const OFFICIAL_KNIT_MODELS = new Set([
   "Bunny",

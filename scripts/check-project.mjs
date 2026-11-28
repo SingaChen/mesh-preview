@@ -78,6 +78,7 @@ import {
   KNIT_FUNCTION_RAIL_NOTE,
   bindKnitCodeStitches,
   describeKnitCell,
+  displayKnitModel,
   knitCellTravel,
   knitCodeCaption,
   knitCodeDisplayRows,
@@ -125,6 +126,11 @@ import { aspectFromSize, displayedSize, drawingMatchesDisplay, needsViewportSync
 import { applyBaseChoice, defaultBaseLayers, hiddenBaseLayers, isBaseHidden, normalizeBaseLayers } from "../src/display.js";
 import { NO_DAT_TITLE, datForSheet } from "../src/sheet-dat.js";
 import { datForKnitSheet, knitDatCatalog } from "../src/knitcode-dat.js";
+import {
+  PROMOTED_SCHEDULES,
+  canonicalSheetId,
+  scheduleBaseName,
+} from "../src/row-schedule-catalog.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sampleDir = join(root, "public", "sample");
@@ -1762,10 +1768,11 @@ function assertExperimentOperationTables() {
     ["official-dense-fat-readable-row-schedule", "dense-fat-exp-readable-row-schedule", "Dense Fat Cylinder 实验（新时序）", true],
   ];
   const app = readFileSync(join(root, "src/main.js"), "utf8");
+  const assets = readFileSync(join(root, "src/row-schedule-assets.js"), "utf8");
   assert(
-    app.includes('import expKnitUrl from "../experiments/official-bunny-readable-row-schedule/exp-knitcode.json?url"') &&
+    assets.includes('import expKnitUrl from "../experiments/official-bunny-readable-row-schedule/exp-knitcode.json?url"') &&
       app.includes('output.knitCode = "exp-knitcode.json"'),
-    "Bunny experiment sheet loads its knitting code",
+    "official sheets load the reviewed new-schedule knitting code",
   );
   const mark = (side, pair, slot) => ({ role: "function", side, pair, slot });
   for (const [dir, sheet, model, hasOps] of sheets) {
@@ -1847,6 +1854,67 @@ function assertExperimentOperationTables() {
 }
 
 assertExperimentOperationTables();
+
+const PREVIOUS_OFFICIAL_DAT_SHA256 = {
+  "faces-ring0.dat": "8ff98877f4e4ea86c55e2a6eef083a71de0a7e9492fc7769064564dbe8da7da5",
+  "standrad-cylinder.dat": "b465cae3c14fb3912d23b45685653d3a0d1f3602738b5c0efa0674348341c322",
+  "dense-standrad-cylinder.dat": "bfb226df482c142386a642ec8d1d8a0e4c3230ece2decedb09fb7977bfd1f2fa",
+  "increase-cylinder.dat": "917d4eb71c53600f87e2271f668cbd0d302f91d04d5b0de219ecba57c078595e",
+  "decrease-cylinder.dat": "94b2324af1b8362573355f8feec53ea20f033de9b00a899b4e6657ecfbd6a381",
+  "thin-cylinder.dat": "da8efc5cb66733ea240fea263ec3375324cfe7cb027a92fa161e026130f5347c",
+  "fat-cylinder.dat": "60dc877337a4b908a43b85501cee79580cec94f5cf3fde10f06405e0f0c1adbe",
+  "dense-increase-cylinder.dat": "4756d03aeacbb15c1732da6ac01d384c327f7bfa297d8855aa537a52850407ad",
+  "dense-decrease-cylinder.dat": "21888b8d95f5b38d3d3c18374bf87363e3b8a35bfe7763006a82054a71470e50",
+  "dense-thin-cylinder.dat": "ccfc1b1bcf50381ddbf53326f907e4363d8b863387abfedde5d0e59b03a90f35",
+  "dense-fat-cylinder.dat": "2e57a1106c73294058a35efc007759f009481f61c0beda9fc1d9097269758148",
+};
+
+function assertPromotedRowSchedule() {
+  const shaFile = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
+  const page = readFileSync(join(root, "index.html"), "utf8");
+  const app = readFileSync(join(root, "src/main.js"), "utf8");
+  assert(!page.includes("实验（新时序）"), "Open menu no longer lists a 新时序 experiment");
+  assert(/id="load-faces-ring0"[^>]*>Bunny<\/button>/.test(page), "Bunny stays the official menu entry");
+  assert(page.includes('id="load-bunny-corridor-field-swallow"'), "corridor sheet stays in the menu");
+  assert(page.includes('id="load-bunny-exp-side-neumann-swallow"'), "Side-Neumann sheet stays in the menu");
+  assert(page.includes('id="load-dense-bunny-4split"') && page.includes('id="load-dense-bunny-le"'), "Dense Bunny sheets stay in the menu");
+  assert(app.includes("canonicalSheetId") && app.includes("loadLegacySchedule") && app.includes("applyNewSchedule"), "official sheets promote the new schedule and keep a legacy loader");
+  assert(app.includes('output.knitCode = "exp-knitcode.json"') && app.includes("exp-readable-map.xls"), "official preview points at the reviewed new-schedule tables");
+  assert(!app.includes("不是官方床图"), "promoted sheets do not keep the experiment bed caption");
+  assert(displayKnitModel("Bunny 实验（新时序）") === "Bunny" && displayKnitModel("Standrad Cylinder 实验（新时序）") === "Standrad Cylinder", "knitting-code titles drop the experiment suffix");
+  assert(PROMOTED_SCHEDULES.length === 11, "eleven official models are promoted");
+  for (const spec of PROMOTED_SCHEDULES) {
+    assert(canonicalSheetId(spec.expSheetId) === spec.officialId, `${spec.expSheetId} opens ${spec.officialId}`);
+    assert(canonicalSheetId(spec.officialId) === spec.officialId, `${spec.officialId} stays official`);
+    assert(!page.includes(`id="load-${spec.expSheetId}"`) && !page.includes(`id="load-${spec.legacyId}"`), `${spec.officialName} experiment and legacy ids stay off the menu`);
+    assert(page.includes(`id="load-${spec.officialId}"`), `${spec.officialName} keeps its official menu id`);
+    const arch = join(root, "public", spec.archiveDir);
+    for (const rel of [spec.sampleBedXls, spec.sampleBedTxt, spec.sampleKnitcode, spec.sampleReadableMapTxt].filter(Boolean)) {
+      assert(
+        shaFile(join(arch, scheduleBaseName(rel))) === shaFile(join(root, rel)),
+        `${spec.officialName} archive ${scheduleBaseName(rel)} matches the previous official bytes`,
+      );
+    }
+    const officialDat = shaFile(join(root, "public/knitcode-dat", spec.datFilename));
+    const expDat = shaFile(join(root, "public/knitcode-dat", spec.expDatFilename));
+    assert(officialDat === expDat, `${spec.officialId} dat is the new-schedule table`);
+    const legacyDat = shaFile(join(arch, spec.datFilename));
+    assert(legacyDat === PREVIOUS_OFFICIAL_DAT_SHA256[spec.datFilename], `${spec.officialId} legacy dat keeps the previous official bytes`);
+    const legacy = datForKnitSheet(spec.legacyId);
+    assert(
+      legacy?.path === `${spec.archiveDir}/${spec.datFilename}` && legacy.filename === `legacy-${spec.datFilename}`,
+      `${spec.legacyId} downloads the archived knitting-code dat`,
+    );
+    const official = datForKnitSheet(spec.officialId);
+    assert(official?.filename === spec.datFilename && official.source === spec.newKnitSource, `${spec.officialId} downloads the new-schedule dat under the official name`);
+    assert(datForKnitSheet(spec.expSheetId)?.source === spec.newKnitSource, `${spec.expSheetId} dat stays the same new-schedule table`);
+    const made = datForSheet(spec.officialId);
+    assert(datForSheet(spec.legacyId) === made, `${spec.legacyId} keeps the unchanged manufacturing export`);
+    assert(datForSheet(spec.expSheetId) == null, `${spec.expSheetId} does not gain a manufacturing export`);
+  }
+}
+
+assertPromotedRowSchedule();
 {
   const facesMap = parseExcelReadableMap(readFileSync(join(cylDir, "faces_ring0_step4_bed.xls")));
   assert(facesMap.sheet === "ring0" && facesMap.rows.length > 0, "faces_ring0 bed chart opens as sheet ring0");
@@ -2838,23 +2906,21 @@ assert(
 );
 assert(manifest.outputs[0].label === "Bunny", "faces-ring0 output label is Bunny");
 assert(
-  html.includes('id="load-bunny-exp-readable-row-schedule"') &&
-    html.includes("Bunny 实验（新时序）") &&
-    !html.includes("未跑完") &&
-    html.indexOf('id="load-bunny-exp-readable-row-schedule"') > html.indexOf('id="load-faces-ring0"') &&
-    mainSrc.includes('const BUNNY_EXP_SHEET = "bunny-exp-readable-row-schedule"') &&
-    mainSrc.includes("loadBunnyExpReadableRow") &&
+  !html.includes("实验（新时序）") &&
+    !html.includes('id="load-bunny-exp-readable-row-schedule"') &&
+    mainSrc.includes("canonicalSheetId") &&
+    mainSrc.includes('output.knitCode = "exp-knitcode.json"') &&
     mainSrc.includes("exp-readable-map.xls") &&
-    mainSrc.includes("preview-chrome.json") &&
     !existsSync(join(cylDir, "exp-readable-map.xls")) &&
     !existsSync(join(cylDir, "exp-readable-map.txt")) &&
     existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.xls")) &&
     !existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-readable-map.dat")) &&
     existsSync(join(root, "experiments/official-bunny-readable-row-schedule/exp-knitcode.json")) &&
     existsSync(join(root, "public/knitcode-dat/bunny-exp-readable-row-schedule.dat")) &&
-    mainSrc.includes("official-bunny-readable-row-schedule/exp-knitcode.json") &&
+    existsSync(join(root, "public/archive/legacy-official-schedule/bunny/faces_ring0_step4_bed.xls")) &&
+    readFileSync(join(root, "src/row-schedule-assets.js"), "utf8").includes("official-bunny-readable-row-schedule/exp-knitcode.json") &&
     !existsSync(join(root, "experiments/bunny-corridor-field-swallow/exp-knitcode.json")),
-  "the timing experiment is its own sheet and does not replace the official Bunny bed",
+  "Bunny's official sheet shows the new schedule and the previous bed stays archived",
 );
 const cylinderExpSheets = [
   ["standrad", "Standrad", "load-standrad-cylinder"],
@@ -2868,27 +2934,23 @@ const cylinderExpSheets = [
   ["fat", "Fat", "load-fat-cylinder"],
   ["dense-fat", "Dense Fat", "load-dense-fat-cylinder"],
 ];
-const cylinderExpSrc = readFileSync(join(root, "src", "cylinder-exp-sheets.js"), "utf8");
 for (const [key, label, officialId] of cylinderExpSheets) {
   const sheetId = `${key}-exp-readable-row-schedule`;
-  const buttonId = `load-${sheetId}`;
   const dir = join(root, "experiments", `official-${key}-readable-row-schedule`);
   assert(
-    html.includes(`id="${buttonId}"`) &&
-      html.includes(`${label} 实验（新时序）`) &&
-      html.indexOf(`id="${buttonId}"`) > html.indexOf(`id="${officialId}"`) &&
-      cylinderExpSrc.includes(`sheetId: "${sheetId}"`) &&
-      mainSrc.includes("loadCylinderExp") &&
-      mainSrc.includes("cylinder-exp-sheets.js") &&
+    !html.includes(`id="load-${sheetId}"`) &&
+      !html.includes(`${label} 实验（新时序）`) &&
+      html.includes(`id="${officialId}"`) &&
+      mainSrc.includes("applyNewSchedule") &&
+      mainSrc.includes('output.knitCode = "exp-knitcode.json"') &&
       existsSync(join(dir, "exp-readable-map.xls")) &&
       existsSync(join(dir, "exp-readable-map.txt")) &&
       existsSync(join(dir, "exp-knitcode.json")) &&
       existsSync(join(dir, "validation-report.json")) &&
       !existsSync(join(dir, "exp-readable-map.dat")) &&
       !existsSync(join(dir, "exp-readable-map.k")) &&
-      !existsSync(join(dir, "exp-knitcode.dat")) &&
-      mainSrc.includes('output.knitCode = "exp-knitcode.json"'),
-    `${label} timing experiment is its own sheet`,
+      !existsSync(join(dir, "exp-knitcode.dat")),
+    `${label} new schedule is the official sheet, not a second menu entry`,
   );
   const report = JSON.parse(readFileSync(join(dir, "validation-report.json"), "utf8"));
   assert(report.sheetId === sheetId && report.baseline?.unchanged === true, `${label} report keeps the official bed hash`);
@@ -3256,7 +3318,7 @@ assert(
     "each stitch column lies between two cols_resample side edges",
   );
   const standradFn = mainSrc.slice(mainSrc.indexOf("async function loadStandradCylinder"), mainSrc.indexOf("async function loadDecreaseCylinder"));
-  assert(standradFn.includes("sampleEntry"), "Standrad Cylinder loads the bed xls as bytes");
+  assert(standradFn.includes("openPublishedSample") && mainSrc.includes("sampleEntry") && mainSrc.includes("arrayBuffer"), "Standrad Cylinder loads sample binaries and the new-schedule bed");
   assert(mainSrc.includes("isStandradCylinderBedChart"), "the excel map loader recognizes the Standrad Cylinder bed chart");
   const layout = parseFacesRingLayout(readFileSync(join(cylDir, "standrad_cylinder_rings.json"), "utf8"));
   const stitches = parsed.faces.map((face, index) => ({ index, verts: face.verts }));
@@ -3589,7 +3651,7 @@ assert(
     "ring 0 knits F0–F11 then B11–B1 on an empty bed",
   );
   const decreaseFn = mainSrc.slice(mainSrc.indexOf("async function loadDecreaseCylinder"), mainSrc.indexOf("async function loadIncreaseCylinder"));
-  assert(decreaseFn.includes("sampleEntry"), "Decrease Cylinder loads the cols xls as bytes");
+  assert(decreaseFn.includes("openPublishedSample") && mainSrc.includes("sampleEntry"), "Decrease Cylinder loads the cols xls as bytes");
   assert(decreaseFn.includes("前床 F0–F11") && decreaseFn.includes("后床 B11–B1"), "Decrease Cylinder status quotes the seated bed");
   assert(mainSrc.includes("isDecreaseCylinderBedChart"), "the excel map loader recognizes the Decrease Cylinder bed chart");
   assert(!/root\.rotation|camera\.up/.test(decreaseFn), "Decrease Cylinder does not rotate the viewer");
@@ -3726,7 +3788,7 @@ assert(
     "ring 0 knits F0–F6 then B6–B0 on an empty bed",
   );
   const increaseFn = mainSrc.slice(mainSrc.indexOf("async function loadIncreaseCylinder"), mainSrc.indexOf("async function loadSample"));
-  assert(increaseFn.includes("sampleEntry") && mainSrc.includes("arrayBuffer"), "Increase Cylinder loads the cols xls as bytes");
+  assert(increaseFn.includes("openPublishedSample") && mainSrc.includes("arrayBuffer"), "Increase Cylinder loads the cols xls as bytes");
   assert(
     increaseFn.includes("前床 F0–F6") && increaseFn.includes("后床 B6–B0") && increaseFn.includes("表宽 24"),
     "Increase Cylinder status quotes the seated bed",
@@ -4110,7 +4172,7 @@ assert(
     "Dense Standrad Cylinder courses are the generator report",
   );
   const denseFn = mainSrc.slice(mainSrc.indexOf("async function loadDenseStandradCylinder"), mainSrc.indexOf("async function loadDecreaseCylinder"));
-  assert(denseFn.includes("sampleEntry"), "Dense Standrad Cylinder loads the bed xls as bytes");
+  assert(denseFn.includes("openPublishedSample") && mainSrc.includes("sampleEntry"), "Dense Standrad Cylinder loads the bed xls as bytes");
   assert(
     denseFn.includes("前床 F0–F24") && denseFn.includes("后床 B24–B0") && denseFn.includes("表宽 50") && denseFn.includes("15 环落座 50"),
     "Dense Standrad Cylinder status quotes the seated bed",

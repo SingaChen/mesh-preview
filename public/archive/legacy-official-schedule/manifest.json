@@ -1,0 +1,341 @@
+{
+  "note": "Byte-identical backup of the official beds, readable maps, knitting codes, and knitcode DATs before the 2026-11-28 new-schedule promotion. Hidden ?sheet= legacy ids open these files. Official sheet ids now show the reviewed new-schedule tables.",
+  "promotedOn": "2026-11-28",
+  "sheets": [
+    {
+      "officialId": "faces-ring0",
+      "legacyId": "legacy-faces-ring0",
+      "expSheetId": "bunny-exp-readable-row-schedule",
+      "officialName": "Bunny",
+      "files": {
+        "bedXls": {
+          "name": "faces_ring0_step4_bed.xls",
+          "sha256": "170e217b55d30ad35011d2b45c82e25a2f3fe38d9b7f2662324f1a2d85537335",
+          "archivedFrom": "public/sample/cylinder/faces_ring0_step4_bed.xls"
+        },
+        "bedTxt": {
+          "name": "faces_ring0_step4_bed.txt",
+          "sha256": "061985c9a5b659ff5b6064997741778a8b3249231c817231f4096f2b31034a6d",
+          "archivedFrom": "public/sample/cylinder/faces_ring0_step4_bed.txt"
+        },
+        "knitcode": {
+          "name": "faces_ring0_knitcode.json",
+          "sha256": "47b8cf229adfe257eecc169b50a9b757f4e3b590b0730717b7e127abb19d4603",
+          "archivedFrom": "public/sample/cylinder/faces_ring0_knitcode.json"
+        },
+        "dat": {
+          "name": "faces-ring0.dat",
+          "sha256": "8ff98877f4e4ea86c55e2a6eef083a71de0a7e9492fc7769064564dbe8da7da5",
+          "archivedFrom": "public/knitcode-dat/faces-ring0.dat"
+        }
+      },
+      "officialDatSha256": "68f4a7087940161b99479c6ffb55044f1efe0166c8466a1eb621ab32bc494149",
+      "expDatSha256": "68f4a7087940161b99479c6ffb55044f1efe0166c8466a1eb621ab32bc494149"
+    },
+    {
+      "officialId": "standrad-cylinder",
+      "legacyId": "legacy-standrad-cylinder",
+      "expSheetId": "standrad-exp-readable-row-schedule",
+      "officialName": "Standrad Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "standrad_cylinder_bed.xls",
+          "sha256": "cac28e6045a711aed09805366dfc242e88c9c2e03da5febc6f2ba30052357cfc",
+          "archivedFrom": "public/sample/cylinder/standrad_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "standrad_cylinder_bed.txt",
+          "sha256": "427dc794c11369bb779932260ef1e9824949ef9d14f5ee37b1c0f52eab6f9c72",
+          "archivedFrom": "public/sample/cylinder/standrad_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "standrad_cylinder_knitcode.json",
+          "sha256": "5efd98437082a79ac12b5c48867136576adbbd4195dbeca7f2d8286761507f97",
+          "archivedFrom": "public/sample/cylinder/standrad_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "standrad-cylinder.dat",
+          "sha256": "b465cae3c14fb3912d23b45685653d3a0d1f3602738b5c0efa0674348341c322",
+          "archivedFrom": "public/knitcode-dat/standrad-cylinder.dat"
+        },
+        "readableMapTxt": {
+          "name": "standrad_cylinder_readable_map.txt",
+          "sha256": "1b9d4a52ead45706ccad27e43fabb2e518f548210c82e8f2eb05671f5045b581",
+          "archivedFrom": "public/sample/cylinder/standrad_cylinder_readable_map.txt"
+        }
+      },
+      "officialDatSha256": "b465cae3c14fb3912d23b45685653d3a0d1f3602738b5c0efa0674348341c322",
+      "expDatSha256": "b465cae3c14fb3912d23b45685653d3a0d1f3602738b5c0efa0674348341c322"
+    },
+    {
+      "officialId": "dense-standrad-cylinder",
+      "legacyId": "legacy-dense-standrad-cylinder",
+      "expSheetId": "dense-standrad-exp-readable-row-schedule",
+      "officialName": "Dense Standrad Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "dense_standrad_cylinder_bed.xls",
+          "sha256": "22560c0bdf4e1dd98e0aecffc61e959452c724f046c85c66078abc51275d52c5",
+          "archivedFrom": "public/sample/dense-standrad/dense_standrad_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "dense_standrad_cylinder_bed.txt",
+          "sha256": "f55e2adb0ea78c8826081b0373d5b56175c7aedee00808f388883b22483aeb0b",
+          "archivedFrom": "public/sample/dense-standrad/dense_standrad_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "dense_standrad_cylinder_knitcode.json",
+          "sha256": "30eae07e4082b28246ca5157187acb1305217cc2c7ef8f14d1fc55f8904fda59",
+          "archivedFrom": "public/sample/dense-standrad/dense_standrad_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "dense-standrad-cylinder.dat",
+          "sha256": "bfb226df482c142386a642ec8d1d8a0e4c3230ece2decedb09fb7977bfd1f2fa",
+          "archivedFrom": "public/knitcode-dat/dense-standrad-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "bfb226df482c142386a642ec8d1d8a0e4c3230ece2decedb09fb7977bfd1f2fa",
+      "expDatSha256": "bfb226df482c142386a642ec8d1d8a0e4c3230ece2decedb09fb7977bfd1f2fa"
+    },
+    {
+      "officialId": "increase-cylinder",
+      "legacyId": "legacy-increase-cylinder",
+      "expSheetId": "increase-exp-readable-row-schedule",
+      "officialName": "Increase Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "increase_cylinder_bed.xls",
+          "sha256": "ae01fb07254b37e70dbbf6556f104c850bfb474cfc2ddae85a1f405f7b44dfcf",
+          "archivedFrom": "public/sample/increase/increase_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "increase_cylinder_bed.txt",
+          "sha256": "f13ea7f1882374c9524e2a37a36635136d6c5d42bccf040204fe9d52b43eee60",
+          "archivedFrom": "public/sample/increase/increase_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "increase_cylinder_knitcode.json",
+          "sha256": "ade37691c31867b9e0b0944b83e4130b30eb4f138bc3f95198367c824cbca30e",
+          "archivedFrom": "public/sample/increase/increase_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "increase-cylinder.dat",
+          "sha256": "917d4eb71c53600f87e2271f668cbd0d302f91d04d5b0de219ecba57c078595e",
+          "archivedFrom": "public/knitcode-dat/increase-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "c1738c5af36febaa4868e8018eb22b41e53440ca2f461e417cb2ee7abb07d42f",
+      "expDatSha256": "c1738c5af36febaa4868e8018eb22b41e53440ca2f461e417cb2ee7abb07d42f"
+    },
+    {
+      "officialId": "decrease-cylinder",
+      "legacyId": "legacy-decrease-cylinder",
+      "expSheetId": "decrease-exp-readable-row-schedule",
+      "officialName": "Decrease Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "decrease_cylinder_bed.xls",
+          "sha256": "89b54afc2afbf1cbd14eae10197170389fbacdd971243154a7d0370fac3a449f",
+          "archivedFrom": "public/sample/decrease/decrease_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "decrease_cylinder_bed.txt",
+          "sha256": "d39795d1680557c5cb8e99521b4a8be6754b258f48b5e2fb674ea4d28064b556",
+          "archivedFrom": "public/sample/decrease/decrease_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "decrease_cylinder_knitcode.json",
+          "sha256": "071598d76949d93ec319423a02d915ac62798fce08978884e7412e5bbdb92290",
+          "archivedFrom": "public/sample/decrease/decrease_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "decrease-cylinder.dat",
+          "sha256": "94b2324af1b8362573355f8feec53ea20f033de9b00a899b4e6657ecfbd6a381",
+          "archivedFrom": "public/knitcode-dat/decrease-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "f286233a84bb2c89d404483e6f04b3b4810eff6fdc1638f88d4d2d3d31b9a2f2",
+      "expDatSha256": "f286233a84bb2c89d404483e6f04b3b4810eff6fdc1638f88d4d2d3d31b9a2f2"
+    },
+    {
+      "officialId": "thin-cylinder",
+      "legacyId": "legacy-thin-cylinder",
+      "expSheetId": "thin-exp-readable-row-schedule",
+      "officialName": "Thin Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "thin_cylinder_bed.xls",
+          "sha256": "eb7a79f6c77c1d331165bbeac0638497bdec6de55edc328d3aaf02cab4e46d45",
+          "archivedFrom": "public/sample/thin/thin_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "thin_cylinder_bed.txt",
+          "sha256": "4cb112c9c362357c4bcf6fb194cd68b2de4f7b4d1186857b459be6d372b2d944",
+          "archivedFrom": "public/sample/thin/thin_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "thin_cylinder_knitcode.json",
+          "sha256": "3441c55d86f6e40415a1e883f213671d5eee16a5ba1ea6ea26b652aa0da8dc4f",
+          "archivedFrom": "public/sample/thin/thin_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "thin-cylinder.dat",
+          "sha256": "da8efc5cb66733ea240fea263ec3375324cfe7cb027a92fa161e026130f5347c",
+          "archivedFrom": "public/knitcode-dat/thin-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "16a097cbf7edb6f29f590b38438d2fa29735e6af49e0c3e79c105013918d26e8",
+      "expDatSha256": "16a097cbf7edb6f29f590b38438d2fa29735e6af49e0c3e79c105013918d26e8"
+    },
+    {
+      "officialId": "fat-cylinder",
+      "legacyId": "legacy-fat-cylinder",
+      "expSheetId": "fat-exp-readable-row-schedule",
+      "officialName": "Fat Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "fat_cylinder_bed.xls",
+          "sha256": "c43bd80541363b6ce9758e4bf1810793251b073fa5d57562e3b2fd2ec76506d3",
+          "archivedFrom": "public/sample/fat/fat_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "fat_cylinder_bed.txt",
+          "sha256": "e596969ccd95763858d6f59b700b58ca7efa25567a26521f6cd27f96b97fded2",
+          "archivedFrom": "public/sample/fat/fat_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "fat_cylinder_knitcode.json",
+          "sha256": "edb458ef041eff7eb0eaf76756a1fc5dcb7a97e3aa45d5860caa479a88b3d4ad",
+          "archivedFrom": "public/sample/fat/fat_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "fat-cylinder.dat",
+          "sha256": "60dc877337a4b908a43b85501cee79580cec94f5cf3fde10f06405e0f0c1adbe",
+          "archivedFrom": "public/knitcode-dat/fat-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "b3ed392e85c003c26789328bd4c9afe1a8cb9a34eea2f5dc09455b4bc3dce19b",
+      "expDatSha256": "b3ed392e85c003c26789328bd4c9afe1a8cb9a34eea2f5dc09455b4bc3dce19b"
+    },
+    {
+      "officialId": "dense-increase-cylinder",
+      "legacyId": "legacy-dense-increase-cylinder",
+      "expSheetId": "dense-increase-exp-readable-row-schedule",
+      "officialName": "Dense Increase Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "dense_increase_cylinder_bed.xls",
+          "sha256": "ace720eb6de98759c2064b27f5213ea6c01c998db9fc5e295a44e5bbc027251b",
+          "archivedFrom": "public/sample/dense-increase/dense_increase_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "dense_increase_cylinder_bed.txt",
+          "sha256": "cfa076929d041a6031d5112d9e0972e750f8150d3523df59f9f8f3b2c5f5a74a",
+          "archivedFrom": "public/sample/dense-increase/dense_increase_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "dense_increase_cylinder_knitcode.json",
+          "sha256": "363a197e73ca9fdcf3a468f83563941cf675a6621435f516465560f49b720463",
+          "archivedFrom": "public/sample/dense-increase/dense_increase_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "dense-increase-cylinder.dat",
+          "sha256": "4756d03aeacbb15c1732da6ac01d384c327f7bfa297d8855aa537a52850407ad",
+          "archivedFrom": "public/knitcode-dat/dense-increase-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "4295f7275d1a182d65ee68a1be82de89a7d4d9cb3c3c1a351afb1c6af7180642",
+      "expDatSha256": "4295f7275d1a182d65ee68a1be82de89a7d4d9cb3c3c1a351afb1c6af7180642"
+    },
+    {
+      "officialId": "dense-decrease-cylinder",
+      "legacyId": "legacy-dense-decrease-cylinder",
+      "expSheetId": "dense-decrease-exp-readable-row-schedule",
+      "officialName": "Dense Decrease Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "dense_decrease_cylinder_bed.xls",
+          "sha256": "5e282f8a98d1c192beec39fcf937af6c7948042339acd5e7aea2c401f91f5ce6",
+          "archivedFrom": "public/sample/dense-decrease/dense_decrease_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "dense_decrease_cylinder_bed.txt",
+          "sha256": "2dcbaa0f01a96171a610f05e905e40f495df2866f549cd40496586dc23482e28",
+          "archivedFrom": "public/sample/dense-decrease/dense_decrease_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "dense_decrease_cylinder_knitcode.json",
+          "sha256": "52a26893a25e54eff3d91482b95d46cb25ba55add04c0bd28c699b83ff4b13c9",
+          "archivedFrom": "public/sample/dense-decrease/dense_decrease_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "dense-decrease-cylinder.dat",
+          "sha256": "21888b8d95f5b38d3d3c18374bf87363e3b8a35bfe7763006a82054a71470e50",
+          "archivedFrom": "public/knitcode-dat/dense-decrease-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "7e70b3914c628e9df9a5924eecdfaf20f1d750c8c82bff5fc235fa6cefc7be1e",
+      "expDatSha256": "7e70b3914c628e9df9a5924eecdfaf20f1d750c8c82bff5fc235fa6cefc7be1e"
+    },
+    {
+      "officialId": "dense-thin-cylinder",
+      "legacyId": "legacy-dense-thin-cylinder",
+      "expSheetId": "dense-thin-exp-readable-row-schedule",
+      "officialName": "Dense Thin Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "dense_thin_cylinder_bed.xls",
+          "sha256": "6ba9f8b4cbc93d571a2fe2a51bb39310b7cb94086579a044e0e23eb9e5eb1ac0",
+          "archivedFrom": "public/sample/dense-thin/dense_thin_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "dense_thin_cylinder_bed.txt",
+          "sha256": "21ccc8e5e1e158a664b8624786f28166d993041c13f3646c1f5e8d3351508365",
+          "archivedFrom": "public/sample/dense-thin/dense_thin_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "dense_thin_cylinder_knitcode.json",
+          "sha256": "6fdc02c49153a0612a2bab628641b86f71f86b5adb03ae106a57df1efa590928",
+          "archivedFrom": "public/sample/dense-thin/dense_thin_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "dense-thin-cylinder.dat",
+          "sha256": "ccfc1b1bcf50381ddbf53326f907e4363d8b863387abfedde5d0e59b03a90f35",
+          "archivedFrom": "public/knitcode-dat/dense-thin-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "9de30ea8486a6990d6449382eea53075f32456e48ea4c6b12c7b09036d11fa06",
+      "expDatSha256": "9de30ea8486a6990d6449382eea53075f32456e48ea4c6b12c7b09036d11fa06"
+    },
+    {
+      "officialId": "dense-fat-cylinder",
+      "legacyId": "legacy-dense-fat-cylinder",
+      "expSheetId": "dense-fat-exp-readable-row-schedule",
+      "officialName": "Dense Fat Cylinder",
+      "files": {
+        "bedXls": {
+          "name": "dense_fat_cylinder_bed.xls",
+          "sha256": "24348e293d7b23d4ec8b21e9232a66818493e8fe015a23232554d3ece5fff906",
+          "archivedFrom": "public/sample/dense-fat/dense_fat_cylinder_bed.xls"
+        },
+        "bedTxt": {
+          "name": "dense_fat_cylinder_bed.txt",
+          "sha256": "aabfabbd1505e833264c7bd0d14ec2056bda8c8e16e5ed27748b02724014f1ed",
+          "archivedFrom": "public/sample/dense-fat/dense_fat_cylinder_bed.txt"
+        },
+        "knitcode": {
+          "name": "dense_fat_cylinder_knitcode.json",
+          "sha256": "03d6128f4fdd31bc0bfd13bcc6b16105ce59404476102d5a80b66eb3cb8033e9",
+          "archivedFrom": "public/sample/dense-fat/dense_fat_cylinder_knitcode.json"
+        },
+        "dat": {
+          "name": "dense-fat-cylinder.dat",
+          "sha256": "2e57a1106c73294058a35efc007759f009481f61c0beda9fc1d9097269758148",
+          "archivedFrom": "public/knitcode-dat/dense-fat-cylinder.dat"
+        }
+      },
+      "officialDatSha256": "8ce4693dd72c7a562777a254e15320ca850035de17916701757d8c65700a3e38",
+      "expDatSha256": "8ce4693dd72c7a562777a254e15320ca850035de17916701757d8c65700a3e38"
+    }
+  ]
+}
