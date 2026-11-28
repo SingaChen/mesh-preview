@@ -1,7 +1,3 @@
-import expReadableMapUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.xls?url";
-import expReadableMapTxtUrl from "../experiments/official-bunny-readable-row-schedule/exp-readable-map.txt?url";
-import expKnitUrl from "../experiments/official-bunny-readable-row-schedule/exp-knitcode.json?url";
-import expChrome from "../experiments/official-bunny-readable-row-schedule/preview-chrome.json";
 import corridorManifest from "../experiments/bunny-corridor-field-swallow/manifest.json";
 import corridorMeshUrl from "../experiments/bunny-corridor-field-swallow/official_bunny_cut_smoothed.obj?url";
 import corridorPolylineUrl from "../experiments/bunny-corridor-field-swallow/columns_polyline.obj?url";
@@ -22,7 +18,14 @@ import sideNeumannWeightedSummary from "../experiments/bunny-exp-side-neumann-we
 import sideNeumannWeightedPolylineUrl from "../experiments/bunny-exp-side-neumann-weighted-swallow/columns_polyline.obj?url";
 import sideNeumannWeightedTypeUrl from "../experiments/bunny-exp-side-neumann-weighted-swallow/columns_type.obj?url";
 import sideNeumannWeightedOrderUrl from "../experiments/bunny-exp-side-neumann-weighted-swallow/columns_order.json?url";
-import { CYLINDER_EXP_SHEETS, cylinderExpBySheet } from "./cylinder-exp-sheets.js";
+import { NEW_SCHEDULE_ASSETS } from "./row-schedule-assets.js";
+import {
+  canonicalSheetId,
+  promotedByLegacy,
+  promotedByOfficial,
+  scheduleBaseName,
+  sheetKey,
+} from "./row-schedule-catalog.js";
 import { MeshViewer } from "./viewer.js";
 import {
   clickInput,
@@ -103,6 +106,7 @@ import {
   describeKnitCell,
   KNIT_FUNCTION_RAIL_NOTE,
   clampKnitZoom,
+  displayKnitModel,
   knitCodeCaption,
   knitCodeDisplayRows,
   knitCodeInitialScrollTop,
@@ -130,8 +134,6 @@ const knitDatBtn = document.querySelector("#knit-dat");
 const openFolderBtn = document.querySelector("#open-folder");
 const openFilesBtn = document.querySelector("#open-files");
 const facesRing0Btn = document.querySelector("#load-faces-ring0");
-const BUNNY_EXP_SHEET = "bunny-exp-readable-row-schedule";
-const BUNNY_EXP_LABEL = expChrome.label;
 const BUNNY_CORRIDOR_SHEET = "bunny-corridor-field-swallow";
 const BUNNY_CORRIDOR_LABEL = "Bunny 走廊抽列（实验）";
 const BUNNY_CORRIDOR_MENU_TITLE = "实验走廊抽列预览，不是官方 Bunny";
@@ -183,7 +185,6 @@ const BUNNY_SIDE_NEUMANN_WEIGHTED_STATUS = [
 ]
   .filter(Boolean)
   .join(" · ");
-const bunnyExpBtn = document.querySelector("#load-bunny-exp-readable-row-schedule");
 const bunnyCorridorBtn = document.querySelector("#load-bunny-corridor-field-swallow");
 const bunnySideNeumannBtn = document.querySelector("#load-bunny-exp-side-neumann-swallow");
 const bunnySideNeumannUniformBtn = document.querySelector("#load-bunny-exp-side-neumann-uniform-swallow");
@@ -203,16 +204,6 @@ if (bunnySideNeumannUniformBtn) {
 if (bunnySideNeumannWeightedBtn) {
   bunnySideNeumannWeightedBtn.textContent = BUNNY_SIDE_NEUMANN_WEIGHTED_LABEL;
   bunnySideNeumannWeightedBtn.title = BUNNY_SIDE_NEUMANN_WEIGHTED_MENU_TITLE;
-}
-if (bunnyExpBtn) {
-  bunnyExpBtn.textContent = BUNNY_EXP_LABEL;
-  bunnyExpBtn.title = expChrome.menuTitle;
-}
-for (const spec of CYLINDER_EXP_SHEETS) {
-  const btn = document.querySelector(`#${spec.buttonId}`);
-  if (!btn) continue;
-  btn.textContent = spec.chrome.label;
-  btn.title = spec.chrome.menuTitle;
 }
 const standradBtn = document.querySelector("#load-standrad-cylinder");
 const denseStandradBtn = document.querySelector("#load-dense-standrad-cylinder");
@@ -553,7 +544,8 @@ function sheetQuery() {
 
 function setSheetQuery(sheet) {
   const url = new URL(location.href);
-  if (sheet) url.searchParams.set("sheet", sheet);
+  const next = sheet ? canonicalSheetId(sheet) : "";
+  if (next) url.searchParams.set("sheet", next);
   else url.searchParams.delete("sheet");
   history.replaceState(null, "", url);
   syncExportButton();
@@ -1163,142 +1155,165 @@ function isFatSheet(sheet) {
   return want === "fat-cylinder" || want === "fat";
 }
 
-async function loadStandradCylinder() {
-  setStatus("加载 Standrad Cylinder…");
+function applyNewSchedule(data) {
+  const output = data.outputs?.[0];
+  if (!output) return;
+  output.readableMap = "exp-readable-map.xls";
+  output.readableMapTxt = "exp-readable-map.txt";
+  delete output.knit_code;
+  delete output.knittingCode;
+  delete output.knitting_code;
+  output.knitCode = "exp-knitcode.json";
+  delete output.stitchMapBind;
+  delete output.stitch_map_bind;
+}
+
+function applyLegacySchedule(data, spec) {
+  const output = data.outputs?.[0];
+  if (!output) return;
+  output.label = `${spec.officialName}（旧官方时序）`;
+  output.readableMap = scheduleBaseName(spec.sampleBedXls);
+  if (spec.sampleReadableMapTxt) output.readableMapTxt = scheduleBaseName(spec.sampleReadableMapTxt);
+  delete output.knit_code;
+  delete output.knittingCode;
+  delete output.knitting_code;
+  output.knitCode = scheduleBaseName(spec.sampleKnitcode);
+  data.name = spec.officialName;
+}
+
+async function appendNewSchedule(entries, spec) {
+  const assets = NEW_SCHEDULE_ASSETS[spec.officialId];
+  if (!assets) throw new Error(`缺少新时序 / Missing new schedule ${spec.officialName}`);
+  const [xlsRes, txtRes, knitRes] = await Promise.all([
+    fetch(assets.xlsUrl),
+    fetch(assets.txtUrl),
+    fetch(assets.knitUrl),
+  ]);
+  if (!xlsRes.ok || !txtRes.ok || !knitRes.ok) {
+    throw new Error(`新时序床图不可用 / New-schedule bed missing ${spec.officialName}`);
+  }
+  const dir = spec.experimentDir;
+  entries.push({
+    name: "exp-readable-map.xls",
+    path: `${dir}/exp-readable-map.xls`,
+    buffer: await xlsRes.arrayBuffer(),
+  });
+  entries.push({
+    name: "exp-readable-map.txt",
+    path: `${dir}/exp-readable-map.txt`,
+    text: await txtRes.text(),
+  });
+  entries.push({
+    name: "exp-knitcode.json",
+    path: `${dir}/exp-knitcode.json`,
+    text: await knitRes.text(),
+  });
+}
+
+async function appendLegacyFiles(entries, spec) {
+  const names = [scheduleBaseName(spec.sampleBedXls)];
+  if (spec.sampleReadableMapTxt) names.push(scheduleBaseName(spec.sampleReadableMapTxt));
+  names.push(scheduleBaseName(spec.sampleKnitcode));
+  const base = import.meta.env.BASE_URL;
+  await Promise.all(
+    [...new Set(names)].map(async (name) => {
+      const res = await fetch(`${base}${spec.archiveDir}/${name}`, { cache: "reload" });
+      if (!res.ok) throw new Error(`缺少旧官方备份 / Missing legacy ${name}`);
+      if (/\.xlsx?$/i.test(name)) {
+        entries.push({ name, path: `${spec.archiveDir}/${name}`, buffer: await res.arrayBuffer() });
+      } else {
+        entries.push({ name, path: `${spec.archiveDir}/${name}`, text: await res.text() });
+      }
+    }),
+  );
+}
+
+async function openPublishedSample({ manifest, missing, status, sheet, banner, loading }) {
+  const key = sheetKey(sheet || sheetQuery());
+  if (loading) setStatus(loading);
+  else setStatus(`加载 ${missing}…`);
   const base = import.meta.env.BASE_URL;
   try {
-    const manifestRes = await fetch(`${base}sample/standrad-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("缺少 Standrad Cylinder / Missing Standrad Cylinder");
+    const manifestRes = await fetch(`${base}sample/${manifest}`, { cache: "reload" });
+    if (!manifestRes.ok) throw new Error(`缺少 ${missing} / Missing ${missing}`);
     const data = await manifestRes.json();
-    const paths = collectManifestRefs(data);
+    const legacy = promotedByLegacy(key);
+    const official = legacy ? null : promotedByOfficial(key);
+    if (legacy) applyLegacySchedule(data, legacy);
+    else if (official) applyNewSchedule(data);
+    const paths = collectManifestRefs(data).filter((rel) => !(legacy || official) || rel.includes("/"));
     // Isolated index: name this manifest.json so the chooser does not
     // also pull the faces-ring / cylinder sheets.
-    const entries = [
-      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
-    ];
+    const entries = [{ name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) }];
     await Promise.all(
       paths.map(async (rel) => {
         const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`缺少 Standrad Cylinder / Missing ${rel}`);
+        if (!res.ok) throw new Error(`缺少 ${missing} / Missing ${rel}`);
         entries.push(await sampleEntry(rel, res));
       }),
     );
-    await openEntries(entries);
-    if (!statusEl.classList.contains("error")) {
-      setStatus("Standrad Cylinder · cols_resample 25 · 前床 F0–F12 · 后床 B12–B1");
-    }
+    if (legacy) await appendLegacyFiles(entries, legacy);
+    else if (official) await appendNewSchedule(entries, official);
+    await openEntries(entries, { sheet: key });
+    if (project && banner) project.banner = banner;
+    updateChrome();
+    if (status && !statusEl.classList.contains("error")) setStatus(status);
   } catch (err) {
     setStatus(err.message || String(err), true);
   }
+}
+
+async function loadLegacySchedule(spec) {
+  if (sheetKey(sheetQuery()) !== spec.legacyId) setSheetQuery(spec.legacyId);
+  await openPublishedSample({
+    manifest: spec.manifest,
+    missing: spec.officialName,
+    sheet: spec.legacyId,
+    banner: "旧官方时序",
+    status: `旧官方时序 · ${spec.officialName}`,
+    loading: `加载旧官方时序 ${spec.officialName}…`,
+  });
+}
+
+async function loadStandradCylinder() {
+  await openPublishedSample({
+    manifest: "standrad-cylinder.json",
+    missing: "Standrad Cylinder",
+    sheet: "standrad-cylinder",
+    status: "Standrad Cylinder · cols_resample 25 · 前床 F0–F12 · 后床 B12–B1",
+  });
 }
 
 async function loadDenseStandradCylinder() {
-  setStatus("加载 Dense Standrad Cylinder…");
-  const base = import.meta.env.BASE_URL;
-  try {
-    const manifestRes = await fetch(`${base}sample/dense-standrad-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("缺少 Dense Standrad Cylinder / Missing Dense Standrad Cylinder");
-    const data = await manifestRes.json();
-    const paths = collectManifestRefs(data);
-    const entries = [
-      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
-    ];
-    await Promise.all(
-      paths.map(async (rel) => {
-        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`缺少 Dense Standrad Cylinder / Missing ${rel}`);
-        entries.push(await sampleEntry(rel, res));
-      }),
-    );
-    await openEntries(entries);
-    if (!statusEl.classList.contains("error")) {
-      setStatus("Dense Standrad Cylinder · cols_resample 50 · 表宽 50 · 前床 F0–F24 · 后床 B24–B0 · 15 环落座 50");
-    }
-  } catch (err) {
-    setStatus(err.message || String(err), true);
-  }
+  await openPublishedSample({
+    manifest: "dense-standrad-cylinder.json",
+    missing: "Dense Standrad Cylinder",
+    sheet: "dense-standrad-cylinder",
+    status: "Dense Standrad Cylinder · cols_resample 50 · 表宽 50 · 前床 F0–F24 · 后床 B24–B0 · 15 环落座 50",
+  });
 }
 
 async function loadDecreaseCylinder() {
-  setStatus("加载 Decrease Cylinder…");
-  const base = import.meta.env.BASE_URL;
-  try {
-    const manifestRes = await fetch(`${base}sample/decrease-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("缺少 Decrease Cylinder / Missing Decrease Cylinder");
-    const data = await manifestRes.json();
-    const paths = collectManifestRefs(data);
-    const entries = [
-      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
-    ];
-    await Promise.all(
-      paths.map(async (rel) => {
-        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`缺少 Decrease Cylinder / Missing ${rel}`);
-        entries.push(await sampleEntry(rel, res));
-      }),
-    );
-    await openEntries(entries);
-    if (!statusEl.classList.contains("error")) {
-      setStatus("Decrease Cylinder · cols_resample 23 · 表宽 24 · 前床 F0–F11 · 后床 B11–B1 · 5 环落座 23、23、19、18、14");
-    }
-  } catch (err) {
-    setStatus(err.message || String(err), true);
-  }
+  await openPublishedSample({
+    manifest: "decrease-cylinder.json",
+    missing: "Decrease Cylinder",
+    sheet: "decrease-cylinder",
+    status: "Decrease Cylinder · cols_resample 23 · 表宽 24 · 前床 F0–F11 · 后床 B11–B1 · 5 环落座 23、23、19、18、14",
+  });
 }
 
 async function loadIncreaseCylinder() {
-  setStatus("加载 Increase Cylinder…");
-  const base = import.meta.env.BASE_URL;
-  try {
-    const manifestRes = await fetch(`${base}sample/increase-cylinder.json`, { cache: "reload" });
-    if (!manifestRes.ok) throw new Error("缺少 Increase Cylinder / Missing Increase Cylinder");
-    const data = await manifestRes.json();
-    const paths = collectManifestRefs(data);
-    const entries = [
-      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
-    ];
-    await Promise.all(
-      paths.map(async (rel) => {
-        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`缺少 Increase Cylinder / Missing ${rel}`);
-        entries.push(await sampleEntry(rel, res));
-      }),
-    );
-    await openEntries(entries);
-    if (!statusEl.classList.contains("error")) {
-      setStatus("Increase Cylinder · cols_resample 22 · 表宽 24 · 前床 F0–F6 · 后床 B6–B0 · 5 环落座 14、18、21、22、22");
-    }
-  } catch (err) {
-    setStatus(err.message || String(err), true);
-  }
-}
-
-async function loadNamedCylinder({ manifest, missing, status, banner }) {
-  setStatus(`加载 ${missing}…`);
-  const base = import.meta.env.BASE_URL;
-  const manifestRes = await fetch(`${base}sample/${manifest}`, { cache: "reload" });
-  if (!manifestRes.ok) throw new Error(`缺少 ${missing} / Missing ${missing}`);
-  const data = await manifestRes.json();
-  const paths = collectManifestRefs(data);
-  const entries = [
-    { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
-  ];
-  await Promise.all(
-    paths.map(async (rel) => {
-      const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-      if (!res.ok) throw new Error(`缺少 ${missing} / Missing ${rel}`);
-      entries.push(await sampleEntry(rel, res));
-    }),
-  );
-  await openEntries(entries);
-  if (project && banner) project.banner = banner;
-  updateChrome();
-  if (status && !statusEl.classList.contains("error")) setStatus(status);
+  await openPublishedSample({
+    manifest: "increase-cylinder.json",
+    missing: "Increase Cylinder",
+    sheet: "increase-cylinder",
+    status: "Increase Cylinder · cols_resample 22 · 表宽 24 · 前床 F0–F6 · 后床 B6–B0 · 5 环落座 14、18、21、22、22",
+  });
 }
 
 async function loadThinCylinder() {
   try {
-    await loadNamedCylinder({
+    await openPublishedSample({
       manifest: "thin-cylinder.json",
       missing: "Thin Cylinder",
       status: "Thin Cylinder · cols_resample 34 · 表宽 26 · 前床 F0–F11 · 后床 B11–B1 · 13 环落座 23、23、23、20、13、13、13、13、20、23、24、24、23",
@@ -1310,7 +1325,7 @@ async function loadThinCylinder() {
 
 async function loadFatCylinder() {
   try {
-    await loadNamedCylinder({
+    await openPublishedSample({
       manifest: "fat-cylinder.json",
       missing: "Fat Cylinder",
       status: "Fat Cylinder · cols_resample 24 · 表宽 28 · 前床 F0–F6 · 后床 B6–B1 · 10 环落座 13、14、24、24、24、24、24、23、13、13",
@@ -1322,7 +1337,7 @@ async function loadFatCylinder() {
 
 async function loadDenseDecreaseCylinder() {
   try {
-    await loadNamedCylinder({
+    await openPublishedSample({
       manifest: "dense-decrease-cylinder.json",
       missing: "Dense Decrease Cylinder",
       status: "Dense Decrease Cylinder · cols_resample 46 · 表宽 46 · 前床 F0–F22 · 后床 B22–B0 · 12 环落座 46、46、46、46、46、44、40、29、28、27、27、27",
@@ -1334,7 +1349,7 @@ async function loadDenseDecreaseCylinder() {
 
 async function loadDenseIncreaseCylinder() {
   try {
-    await loadNamedCylinder({
+    await openPublishedSample({
       manifest: "dense-increase-cylinder.json",
       missing: "Dense Increase Cylinder",
       status: "Dense Increase Cylinder · cols_resample 46 · 表宽 48 · 前床 F0–F13 · 后床 B13–B1 · 10 环落座 27、27、29、29、33、41、46、46、46、46",
@@ -1346,7 +1361,7 @@ async function loadDenseIncreaseCylinder() {
 
 async function loadDenseThinCylinder() {
   try {
-    await loadNamedCylinder({
+    await openPublishedSample({
       manifest: "dense-thin-cylinder.json",
       missing: "Dense Thin Cylinder",
       status: "Dense Thin Cylinder · cols_resample 69 · 表宽 53 · 前床 F0–F23 · 后床 B23–B1 · 24 环落座 47、47、47、47、47、46、36、28、27、26、26、25、25、25、25、26、26、28、34、38、46、47、47、47",
@@ -1358,7 +1373,7 @@ async function loadDenseThinCylinder() {
 
 async function loadDenseFatCylinder() {
   try {
-    await loadNamedCylinder({
+    await openPublishedSample({
       manifest: "dense-fat-cylinder.json",
       missing: "Dense Fat Cylinder",
       status: "Dense Fat Cylinder · cols_resample 47 · 表宽 54 · 前床 F0–F12 · 后床 B12–B1 · 20 环落座 25、26、26、28、36、43、47、47、47、47、47、47、47、47、46、29、26、26、25、25",
@@ -1370,7 +1385,7 @@ async function loadDenseFatCylinder() {
 
 async function loadDenseBunny4Split() {
   try {
-    await loadNamedCylinder({
+    await openPublishedSample({
       manifest: "dense-bunny-4split.json",
       missing: "Dense Bunny 4split",
     });
@@ -1381,7 +1396,7 @@ async function loadDenseBunny4Split() {
 
 async function loadDenseBunnyLe() {
   try {
-    await loadNamedCylinder({
+    await openPublishedSample({
       manifest: "dense-bunny-le.json",
       missing: "Dense Bunny LE",
     });
@@ -1571,177 +1586,17 @@ async function loadBunnyCorridorFieldSwallow() {
   }
 }
 
-function isBunnyExpReadableSheet(sheet = sheetQuery()) {
-  return String(sheet || "").trim().toLowerCase() === BUNNY_EXP_SHEET;
-}
-
-function activeCylinderExp(sheet = sheetQuery()) {
-  return cylinderExpBySheet(sheet);
-}
-
-async function loadCylinderExp(spec) {
-  if (!spec) return;
-  if (sheetQuery() !== spec.sheetId) setSheetQuery(spec.sheetId);
-  setStatus(`加载 ${spec.chrome.label}…`);
-  const base = import.meta.env.BASE_URL;
-  try {
-    const res = await fetch(`${base}sample/${spec.manifest}`, { cache: "reload" });
-    if (!res.ok) throw new Error(`缺少 ${spec.officialName} / Missing ${spec.officialName}`);
-    const data = await res.json();
-    const official = data.outputs?.[0];
-    if (!official?.mesh) throw new Error(`${spec.officialName} 网格不在清单里`);
-    const output = {
-      ...official,
-      label: spec.chrome.label,
-      readableMap: "exp-readable-map.xls",
-      readableMapTxt: "exp-readable-map.txt",
-    };
-    delete output.knitCode;
-    delete output.knit_code;
-    delete output.knittingCode;
-    delete output.knitting_code;
-    if (spec.knitUrl) output.knitCode = "exp-knitcode.json";
-    delete output.stitchMapBind;
-    delete output.stitch_map_bind;
-    data.name = spec.chrome.label;
-    data.outputs = [output];
-    const paths = collectManifestRefs(data).filter((rel) => rel.includes("/"));
-    const entries = [{ name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) }];
-    await Promise.all(
-      paths.map(async (rel) => {
-        const file = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!file.ok) throw new Error(`缺少 ${spec.officialName} / Missing ${rel}`);
-        entries.push(await sampleEntry(rel, file));
-      }),
-    );
-    const [xlsRes, txtRes] = await Promise.all([fetch(spec.xlsUrl), fetch(spec.txtUrl)]);
-    if (!xlsRes.ok || !txtRes.ok) throw new Error("实验床图不可用 / Experimental readable map missing");
-    entries.push({
-      name: "exp-readable-map.xls",
-      path: `${spec.directory}/exp-readable-map.xls`,
-      buffer: await xlsRes.arrayBuffer(),
-    });
-    entries.push({
-      name: "exp-readable-map.txt",
-      path: `${spec.directory}/exp-readable-map.txt`,
-      text: await txtRes.text(),
-    });
-    if (spec.knitUrl) {
-      const knitRes = await fetch(spec.knitUrl);
-      if (!knitRes.ok) throw new Error("实验编织码不可用 / Experimental knitting code missing");
-      entries.push({
-        name: "exp-knitcode.json",
-        path: `${spec.directory}/exp-knitcode.json`,
-        text: await knitRes.text(),
-      });
-    }
-    await openEntries(entries, { sheet: spec.sheetId });
-    if (project) project.banner = spec.chrome.banner;
-    updateChrome();
-    if (!statusEl.classList.contains("error")) setStatus(spec.chrome.status);
-  } catch (err) {
-    setStatus(err.message || String(err), true);
-  }
-}
-
-async function loadBunnyExpReadableRow() {
-  if (!isBunnyExpReadableSheet()) setSheetQuery(BUNNY_EXP_SHEET);
-  setStatus(`加载 ${BUNNY_EXP_LABEL}…`);
-  const base = import.meta.env.BASE_URL;
-  try {
-    const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
-    if (!res.ok) throw new Error("Bunny 清单不可用 / Bunny manifest missing");
-    const data = await res.json();
-    const official = data.outputs?.[0];
-    if (!official?.mesh) throw new Error("官方 Bunny 网格不在清单里");
-    const output = {
-      ...official,
-      label: BUNNY_EXP_LABEL,
-      readableMap: "exp-readable-map.xls",
-      readableMapTxt: "exp-readable-map.txt",
-    };
-    delete output.stitchMapBind;
-    delete output.stitch_map_bind;
-    delete output.knitCode;
-    delete output.knit_code;
-    delete output.knittingCode;
-    delete output.knitting_code;
-    output.knitCode = "exp-knitcode.json";
-    data.name = BUNNY_EXP_LABEL;
-    data.outputs = [output];
-    const paths = collectManifestRefs(data).filter(
-      (rel) =>
-        rel.includes("/") &&
-        !rel.endsWith("faces_ring0_step4_bed.xls") &&
-        !rel.endsWith("faces_ring0_step4_bed.txt") &&
-        !rel.endsWith("stitch_map_bind.json"),
-    );
-    const entries = [{ name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) }];
-    await Promise.all(
-      paths.map(async (rel) => {
-        const file = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!file.ok) throw new Error(`缺少官方 Bunny 参照 / Missing Bunny ${rel}`);
-        entries.push(await sampleEntry(rel, file));
-      }),
-    );
-    const [xlsRes, txtRes] = await Promise.all([fetch(expReadableMapUrl), fetch(expReadableMapTxtUrl)]);
-    if (!xlsRes.ok || !txtRes.ok) throw new Error("实验床图不可用 / Experimental readable map missing");
-    entries.push({
-      name: "exp-readable-map.xls",
-      path: "experiments/official-bunny-readable-row-schedule/exp-readable-map.xls",
-      buffer: await xlsRes.arrayBuffer(),
-    });
-    entries.push({
-      name: "exp-readable-map.txt",
-      path: "experiments/official-bunny-readable-row-schedule/exp-readable-map.txt",
-      text: await txtRes.text(),
-    });
-    const knitRes = await fetch(expKnitUrl);
-    if (!knitRes.ok) throw new Error("实验编织码不可用 / Experimental knitting code missing");
-    entries.push({
-      name: "exp-knitcode.json",
-      path: "experiments/official-bunny-readable-row-schedule/exp-knitcode.json",
-      text: await knitRes.text(),
-    });
-    await openEntries(entries, { sheet: BUNNY_EXP_SHEET });
-    if (project) project.banner = expChrome.banner;
-    updateChrome();
-    if (!statusEl.classList.contains("error")) {
-      setStatus(expChrome.status);
-    }
-  } catch (err) {
-    setStatus(err.message || String(err), true);
-  }
-}
 
 async function loadSample(sheet = sheetQuery()) {
-  const want = String(sheet || "").trim() || "faces-ring0";
+  const want = sheetKey(sheet) || "faces-ring0";
   if (!sheetQuery()) setSheetQuery(want);
-  setStatus("加载 Bunny / Loading Bunny…");
-  const base = import.meta.env.BASE_URL;
-  try {
-    const res = await fetch(`${base}sample/manifest.json`, { cache: "reload" });
-    if (!res.ok) throw new Error("Bunny 清单不可用 / Bunny manifest missing");
-    const data = await res.json();
-    const paths = collectManifestRefs(data);
-    const entries = [
-      { name: "manifest.json", path: "sample/manifest.json", text: JSON.stringify(data) },
-    ];
-    await Promise.all(
-      paths.map(async (rel) => {
-        const res = await fetch(`${base}sample/${rel}`, { cache: "reload" });
-        if (!res.ok) throw new Error(`缺少 Bunny / Missing Bunny ${rel}`);
-        entries.push(await sampleEntry(rel, res));
-      }),
-    );
-    await openEntries(entries, { sheet: want });
-    if (!statusEl.classList.contains("error")) {
-      const faces0 = isFacesRing0BedChart(currentOutput()?.readableMapFile?.name || "");
-      setStatus(faces0 ? "Bunny · faces_ring 接在一张床图上" : "已加载圆柱样本 / Cylinder sample loaded");
-    }
-  } catch (err) {
-    setStatus(err.message || String(err), true);
-  }
+  await openPublishedSample({
+    manifest: "manifest.json",
+    missing: "Bunny",
+    sheet: want,
+    status: "Bunny · faces_ring 接在一张床图上",
+    loading: "加载 Bunny / Loading Bunny…",
+  });
 }
 
 function setOpenMenu(open) {
@@ -1797,18 +1652,6 @@ facesRing0Btn?.addEventListener("click", () => {
   setSheetQuery("faces-ring0");
   loadSample("faces-ring0");
 });
-bunnyExpBtn?.addEventListener("click", () => {
-  setOpenMenu(false);
-  setSheetQuery(BUNNY_EXP_SHEET);
-  loadBunnyExpReadableRow();
-});
-for (const spec of CYLINDER_EXP_SHEETS) {
-  document.querySelector(`#${spec.buttonId}`)?.addEventListener("click", () => {
-    setOpenMenu(false);
-    setSheetQuery(spec.sheetId);
-    loadCylinderExp(spec);
-  });
-}
 standradBtn?.addEventListener("click", () => {
   setOpenMenu(false);
   setSheetQuery("standrad-cylinder");
@@ -2024,7 +1867,11 @@ function renderKnitCode(knit) {
   if (!knitScroll || !knit) return;
   knitScale = 1;
   knitScroll.style.setProperty("--knit-scale", "1");
-  if (knitTitle) knitTitle.textContent = `${knit.model || "Knitting"} knitting code`;
+  if (knitTitle) {
+    const legacy = promotedByLegacy(sheetQuery());
+    const model = displayKnitModel(knit.model);
+    knitTitle.textContent = `${legacy ? `${model}（旧官方时序）` : model} knitting code`;
+  }
   if (knitNote) knitNote.textContent = knitCodeCaption(knit);
   if (knitRailNote) {
     const opening = knit.rows?.some((row) => row.functionRails);
@@ -2364,11 +2211,9 @@ function paintMapChrome() {
   }
   if (mapHeading) {
     mapHeading.replaceChildren();
-    const cylinderExp = !showingKnit ? activeCylinderExp() : null;
-    if (!showingKnit && isBunnyExpReadableSheet()) {
-      mapHeading.append(document.createTextNode(BUNNY_EXP_LABEL));
-    } else if (cylinderExp) {
-      mapHeading.append(document.createTextNode(cylinderExp.chrome.label));
+    const legacy = !showingKnit ? promotedByLegacy(sheetQuery()) : null;
+    if (legacy) {
+      mapHeading.append(document.createTextNode(`${legacy.officialName}（旧官方时序）`));
     } else {
       mapHeading.append(document.createTextNode(showingKnit ? "编织码 " : "生长图 "));
       const en = document.createElement("span");
@@ -2426,17 +2271,14 @@ function paintReadableMap() {
   mapView?.setGrid(grid);
   const h = map.header;
   if (mapMeta) {
-    const cylinderExp = activeCylinderExp();
-    mapMeta.textContent =
-      map.source === "excel" && isBunnyExpReadableSheet()
-        ? `${expChrome.metaPrefix} · ${map.rows.length} 行 · 列 ${map.colMin}…${map.colMax} · 不是官方 Bunny`
-        : map.source === "excel" && cylinderExp
-        ? `${cylinderExp.chrome.metaPrefix} · ${map.rows.length} 行 · 列 ${map.colMin}…${map.colMax} · 不是官方 ${cylinderExp.officialName}`
-        : map.source === "excel"
+    const legacy = promotedByLegacy(sheetQuery());
+    const excelMeta =
+      map.source === "excel"
         ? `${map.sheet === "step4-ring0" ? "step4-ring0" : map.sheet === "ring0" ? "Bunny" : map.sheet || "step3"} ${map.rows.length}×${map.needleCols.length} · ${map.colMin}…${map.colMax} · Excel${map.sheet === "step4-ring0" ? " · 第二圈继承床位，前床第一针 F0" : map.sheet === "ring0" ? " · 第一环和第二环接在一张表上" : ""}${stoppedMapSuffix(map)}`
         : h
           ? `${h.rows} rows · ${h.cells} cells · circle ${h.circle ?? "—"}`
           : `${map.rows.length} rows · ${map.cells.length} cells`;
+    mapMeta.textContent = legacy ? `旧官方时序 · ${excelMeta}` : excelMeta;
   }
   paintMapHighlight();
   paintMapChrome();
@@ -2671,7 +2513,9 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 updateChrome();
 syncExportButton();
 syncKnitDatButton();
-if (activeCylinderExp(sheetQuery())) loadCylinderExp(activeCylinderExp(sheetQuery()));
+if (sheetQuery() && canonicalSheetId(sheetQuery()) !== sheetKey(sheetQuery())) setSheetQuery(sheetQuery());
+const legacySchedule = promotedByLegacy(sheetQuery());
+if (legacySchedule) loadLegacySchedule(legacySchedule);
 else if (isBunnySideNeumannWeightedSheet(sheetQuery())) loadBunnySideNeumannWeightedSwallow();
 else if (isBunnySideNeumannUniformSheet(sheetQuery())) loadBunnySideNeumannUniformSwallow();
 else if (isBunnySideNeumannSheet(sheetQuery())) loadBunnySideNeumannSwallow();
@@ -2688,7 +2532,6 @@ else if (isDenseDecreaseSheet(sheetQuery())) loadDenseDecreaseCylinder();
 else if (isDecreaseSheet(sheetQuery())) loadDecreaseCylinder();
 else if (isDenseStandradSheet(sheetQuery())) loadDenseStandradCylinder();
 else if (isStandradSheet(sheetQuery())) loadStandradCylinder();
-else if (isBunnyExpReadableSheet(sheetQuery())) loadBunnyExpReadableRow();
 else {
   if (!sheetQuery()) setSheetQuery("faces-ring0");
   loadSample(sheetQuery() || "faces-ring0");

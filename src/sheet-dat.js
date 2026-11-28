@@ -1,3 +1,5 @@
+import { PROMOTED_SCHEDULES } from "./row-schedule-catalog.js";
+
 /** Tooltip when the open sheet has no committed knitting .dat. */
 export const NO_DAT_TITLE = "此 sheet 暂无 .dat";
 
@@ -55,6 +57,11 @@ const SHEET_DAT = {
   "fat-cylinder": FAT,
   fat: FAT,
 };
+
+for (const spec of PROMOTED_SCHEDULES) {
+  const official = SHEET_DAT[spec.officialId];
+  if (official) SHEET_DAT[spec.legacyId] = official;
+}
 
 export function datForSheet(sheet) {
   const key = String(sheet || "").trim().toLowerCase();
